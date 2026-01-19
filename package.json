@@ -1,0 +1,16 @@
+{
+  "name": "hic-ai-website",
+  "version": "1.0.0",
+  "description": "HIC AI, Inc. corporate website",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/styles/main.css -o ./dist/styles/main.css --minify",
+    "watch:css": "tailwindcss -i ./src/styles/main.css -o ./dist/styles/main.css --watch",
+    "build": "npm run build:css && node scripts/build.js",
+    "dev": "npm run watch:css",
+    "serve": "npx serve dist"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

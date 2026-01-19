@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Google Fonts import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
+/* Custom base styles */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-midnight-navy text-frost-white antialiased font-body;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-8 py-4 
+           bg-cerulean-mist hover:bg-frost-white
+           text-midnight-navy font-semibold rounded-lg
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-cerulean-mist focus:ring-offset-2 focus:ring-offset-midnight-navy;
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-8 py-4 
+           border border-cerulean-mist/50 hover:border-cerulean-mist
+           text-cerulean-mist hover:text-frost-white font-semibold rounded-lg
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-cerulean-mist focus:ring-offset-2 focus:ring-offset-midnight-navy;
+  }
+  
+  .section-container {
+    @apply max-w-6xl mx-auto px-6 sm:px-8 lg:px-12;
+  }
+  
+  .card {
+    @apply bg-card border border-card rounded-2xl p-8;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-cerulean-mist to-frost-white bg-clip-text text-transparent;
+  }
+}
