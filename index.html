@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mouse — A Trust Layer for AI Agents</title>
+  <meta name="description" content="Mouse by HIC AI, Inc. Tiny but powerful.">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/assets/favicon.png">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/styles/main.css">
+  
+  <style>
+    /* Page-specific animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-in {
+      animation: fadeIn 0.8s ease-out forwards;
+    }
+    
+    .delay-1 { animation-delay: 0.1s; opacity: 0; }
+    .delay-2 { animation-delay: 0.25s; opacity: 0; }
+    .delay-3 { animation-delay: 0.4s; opacity: 0; }
+    .delay-4 { animation-delay: 0.55s; opacity: 0; }
+    .delay-5 { animation-delay: 0.7s; opacity: 0; }
+    
+    /* Email link glow on hover */
+    .email-link {
+      transition: all 0.3s ease;
+    }
+    .email-link:hover {
+      text-shadow: 0 0 20px rgba(201, 219, 240, 0.4);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center bg-midnight-navy">
+  
+  <main class="text-center px-6 flex-1 flex flex-col items-center justify-center">
+    
+    <!-- Logo -->
+    <img 
+      src="/assets/mouse-logo.png" 
+      alt="Mouse" 
+      class="h-40 sm:h-48 w-auto mb-12 opacity-90 animate-in delay-1"
+    >
+    
+    <!-- Product Name -->
+    <h1 class="font-headline text-5xl sm:text-6xl font-bold text-frost-white tracking-widest mb-6 animate-in delay-2">
+      MOUSE
+    </h1>
+    
+    <!-- Tagline -->
+    <p class="text-xl sm:text-2xl text-silver font-body mb-16 animate-in delay-3">
+      A Trust Layer for AI Agents
+    </p>
+    
+    <!-- Tiny but Powerful -->
+    <p class="text-sm uppercase tracking-[0.3em] text-cerulean-mist mb-20 animate-in delay-4">
+      — Tiny but Powerful —
+    </p>
+    
+    <!-- Contact -->
+    <a 
+      href="mailto:sales@hic-ai.com" 
+      class="email-link text-lg text-cerulean-mist hover:text-frost-white font-medium animate-in delay-5"
+    >
+      sales@hic-ai.com
+    </a>
+    
+  </main>
+  
+  <!-- Footer -->
+  <footer class="py-8 text-center">
+    <span class="text-sm text-slate-grey">© 2026 HIC AI, Inc.</span>
+  </footer>
+  
+</body>
+</html>
