@@ -38,56 +38,34 @@
     .email-link:hover {
       text-shadow: 0 0 20px rgba(201, 219, 240, 0.4);
     }
-    
-    /* Deck-inspired proportions using viewport units */
-    .logo-section {
-      padding-top: 8vh; /* ~12% from top like titleY */
-    }
-    
-    .logo-img {
-      height: 18vh; /* ~17% of height like deck logoHeight */
-      margin-bottom: 6vh;
-    }
-    
-    .product-name {
-      margin-bottom: 3vh;
-    }
-    
-    .tagline {
-      /* Natural end of main content area */
-    }
-    
-    .footer-section {
-      padding-bottom: 5vh; /* ~7% from bottom like footerY */
-    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col items-center bg-midnight-navy">
+<body class="h-screen relative overflow-hidden bg-midnight-navy">
   
-  <!-- Main centered content -->
-  <main class="text-center px-6 flex flex-col items-center justify-center flex-1 logo-section">
+  <!-- Main centered content - true center of viewport -->
+  <main class="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
     
     <!-- Logo -->
     <img 
       src="/assets/mouse-logo.png" 
       alt="Mouse" 
-      class="logo-img w-auto opacity-90 animate-in delay-1"
+      class="h-40 sm:h-48 w-auto opacity-90 mb-12 animate-in delay-1"
     >
     
     <!-- Product Name -->
-    <h1 class="product-name font-headline text-5xl sm:text-6xl font-bold text-frost-white tracking-widest animate-in delay-2">
+    <h1 class="font-headline text-5xl sm:text-6xl font-bold text-frost-white tracking-widest mb-6 animate-in delay-2">
       MOUSE
     </h1>
     
     <!-- Tagline -->
-    <p class="tagline text-xl sm:text-2xl text-silver font-body animate-in delay-3">
+    <p class="text-xl sm:text-2xl text-silver font-body animate-in delay-3">
       A Trust Layer for AI Agents
     </p>
     
   </main>
   
-  <!-- Bottom section - anchored with deck footer proportions -->
-  <footer class="footer-section text-center flex flex-col items-center gap-4 animate-in delay-4">
+  <!-- Footer - absolutely positioned at bottom -->
+  <footer class="absolute bottom-0 left-0 right-0 pb-10 text-center flex flex-col items-center gap-3 animate-in delay-4">
     <!-- Tiny but Powerful -->
     <p class="text-xs uppercase tracking-[0.25em] text-frost-white font-bold">
       TINY BUT POWERFUL
