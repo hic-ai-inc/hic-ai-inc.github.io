@@ -12,7 +12,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   
   <!-- Styles -->
   <link rel="stylesheet" href="/styles/main.css">
@@ -31,8 +31,6 @@
     .delay-2 { animation-delay: 0.25s; opacity: 0; }
     .delay-3 { animation-delay: 0.4s; opacity: 0; }
     .delay-4 { animation-delay: 0.55s; opacity: 0; }
-    .delay-5 { animation-delay: 0.7s; opacity: 0; }
-    .delay-6 { animation-delay: 0.85s; opacity: 0; }
     
     .email-link {
       transition: all 0.3s ease;
@@ -42,23 +40,20 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-between bg-midnight-navy py-12">
+<body class="min-h-screen flex flex-col items-center bg-midnight-navy">
   
-  <!-- Spacer for top -->
-  <div></div>
-  
-  <!-- Main centered content -->
-  <main class="text-center px-6 flex flex-col items-center">
+  <!-- Main centered content - pushed up with padding-top -->
+  <main class="text-center px-6 flex flex-col items-center justify-center flex-1 pt-12 pb-32">
     
-    <!-- Logo - twice as big -->
+    <!-- Logo -->
     <img 
       src="/assets/mouse-logo.png" 
       alt="Mouse" 
-      class="h-72 sm:h-96 w-auto mb-12 opacity-90 animate-in delay-1"
+      class="h-72 sm:h-96 w-auto mb-10 opacity-90 animate-in delay-1"
     >
     
     <!-- Product Name -->
-    <h1 class="font-headline text-5xl sm:text-6xl font-bold text-frost-white tracking-widest mb-6 animate-in delay-2">
+    <h1 class="font-headline text-5xl sm:text-6xl font-bold text-frost-white tracking-widest mb-5 animate-in delay-2">
       MOUSE
     </h1>
     
@@ -69,10 +64,10 @@
     
   </main>
   
-  <!-- Bottom section - grouped together -->
-  <footer class="text-center flex flex-col items-center gap-3 animate-in delay-4">
-    <!-- Tiny but Powerful -->
-    <p class="text-xs uppercase tracking-[0.25em] text-frost-white font-medium">
+  <!-- Bottom section - fixed at bottom -->
+  <footer class="text-center flex flex-col items-center gap-3 pb-10 animate-in delay-4">
+    <!-- Tiny but Powerful - now bold -->
+    <p class="text-xs uppercase tracking-[0.25em] text-frost-white font-bold">
       TINY BUT POWERFUL
     </p>
     
