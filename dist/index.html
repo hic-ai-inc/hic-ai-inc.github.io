@@ -1,87 +1,115 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mouse — A Trust Layer for AI Agents</title>
-  <meta name="description" content="Mouse by HIC AI, Inc. Tiny but powerful.">
-  
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="/assets/favicon.png">
-  
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Styles -->
-  <link rel="stylesheet" href="/styles/main.css">
-  
-  <style>
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .animate-in {
-      animation: fadeIn 0.8s ease-out forwards;
-    }
-    
-    .delay-1 { animation-delay: 0.1s; opacity: 0; }
-    .delay-2 { animation-delay: 0.25s; opacity: 0; }
-    .delay-3 { animation-delay: 0.4s; opacity: 0; }
-    .delay-4 { animation-delay: 0.55s; opacity: 0; }
-    
-    .email-link {
-      transition: all 0.3s ease;
-    }
-    .email-link:hover {
-      text-shadow: 0 0 20px rgba(201, 219, 240, 0.4);
-    }
-  </style>
-</head>
-<body class="h-screen relative overflow-hidden bg-midnight-navy">
-  
-  <!-- Main centered content - true center of viewport -->
-  <main class="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-    
-    <!-- Logo -->
-    <img 
-      src="/assets/mouse-logo.png" 
-      alt="Mouse" 
-      class="h-40 sm:h-48 w-auto opacity-90 mb-12 animate-in delay-1"
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mouse — A Trust Layer for AI Agents</title>
+    <meta
+      name="description"
+      content="Mouse by HIC AI, Inc. Tiny but powerful."
+    />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Manrope:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/styles/main.css" />
+
+    <style>
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .animate-in {
+        animation: fadeIn 0.8s ease-out forwards;
+      }
+
+      .delay-1 {
+        animation-delay: 0.1s;
+        opacity: 0;
+      }
+      .delay-2 {
+        animation-delay: 0.25s;
+        opacity: 0;
+      }
+      .delay-3 {
+        animation-delay: 0.4s;
+        opacity: 0;
+      }
+      .delay-4 {
+        animation-delay: 0.55s;
+        opacity: 0;
+      }
+
+      .email-link {
+        transition: all 0.3s ease;
+      }
+      .email-link:hover {
+        text-shadow: 0 0 20px rgba(201, 219, 240, 0.4);
+      }
+    </style>
+  </head>
+  <body class="h-screen relative overflow-hidden bg-midnight-navy">
+    <!-- Main centered content - true center of viewport -->
+    <main
+      class="absolute inset-0 flex flex-col items-center justify-center text-center px-6"
     >
-    
-    <!-- Product Name -->
-    <h1 class="font-headline text-5xl sm:text-6xl font-bold text-frost-white tracking-widest mb-6 animate-in delay-2">
-      MOUSE
-    </h1>
-    
-    <!-- Tagline -->
-    <p class="text-xl sm:text-2xl text-silver font-body animate-in delay-3">
-      A Trust Layer for AI Agents
-    </p>
-    
-  </main>
-  
-  <!-- Footer - absolutely positioned at bottom -->
-  <footer class="absolute bottom-0 left-0 right-0 pb-10 text-center flex flex-col items-center gap-3 animate-in delay-4">
-    <!-- Tiny but Powerful -->
-    <p class="text-xs uppercase tracking-[0.25em] text-frost-white font-bold">
-      TINY BUT POWERFUL
-    </p>
-    
-    <!-- Contact -->
-    <a 
-      href="mailto:sales@hic-ai.com" 
-      class="email-link text-sm text-cerulean-mist hover:text-frost-white"
+      <!-- Logo -->
+      <img
+        src="/assets/mouse-logo.png"
+        alt="Mouse"
+        class="h-[180px] sm:h-[220px] w-auto opacity-90 mb-12 animate-in delay-1"
+      />
+
+      <!-- Product Name -->
+      <h1
+        class="font-headline text-5xl sm:text-6xl font-bold text-frost-white tracking-[0.35em] mb-6 animate-in delay-2"
+      >
+        MOUSE
+      </h1>
+
+      <!-- Tagline -->
+      <p
+        class="text-xl sm:text-2xl text-cerulean-mist font-body animate-in delay-3"
+      >
+        A Trust Layer for AI Agents
+      </p>
+    </main>
+
+    <!-- Footer - absolutely positioned at bottom -->
+    <footer
+      class="absolute bottom-0 left-0 right-0 pb-10 text-center flex flex-col items-center gap-1.5 animate-in delay-4"
     >
-      sales@hic-ai.com
-    </a>
-    
-    <!-- Copyright -->
-    <span class="text-xs text-slate-grey">© 2026 HIC AI, Inc.</span>
-  </footer>
-  
-</body>
+      <!-- Tiny but Powerful -->
+      <p class="text-xs uppercase tracking-[0.25em] text-frost-white font-bold">
+        TINY BUT POWERFUL
+      </p>
+
+      <!-- Contact -->
+      <a
+        href="mailto:sales@hic-ai.com"
+        class="email-link text-sm text-cerulean-mist hover:text-frost-white"
+      >
+        sales@hic-ai.com
+      </a>
+
+      <!-- Copyright -->
+      <span class="text-xs text-slate-grey">© 2026 HIC AI, Inc.</span>
+    </footer>
+  </body>
 </html>
