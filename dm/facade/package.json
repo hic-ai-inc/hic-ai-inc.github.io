@@ -1,0 +1,39 @@
+{
+  "name": "@hic/dm-facade",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Universal testing facade for AWS services - provides mock helpers for HIC platform testing",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./jest-preset": "./jest-preset.js",
+    "./helpers": "./helpers/index.js",
+    "./utils": "./utils/index.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [
+    "testing",
+    "aws",
+    "mocking",
+    "facade",
+    "hic"
+  ],
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.876.0",
+    "@aws-sdk/client-s3": "^3.876.0",
+    "@aws-sdk/client-lambda": "^3.876.0",
+    "@aws-sdk/client-sns": "^3.876.0",
+    "@aws-sdk/client-sqs": "^3.876.0",
+    "@aws-sdk/client-ssm": "^3.876.0",
+    "@aws-sdk/client-secrets-manager": "^3.876.0",
+    "@aws-sdk/client-sfn": "^3.876.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.876.0",
+    "@aws-sdk/lib-dynamodb": "^3.876.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}

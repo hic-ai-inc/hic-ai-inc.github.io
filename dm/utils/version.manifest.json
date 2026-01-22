@@ -1,0 +1,13 @@
+{
+  "layer": "test-layer",
+  "version": "1.0.0",
+  "contentHash": "36456cfcf1dbac1337100386ef8436fc474b24e9a8d5aef8b1bd3d42b7c86bc9",
+  "exports": null,
+  "inputs": [
+    "create-zip.js",
+    "hic-version.js",
+    "validate.sh",
+    "version-gate.sh"
+  ],
+  "builtAt": "2025-09-02T17:06:15.762Z"
+}

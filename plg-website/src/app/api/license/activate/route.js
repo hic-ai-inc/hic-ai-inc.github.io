@@ -1,0 +1,144 @@
+/**
+ * License Activation API
+ *
+ * POST /api/license/activate
+ *
+ * Activates a license on a new device. Called by VS Code extension
+ * when a license key is first entered.
+ *
+ * @see Security Considerations for Keygen Licensing
+ */
+
+import { NextResponse } from "next/server";
+import { validateLicense, activateDevice, getLicense } from "@/lib/keygen";
+import {
+  addDeviceActivation,
+  getLicense as getDynamoLicense,
+} from "@/lib/dynamodb";
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { licenseKey, fingerprint, deviceName, platform } = body;
+
+    // Validate required fields
+    if (!licenseKey) {
+      return NextResponse.json(
+        { error: "License key is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!fingerprint) {
+      return NextResponse.json(
+        { error: "Device fingerprint is required" },
+        { status: 400 },
+      );
+    }
+
+    // First validate the license
+    const validation = await validateLicense(licenseKey, fingerprint);
+
+    // Check validation result
+    if (!validation.valid) {
+      // Handle specific cases
+      if (validation.code === "FINGERPRINT_SCOPE_MISMATCH") {
+        // Device not activated yet - this is expected, continue to activation
+      } else if (validation.code === "VALID") {
+        // Already activated on this device
+        return NextResponse.json({
+          success: true,
+          alreadyActivated: true,
+          license: validation.license,
+          message: "Device already activated",
+        });
+      } else {
+        // Other validation errors
+        return NextResponse.json(
+          {
+            error: "License validation failed",
+            code: validation.code,
+            detail: validation.detail,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Get full license details
+    const license = await getLicense(validation.license.id);
+
+    // Check if device limit reached (if maxMachines is set)
+    if (license.maxMachines) {
+      const dynamoLicense = await getDynamoLicense(license.id);
+      if (
+        dynamoLicense &&
+        dynamoLicense.activatedDevices >= license.maxMachines
+      ) {
+        return NextResponse.json(
+          {
+            error: "Device limit reached",
+            code: "DEVICE_LIMIT_REACHED",
+            detail: `Maximum ${license.maxMachines} devices allowed. Please deactivate a device first.`,
+            maxDevices: license.maxMachines,
+            activatedDevices: dynamoLicense.activatedDevices,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
+    // Activate device with Keygen
+    const machine = await activateDevice({
+      licenseId: license.id,
+      fingerprint,
+      name: deviceName || `Device ${fingerprint.slice(0, 8)}`,
+      platform: platform || "unknown",
+      metadata: {
+        activatedAt: new Date().toISOString(),
+      },
+    });
+
+    // Store in DynamoDB
+    await addDeviceActivation({
+      keygenLicenseId: license.id,
+      keygenMachineId: machine.id,
+      fingerprint,
+      name: machine.name,
+      platform: machine.platform,
+    });
+
+    return NextResponse.json({
+      success: true,
+      machine: {
+        id: machine.id,
+        name: machine.name,
+        fingerprint: machine.fingerprint,
+      },
+      license: {
+        id: license.id,
+        status: license.status,
+        expiresAt: license.expiresAt,
+      },
+    });
+  } catch (error) {
+    console.error("License activation error:", error);
+
+    // Handle Keygen-specific errors
+    if (error.status === 422) {
+      return NextResponse.json(
+        {
+          error: "Activation failed",
+          code: "ACTIVATION_ERROR",
+          detail: error.errors?.[0]?.detail || error.message,
+        },
+        { status: 422 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Activation failed", detail: error.message },
+      { status: 500 },
+    );
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "layer": "hic-storage-layer",
+  "version": "0.1.6",
+  "contentHash": "ce0237974b659a76c4c6c13e9fe98ff4344cf1327b76d578402b44b7faadfabb",
+  "exports": [
+    "export * from \"@aws-sdk/client-s3\";",
+    "export * from \"@aws-sdk/s3-request-presigner\";"
+  ],
+  "inputs": [
+    "build.sh",
+    "publish.0.1.0.manifest.json",
+    "publish.0.1.1.manifest.json",
+    "publish.0.1.2.manifest.json",
+    "publish.0.1.3.manifest.json",
+    "publish.0.1.4.manifest.json",
+    "publish.0.1.5.manifest.json",
+    "publish.sh",
+    "src\\index.js",
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+  ],
+  "builtAt": "2025-09-26T20:31:58.863Z"
+}

@@ -1,0 +1,15 @@
+{
+  "layer": "hic-metrics-layer",
+  "version": "0.1.1",
+  "contentHash": "880f52a115fd933f6f8df0a42280edefa68dc57ad7df8c3955aab156ad4a444e",
+  "exports": [
+    "export {"
+  ],
+  "inputs": [
+    "build.sh",
+    "publish.sh",
+    "src\\index.js",
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+  ],
+  "builtAt": "2025-10-02T04:06:08.049Z"
+}

@@ -1,0 +1,198 @@
+@import "tailwindcss";
+
+/* ===========================================
+   DESIGN SYSTEM TOKENS (HIC AI Investor Deck)
+   =========================================== */
+
+@theme inline {
+  /* Primary palette */
+  --color-midnight-navy: #0b1220;
+  --color-frost-white: #f6f8fb;
+  --color-cerulean-mist: #c9dbf0;
+  --color-silver: #b8c4d0;
+  --color-slate-grey: #6b7c93;
+
+  /* Semantic colors */
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
+
+  /* Card variants */
+  --color-card-bg: rgba(201, 219, 240, 0.08);
+  --color-card-border: rgba(201, 219, 240, 0.3);
+  --color-overlay-dark: rgba(11, 18, 32, 0.9);
+
+  /* Typography */
+  --font-headline: "Manrope", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "Consolas", "Monaco", "Courier New", monospace;
+
+  /* Spacing */
+  --spacing-outer: 7.5rem;
+  --spacing-inner: 3.75rem;
+  --spacing-card: 2.5rem;
+
+  /* Border radius */
+  --radius-card: 1rem;
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.1);
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.15);
+
+  /* Animations */
+  --animate-fade-in: fadeIn 0.5s ease-out;
+  --animate-slide-up: slideUp 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===========================================
+   BASE STYLES
+   =========================================== */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-midnight-navy text-frost-white;
+    font-family: var(--font-body);
+  }
+
+  /* Headings use Manrope */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-headline);
+  }
+
+  /* Links */
+  a {
+    @apply text-cerulean-mist hover:text-frost-white transition-colors;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-cerulean-mist/30 text-frost-white;
+  }
+}
+
+/* ===========================================
+   COMPONENT STYLES
+   =========================================== */
+
+@layer components {
+  /* Card */
+  .card {
+    @apply bg-card-bg border border-card-border rounded-2xl p-6;
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-hover {
+    @apply hover:border-cerulean-mist/50 transition-all duration-200;
+  }
+
+  .card-hover:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-cerulean-mist text-midnight-navy hover:bg-frost-white;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent border-2 border-cerulean-mist text-cerulean-mist hover:bg-cerulean-mist hover:text-midnight-navy;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-frost-white hover:bg-card-bg;
+  }
+
+  .btn-danger {
+    @apply bg-error/20 text-error border border-error/30 hover:bg-error hover:text-white;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full px-4 py-3 bg-card-bg border border-card-border rounded-lg text-frost-white placeholder-slate-grey focus:outline-none focus:border-cerulean-mist transition-colors;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-success {
+    @apply bg-success/20 text-success;
+  }
+
+  .badge-warning {
+    @apply bg-warning/20 text-warning;
+  }
+
+  .badge-error {
+    @apply bg-error/20 text-error;
+  }
+
+  .badge-info {
+    @apply bg-info/20 text-info;
+  }
+
+  /* Section container */
+  .section {
+    @apply max-w-7xl mx-auto px-6 py-16 lg:py-24;
+  }
+}
+
+/* ===========================================
+   UTILITY CLASSES
+   =========================================== */
+
+@layer utilities {
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-gradient-to-r from-cerulean-mist to-frost-white bg-clip-text text-transparent;
+  }
+
+  /* Glow effect */
+  .glow {
+    box-shadow: 0 0 40px rgba(201, 219, 240, 0.2);
+  }
+
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

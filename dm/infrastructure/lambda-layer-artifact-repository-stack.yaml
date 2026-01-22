@@ -1,0 +1,258 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: HIC /dm Artifact Repository (SSE-S3) with CloudTrail S3 Data Events -> CloudWatch Logs
+
+Parameters:
+  ArtifactBucketName:
+    Type: String
+    Description: Globally-unique artifact bucket name (e.g., hic-dm-artifacts-us-east-1)
+  TrailBucketName:
+    Type: String
+    Description: S3 bucket for CloudTrail log files (e.g., hic-cloudtrail-logs-us-east-1)
+  CloudWatchLogRetentionDays:
+    Type: Number
+    Default: 90
+    Description: Retention (days) for CloudTrail logs in CloudWatch Logs
+  TrailName:
+    Type: String
+    Default: hic-dm-artifact-trail
+    Description: Name for the CloudTrail trail
+  AllowedPrincipals:
+    Type: CommaDelimitedList
+    Description: List of IAM role ARNs allowed to access the artifact bucket (e.g., arn:aws:iam::123456789012:role/HIC-DM-LayerBuilder)
+    Default: ""
+
+Resources:
+  # IAM Roles for DM system operations
+  HICDMLayerBuilderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: HIC-DM-LayerBuilder
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:user/${AWS::Username}"
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: LayerManagement
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:PublishLayerVersion
+                  - lambda:DeleteLayerVersion
+                  - lambda:GetLayerVersion
+                  - lambda:ListLayerVersions
+                Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:hic-*"
+
+  HICDMDeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: HIC-DM-Deployment
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:user/${AWS::Username}"
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DeploymentOperations
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:*
+                  - iam:PassRole
+                Resource: "*"
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref ArtifactBucketName
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: NonCurrentCleanup
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 365
+          - Id: TransitionToIA
+            Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceTLSOnly
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub "${ArtifactBucket.Arn}"
+              - !Sub "${ArtifactBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: RestrictToHICAccount
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub "${ArtifactBucket.Arn}"
+              - !Sub "${ArtifactBucket.Arn}/*"
+            Condition:
+              StringNotEquals:
+                aws:PrincipalAccount: !Ref AWS::AccountId
+          - Sid: AllowHICLayerManagement
+            Effect: Allow
+            Principal:
+              AWS: !Ref AllowedPrincipals
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource:
+              - !Sub "${ArtifactBucket.Arn}"
+              - !Sub "${ArtifactBucket.Arn}/*"
+
+  # --- CloudTrail destination: CloudWatch Logs + required S3 archive bucket ---
+  TrailLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/cloudtrail/${TrailName}
+      RetentionInDays: !Ref CloudWatchLogRetentionDays
+
+  TrailRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudTrailToCloudWatchLogs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt TrailLogsGroup.Arn
+
+  TrailBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref TrailBucketName
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  TrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TrailBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action:
+              - s3:PutObject
+            Resource: !Sub "${TrailBucket.Arn}/AWSLogs/${AWS::AccountId}/*"
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+          - Sid: AllowCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action:
+              - s3:GetBucketAcl
+            Resource: !GetAtt TrailBucket.Arn
+          - Sid: EnforceTLSOnly
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub "${TrailBucket.Arn}"
+              - !Sub "${TrailBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  ArtifactTrail:
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      TrailName: !Ref TrailName
+      IsLogging: true
+      IsMultiRegionTrail: false
+      IncludeGlobalServiceEvents: false
+      S3BucketName: !Ref TrailBucketName
+      CloudWatchLogsLogGroupArn: !GetAtt TrailLogsGroup.Arn
+      CloudWatchLogsRoleArn: !GetAtt TrailRole.Arn
+      EventSelectors:
+        - ReadWriteType: All
+          IncludeManagementEvents: false
+          DataResources:
+            - Type: AWS::S3::Object
+              # Note the trailing slash per CloudTrail spec
+              Values:
+                - !Sub arn:aws:s3:::${ArtifactBucketName}/
+
+Outputs:
+  ArtifactBucketNameOut:
+    Description: Artifact bucket name
+    Value: !Ref ArtifactBucket
+  ArtifactBucketArn:
+    Description: Artifact bucket ARN
+    Value: !GetAtt ArtifactBucket.Arn
+  CloudTrailLogGroupName:
+    Description: CloudWatch Logs group receiving S3 data events
+    Value: !Ref TrailLogsGroup
+  TrailBucketNameOut:
+    Description: S3 bucket used by CloudTrail for archival
+    Value: !Ref TrailBucket

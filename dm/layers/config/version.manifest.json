@@ -1,0 +1,22 @@
+{
+  "layer": "hic-config-layer",
+  "version": "0.1.6",
+  "contentHash": "f8f5d4184f2124fe453bda38397a07599391a689f0a64a3537d6dd9562bcd880",
+  "exports": [
+    "export * from \"@aws-sdk/client-secrets-manager\";",
+    "export * from \"@aws-sdk/client-ssm\";"
+  ],
+  "inputs": [
+    "build.sh",
+    "publish.0.1.0.manifest.json",
+    "publish.0.1.1.manifest.json",
+    "publish.0.1.2.manifest.json",
+    "publish.0.1.3.manifest.json",
+    "publish.0.1.4.manifest.json",
+    "publish.0.1.5.manifest.json",
+    "publish.sh",
+    "src\\index.js",
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+  ],
+  "builtAt": "2025-09-26T20:25:46.277Z"
+}

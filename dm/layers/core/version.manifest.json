@@ -1,0 +1,21 @@
+{
+  "layer": "hic-core-layer",
+  "version": "0.1.0",
+  "contentHash": "8f5ec846809248e2f54eac7a61c24a57c962d2dbe3bbcaf90be3bad35d22804f",
+  "exports": [
+    "export * from \"@aws-sdk/client-dynamodb-streams\";",
+    "export * from \"@aws-sdk/util-dynamodb\";",
+    "export {",
+    "export {",
+    "export {",
+    "export {",
+    "export {"
+  ],
+  "inputs": [
+    "build.sh",
+    "publish.sh",
+    "src\\index.js",
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+  ],
+  "builtAt": "2025-10-14T04:44:20.737Z"
+}

@@ -1,0 +1,23 @@
+{
+  "layer": "hic-bedrock-layer",
+  "version": "0.1.10",
+  "contentHash": "4dd4166cf7524b203aeb733bf2a935a225e8ca7ab9310ca1ad9be15070a1422c",
+  "exports": [
+    "export * from \"@aws-sdk/client-bedrock\";",
+    "export * from \"@aws-sdk/client-bedrock-runtime\";"
+  ],
+  "inputs": [
+    "build.sh",
+    "publish.0.1.0.manifest.json",
+    "publish.0.1.1.manifest.json",
+    "publish.0.1.3.manifest.json",
+    "publish.0.1.4.manifest.json",
+    "publish.0.1.5.manifest.json",
+    "publish.0.1.6.manifest.json",
+    "publish.0.1.7.manifest.json",
+    "publish.sh",
+    "src\\index.js",
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+  ],
+  "builtAt": "2025-09-27T12:42:12.758Z"
+}

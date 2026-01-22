@@ -1,0 +1,23 @@
+{
+  "layer": "hic-llm-essentials-layer",
+  "version": "0.1.2",
+  "contentHash": "22021d5edfd79d79630847823dcdf3525d2989a9561e51bf6ea2b3e4cd60083a",
+  "exports": [
+    "export {",
+    "export {",
+    "export {",
+    "export {",
+    "export {",
+    "export {",
+    "export { getSignedUrl } from \"@aws-sdk/s3-request-presigner\";"
+  ],
+  "inputs": [
+    "build.sh",
+    "publish.0.1.0.manifest.json",
+    "publish.0.1.1.manifest.json",
+    "publish.sh",
+    "src\\index.js",
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+  ],
+  "builtAt": "2025-10-14T20:38:01.018Z"
+}

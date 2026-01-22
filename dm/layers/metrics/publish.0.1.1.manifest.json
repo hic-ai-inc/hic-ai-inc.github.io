@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-metrics-layer",
+  "version": "0.1.1",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-metrics-layer/0.1.1/hic-metrics-layer-0.1.1.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-metrics-layer:1",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic/dm/dist/hic-metrics-layer-0.1.1.zip",
+  "publishedAt": "2025-10-02T04:12:30Z"
+}

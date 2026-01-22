@@ -1,0 +1,26 @@
+{
+  "excludedDirectories": [
+    "node_modules", "shared", "docs", "scripts", "dependency-manager", 
+    ".git", "dist", "build", "coverage", "tmp"
+  ],
+  "nodeBuiltins": [
+    "crypto", "fs", "path", "util", "events", "stream", "buffer", "os", "url", 
+    "http", "https", "net", "dns", "querystring", "zlib", "assert", "child_process"
+  ],
+  "utilityDependencies": [
+    "uuid", "joi", "lodash", "moment", "axios", "express", "cors", "helmet"
+  ],
+  "commonBloatDependencies": [
+    "aws-sdk", "aws-sdk-client-mock", "jest", "joi", "uuid", "@jest/globals", "babel-jest"
+  ],
+  "sharedUtilPatterns": [
+    "shared/utils", "hic-logger", "safe-"
+  ],
+  "importPatterns": {
+    "require": "require\\(['\"`]([^'\"`]+)['\"`]\\)",
+    "import": "import .+ from ['\"`]([^'\"`]+)['\"`]"
+  },
+  "exampleUnnecessaryBloat": [
+    "jest", "aws-sdk-client-mock", "unused AWS SDKs"
+  ]
+}

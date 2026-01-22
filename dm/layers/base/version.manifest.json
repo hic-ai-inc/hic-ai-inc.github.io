@@ -1,0 +1,34 @@
+{
+  "layer": "hic-base-layer",
+  "version": "1.0.0",
+  "contentHash": "ce6a71488e7d656a55c922f9b34d1f11ef9da2c59e321f62b0275a1fe30b9e32",
+  "exports": [
+    "export { HicLog } from \"./hic-log.js\";",
+    "export { LambdaClient, InvokeCommand } from \"@aws-sdk/client-lambda\";",
+    "export { safeJsonParse, tryJsonParse } from \"./safe-json-parse.js\";",
+    "export { safeLog, sanitizeForLog } from \"./safe-log.js\";",
+    "export { safePath } from \"./safe-path.js\";"
+  ],
+  "inputs": [
+    "README.md",
+    "build.sh",
+    "publish.0.1.0.manifest.json",
+    "publish.0.1.1.manifest.json",
+    "publish.0.1.2.manifest.json",
+    "publish.0.2.0.manifest.json",
+    "publish.0.2.1.manifest.json",
+    "publish.0.2.2.manifest.json",
+    "publish.0.2.3.manifest.json",
+    "publish.0.2.4.manifest.json",
+    "publish.0.2.7.manifest.json",
+    "publish.sh",
+    "src\\container-exports.js",
+    "src\\hic-log.js",
+    "src\\index.js",
+    "src\\safe-json-parse.js",
+    "src\\safe-log.js",
+    "src\\safe-path.js",
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+  ],
+  "builtAt": "2025-10-01T14:00:45.986Z"
+}

@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-sfn-layer",
+  "version": "0.1.0",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-sfn-layer/0.1.0/hic-sfn-layer-0.1.0.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-sfn-layer:1",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic/dm/dist/hic-sfn-layer-0.1.0.zip",
+  "publishedAt": "2025-08-29T04:22:43Z"
+}

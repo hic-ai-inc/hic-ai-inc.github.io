@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-base-layer",
+  "version": "0.2.7",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-base-layer/0.2.7/hic-base-layer-0.2.7.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-base-layer:10",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic/dm/dist/hic-base-layer-0.2.7.zip",
+  "publishedAt": "2025-09-26T19:20:39Z"
+}

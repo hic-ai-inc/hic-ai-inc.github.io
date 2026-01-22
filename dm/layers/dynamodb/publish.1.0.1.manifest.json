@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-dynamodb-layer",
+  "version": "1.0.1",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-dynamodb-layer/1.0.1/hic-dynamodb-layer-1.0.1.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-dynamodb-layer:8",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic/dm/dist/hic-dynamodb-layer-1.0.1.zip",
+  "publishedAt": "2025-09-20T20:33:30Z"
+}

@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-messaging-layer",
+  "version": "0.1.4",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-messaging-layer/0.1.4/hic-messaging-layer-0.1.4.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-messaging-layer:5",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic/dm/dist/hic-messaging-layer-0.1.4.zip",
+  "publishedAt": "2025-09-12T16:56:12Z"
+}

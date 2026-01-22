@@ -1,0 +1,45 @@
+{
+  "name": "@hic/dm",
+  "version": "1.1.0",
+  "type": "module",
+  "description": "HIC Dependency Manager - Universal facade for dependency management",
+  "main": "./facade/index.js",
+  "exports": {
+    ".": "./facade/index.js",
+    "./testing": "./facade/test-helpers/index.js",
+    "./mocks": "./facade/helpers/index.js"
+  },
+  "scripts": {
+    "test": "find tests -name '*.test.js' -exec node --test {} +",
+    "test:coverage": "find tests -name '*.test.js' -exec node --test --experimental-test-coverage {} +"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock": "^3.876.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.876.0",
+    "@aws-sdk/client-cloudwatch": "^3.876.0",
+    "@aws-sdk/client-dynamodb": "^3.876.0",
+    "@aws-sdk/client-dynamodb-streams": "^3.876.0",
+    "@aws-sdk/client-lambda": "^3.876.0",
+    "@aws-sdk/client-s3": "^3.876.0",
+    "@aws-sdk/client-secrets-manager": "^3.876.0",
+    "@aws-sdk/client-sfn": "^3.876.0",
+    "@aws-sdk/client-sns": "^3.876.0",
+    "@aws-sdk/client-sqs": "^3.876.0",
+    "@aws-sdk/lib-dynamodb": "^3.876.0",
+    "@aws-sdk/s3-request-presigner": "^3.876.0",
+    "@aws-sdk/util-dynamodb": "^3.876.0",
+    "aws-sdk-client-mock": "^4.1.0"
+  },
+  "keywords": [
+    "hic",
+    "dependency-management",
+    "facade",
+    "aws",
+    "lambda",
+    "layers"
+  ],
+  "author": "HIC Platform",
+  "devDependencies": {
+    "@aws-sdk/client-ssm": "^3.896.0"
+  }
+}
