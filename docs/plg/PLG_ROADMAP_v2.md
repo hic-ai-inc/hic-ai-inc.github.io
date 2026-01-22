@@ -6,6 +6,7 @@
 **Status:** 🟢 ACTIVE
 
 **v2.0 Changes (Pricing Restructure):**
+
 - **New 3-tier structure:** Open Source ($0) / Individual ($10/mo) / Enterprise ($25/seat/mo)
 - Removed "launch pricing" SKUs — single canonical price ladder
 - Trial policy reconciled: Individual = no card, Enterprise = card required
@@ -15,6 +16,7 @@
 - Break-even math updated for new pricing
 
 **v1.1 Changes (Infrastructure):**
+
 - Hosting changed from Vercel to AWS Amplify
 - Added Welcome page for account creation tie-in
 - Renamed Dashboard to Portal with expanded pages
@@ -46,17 +48,17 @@ This roadmap outlines the complete path from MVP to mature PLG-driven self-servi
 
 ### 0.1 Startup Credits & Discount Programs
 
-| Program                    | Credits Available   | Eligibility                                  | Application URL                                 | Status                        |
-| -------------------------- | ------------------- | -------------------------------------------- | ----------------------------------------------- | ----------------------------- |
-| **AWS Activate Founders**  | $1,000              | Self-funded, pre-Series B                    | https://aws.amazon.com/startups/credits         | ✅ Applied (Jan 22, 2026)     |
-| **AWS Activate Portfolio** | Up to $100,000      | VC-backed (need Org ID from investor)        | https://aws.amazon.com/startups/credits         | ⬜ After funding              |
-| **Google Cloud Startups**  | Up to $350,000      | Seed to Series A (AI-first = higher credits) | https://cloud.google.com/startup/apply          | ⬜ Apply                      |
-| **Microsoft for Startups** | Up to $150,000      | Pre-seed to Series A (need investor code)    | https://foundershub.startups.microsoft.com      | ⬜ Apply                      |
-| **Microsoft Azure Free**   | $5,000              | No investor required                         | https://go.microsoft.com/fwlink/?linkid=2312920 | ⬜ Apply                      |
-| **Auth0 Startup Program**  | 1 year free         | Startups                                     | https://auth0.com/startups                      | ✅ Applied (Jan 22, 2026)     |
-| **Stripe Atlas**           | Fee discount        | Delaware C-Corp                              | https://stripe.com/atlas                        | ⬜ N/A (already incorporated) |
-| **AWS Amplify**            | Pay-as-you-go       | Everyone                                     | https://aws.amazon.com/amplify/                 | ⬜ Standard                   |
-| **Keygen.sh**              | $0 (first 99 ALUs)  | Everyone                                     | https://keygen.sh/pricing                       | ⬜ Standard                   |
+| Program                    | Credits Available  | Eligibility                                  | Application URL                                 | Status                        |
+| -------------------------- | ------------------ | -------------------------------------------- | ----------------------------------------------- | ----------------------------- |
+| **AWS Activate Founders**  | $1,000             | Self-funded, pre-Series B                    | https://aws.amazon.com/startups/credits         | ✅ Applied (Jan 22, 2026)     |
+| **AWS Activate Portfolio** | Up to $100,000     | VC-backed (need Org ID from investor)        | https://aws.amazon.com/startups/credits         | ⬜ After funding              |
+| **Google Cloud Startups**  | Up to $350,000     | Seed to Series A (AI-first = higher credits) | https://cloud.google.com/startup/apply          | ⬜ Apply                      |
+| **Microsoft for Startups** | Up to $150,000     | Pre-seed to Series A (need investor code)    | https://foundershub.startups.microsoft.com      | ⬜ Apply                      |
+| **Microsoft Azure Free**   | $5,000             | No investor required                         | https://go.microsoft.com/fwlink/?linkid=2312920 | ⬜ Apply                      |
+| **Auth0 Startup Program**  | 1 year free        | Startups                                     | https://auth0.com/startups                      | ✅ Applied (Jan 22, 2026)     |
+| **Stripe Atlas**           | Fee discount       | Delaware C-Corp                              | https://stripe.com/atlas                        | ⬜ N/A (already incorporated) |
+| **AWS Amplify**            | Pay-as-you-go      | Everyone                                     | https://aws.amazon.com/amplify/                 | ⬜ Standard                   |
+| **Keygen.sh**              | $0 (first 99 ALUs) | Everyone                                     | https://keygen.sh/pricing                       | ⬜ Standard                   |
 
 **Priority Order for Applications:**
 
@@ -72,22 +74,22 @@ This roadmap outlines the complete path from MVP to mature PLG-driven self-servi
 
 ### 0.2 Third-Party Service Setup
 
-| Service       | Purpose                        | Account Type      | Est. Time         | Status |
-| ------------- | ------------------------------ | ----------------- | ----------------- | ------ |
-| **Auth0**     | Authentication & Organizations | Free (Startup banked) | Instant        | ✅ Configured |
-| **Stripe**    | Billing & Subscriptions        | Standard (sandbox) | Instant          | ✅ Created |
-| **Keygen.sh** | License Management             | Free (99 ALUs)    | Instant           | ✅ Created |
-| **Amplify**   | Website Hosting                | Pay-as-you-go     | Instant           | ⬜     |
-| **AWS**       | DynamoDB, Lambda, API Gateway  | Activate Founders | 5-7 days approval | ✅ Applied |
+| Service       | Purpose                        | Account Type          | Est. Time         | Status        |
+| ------------- | ------------------------------ | --------------------- | ----------------- | ------------- |
+| **Auth0**     | Authentication & Organizations | Free (Startup banked) | Instant           | ✅ Configured |
+| **Stripe**    | Billing & Subscriptions        | Standard (sandbox)    | Instant           | ✅ Created    |
+| **Keygen.sh** | License Management             | Free (99 ALUs)        | Instant           | ✅ Created    |
+| **Amplify**   | Website Hosting                | Pay-as-you-go         | Instant           | ⬜            |
+| **AWS**       | DynamoDB, Lambda, API Gateway  | Activate Founders     | 5-7 days approval | ✅ Applied    |
 
 ### 0.3 Security Documentation
 
-| Document | Purpose | Status |
-| -------- | ------- | ------ |
+| Document                        | Purpose                                                 | Status      |
+| ------------------------------- | ------------------------------------------------------- | ----------- |
 | Next.js Security Considerations | Server/client separation, env vars, OWASP/CWE alignment | ✅ Complete |
-| Stripe Payments Security | PCI compliance, webhooks, API keys, fraud prevention | ✅ Complete |
-| Keygen Licensing Security | License keys, machine activation, offline validation | ✅ Complete |
-| Auth0 Integration Security | OAuth flows, session management, Organizations | ⬜ Pending |
+| Stripe Payments Security        | PCI compliance, webhooks, API keys, fraud prevention    | ✅ Complete |
+| Keygen Licensing Security       | License keys, machine activation, offline validation    | ✅ Complete |
+| Auth0 Integration Security      | OAuth flows, session management, Organizations          | ✅ Complete |
 
 ### 0.4 Domain & Email Verification
 
@@ -105,14 +107,14 @@ This roadmap outlines the complete path from MVP to mature PLG-driven self-servi
 
 ### 1.1 Stripe Configuration
 
-| Task                             | Description                                   | Est. Hours | Status |
-| -------------------------------- | --------------------------------------------- | ---------- | ------ |
-| Create Stripe Products           | 6 products (3 tiers, see below)               | 1 hr       | ⬜     |
-| Configure Stripe Coupons         | EARLYADOPTER20 for time-boxed promos          | 0.5 hr     | ⬜     |
-| Set up Stripe Checkout           | Embedded checkout with seat selection         | 4 hrs      | ⬜     |
-| Configure Stripe Customer Portal | Self-service billing management               | 2 hrs      | ⬜     |
-| Implement Stripe Webhooks        | 5 events (see GC memo Section II.B)           | 4 hrs      | ⬜     |
-| Enable Stripe Radar              | Fraud prevention for large purchases          | 1 hr       | ⬜     |
+| Task                             | Description                           | Est. Hours | Status |
+| -------------------------------- | ------------------------------------- | ---------- | ------ |
+| Create Stripe Products           | 6 products (3 tiers, see below)       | 1 hr       | ⬜     |
+| Configure Stripe Coupons         | EARLYADOPTER20 for time-boxed promos  | 0.5 hr     | ⬜     |
+| Set up Stripe Checkout           | Embedded checkout with seat selection | 4 hrs      | ⬜     |
+| Configure Stripe Customer Portal | Self-service billing management       | 2 hrs      | ⬜     |
+| Implement Stripe Webhooks        | 5 events (see GC memo Section II.B)   | 4 hrs      | ⬜     |
+| Enable Stripe Radar              | Fraud prevention for large purchases  | 1 hr       | ⬜     |
 
 **Stripe Products (6 total):**
 
@@ -134,11 +136,11 @@ No Stripe product — manual license issuance via Keygen.sh
 
 **Pricing Summary:**
 
-| Tier | Price | Trial | Card Required? | Devices |
-|------|-------|-------|----------------|--------|
-| Open Source | $0/mo | N/A | N/A | 1 |
-| Individual | $10/mo ($100/yr) | 14 days | ❌ No | 3 |
-| Enterprise | $25/seat/mo (annual) | 30 days | ✅ Yes | 2/seat |
+| Tier        | Price                | Trial   | Card Required? | Devices |
+| ----------- | -------------------- | ------- | -------------- | ------- |
+| Open Source | $0/mo                | N/A     | N/A            | 1       |
+| Individual  | $10/mo ($100/yr)     | 14 days | ❌ No          | 3       |
+| Enterprise  | $25/seat/mo (annual) | 30 days | ✅ Yes         | 2/seat  |
 
 ### 1.2 Keygen.sh Configuration
 
@@ -161,7 +163,7 @@ mouse_oss:
   metadata:
     tier: oss
     commercial_use: false
-    verification_required: true  # GitHub API check
+    verification_required: true # GitHub API check
 
 mouse_individual:
   maxMachines: 3
@@ -173,7 +175,7 @@ mouse_individual:
     commercial_use: true
 
 mouse_enterprise:
-  maxMachines: 2  # Per seat
+  maxMachines: 2 # Per seat
   floating: true
   heartbeatDuration: 86400
   heartbeatCullStrategy: DEACTIVATE_OLDEST
@@ -185,30 +187,30 @@ mouse_enterprise:
 
 ### 1.3 Auth0 Configuration
 
-| Task                       | Description                        | Est. Hours | Status |
-| -------------------------- | ---------------------------------- | ---------- | ------ |
+| Task                       | Description                        | Est. Hours | Status      |
+| -------------------------- | ---------------------------------- | ---------- | ----------- |
 | Apply for Startup Program  | Free tier now, Startup banked      | 0.5 hr     | ✅ Complete |
-| Create Auth0 Tenant        | dev-vby1x2u5b7c882n5.us.auth0.com  | 1 hr       | ✅ Created |
-| Configure Universal Login  | Branded login page                 | 2 hrs      | ⬜     |
-| Enable Social Connections  | Google, GitHub OAuth               | 1 hr       | ⬜     |
-| Configure Organizations    | Multi-tenancy for enterprise       | 4 hrs      | ⬜     |
-| Set up Roles & Permissions | Owner, Admin, Member               | 2 hrs      | ⬜     |
-| Implement Domain Detection | Tier auto-assignment (edu/org/gov) | 2 hrs      | ⬜     |
+| Create Auth0 Tenant        | dev-vby1x2u5b7c882n5.us.auth0.com  | 1 hr       | ✅ Created  |
+| Configure Universal Login  | Branded login page                 | 2 hrs      | ⬜          |
+| Enable Social Connections  | Google, GitHub OAuth               | 1 hr       | ⬜          |
+| Configure Organizations    | Multi-tenancy for enterprise       | 4 hrs      | ⬜          |
+| Set up Roles & Permissions | Owner, Admin, Member               | 2 hrs      | ⬜          |
+| Implement Domain Detection | Tier auto-assignment (edu/org/gov) | 2 hrs      | ⬜          |
 
 ### 1.4 AWS Infrastructure (DynamoDB + Lambda)
 
-| Task                             | Description                           | Est. Hours | Status |
-| -------------------------------- | ------------------------------------- | ---------- | ------ |
+| Task                             | Description                           | Est. Hours | Status              |
+| -------------------------------- | ------------------------------------- | ---------- | ------------------- |
 | Apply for AWS Activate           | $1,000 credits                        | 0.5 hr     | ✅ Applied (Jan 22) |
-| Create DynamoDB Table            | Single-table design per Q's schema    | 2 hrs      | ⬜     |
-| Create GSI1 (Stripe lookup)      | Stripe Customer ID → Customer         | 1 hr       | ⬜     |
-| Create GSI2 (License lookup)     | License Key → Customer (KEYGEN#)      | 1 hr       | ⬜     |
-| Create GSI3 (Auth0 lookup)       | Auth0 User ID → Customer              | 1 hr       | ⬜     |
-| Deploy Stripe Webhook Lambda     | Process checkout, subscription events | 4 hrs      | ⬜     |
-| Deploy Keygen Webhook Lambda     | Process license lifecycle events      | 2 hrs      | ⬜     |
-| Deploy License Validation Lambda | High-frequency validation endpoint    | 4 hrs      | ⬜     |
-| Configure API Gateway            | REST API for webhooks + validation    | 2 hrs      | ⬜     |
-| Set up CloudWatch Alarms         | Throttling, errors, latency           | 2 hrs      | ⬜     |
+| Create DynamoDB Table            | Single-table design per Q's schema    | 2 hrs      | ⬜                  |
+| Create GSI1 (Stripe lookup)      | Stripe Customer ID → Customer         | 1 hr       | ⬜                  |
+| Create GSI2 (License lookup)     | License Key → Customer (KEYGEN#)      | 1 hr       | ⬜                  |
+| Create GSI3 (Auth0 lookup)       | Auth0 User ID → Customer              | 1 hr       | ⬜                  |
+| Deploy Stripe Webhook Lambda     | Process checkout, subscription events | 4 hrs      | ⬜                  |
+| Deploy Keygen Webhook Lambda     | Process license lifecycle events      | 2 hrs      | ⬜                  |
+| Deploy License Validation Lambda | High-frequency validation endpoint    | 4 hrs      | ⬜                  |
+| Configure API Gateway            | REST API for webhooks + validation    | 2 hrs      | ⬜                  |
+| Set up CloudWatch Alarms         | Throttling, errors, latency           | 2 hrs      | ⬜                  |
 
 ---
 
@@ -239,50 +241,50 @@ mouse_enterprise:
 
 ### 2.3 Pricing Page (/pricing)
 
-| Task                           | Description              | Est. Hours | Status |
-| ------------------------------ | ------------------------ | ---------- | ------ |
-| Tier comparison table          | 3 tiers (OSS/Individual/Enterprise) | 4 hrs | ⬜ |
-| OSS eligibility checker        | GitHub verification flow | 2 hrs      | ⬜     |
-| Annual vs Monthly toggle       | Real-time price update (Individual) | 2 hrs | ⬜     |
-| Enterprise seat calculator     | Volume discount display  | 2 hrs      | ⬜     |
-| FAQ section                    | Common pricing questions | 2 hrs      | ⬜     |
-| CTA to checkout                | "Get Started" per tier   | 1 hr       | ⬜     |
+| Task                       | Description                         | Est. Hours | Status |
+| -------------------------- | ----------------------------------- | ---------- | ------ |
+| Tier comparison table      | 3 tiers (OSS/Individual/Enterprise) | 4 hrs      | ⬜     |
+| OSS eligibility checker    | GitHub verification flow            | 2 hrs      | ⬜     |
+| Annual vs Monthly toggle   | Real-time price update (Individual) | 2 hrs      | ⬜     |
+| Enterprise seat calculator | Volume discount display             | 2 hrs      | ⬜     |
+| FAQ section                | Common pricing questions            | 2 hrs      | ⬜     |
+| CTA to checkout            | "Get Started" per tier              | 1 hr       | ⬜     |
 
 ### 2.4 Checkout Flow (/checkout)
 
-| Task                        | Description                    | Est. Hours | Status |
-| --------------------------- | ------------------------------ | ---------- | ------ |
-| Seat selector component     | Quantity input (Enterprise 10+ min) | 2 hrs   | ⬜     |
-| Volume discount display     | Show 10%/20% off at thresholds | 1 hr       | ⬜     |
-| Real-time price calculator  | Live total as inputs change    | 2 hrs      | ⬜     |
-| Stripe Checkout integration | Redirect to Stripe-hosted page | 4 hrs      | ⬜     |
-| Trial flow (Individual)     | 14 days, no card required      | 2 hrs      | ⬜     |
-| Trial flow (Enterprise)     | 30 days, card required         | 2 hrs      | ⬜     |
-| Success redirect handler    | /welcome → account creation    | 2 hrs      | ⬜     |
+| Task                        | Description                         | Est. Hours | Status |
+| --------------------------- | ----------------------------------- | ---------- | ------ |
+| Seat selector component     | Quantity input (Enterprise 10+ min) | 2 hrs      | ⬜     |
+| Volume discount display     | Show 10%/20% off at thresholds      | 1 hr       | ⬜     |
+| Real-time price calculator  | Live total as inputs change         | 2 hrs      | ⬜     |
+| Stripe Checkout integration | Redirect to Stripe-hosted page      | 4 hrs      | ⬜     |
+| Trial flow (Individual)     | 14 days, no card required           | 2 hrs      | ⬜     |
+| Trial flow (Enterprise)     | 30 days, card required              | 2 hrs      | ⬜     |
+| Success redirect handler    | /welcome → account creation         | 2 hrs      | ⬜     |
 
 ### 2.5 Welcome Page (/welcome)
 
-| Task                          | Description                            | Est. Hours | Status |
-| ----------------------------- | -------------------------------------- | ---------- | ------ |
-| Session verification          | Retrieve Stripe session, validate      | 2 hrs      | ⬜     |
-| Account creation form         | Password fields + social SSO buttons   | 4 hrs      | ⬜     |
-| Auth0 user creation API       | /api/auth/complete-signup endpoint     | 4 hrs      | ⬜     |
-| License reveal component      | Display key after account created      | 2 hrs      | ⬜     |
-| Welcome email trigger         | Send license key + onboarding          | 2 hrs      | ⬜     |
-| Abandoned signup recovery     | 1-hour reminder email for incomplete   | 2 hrs      | ⬜     |
+| Task                      | Description                          | Est. Hours | Status |
+| ------------------------- | ------------------------------------ | ---------- | ------ |
+| Session verification      | Retrieve Stripe session, validate    | 2 hrs      | ⬜     |
+| Account creation form     | Password fields + social SSO buttons | 4 hrs      | ⬜     |
+| Auth0 user creation API   | /api/auth/complete-signup endpoint   | 4 hrs      | ⬜     |
+| License reveal component  | Display key after account created    | 2 hrs      | ⬜     |
+| Welcome email trigger     | Send license key + onboarding        | 2 hrs      | ⬜     |
+| Abandoned signup recovery | 1-hour reminder email for incomplete | 2 hrs      | ⬜     |
 
 ### 2.6 Customer Portal (/portal)
 
-| Task                         | Description                            | Est. Hours | Status |
-| ---------------------------- | -------------------------------------- | ---------- | ------ |
-| Portal layout                | Authenticated shell with sidebar       | 4 hrs      | ⬜     |
-| Dashboard page (/portal)     | Overview, trial countdown, quick stats | 4 hrs      | ⬜     |
-| License page (/portal/license)| View key, copy, regenerate if needed  | 2 hrs      | ⬜     |
-| Devices page (/portal/devices)| View activations, deactivate old      | 4 hrs      | ⬜     |
-| Billing page (/portal/billing)| Stripe Customer Portal redirect       | 2 hrs      | ⬜     |
-| Invoices page (/portal/invoices)| Invoice history, PDF download       | 2 hrs      | ⬜     |
-| Settings page (/portal/settings)| Change password, email prefs        | 2 hrs      | ⬜     |
-| Team management (enterprise) | /portal/team - invite, remove, roles  | 8 hrs      | ⬜     |
+| Task                             | Description                            | Est. Hours | Status |
+| -------------------------------- | -------------------------------------- | ---------- | ------ |
+| Portal layout                    | Authenticated shell with sidebar       | 4 hrs      | ⬜     |
+| Dashboard page (/portal)         | Overview, trial countdown, quick stats | 4 hrs      | ⬜     |
+| License page (/portal/license)   | View key, copy, regenerate if needed   | 2 hrs      | ⬜     |
+| Devices page (/portal/devices)   | View activations, deactivate old       | 4 hrs      | ⬜     |
+| Billing page (/portal/billing)   | Stripe Customer Portal redirect        | 2 hrs      | ⬜     |
+| Invoices page (/portal/invoices) | Invoice history, PDF download          | 2 hrs      | ⬜     |
+| Settings page (/portal/settings) | Change password, email prefs           | 2 hrs      | ⬜     |
+| Team management (enterprise)     | /portal/team - invite, remove, roles   | 8 hrs      | ⬜     |
 
 ---
 
@@ -487,14 +489,14 @@ mouse_enterprise:
 
 ### Fixed Monthly Costs
 
-| Service            | Cost         | Notes                    |
-| ------------------ | ------------ | ------------------------ |
-| Auth0              | $0           | Startup program (Year 1) |
-| Keygen.sh          | $0           | Free tier (first 99 ALUs) |
-| AWS Amplify        | ~$5-20       | Pay-as-you-go (low traffic) |
-| Google Workspace   | $7           | Business Starter         |
-| Domain (amortized) | $2           | Annual ÷ 12              |
-| **Total**          | **~$113-128/mo** |                       |
+| Service            | Cost             | Notes                       |
+| ------------------ | ---------------- | --------------------------- |
+| Auth0              | $0               | Startup program (Year 1)    |
+| Keygen.sh          | $0               | Free tier (first 99 ALUs)   |
+| AWS Amplify        | ~$5-20           | Pay-as-you-go (low traffic) |
+| Google Workspace   | $7               | Business Starter            |
+| Domain (amortized) | $2               | Annual ÷ 12                 |
+| **Total**          | **~$113-128/mo** |                             |
 
 ### Variable Costs
 
@@ -511,6 +513,7 @@ mouse_enterprise:
 - Blended (5 Individual + 1 Enterprise 10-seat): **$300/mo** = break-even + margin
 
 **Path to $1M ARR:**
+
 - 8,334 Individual seats @ $10/mo = $1M ARR
 - OR 3,334 Enterprise seats @ $25/mo = $1M ARR
 - OR blended: 5,000 Individual + 1,500 Enterprise = $1M ARR
@@ -535,27 +538,39 @@ mouse_enterprise:
 ### A. Related Documents
 
 **v2 Technical Specifications (Current):**
+
 - [PLG Technical Specification v2](20260122_GC_PLG_TECHNICAL_SPECIFICATION_v2.md) — Complete system architecture, updated pricing
 - [API Route Map v2](20260122_GC_API_MAP_FOR_HIC_AI_WEBSITE_v2.md) — All API endpoints with Auth0 integration
 - [User Journey & Guest Checkout v2](20260122_GC_USER_JOURNEY_AND_GUEST_CHECKOUT_v2.md) — End-to-end user flow with account creation tie-in
 - [Frontend Foundation v2](20260122_GC_NEXTJS_FRONTEND_FOUNDATION_v2.md) — Design system and project setup
 
 **Pricing Decision:**
+
 - [Proposed Pricing Changes](20260122_GC_PROPOSED_PRICING_CHANGES_FOR_PLG_IMPLEMENTATION.md) — Rationale for $0/$10/$25 pricing
 
 **v1 Archives (Superseded):**
+
 - [PLG Technical Specification v1](20260121_GC_PLG_TECHNICAL_SPECIFICATION.md)
 - [API Route Map v1](20260121_GC_API_MAP_FOR_HIC_AI_WEBSITE.md)
 - [User Journey v1](20260121_GC_USER_JOURNEY_AND_GUEST_CHECKOUT.md)
 - [DynamoDB Schema Addendum](20260121_GC_DDB_SCHEMA_ADDENDUM.md) — Schema reconciliation (still current)
 
 **Strategy & Schema:**
+
 - [PLG Strategy Memo](20260121_GC_PRODUCT_LED_GROWTH_STRATEGY_FOR_HIC_AI.md)
 - [Data Schema Memo (Q)](20260121_Q_SCHEMA_AND_DATA_STRUCTURE_FOR_PLG_WEB_DESIGN.md)
 
 **Installation & Packaging:**
+
 - [PLG Installer Build Checklist](../../packaging/docs/PLG_INSTALLER_BUILD_CHECKLIST.md)
 - [PLG Installation UX Strategy](../../packaging/docs/20260119_GC_PRODUCT_LED_GROWTH_INSTALLATION_UX_STRATEGY_MEMO.md)
+
+**Security Documentation:**
+
+- [Security Considerations for Next.js](20260122_SECURITY_CONSIDERATIONS_FOR_NEXTJS_PROJECT.md) — Server/client separation, env vars, OWASP/CWE alignment
+- [Security Considerations for Stripe](20260122_SECURITY_CONSIDERATIONS_FOR_STRIPE_PAYMENTS.md) — PCI compliance, webhooks, API keys, fraud prevention
+- [Security Considerations for Keygen](20260122_SECURITY_CONSIDERATIONS_FOR_KEYGEN_LICENSING.md) — License keys, machine activation, offline validation
+- [Security Considerations for Auth0](20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md) — OAuth 2.1/PKCE, session management, Organizations, RBAC
 
 ### B. Startup Credit Application Checklist
 
