@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "hic_local": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["c:/Users/SimonAdmin/source/repos/hic/mcp/src/core/server.js"],
+      "env": {
+        "DEBUG": "true",
+        "NODE_ENV": "production",
+        "HIC_AGENT_ADAPTER": "copilot"
+      }
+    }
+  },
+  "inputs": []
+}

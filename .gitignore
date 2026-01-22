@@ -9,7 +9,8 @@ node_modules/
 Thumbs.db
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/
 
 # Logs
