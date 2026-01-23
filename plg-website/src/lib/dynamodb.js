@@ -173,6 +173,12 @@ export async function updateCustomerSubscription(auth0Id, updates) {
 // LICENSE OPERATIONS
 // ===========================================
 
+// TODO: Add getLicenseByKey(licenseKey) for activation endpoint — query GSI2 by LICENSE_KEY#<key>
+// TODO: Add enterprise admin functions per Addendum A.5/A.7:
+//   - getOrgMembers(orgId)
+//   - updateOrgMemberStatus(orgId, memberId, status)
+//   - getOrgLicenseUsage(orgId)
+
 /**
  * Get license by Keygen license ID
  */

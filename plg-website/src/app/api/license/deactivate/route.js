@@ -38,7 +38,9 @@ export async function DELETE(request) {
     // If called from portal, verify user owns this license
     const session = await getSession();
     if (session?.user) {
-      // TODO: Verify license belongs to user
+      // TODO: SECURITY — Implement license ownership verification
+      // This is critical to prevent users from deactivating others' devices.
+      // Uncomment and test:
       // const userLicenses = await getCustomerLicenses(session.user.sub);
       // if (!userLicenses.find(l => l.keygenLicenseId === licenseId)) {
       //   return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

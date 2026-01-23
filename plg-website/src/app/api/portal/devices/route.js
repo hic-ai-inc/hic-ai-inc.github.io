@@ -63,6 +63,9 @@ export async function GET() {
     });
 
     // Get max devices from customer's plan
+    // TODO: Use PRICING constants instead of hardcoded values
+    // import { PRICING } from "@/lib/constants";
+    // const maxDevices = PRICING[customer.accountType]?.maxDevices || 3;
     const maxDevices =
       customer.accountType === "enterprise"
         ? 10

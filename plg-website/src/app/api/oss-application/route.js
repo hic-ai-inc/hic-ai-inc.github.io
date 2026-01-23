@@ -7,6 +7,10 @@
  * project eligibility and creates OSS license if approved.
  *
  * @see User Journey and Guest Checkout v2 - Section 1.2
+ *
+ * TODO: REMOVE THIS ENDPOINT — OSS tier deferred per Addendum A.1
+ * Focus on Individual ($10) and Enterprise ($25) tiers for MVP.
+ * Keep code archived in case we add OSS tier post-launch.
  */
 
 import { NextResponse } from "next/server";

@@ -11,6 +11,7 @@
 // PRICING TIERS
 // ===========================================
 
+// TODO: Remove OSS tier per Addendum A.1 — focus on Individual ($10) and Enterprise ($25) only
 export const PRICING = {
   oss: {
     id: "oss",
@@ -109,6 +110,7 @@ export const PROMO_CODES = {
 // LICENSE STATUS
 // ===========================================
 
+// TODO: Add RETIRED and DISPUTED statuses per Addendum A.5.3 and A.6.2
 export const LICENSE_STATUS = {
   PENDING_ACCOUNT: "PENDING_ACCOUNT",
   TRIAL: "TRIAL",

@@ -22,7 +22,13 @@ import {
   updateLicenseStatus,
 } from "@/lib/dynamodb";
 import { suspendLicense, reinstateLicense } from "@/lib/keygen";
-import { sendWelcomeEmail, sendPaymentFailedEmail } from "@/lib/ses";
+import {
+  sendWelcomeEmail,
+  sendPaymentFailedEmail,
+  sendReactivationEmail,
+  sendCancellationEmail,
+  sendDisputeAlert,
+} from "@/lib/ses";
 
 export async function POST(request) {
   const body = await request.text();
@@ -73,6 +79,14 @@ export async function POST(request) {
 
       case "invoice.payment_failed":
         await handlePaymentFailed(event.data.object);
+        break;
+
+      case "charge.dispute.created":
+        await handleDisputeCreated(event.data.object);
+        break;
+
+      case "charge.dispute.closed":
+        await handleDisputeClosed(event.data.object);
         break;
 
       default:
@@ -193,8 +207,21 @@ async function handleSubscriptionUpdated(subscription) {
     }
   }
 
-  if (cancel_at_period_end) {
-    console.log("Subscription will cancel at period end");
+  // Send cancellation confirmation email when user cancels (A.9.1)
+  if (cancel_at_period_end && dbCustomer.email) {
+    const cancelAt = subscription.cancel_at
+      ? new Date(subscription.cancel_at * 1000).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "the end of your billing period";
+    try {
+      await sendCancellationEmail(dbCustomer.email, cancelAt);
+      console.log(`Cancellation confirmation sent to ${dbCustomer.email}`);
+    } catch (e) {
+      console.error("Failed to send cancellation email:", e);
+    }
   }
 }
 
@@ -257,7 +284,7 @@ async function handlePaymentSucceeded(invoice) {
     });
   }
 
-  // If was past_due, restore to active
+  // If was past_due, restore to active and send reactivation email (A.2)
   if (dbCustomer.subscriptionStatus === "past_due") {
     await updateCustomerSubscription(dbCustomer.auth0Id, {
       subscriptionStatus: "active",
@@ -269,6 +296,16 @@ async function handlePaymentSucceeded(invoice) {
         await reinstateLicense(dbCustomer.keygenLicenseId);
       } catch (e) {
         console.error("Failed to reinstate Keygen license:", e);
+      }
+    }
+
+    // Send reactivation confirmation email
+    if (dbCustomer.email) {
+      try {
+        await sendReactivationEmail(dbCustomer.email);
+        console.log(`Reactivation email sent to ${dbCustomer.email}`);
+      } catch (e) {
+        console.error("Failed to send reactivation email:", e);
       }
     }
   }
@@ -329,3 +366,102 @@ async function handlePaymentFailed(invoice) {
     }
   }
 }
+
+
+/**
+ * Handle dispute created (chargeback) - Addendum A.6.2
+ *
+ * When a dispute is created:
+ * 1. Immediately suspend the license
+ * 2. Update customer status to DISPUTED
+ * 3. Alert support team for evidence gathering
+ */
+async function handleDisputeCreated(dispute) {
+  console.log("Dispute created:", dispute.id);
+
+  const { customer, amount, reason, id: disputeId } = dispute;
+
+  // Find customer by Stripe ID
+  const dbCustomer = await getCustomerByStripeId(customer);
+  if (!dbCustomer) {
+    console.log("Customer not found for dispute");
+    // Still alert support even if customer not found
+    await sendDisputeAlert("unknown", amount, reason, disputeId);
+    return;
+  }
+
+  // Immediately suspend access
+  if (dbCustomer.keygenLicenseId) {
+    await updateLicenseStatus(dbCustomer.keygenLicenseId, "disputed");
+    try {
+      await suspendLicense(dbCustomer.keygenLicenseId);
+    } catch (e) {
+      console.error("Failed to suspend Keygen license:", e);
+    }
+  }
+
+  // Update customer status to disputed
+  await updateCustomerSubscription(dbCustomer.auth0Id, {
+    subscriptionStatus: "disputed",
+  });
+
+  // Alert support team
+  await sendDisputeAlert(dbCustomer.email || "unknown", amount, reason, disputeId);
+
+  console.log(`License suspended for disputed customer ${dbCustomer.auth0Id}`);
+}
+
+/**
+ * Handle dispute closed - Addendum A.6.2
+ *
+ * When a dispute is resolved:
+ * - If won: reinstate license (customer was legitimate)
+ * - If lost: keep license suspended (fraud confirmed)
+ * - If withdrawn: reinstate license
+ */
+async function handleDisputeClosed(dispute) {
+  console.log("Dispute closed:", dispute.id, "Status:", dispute.status);
+
+  const { customer, status } = dispute;
+
+  // Find customer by Stripe ID
+  const dbCustomer = await getCustomerByStripeId(customer);
+  if (!dbCustomer) {
+    console.log("Customer not found for dispute closure");
+    return;
+  }
+
+  // Dispute outcomes:
+  // - won: We won, reinstate
+  // - lost: We lost, keep suspended
+  // - withdrawn: Customer withdrew, reinstate
+  // - warning_closed: Handled as inquiry, reinstate
+  const reinstateStatuses = ["won", "withdrawn", "warning_closed"];
+
+  if (reinstateStatuses.includes(status)) {
+    // Reinstate license
+    if (dbCustomer.keygenLicenseId) {
+      await updateLicenseStatus(dbCustomer.keygenLicenseId, "active");
+      try {
+        await reinstateLicense(dbCustomer.keygenLicenseId);
+      } catch (e) {
+        console.error("Failed to reinstate Keygen license:", e);
+      }
+    }
+
+    await updateCustomerSubscription(dbCustomer.auth0Id, {
+      subscriptionStatus: "active",
+    });
+
+    console.log(`Dispute ${status}: License reinstated for ${dbCustomer.auth0Id}`);
+  } else {
+    // Lost dispute - keep suspended, mark as fraud
+    await updateCustomerSubscription(dbCustomer.auth0Id, {
+      subscriptionStatus: "suspended",
+      fraudulent: true,
+    });
+
+    console.log(`Dispute lost: License remains suspended for ${dbCustomer.auth0Id}`);
+  }
+}
+

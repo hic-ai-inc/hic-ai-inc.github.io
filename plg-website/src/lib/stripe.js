@@ -69,3 +69,8 @@ export function verifyWebhookSignature(payload, signature) {
     process.env.STRIPE_WEBHOOK_SECRET,
   );
 }
+
+// TODO: Add helper functions for common Stripe operations:
+//   - createCheckoutSession({ priceId, customerId, successUrl, cancelUrl })
+//   - createPortalSession(customerId, returnUrl)
+//   - updateSubscriptionQuantity(subscriptionId, quantity) — for Enterprise seat changes per Addendum A.5.4

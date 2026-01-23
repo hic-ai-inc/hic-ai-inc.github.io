@@ -17,7 +17,7 @@ import {
   removeDeviceActivation,
   getLicense,
 } from "@/lib/dynamodb";
-import { sendPaymentFailedEmail } from "@/lib/ses";
+import { sendPaymentFailedEmail, sendLicenseRevokedEmail } from "@/lib/ses";
 import crypto from "crypto";
 
 const KEYGEN_WEBHOOK_SECRET = process.env.KEYGEN_WEBHOOK_SECRET;
@@ -137,8 +137,9 @@ async function handleLicenseExpired(data) {
   // Get license to find owner email
   const license = await getLicense(licenseId);
   if (license?.email) {
-    // Send notification email
-    // await sendEmail("licenseExpired", license.email, { licenseId });
+    // Note: License expiration is handled by Stripe subscription end
+    // No separate notification needed - user already got cancellation email
+    console.log(`License ${licenseId} expired for ${license.email}`);
   }
 }
 
@@ -153,8 +154,9 @@ async function handleLicenseSuspended(data) {
   // Get license to find owner email
   const license = await getLicense(licenseId);
   if (license?.email) {
-    // This usually happens due to payment failure
-    // await sendPaymentFailedEmail(license.email, 3, null);
+    // Note: Suspension usually happens via Stripe webhook which sends its own emails
+    // Only send payment failed email if this is a standalone suspension
+    console.log(`License ${licenseId} suspended for ${license.email}`);
   }
 }
 
@@ -185,6 +187,18 @@ async function handleLicenseRevoked(data) {
   await updateLicenseStatus(licenseId, "revoked", {
     revokedAt: new Date().toISOString(),
   });
+
+  // Send revocation notification to user (A.7)
+  const license = await getLicense(licenseId);
+  if (license?.email) {
+    const orgName = license.organizationName || null;
+    try {
+      await sendLicenseRevokedEmail(license.email, orgName);
+      console.log(`Revocation notification sent to ${license.email}`);
+    } catch (e) {
+      console.error("Failed to send revocation email:", e);
+    }
+  }
 }
 
 async function handleMachineDeleted(data) {

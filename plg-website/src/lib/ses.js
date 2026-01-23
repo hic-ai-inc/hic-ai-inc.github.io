@@ -25,6 +25,13 @@ const PRODUCT_NAME = "Mouse";
 // EMAIL TEMPLATES
 // ===========================================
 
+// TODO: Add missing email templates per Addendum A:
+//   - cancellation (A.9.1) — "We're sorry to see you go"
+//   - reactivation (A.2) — "Payment successful! Full access restored"
+//   - winBack30 (A.9.2) — "We miss you" at 30 days
+//   - winBack90 (A.9.2) — "Special offer" at 90 days
+//   - licenseRevoked (A.7) — "Your Mouse license has been revoked"
+//   - enterpriseInvite (A.7) — "You've been invited to use Mouse"
 const templates = {
   /**
    * Welcome email after checkout (before account creation)
@@ -276,6 +283,269 @@ Manage subscription: ${process.env.NEXT_PUBLIC_APP_URL}/portal/billing
 ${COMPANY_NAME}
     `,
   }),
+
+  /**
+   * Payment reactivation confirmation (A.2)
+   */
+  reactivation: ({ email }) => ({
+    subject: `Payment Successful - ${PRODUCT_NAME} Access Restored`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #10B981; margin-bottom: 24px;">✅ Payment Successful!</h1>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            Great news! Your payment has been processed successfully and your ${PRODUCT_NAME} subscription is now fully active.
+          </p>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            Your license has been reinstated. If you're currently in VS Code, ${PRODUCT_NAME} will automatically restore full functionality within the next hour, or you can restart VS Code to activate immediately.
+          </p>
+          
+          <div style="margin: 32px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/portal" 
+               style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Go to Portal
+            </a>
+          </div>
+          
+          <p style="color: #6B7C93; font-size: 14px;">
+            Thank you for continuing with ${PRODUCT_NAME}!
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+          
+          <p style="color: #6B7C93; font-size: 12px;">
+            ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
+          </p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Payment Successful!
+
+Great news! Your payment has been processed successfully and your ${PRODUCT_NAME} subscription is now fully active.
+
+Your license has been reinstated. If you're currently in VS Code, ${PRODUCT_NAME} will automatically restore full functionality within the next hour, or you can restart VS Code to activate immediately.
+
+Go to your portal: ${process.env.NEXT_PUBLIC_APP_URL}/portal
+
+Thank you for continuing with ${PRODUCT_NAME}!
+
+${COMPANY_NAME}
+    `,
+  }),
+
+  /**
+   * Subscription cancellation confirmation (A.9.1)
+   */
+  cancellation: ({ email, accessUntil }) => ({
+    subject: `We're sorry to see you go - ${PRODUCT_NAME}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #F6F8FB; margin-bottom: 24px;">Subscription Cancelled</h1>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            Your ${PRODUCT_NAME} subscription has been cancelled.
+          </p>
+          
+          <div style="background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #F6F8FB; margin: 0 0 12px 0; font-size: 16px;">What happens next:</h3>
+            <ul style="color: #B8C4D0; font-size: 14px; line-height: 1.8; padding-left: 20px; margin: 0;">
+              <li>You'll have full access until <strong>${accessUntil}</strong></li>
+              <li>After that, your license will expire</li>
+              <li>Your account and data will be preserved</li>
+            </ul>
+          </div>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            Changed your mind? You can reactivate anytime before your access expires.
+          </p>
+          
+          <div style="margin: 32px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/portal/billing" 
+               style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Reactivate Subscription
+            </a>
+          </div>
+          
+          <p style="color: #6B7C93; font-size: 14px;">
+            If something wasn't working right, we'd love to hear about it. Just reply to this email.
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+          
+          <p style="color: #6B7C93; font-size: 12px;">
+            ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
+          </p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Subscription Cancelled
+
+Your ${PRODUCT_NAME} subscription has been cancelled.
+
+What happens next:
+• You'll have full access until ${accessUntil}
+• After that, your license will expire
+• Your account and data will be preserved
+
+Changed your mind? You can reactivate anytime:
+${process.env.NEXT_PUBLIC_APP_URL}/portal/billing
+
+If something wasn't working right, we'd love to hear about it. Just reply to this email.
+
+${COMPANY_NAME}
+    `,
+  }),
+
+  /**
+   * License revoked by admin (A.7)
+   */
+  licenseRevoked: ({ email, organizationName }) => ({
+    subject: `Your ${PRODUCT_NAME} License Has Been Revoked`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #F87171; margin-bottom: 24px;">License Revoked</h1>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            Your ${PRODUCT_NAME} license${organizationName ? ` from ${organizationName}` : ''} has been revoked by your organization's administrator.
+          </p>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            This means you no longer have access to ${PRODUCT_NAME} through this license. If you believe this is an error, please contact your administrator.
+          </p>
+          
+          <div style="background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #F6F8FB; margin: 0 0 12px 0; font-size: 16px;">Want to continue using ${PRODUCT_NAME}?</h3>
+            <p style="color: #B8C4D0; font-size: 14px; margin: 0;">
+              You can purchase an Individual license for $10/month to keep using ${PRODUCT_NAME} on your own.
+            </p>
+          </div>
+          
+          <div style="margin: 32px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/pricing" 
+               style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Get Individual License
+            </a>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+          
+          <p style="color: #6B7C93; font-size: 12px;">
+            ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
+          </p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+License Revoked
+
+Your ${PRODUCT_NAME} license${organizationName ? ` from ${organizationName}` : ''} has been revoked by your organization's administrator.
+
+This means you no longer have access to ${PRODUCT_NAME} through this license. If you believe this is an error, please contact your administrator.
+
+Want to continue using ${PRODUCT_NAME}?
+You can purchase an Individual license for $10/month:
+${process.env.NEXT_PUBLIC_APP_URL}/pricing
+
+${COMPANY_NAME}
+    `,
+  }),
+
+  /**
+   * Dispute notification - internal alert (A.6.2)
+   */
+  disputeAlert: ({ customerEmail, amount, reason, disputeId }) => ({
+    subject: `⚠️ DISPUTE ALERT: ${customerEmail} - $${(amount / 100).toFixed(2)}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px;">
+        <h1 style="color: #DC2626;">⚠️ Chargeback Dispute Created</h1>
+        
+        <table style="border-collapse: collapse; width: 100%; max-width: 500px;">
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Customer</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${customerEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Amount</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">$${(amount / 100).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Reason</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${reason || 'Not specified'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Dispute ID</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${disputeId}</td>
+          </tr>
+        </table>
+        
+        <h2>Actions Taken:</h2>
+        <ul>
+          <li>✅ License suspended immediately</li>
+          <li>✅ Customer status set to DISPUTED</li>
+        </ul>
+        
+        <h2>Required Actions:</h2>
+        <ol>
+          <li>Gather evidence (activation logs, ToS acceptance, usage data)</li>
+          <li>Submit response via Stripe Dashboard within deadline</li>
+        </ol>
+        
+        <p><a href="https://dashboard.stripe.com/disputes/${disputeId}">View in Stripe Dashboard →</a></p>
+      </body>
+      </html>
+    `,
+    text: `
+DISPUTE ALERT
+
+Customer: ${customerEmail}
+Amount: $${(amount / 100).toFixed(2)}
+Reason: ${reason || 'Not specified'}
+Dispute ID: ${disputeId}
+
+Actions Taken:
+- License suspended immediately
+- Customer status set to DISPUTED
+
+Required Actions:
+1. Gather evidence (activation logs, ToS acceptance, usage data)
+2. Submit response via Stripe Dashboard within deadline
+
+View in Stripe: https://dashboard.stripe.com/disputes/${disputeId}
+    `,
+  }),
+
 };
 
 // ===========================================
@@ -356,3 +626,40 @@ export async function sendPaymentFailedEmail(email, attemptCount, retryDate) {
 export async function sendTrialEndingEmail(email, daysRemaining, planName) {
   return sendEmail("trialEnding", email, { email, daysRemaining, planName });
 }
+
+
+/**
+ * Send payment reactivation confirmation (A.2)
+ */
+export async function sendReactivationEmail(email) {
+  return sendEmail("reactivation", email, { email });
+}
+
+/**
+ * Send cancellation confirmation (A.9.1)
+ */
+export async function sendCancellationEmail(email, accessUntil) {
+  return sendEmail("cancellation", email, { email, accessUntil });
+}
+
+/**
+ * Send license revoked notification (A.7)
+ */
+export async function sendLicenseRevokedEmail(email, organizationName = null) {
+  return sendEmail("licenseRevoked", email, { email, organizationName });
+}
+
+/**
+ * Send dispute alert to support team (A.6.2)
+ * Note: This goes to SUPPORT_EMAIL, not the customer
+ */
+export async function sendDisputeAlert(customerEmail, amount, reason, disputeId) {
+  const supportEmail = process.env.SUPPORT_EMAIL || "support@hic-ai.com";
+  return sendEmail("disputeAlert", supportEmail, {
+    customerEmail,
+    amount,
+    reason,
+    disputeId,
+  });
+}
+
