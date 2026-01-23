@@ -97,3 +97,38 @@ export {
   DescribeAlarmsCommand,
   PutMetricAlarmCommand,
 } from "./metrics.js";
+
+// ============================================
+// THIRD-PARTY SDK MOCKS (Stripe, Auth0, Keygen)
+// ============================================
+
+// Stripe (payment processing)
+export {
+  createStripeMock,
+  createMockStripeEvent,
+  createMockCheckoutSession,
+  createMockSubscription,
+  createMockCustomer,
+} from "./stripe.js";
+
+// Auth0 (authentication)
+export {
+  createAuth0Mock,
+  createMockSession,
+  createMockAuth0User,
+  createMockIndividualUser,
+  createMockEnterpriseUser,
+  createMockOSSUser,
+} from "./auth0.js";
+
+// Keygen (license management)
+export {
+  createKeygenMock,
+  createMockLicense,
+  createMockLicenseResponse,
+  createMockValidationResponse,
+  createMockMachine,
+  createMockMachineResponse,
+  createMockCheckoutResponse,
+  generateMockLicenseKey,
+} from "./keygen.js";

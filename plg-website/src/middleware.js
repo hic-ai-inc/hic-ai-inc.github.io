@@ -9,40 +9,39 @@
  */
 
 import { NextResponse } from "next/server";
-import { Auth0Client } from "@auth0/nextjs-auth0/server";
-
-const auth0 = new Auth0Client();
+import { getAuth0Client, getOrganizationId } from "./lib/auth0.js";
 
 export async function middleware(req) {
+  const auth0 = getAuth0Client();
   const authRes = await auth0.middleware(req);
-  
+
   // If Auth0 middleware returned a response, use it (redirects, etc.)
   if (authRes) {
     return authRes;
   }
-  
+
   const path = req.nextUrl.pathname;
-  
+
   // Check if route requires authentication
   if (path.startsWith("/portal") || path.startsWith("/admin")) {
     const session = await auth0.getSession();
-    
+
     if (!session) {
       // Redirect to login
       return NextResponse.redirect(new URL("/auth/login", req.url));
     }
-    
+
     // Admin routes require organization context (enterprise users)
     if (path.startsWith("/admin")) {
-      const orgId = session?.user?.["https://hic-ai.com/org_id"];
-      
+      const orgId = getOrganizationId(session);
+
       if (!orgId) {
         // Individual user trying to access admin - redirect to portal
         return NextResponse.redirect(new URL("/portal", req.url));
       }
     }
   }
-  
+
   return NextResponse.next();
 }
 
@@ -57,4 +56,3 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
   ],
 };
-

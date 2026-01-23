@@ -25,13 +25,41 @@ export const KEYGEN_POLICIES = {
 };
 
 /**
+ * Injectable request function for testing
+ * By default, uses the real keygenRequest implementation
+ */
+let requestHandler = null;
+
+/**
+ * Injectable seam for testing - allows replacing the Keygen request handler
+ * @param {Function} mockHandler - Mock request function (from createKeygenMock().request)
+ */
+export function __setKeygenRequestForTests(mockHandler) {
+  requestHandler = mockHandler;
+}
+
+/**
+ * Reset to default (production) request handler
+ */
+export function __resetKeygenRequestForTests() {
+  requestHandler = null;
+}
+
+/**
  * Make authenticated request to Keygen API
+ * Uses injected handler if available (for testing), otherwise makes real HTTP request
  */
 async function keygenRequest(endpoint, options = {}) {
-  const log = new HicLog('plg-keygen');
+  // If a test handler is injected, use it
+  if (requestHandler) {
+    return requestHandler(endpoint, options);
+  }
+
+  // Production implementation
+  const log = new HicLog("plg-keygen");
   const url = `${KEYGEN_API_URL}${endpoint}`;
-  
-  log.logAWSCall('Keygen', endpoint.split('/')[1] || 'request', { endpoint });
+
+  log.logAWSCall("Keygen", endpoint.split("/")[1] || "request", { endpoint });
 
   const response = await fetch(url, {
     ...options,

@@ -19,10 +19,29 @@ const createLogger = (operation) => new HicLog(`plg-stripe-${operation}`);
  * Server-side Stripe client
  * Use this in API routes and server components only
  */
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+let stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2024-12-18.acacia",
   typescript: false,
 });
+
+// Export as getter for consistent access
+export const stripe = stripeClient;
+
+/**
+ * Injectable seam for testing - allows replacing the Stripe client
+ * @param {Object} mockClient - Mock Stripe client (from createStripeMock())
+ */
+export function __setStripeClientForTests(mockClient) {
+  stripeClient = mockClient;
+}
+
+/**
+ * Get the current Stripe client (respects test injection)
+ * Use this in functions that need the client dynamically
+ */
+export function getStripeClient() {
+  return stripeClient;
+}
 
 /**
  * Client-side Stripe.js promise
@@ -63,7 +82,7 @@ export const STRIPE_COUPONS = {
  * @returns {Stripe.Event} Verified event
  */
 export function verifyWebhookSignature(payload, signature) {
-  return stripe.webhooks.constructEvent(
+  return getStripeClient().webhooks.constructEvent(
     payload,
     signature,
     process.env.STRIPE_WEBHOOK_SECRET,
@@ -104,7 +123,8 @@ export async function createCheckoutSession({
       sessionParams.customer_creation = "always";
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const session =
+      await getStripeClient().checkout.sessions.create(sessionParams);
     logger.info("Checkout session created", { sessionId: session.id });
     return session;
   } catch (error) {
@@ -122,7 +142,7 @@ export async function createCheckoutSession({
 export async function createPortalSession(customerId, returnUrl) {
   const logger = createLogger("createPortalSession");
   try {
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripeClient().billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,
     });
@@ -145,10 +165,11 @@ export async function updateSubscriptionQuantity(subscriptionId, quantity) {
   const logger = createLogger("updateSubscriptionQuantity");
   try {
     // Get current subscription to find the item
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const subscription =
+      await getStripeClient().subscriptions.retrieve(subscriptionId);
     const subscriptionItem = subscription.items.data[0];
 
-    const updatedSubscription = await stripe.subscriptions.update(
+    const updatedSubscription = await getStripeClient().subscriptions.update(
       subscriptionId,
       {
         items: [
