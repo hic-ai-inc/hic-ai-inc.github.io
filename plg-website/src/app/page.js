@@ -27,14 +27,14 @@ export default function HomePage() {
             </Badge>
 
             <h1 className="text-5xl md:text-7xl font-bold text-frost-white leading-tight mb-6">
-              The First Proven Treatment for{" "}
-              <span className="text-gradient">Execution Slop</span>
+              Precision Editing Tools for{" "}
+              <span className="text-gradient">AI Coding Agents</span>
             </h1>
 
             <p className="text-xl md:text-2xl text-silver max-w-3xl mx-auto mb-10">
-              Mouse gives AI coding agents the precision tools they need to edit
-              files reliably. Stop watching agents fumble with basic file
-              operations.
+              Mouse is the first tool proven to reduce Execution Slop—the unintended
+              repo damage from agent edits. 67 paired trials. 3 preregistered studies.
+              Statistically significant results.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -57,11 +57,12 @@ export default function HomePage() {
           <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-bold text-frost-white mb-4">
-                AI Agents Can&apos;t Edit Files
+                The Problem: Execution Slop
               </h2>
               <p className="text-xl text-silver max-w-2xl mx-auto">
-                Current tools weren&apos;t designed for agents. Mouse was built
-                from the ground up to solve the precision problem.
+                Merriam-Webster named &quot;slop&quot; its 2025 Word of the Year.
+                Execution Slop is unintended repo damage from agent edits—the agent
+                understood the goal, but the edit still damaged the file.
               </p>
             </div>
 
@@ -69,24 +70,24 @@ export default function HomePage() {
               {/* Problem */}
               <div className="card bg-error/5 border-error/20">
                 <h3 className="text-xl font-semibold text-error mb-4">
-                  ❌ The Problem
+                  ❌ Baseline Tools
                 </h3>
                 <ul className="space-y-3 text-silver">
                   <li className="flex items-start gap-3">
                     <span className="text-error">•</span>
-                    Agents write incorrect line numbers
+                    Content-echo required (verbose, fragile)
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-error">•</span>
-                    Search-and-replace hits wrong occurrences
+                    0% first-try success on precision tasks
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-error">•</span>
-                    Indentation breaks constantly
+                    Context exhaustion on complex edits
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-error">•</span>
-                    Complex edits require multiple retries
+                    No rollback when things go wrong
                   </li>
                 </ul>
               </div>
@@ -94,24 +95,24 @@ export default function HomePage() {
               {/* Solution */}
               <div className="card bg-success/5 border-success/20">
                 <h3 className="text-xl font-semibold text-success mb-4">
-                  ✓ The Solution
+                  ✓ Mouse Tools
                 </h3>
                 <ul className="space-y-3 text-silver">
                   <li className="flex items-start gap-3">
                     <span className="text-success">•</span>
-                    Atomic operations with preview & rollback
+                    Coordinate-based addressing (zero content-echo)
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-success">•</span>
-                    Context-aware matching eliminates ambiguity
+                    56% first-try success on same tasks
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-success">•</span>
-                    Batch operations with transaction guarantees
+                    Atomic batching with full rollback
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-success">•</span>
-                    79% reduction in edit failures
+                    3.6× faster task completion
                   </li>
                 </ul>
               </div>
@@ -124,33 +125,44 @@ export default function HomePage() {
           <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-bold text-frost-white mb-4">
-                Proven Results
+                The Evidence
               </h2>
               <p className="text-xl text-silver">
-                Real measurements from production environments.
+                67 paired trials · 3 preregistered studies · Peer-review ready
               </p>
             </div>
 
-            <div className="grid sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
-              <div className="text-center">
-                <div className="text-5xl md:text-6xl font-bold text-gradient mb-2">
-                  79%
+            <div className="grid sm:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              <div className="card text-center">
+                <div className="text-4xl md:text-5xl font-bold text-gradient mb-2">
+                  56%
                 </div>
-                <p className="text-silver">Reduction in edit failures</p>
+                <p className="text-frost-white font-medium">Perfect First Try</p>
+                <p className="text-sm text-slate-grey mt-1">vs 0% baseline</p>
+                <p className="text-xs text-cerulean-mist mt-2">p = 1.2 × 10⁻⁴</p>
               </div>
-              <div className="text-center">
-                <div className="text-5xl md:text-6xl font-bold text-gradient mb-2">
-                  3.2×
+              <div className="card text-center">
+                <div className="text-4xl md:text-5xl font-bold text-gradient mb-2">
+                  89.5%
                 </div>
-                <p className="text-silver">Faster task completion</p>
+                <p className="text-frost-white font-medium">Capability Unlock</p>
+                <p className="text-sm text-slate-grey mt-1">vs 0% baseline</p>
+                <p className="text-xs text-cerulean-mist mt-2">p = 7.6 × 10⁻⁶</p>
               </div>
-              <div className="text-center">
-                <div className="text-5xl md:text-6xl font-bold text-gradient mb-2">
-                  91%
+              <div className="card text-center">
+                <div className="text-4xl md:text-5xl font-bold text-gradient mb-2">
+                  3.6×
                 </div>
-                <p className="text-silver">First-attempt success rate</p>
+                <p className="text-frost-white font-medium">Faster Completion</p>
+                <p className="text-sm text-slate-grey mt-1">uniform advantage</p>
+                <p className="text-xs text-cerulean-mist mt-2">p &lt; 10⁻⁷</p>
               </div>
             </div>
+
+            <p className="text-center text-sm text-slate-grey mt-8 max-w-2xl mx-auto">
+              On hard tasks, baseline never succeeds. Mouse nearly always succeeds.
+              Effect sizes 2-3× the &quot;large&quot; threshold by Cohen&apos;s benchmarks.
+            </p>
           </div>
         </section>
 
@@ -220,11 +232,11 @@ export default function HomePage() {
         <section className="py-24 bg-gradient-to-b from-midnight-navy to-card-bg/30 border-t border-card-border">
           <div className="max-w-3xl mx-auto px-6 text-center">
             <h2 className="text-4xl md:text-5xl font-bold text-frost-white mb-4">
-              Ready to Fix Execution Slop?
+              Tiny but Powerful
             </h2>
             <p className="text-xl text-silver mb-8">
-              Join developers who are already using Mouse to make AI agents
-              actually work.
+              Mouse gives AI coding agents surgical accuracy and consistency.
+              Same chat interface. Better results.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button href="/pricing" size="lg">
