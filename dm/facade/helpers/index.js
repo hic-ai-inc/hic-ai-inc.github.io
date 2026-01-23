@@ -118,7 +118,6 @@ export {
   createMockAuth0User,
   createMockIndividualUser,
   createMockEnterpriseUser,
-  createMockOSSUser,
 } from "./auth0.js";
 
 // Keygen (license management)

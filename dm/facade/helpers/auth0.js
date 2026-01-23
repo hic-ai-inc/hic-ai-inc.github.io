@@ -178,14 +178,3 @@ export function createMockEnterpriseUser(orgId, overrides = {}) {
     ...overrides,
   });
 }
-
-/**
- * Create mock OSS user (free tier)
- */
-export function createMockOSSUser(overrides = {}) {
-  return createMockAuth0User({
-    "https://hic-ai.com/subscription_status": "active",
-    "https://hic-ai.com/plan_type": "oss",
-    ...overrides,
-  });
-}
