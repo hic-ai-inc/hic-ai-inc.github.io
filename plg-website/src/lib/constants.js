@@ -2,7 +2,8 @@
  * Application Constants
  *
  * Central configuration for pricing, plans, and application constants.
- * v2.0: OSS ($0) / Individual ($10/mo) / Enterprise ($25/seat/mo)
+ * v2.1: Individual ($10/mo) / Enterprise ($25/seat/mo)
+ * Note: OSS tier deferred per Addendum A.1
  *
  * @see PLG Technical Specification v2
  */
@@ -11,27 +12,8 @@
 // PRICING TIERS
 // ===========================================
 
-// TODO: Remove OSS tier per Addendum A.1 — focus on Individual ($10) and Enterprise ($25) only
+// v2.1: OSS tier deferred per Addendum A.1 — focus on Individual and Enterprise only
 export const PRICING = {
-  oss: {
-    id: "oss",
-    name: "Open Source",
-    description: "For OSS maintainers and contributors",
-    priceMonthly: 0,
-    priceAnnual: 0,
-    seats: 1,
-    maxDevices: 1,
-    trialDays: 0,
-    requiresCard: false,
-    requiresGitHubVerification: true,
-    features: [
-      "All Mouse tools",
-      "1 device activation",
-      "Community support",
-      "Non-commercial use only",
-    ],
-    limitations: ["Non-commercial use only", "Requires GitHub verification"],
-  },
   individual: {
     id: "individual",
     name: "Individual",
@@ -110,7 +92,6 @@ export const PROMO_CODES = {
 // LICENSE STATUS
 // ===========================================
 
-// TODO: Add RETIRED and DISPUTED statuses per Addendum A.5.3 and A.6.2
 export const LICENSE_STATUS = {
   PENDING_ACCOUNT: "PENDING_ACCOUNT",
   TRIAL: "TRIAL",
@@ -118,6 +99,9 @@ export const LICENSE_STATUS = {
   PAST_DUE: "PAST_DUE",
   CANCELLED: "CANCELLED",
   EXPIRED: "EXPIRED",
+  RETIRED: "RETIRED", // A.5.3 - Enterprise seat retired by admin
+  DISPUTED: "DISPUTED", // A.6.2 - Chargeback dispute in progress
+  REVOKED: "REVOKED", // A.7 - License revoked by admin
 };
 
 export const LICENSE_STATUS_DISPLAY = {
@@ -127,6 +111,9 @@ export const LICENSE_STATUS_DISPLAY = {
   PAST_DUE: { label: "Past Due", variant: "error" },
   CANCELLED: { label: "Cancelled", variant: "error" },
   EXPIRED: { label: "Expired", variant: "error" },
+  RETIRED: { label: "Retired", variant: "error" },
+  DISPUTED: { label: "Disputed", variant: "warning" },
+  REVOKED: { label: "Revoked", variant: "error" },
 };
 
 // ===========================================

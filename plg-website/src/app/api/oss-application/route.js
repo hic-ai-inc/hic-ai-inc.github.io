@@ -1,18 +1,39 @@
 /**
- * OSS Application API
+ * OSS Application API — DEPRECATED
  *
- * POST /api/oss-application
+ * @deprecated OSS tier deferred per Addendum A.1
+ * This endpoint returns 410 Gone. Code preserved for potential future use.
  *
- * Handles Open Source license applications. Verifies GitHub
- * project eligibility and creates OSS license if approved.
+ * Original functionality: POST /api/oss-application
+ * Verified GitHub OSS projects and issued free licenses.
  *
- * @see User Journey and Guest Checkout v2 - Section 1.2
- *
- * TODO: REMOVE THIS ENDPOINT — OSS tier deferred per Addendum A.1
- * Focus on Individual ($10) and Enterprise ($25) tiers for MVP.
- * Keep code archived in case we add OSS tier post-launch.
+ * @see User Journey and Guest Checkout v2 - Addendum A.1
  */
 
+import { NextResponse } from "next/server";
+
+/**
+ * OSS tier deferred — return 410 Gone with helpful message
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: "OSS tier not available",
+      code: "OSS_TIER_DEFERRED",
+      message:
+        "The Open Source tier is not currently available. Please consider our Individual plan at $10/month.",
+      pricing_url: "https://hic-ai.com/pricing",
+    },
+    { status: 410 },
+  );
+}
+
+/* ==========================================================================
+ * ARCHIVED CODE — OSS Application Handler
+ * Preserved for potential future reactivation of OSS tier
+ * ========================================================================== */
+
+/*
 import { NextResponse } from "next/server";
 import { createLicenseForPlan } from "@/lib/keygen";
 import {
@@ -225,3 +246,4 @@ export async function POST(request) {
     );
   }
 }
+*/

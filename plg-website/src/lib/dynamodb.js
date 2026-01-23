@@ -173,11 +173,29 @@ export async function updateCustomerSubscription(auth0Id, updates) {
 // LICENSE OPERATIONS
 // ===========================================
 
-// TODO: Add getLicenseByKey(licenseKey) for activation endpoint — query GSI2 by LICENSE_KEY#<key>
-// TODO: Add enterprise admin functions per Addendum A.5/A.7:
-//   - getOrgMembers(orgId)
-//   - updateOrgMemberStatus(orgId, memberId, status)
-//   - getOrgLicenseUsage(orgId)
+/**
+ * Get license by license key (for activation/validation endpoints)
+ * Queries GSI2 by LICENSE_KEY#<key>
+ */
+export async function getLicenseByKey(licenseKey) {
+  const logger = createLogger("getLicenseByKey");
+  try {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: "GSI2",
+        KeyConditionExpression: "GSI2PK = :pk",
+        ExpressionAttributeValues: {
+          ":pk": `LICENSE_KEY#${licenseKey}`,
+        },
+      }),
+    );
+    return result.Items?.[0] || null;
+  } catch (error) {
+    logger.error("Failed to get license by key", { error: error.message });
+    throw error;
+  }
+}
 
 /**
  * Get license by Keygen license ID
@@ -419,3 +437,131 @@ export async function updateDeviceLastSeen(keygenLicenseId, keygenMachineId) {
     }),
   );
 }
+
+// ===========================================
+// ENTERPRISE ORGANIZATION OPERATIONS
+// Per Addendum A.5/A.7
+// ===========================================
+
+/**
+ * Get all members of an organization
+ * @param {string} orgId - Organization ID
+ * @returns {Promise<Array>} Organization members
+ */
+export async function getOrgMembers(orgId) {
+  const logger = createLogger("getOrgMembers");
+  try {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
+        ExpressionAttributeValues: {
+          ":pk": `ORG#${orgId}`,
+          ":sk": "MEMBER#",
+        },
+      }),
+    );
+    return result.Items || [];
+  } catch (error) {
+    logger.error("Failed to get org members", { orgId, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Update organization member status
+ * @param {string} orgId - Organization ID
+ * @param {string} memberId - Member user ID
+ * @param {string} status - New status (active, suspended, revoked)
+ * @returns {Promise<Object>} Updated member record
+ */
+export async function updateOrgMemberStatus(orgId, memberId, status) {
+  const logger = createLogger("updateOrgMemberStatus");
+  try {
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: `MEMBER#${memberId}`,
+        },
+        UpdateExpression: "SET #status = :status, updatedAt = :now",
+        ExpressionAttributeNames: {
+          "#status": "status",
+        },
+        ExpressionAttributeValues: {
+          ":status": status,
+          ":now": new Date().toISOString(),
+        },
+        ReturnValues: "ALL_NEW",
+      }),
+    );
+    logger.info("Org member status updated", { orgId, memberId, status });
+    return result.Attributes;
+  } catch (error) {
+    logger.error("Failed to update org member status", {
+      orgId,
+      memberId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Get organization license usage statistics
+ * @param {string} orgId - Organization ID
+ * @returns {Promise<Object>} License usage stats
+ */
+export async function getOrgLicenseUsage(orgId) {
+  const logger = createLogger("getOrgLicenseUsage");
+  try {
+    // Get org details for seat limit
+    const orgResult = await dynamodb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: "DETAILS",
+        },
+      }),
+    );
+
+    // Get all active members
+    const membersResult = await dynamodb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
+        FilterExpression: "#status = :active",
+        ExpressionAttributeNames: {
+          "#status": "status",
+        },
+        ExpressionAttributeValues: {
+          ":pk": `ORG#${orgId}`,
+          ":sk": "MEMBER#",
+          ":active": "active",
+        },
+      }),
+    );
+
+    const org = orgResult.Item || {};
+    const activeMembers = membersResult.Items?.length || 0;
+    const seatLimit = org.seatLimit || 0;
+
+    return {
+      orgId,
+      seatLimit,
+      seatsUsed: activeMembers,
+      seatsAvailable: Math.max(0, seatLimit - activeMembers),
+      utilizationPercent:
+        seatLimit > 0 ? Math.round((activeMembers / seatLimit) * 100) : 0,
+    };
+  } catch (error) {
+    logger.error("Failed to get org license usage", {
+      orgId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+

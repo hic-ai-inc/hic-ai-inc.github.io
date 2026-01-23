@@ -12,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { deactivateDevice } from "@/lib/keygen";
-import { removeDeviceActivation } from "@/lib/dynamodb";
+import { removeDeviceActivation, getCustomerLicenses } from "@/lib/dynamodb";
 import { getSession } from "@/lib/auth";
 
 export async function DELETE(request) {
@@ -38,13 +38,11 @@ export async function DELETE(request) {
     // If called from portal, verify user owns this license
     const session = await getSession();
     if (session?.user) {
-      // TODO: SECURITY — Implement license ownership verification
-      // This is critical to prevent users from deactivating others' devices.
-      // Uncomment and test:
-      // const userLicenses = await getCustomerLicenses(session.user.sub);
-      // if (!userLicenses.find(l => l.keygenLicenseId === licenseId)) {
-      //   return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-      // }
+      // SECURITY: Verify license ownership to prevent users from deactivating others' devices
+      const userLicenses = await getCustomerLicenses(session.user.sub);
+      if (!userLicenses.find((l) => l.keygenLicenseId === licenseId)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
     }
 
     // Deactivate device with Keygen

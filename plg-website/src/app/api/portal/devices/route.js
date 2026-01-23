@@ -15,6 +15,7 @@ import {
   getLicenseDevices,
 } from "@/lib/dynamodb";
 import { getLicenseMachines, deactivateDevice } from "@/lib/keygen";
+import { PRICING } from "@/lib/constants";
 
 export async function GET() {
   try {
@@ -62,16 +63,9 @@ export async function GET() {
       };
     });
 
-    // Get max devices from customer's plan
-    // TODO: Use PRICING constants instead of hardcoded values
-    // import { PRICING } from "@/lib/constants";
-    // const maxDevices = PRICING[customer.accountType]?.maxDevices || 3;
-    const maxDevices =
-      customer.accountType === "enterprise"
-        ? 10
-        : customer.accountType === "individual"
-          ? 3
-          : 2;
+    // Get max devices from customer's plan using PRICING constants
+    const planConfig = PRICING[customer.accountType];
+    const maxDevices = planConfig?.maxDevices || planConfig?.maxDevicesPerSeat || 3;
 
     return NextResponse.json({
       devices: mergedDevices,

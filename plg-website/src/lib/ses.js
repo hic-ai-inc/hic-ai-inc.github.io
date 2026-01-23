@@ -25,13 +25,6 @@ const PRODUCT_NAME = "Mouse";
 // EMAIL TEMPLATES
 // ===========================================
 
-// TODO: Add missing email templates per Addendum A:
-//   - cancellation (A.9.1) — "We're sorry to see you go"
-//   - reactivation (A.2) — "Payment successful! Full access restored"
-//   - winBack30 (A.9.2) — "We miss you" at 30 days
-//   - winBack90 (A.9.2) — "Special offer" at 90 days
-//   - licenseRevoked (A.7) — "Your Mouse license has been revoked"
-//   - enterpriseInvite (A.7) — "You've been invited to use Mouse"
 const templates = {
   /**
    * Welcome email after checkout (before account creation)
@@ -478,6 +471,211 @@ ${COMPANY_NAME}
   }),
 
   /**
+   * Win-back email at 30 days post-cancellation (A.9.2)
+   */
+  winBack30: ({ email }) => ({
+    subject: `We miss you! Come back to ${PRODUCT_NAME}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #F6F8FB; margin-bottom: 24px;">We miss you! 💙</h1>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            It's been 30 days since you cancelled your ${PRODUCT_NAME} subscription, and we wanted to check in.
+          </p>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            We've been busy making ${PRODUCT_NAME} even better. Here's what's new since you left:
+          </p>
+          
+          <ul style="color: #B8C4D0; font-size: 16px; line-height: 1.8; padding-left: 20px;">
+            <li>Performance improvements and faster edits</li>
+            <li>Better error handling and recovery</li>
+            <li>New staging workflow for safer edits</li>
+          </ul>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            Ready to give it another try? Your account is still here, waiting for you.
+          </p>
+          
+          <div style="margin: 32px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/pricing" 
+               style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Reactivate Now
+            </a>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+          
+          <p style="color: #6B7C93; font-size: 12px;">
+            ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents<br>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/unsubscribe?email=${encodeURIComponent(email)}" style="color: #6B7C93;">Unsubscribe from win-back emails</a>
+          </p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+We miss you!
+
+It's been 30 days since you cancelled your ${PRODUCT_NAME} subscription, and we wanted to check in.
+
+We've been busy making ${PRODUCT_NAME} even better. Here's what's new since you left:
+- Performance improvements and faster edits
+- Better error handling and recovery
+- New staging workflow for safer edits
+
+Ready to give it another try? Your account is still here, waiting for you.
+
+Reactivate now: ${process.env.NEXT_PUBLIC_APP_URL}/pricing
+
+${COMPANY_NAME}
+Unsubscribe: ${process.env.NEXT_PUBLIC_APP_URL}/unsubscribe?email=${encodeURIComponent(email)}
+    `,
+  }),
+
+  /**
+   * Win-back email at 90 days post-cancellation with discount (A.9.2)
+   */
+  winBack90: ({ email, discountCode }) => ({
+    subject: `Special offer: 20% off ${PRODUCT_NAME} — we'd love you back`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #F6F8FB; margin-bottom: 24px;">Special Offer Just For You 🎁</h1>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            It's been a while since you left ${PRODUCT_NAME}, and we wanted to reach out one more time.
+          </p>
+          
+          <div style="background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;">
+            <h2 style="color: #10B981; margin: 0 0 12px 0;">20% OFF</h2>
+            <p style="color: #B8C4D0; font-size: 16px; margin: 0 0 16px 0;">Your first 3 months back</p>
+            <div style="background-color: rgba(201, 219, 240, 0.08); border: 1px dashed rgba(201, 219, 240, 0.3); border-radius: 4px; padding: 12px; font-family: monospace; font-size: 18px; color: #C9DBF0;">
+              ${discountCode}
+            </div>
+          </div>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            This offer expires in 7 days. Enter the code at checkout to claim your discount.
+          </p>
+          
+          <div style="margin: 32px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/pricing?code=${discountCode}" 
+               style="display: inline-block; background-color: #10B981; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Claim Your Discount
+            </a>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+          
+          <p style="color: #6B7C93; font-size: 12px;">
+            ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents<br>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/unsubscribe?email=${encodeURIComponent(email)}" style="color: #6B7C93;">Unsubscribe from win-back emails</a>
+          </p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Special Offer Just For You!
+
+It's been a while since you left ${PRODUCT_NAME}, and we wanted to reach out one more time.
+
+20% OFF your first 3 months back!
+Use code: ${discountCode}
+
+This offer expires in 7 days.
+
+Claim your discount: ${process.env.NEXT_PUBLIC_APP_URL}/pricing?code=${discountCode}
+
+${COMPANY_NAME}
+Unsubscribe: ${process.env.NEXT_PUBLIC_APP_URL}/unsubscribe?email=${encodeURIComponent(email)}
+    `,
+  }),
+
+  /**
+   * Enterprise team invitation (A.7)
+   */
+  enterpriseInvite: ({ email, organizationName, inviterName, inviteToken }) => ({
+    subject: `You've been invited to use ${PRODUCT_NAME}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #F6F8FB; margin-bottom: 24px;">You're Invited! 🚀</h1>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            ${inviterName} has invited you to join <strong>${organizationName}</strong>'s ${PRODUCT_NAME} team.
+          </p>
+          
+          <div style="background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <h3 style="color: #F6F8FB; margin: 0 0 12px 0; font-size: 16px;">What is ${PRODUCT_NAME}?</h3>
+            <p style="color: #B8C4D0; font-size: 14px; margin: 0;">
+              ${PRODUCT_NAME} provides precision editing tools for AI coding agents in VS Code. It helps AI assistants make more accurate, atomic edits to your codebase.
+            </p>
+          </div>
+          
+          <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+            Accept this invitation to get your license key and start using ${PRODUCT_NAME} — your organization has you covered.
+          </p>
+          
+          <div style="margin: 32px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/invite/accept?token=${inviteToken}" 
+               style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Accept Invitation
+            </a>
+          </div>
+          
+          <p style="color: #6B7C93; font-size: 14px;">
+            This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+          
+          <p style="color: #6B7C93; font-size: 12px;">
+            ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
+          </p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+You're Invited!
+
+${inviterName} has invited you to join ${organizationName}'s ${PRODUCT_NAME} team.
+
+What is ${PRODUCT_NAME}?
+${PRODUCT_NAME} provides precision editing tools for AI coding agents in VS Code. It helps AI assistants make more accurate, atomic edits to your codebase.
+
+Accept this invitation to get your license key and start using ${PRODUCT_NAME} — your organization has you covered.
+
+Accept invitation: ${process.env.NEXT_PUBLIC_APP_URL}/invite/accept?token=${inviteToken}
+
+This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
+
+${COMPANY_NAME}
+    `,
+  }),
+
+  /**
    * Dispute notification - internal alert (A.6.2)
    */
   disputeAlert: ({ customerEmail, amount, reason, disputeId }) => ({
@@ -627,7 +825,6 @@ export async function sendTrialEndingEmail(email, daysRemaining, planName) {
   return sendEmail("trialEnding", email, { email, daysRemaining, planName });
 }
 
-
 /**
  * Send payment reactivation confirmation (A.2)
  */
@@ -663,3 +860,33 @@ export async function sendDisputeAlert(customerEmail, amount, reason, disputeId)
   });
 }
 
+/**
+ * Send win-back email at 30 days post-cancellation (A.9.2)
+ */
+export async function sendWinBack30Email(email) {
+  return sendEmail("winBack30", email, { email });
+}
+
+/**
+ * Send win-back email at 90 days with discount offer (A.9.2)
+ */
+export async function sendWinBack90Email(email, discountCode = "WINBACK20") {
+  return sendEmail("winBack90", email, { email, discountCode });
+}
+
+/**
+ * Send enterprise team invitation (A.7)
+ */
+export async function sendEnterpriseInviteEmail(
+  email,
+  organizationName,
+  inviterName,
+  inviteToken,
+) {
+  return sendEmail("enterpriseInvite", email, {
+    email,
+    organizationName,
+    inviterName,
+    inviteToken,
+  });
+}
