@@ -8,7 +8,7 @@
  */
 
 import { redirect } from "next/navigation";
-import { getSession } from "@auth0/nextjs-auth0";
+import { getSession } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { createLicenseForPlan } from "@/lib/keygen";
 import {

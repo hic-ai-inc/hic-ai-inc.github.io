@@ -1,5 +1,5 @@
 import { Inter, Manrope } from "next/font/google";
-import { UserProvider } from "@auth0/nextjs-auth0/client";
+import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import "./globals.css";
 
 const inter = Inter({
@@ -67,7 +67,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${manrope.variable}`}>
       <body className="antialiased">
-        <UserProvider>{children}</UserProvider>
+        <Auth0Provider>{children}</Auth0Provider>
       </body>
     </html>
   );

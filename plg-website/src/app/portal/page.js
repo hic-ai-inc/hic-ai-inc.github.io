@@ -7,7 +7,7 @@
  * @see PLG User Journey - Section 2.6
  */
 
-import { getSession } from "@auth0/nextjs-auth0";
+import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import {
   Card,

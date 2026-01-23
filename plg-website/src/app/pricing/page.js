@@ -70,6 +70,7 @@ const tiers = [
       "Custom onboarding",
       "Volume discounts available",
     ],
+    limitations: [],
     volumeDiscounts: [
       { seats: "10-99", discount: "Standard pricing" },
       { seats: "100-499", discount: "10% off" },
@@ -135,7 +136,7 @@ export default function PricingPage() {
                 Docs
               </Link>
               <Link
-                href="/api/auth/login"
+                href="/auth/login"
                 className="text-slate-300 hover:text-white transition"
               >
                 Sign In

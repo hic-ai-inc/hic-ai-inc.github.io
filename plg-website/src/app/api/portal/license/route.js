@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@auth0/nextjs-auth0";
+import { getSession } from "@/lib/auth";
 import { getCustomerByAuth0Id, getLicense } from "@/lib/dynamodb";
 import { getLicense as getKeygenLicense } from "@/lib/keygen";
 

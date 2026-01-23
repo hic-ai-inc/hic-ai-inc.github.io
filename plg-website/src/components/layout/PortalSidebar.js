@@ -74,7 +74,7 @@ export default function PortalSidebar() {
           </div>
         </div>
         <a
-          href="/api/auth/logout"
+          href="/auth/logout"
           className="flex items-center gap-3 px-4 py-2 text-sm text-slate-grey hover:text-frost-white transition-colors"
         >
           <LogoutIcon className="h-4 w-4" />

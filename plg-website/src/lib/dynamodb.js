@@ -8,20 +8,25 @@
  * @see DDB Schema Addendum
  */
 
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+// HIC DM Layer imports - centralized dependency management
 import {
+  DynamoDBClient,
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
   UpdateCommand,
   QueryCommand,
   DeleteCommand,
-} from "@aws-sdk/lib-dynamodb";
+} from "../../../dm/layers/dynamodb/src/index.js";
+import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
 
-// Initialize DynamoDB client
+// Initialize DynamoDB client with HIC logging
 const client = new DynamoDBClient({
   region: process.env.AWS_REGION || "us-east-1",
 });
+
+// Service logger for all DynamoDB operations
+const createLogger = (operation) => new HicLog(`plg-dynamodb-${operation}`);
 
 // Document client for simplified operations
 export const dynamodb = DynamoDBDocumentClient.from(client, {

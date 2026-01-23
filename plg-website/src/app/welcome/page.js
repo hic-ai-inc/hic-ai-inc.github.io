@@ -7,7 +7,7 @@
  * @see PLG User Journey - Section 2.4
  */
 
-import { getSession } from "@auth0/nextjs-auth0";
+import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Header, Footer } from "@/components/layout";
@@ -62,7 +62,7 @@ export default async function WelcomePage({ searchParams }) {
 
               <div className="space-y-4">
                 <Button
-                  href={`/api/auth/login?returnTo=/portal&screen_hint=signup${
+                  href={`/auth/login?returnTo=/portal&screen_hint=signup${
                     sessionId ? `&session_id=${sessionId}` : ""
                   }`}
                   className="w-full"
@@ -83,7 +83,7 @@ export default async function WelcomePage({ searchParams }) {
                 </div>
 
                 <Button
-                  href={`/api/auth/login?returnTo=/portal${
+                  href={`/auth/login?returnTo=/portal${
                     sessionId ? `&session_id=${sessionId}` : ""
                   }`}
                   variant="secondary"

@@ -5,7 +5,7 @@
  * Wraps all /portal/* pages.
  */
 
-import { getSession } from "@auth0/nextjs-auth0";
+import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { PortalSidebar } from "@/components/layout";
 
@@ -17,7 +17,7 @@ export default async function PortalLayout({ children }) {
   const session = await getSession();
 
   if (!session) {
-    redirect("/api/auth/login?returnTo=/portal");
+    redirect("/auth/login?returnTo=/portal");
   }
 
   return (

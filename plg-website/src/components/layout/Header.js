@@ -58,7 +58,7 @@ export default function Header() {
           ) : (
             <>
               <Link
-                href="/api/auth/login"
+                href="/auth/login"
                 className="text-silver hover:text-frost-white transition-colors text-sm font-medium hidden sm:block"
               >
                 Sign In

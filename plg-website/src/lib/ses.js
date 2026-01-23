@@ -11,6 +11,7 @@
  */
 
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { HicLog } from "../../../dm/layers/base/src/index.js";
 
 const ses = new SESClient({
   region: process.env.AWS_REGION || "us-east-1",
@@ -285,6 +286,9 @@ ${COMPANY_NAME}
  * Send an email using a template
  */
 export async function sendEmail(templateName, to, data) {
+  const log = new HicLog('plg-ses');
+  log.logAWSCall('SES', 'SendEmail', { templateName, to });
+  
   const template = templates[templateName];
   if (!template) {
     throw new Error(`Unknown email template: ${templateName}`);

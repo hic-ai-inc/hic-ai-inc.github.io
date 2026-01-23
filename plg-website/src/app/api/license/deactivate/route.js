@@ -13,7 +13,7 @@
 import { NextResponse } from "next/server";
 import { deactivateDevice } from "@/lib/keygen";
 import { removeDeviceActivation } from "@/lib/dynamodb";
-import { getSession } from "@auth0/nextjs-auth0";
+import { getSession } from "@/lib/auth";
 
 export async function DELETE(request) {
   try {

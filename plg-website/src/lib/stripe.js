@@ -10,6 +10,10 @@
 
 import Stripe from "stripe";
 import { loadStripe } from "@stripe/stripe-js";
+import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
+
+// Logger for Stripe operations
+const createLogger = (operation) => new HicLog(`plg-stripe-${operation}`);
 
 /**
  * Server-side Stripe client

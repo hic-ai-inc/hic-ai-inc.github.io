@@ -10,6 +10,9 @@
  * @see PLG Technical Specification v2 - Section 3.3
  */
 
+// HIC DM Layer imports - centralized dependency management
+import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
+
 const KEYGEN_ACCOUNT_ID = process.env.KEYGEN_ACCOUNT_ID;
 const KEYGEN_PRODUCT_TOKEN = process.env.KEYGEN_PRODUCT_TOKEN;
 const KEYGEN_API_URL = `https://api.keygen.sh/v1/accounts/${KEYGEN_ACCOUNT_ID}`;
@@ -25,7 +28,10 @@ export const KEYGEN_POLICIES = {
  * Make authenticated request to Keygen API
  */
 async function keygenRequest(endpoint, options = {}) {
+  const log = new HicLog('plg-keygen');
   const url = `${KEYGEN_API_URL}${endpoint}`;
+  
+  log.logAWSCall('Keygen', endpoint.split('/')[1] || 'request', { endpoint });
 
   const response = await fetch(url, {
     ...options,

@@ -9,7 +9,13 @@
  * @see Security Considerations for Auth0 Integration - Section 6.3
  */
 
-import { getSession } from "@auth0/nextjs-auth0";
+import { Auth0Client } from "@auth0/nextjs-auth0/server";
+
+// Auth0 v4 client instance
+const auth0 = new Auth0Client();
+
+// Re-export getSession for compatibility
+export const getSession = () => auth0.getSession();
 
 const NAMESPACE = "https://hic-ai.com";
 

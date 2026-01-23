@@ -9,7 +9,7 @@ Product-Led Growth website for **Mouse** - precision editing tools for AI coding
 │                        Next.js 16 App                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  Pages                     │  API Routes                       │
-│  ├── / (landing)           │  ├── /api/auth/[auth0]           │
+│  ├── / (landing)           │  ├── /auth/* (via middleware)    │
 │  ├── /pricing              │  ├── /api/checkout               │
 │  ├── /docs                 │  ├── /api/license/validate       │
 │  ├── /checkout/*           │  ├── /api/license/activate       │
@@ -160,7 +160,7 @@ npm run lint     # Run ESLint
 
 Create a Regular Web Application:
 
-- Callback URL: `http://localhost:3000/api/auth/callback`
+- Callback URL: `http://localhost:3000/auth/callback`
 - Logout URL: `http://localhost:3000`
 
 ### Stripe
