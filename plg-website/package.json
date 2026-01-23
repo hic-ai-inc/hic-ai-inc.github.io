@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --loader ../dm/facade/utils/test-loader.js test-runner.js",
+    "test:lib": "node --loader ../dm/facade/utils/test-loader.js --test __tests__/unit/lib/*.test.js",
+    "test:api": "node --loader ../dm/facade/utils/test-loader.js --test __tests__/unit/api/**/*.test.js",
+    "test:middleware": "node --loader ../dm/facade/utils/test-loader.js --test __tests__/unit/middleware/*.test.js",
+    "test:coverage": "node --loader ../dm/facade/utils/test-loader.js --test --experimental-test-coverage __tests__/**/*.test.js",
+    "test:debug": "bash scripts/debug-tests.sh"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.14.0",
