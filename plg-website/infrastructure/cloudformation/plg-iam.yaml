@@ -1,0 +1,356 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG IAM Roles and Policies
+
+  Roles for:
+  - Amplify (Next.js API routes) → DynamoDB, SES, Secrets Manager
+  - StreamProcessor Lambda → SNS publish
+  - EmailSender Lambda → SQS consume, SES send
+  - CustomerUpdate Lambda → SQS consume, DynamoDB write, Secrets Manager
+  - ScheduledTasks Lambda → DynamoDB scan, SES send
+
+  Per: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  DynamoDBTableArn:
+    Type: String
+    Description: ARN of the PLG DynamoDB table
+
+  DynamoDBStreamArn:
+    Type: String
+    Description: ARN of the DynamoDB stream
+
+  PaymentEventsTopicArn:
+    Type: String
+    Description: ARN of Payment Events SNS topic
+
+  CustomerEventsTopicArn:
+    Type: String
+    Description: ARN of Customer Events SNS topic
+
+  LicenseEventsTopicArn:
+    Type: String
+    Description: ARN of License Events SNS topic
+
+  EmailQueueArn:
+    Type: String
+    Description: ARN of Email SQS queue
+
+  CustomerUpdateQueueArn:
+    Type: String
+    Description: ARN of Customer Update SQS queue
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AMPLIFY EXECUTION ROLE
+  # Used by Next.js API routes running in Amplify
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  AmplifyExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "plg-amplify-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - amplify.amazonaws.com
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Ref DynamoDBTableArn
+                  - !Sub "${DynamoDBTableArn}/index/*"
+        - PolicyName: SESAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ses:FromAddress: !Sub "noreply@${Environment}.hic-ai.com"
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:plg/${Environment}/*"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STREAM PROCESSOR LAMBDA ROLE
+  # Reads DynamoDB Stream, publishes to SNS topics
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  StreamProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "plg-stream-processor-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBStreamAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:DescribeStream
+                  - dynamodb:ListStreams
+                Resource: !Ref DynamoDBStreamArn
+        - PolicyName: SNSPublishAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !Ref PaymentEventsTopicArn
+                  - !Ref CustomerEventsTopicArn
+                  - !Ref LicenseEventsTopicArn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # EMAIL SENDER LAMBDA ROLE
+  # Consumes from Email Queue, sends via SES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  EmailSenderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "plg-email-sender-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SQSConsumeAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !Ref EmailQueueArn
+        - PolicyName: SESAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: "*"
+                Condition:
+                  StringLike:
+                    ses:FromAddress: !Sub "*@${Environment}.hic-ai.com"
+        - PolicyName: DynamoDBReadAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !Ref DynamoDBTableArn
+                  - !Sub "${DynamoDBTableArn}/index/*"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CUSTOMER UPDATE LAMBDA ROLE
+  # Consumes from CustomerUpdate Queue, updates DynamoDB, calls Keygen
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  CustomerUpdateRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "plg-customer-update-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SQSConsumeAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !Ref CustomerUpdateQueueArn
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !Ref DynamoDBTableArn
+                  - !Sub "${DynamoDBTableArn}/index/*"
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:plg/${Environment}/keygen/*"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SCHEDULED TASKS LAMBDA ROLE
+  # Runs scheduled jobs: trial reminders, win-back emails
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  ScheduledTasksRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "plg-scheduled-tasks-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBScanAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !Ref DynamoDBTableArn
+                  - !Sub "${DynamoDBTableArn}/index/*"
+        - PolicyName: SESAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: "*"
+                Condition:
+                  StringLike:
+                    ses:FromAddress: !Sub "*@${Environment}.hic-ai.com"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+Outputs:
+  AmplifyExecutionRoleArn:
+    Description: ARN of Amplify execution role
+    Value: !GetAtt AmplifyExecutionRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-AmplifyExecutionRoleArn"
+
+  StreamProcessorRoleArn:
+    Description: ARN of Stream Processor Lambda role
+    Value: !GetAtt StreamProcessorRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-StreamProcessorRoleArn"
+
+  EmailSenderRoleArn:
+    Description: ARN of Email Sender Lambda role
+    Value: !GetAtt EmailSenderRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-EmailSenderRoleArn"
+
+  CustomerUpdateRoleArn:
+    Description: ARN of Customer Update Lambda role
+    Value: !GetAtt CustomerUpdateRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerUpdateRoleArn"
+
+  ScheduledTasksRoleArn:
+    Description: ARN of Scheduled Tasks Lambda role
+    Value: !GetAtt ScheduledTasksRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ScheduledTasksRoleArn"

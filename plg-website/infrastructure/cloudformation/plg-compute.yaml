@@ -1,0 +1,326 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG Lambda Functions for Event Processing
+
+  Functions:
+  - StreamProcessor: Reads DynamoDB Stream, classifies events, publishes to SNS
+  - EmailSender: Consumes Email Queue, sends emails via SES
+  - CustomerUpdate: Consumes CustomerUpdate Queue, updates state in DynamoDB/Keygen
+  - ScheduledTasks: Runs scheduled jobs (trial reminders, win-back emails)
+
+  Per: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  DynamoDBTableName:
+    Type: String
+    Description: Name of the PLG DynamoDB table
+
+  DynamoDBStreamArn:
+    Type: String
+    Description: ARN of the DynamoDB stream
+
+  PaymentEventsTopicArn:
+    Type: String
+    Description: ARN of Payment Events SNS topic
+
+  CustomerEventsTopicArn:
+    Type: String
+    Description: ARN of Customer Events SNS topic
+
+  LicenseEventsTopicArn:
+    Type: String
+    Description: ARN of License Events SNS topic
+
+  EmailQueueArn:
+    Type: String
+    Description: ARN of Email SQS queue
+
+  CustomerUpdateQueueArn:
+    Type: String
+    Description: ARN of Customer Update SQS queue
+
+  StreamProcessorRoleArn:
+    Type: String
+    Description: ARN of Stream Processor IAM role
+
+  EmailSenderRoleArn:
+    Type: String
+    Description: ARN of Email Sender IAM role
+
+  CustomerUpdateRoleArn:
+    Type: String
+    Description: ARN of Customer Update IAM role
+
+  ScheduledTasksRoleArn:
+    Type: String
+    Description: ARN of Scheduled Tasks IAM role
+
+  SESFromEmail:
+    Type: String
+    Default: noreply@hic-ai.com
+    Description: SES verified sender email
+
+  # VPC Configuration (optional - set to empty strings to disable)
+  VpcSubnetIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Comma-separated list of VPC subnet IDs for Lambda functions (leave empty for no VPC)
+
+  VpcSecurityGroupIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Comma-separated list of VPC security group IDs (leave empty for no VPC)
+
+  # Lambda Code Location
+  LambdaCodeBucket:
+    Type: String
+    Description: S3 bucket containing Lambda deployment packages
+
+  LambdaCodePrefix:
+    Type: String
+    Default: lambda
+    Description: S3 key prefix for Lambda deployment packages
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Lambda Layer ARNs (from HIC DM layers)
+  # ═══════════════════════════════════════════════════════════════════════════
+  HicBaseLayerArn:
+    Type: String
+    Description: ARN of hic-base-layer (HicLog, safeLog, etc.)
+
+  HicMessagingLayerArn:
+    Type: String
+    Description: ARN of hic-messaging-layer (SNS, SQS clients)
+
+  HicDynamoDBLayerArn:
+    Type: String
+    Description: ARN of hic-dynamodb-layer (DynamoDB clients)
+
+  HicSesLayerArn:
+    Type: String
+    Description: ARN of hic-ses-layer (SES client)
+
+  HicConfigLayerArn:
+    Type: String
+    Description: ARN of hic-config-layer (Secrets Manager, SSM clients)
+
+Conditions:
+  HasVpcConfig: !Not [!Equals [!Join ["", !Ref VpcSubnetIds], ""]]
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAMBDA FUNCTION: Stream Processor
+  # Triggered by DynamoDB Stream, classifies events and publishes to SNS
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  StreamProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "plg-stream-processor-${Environment}"
+      Description: Processes DynamoDB stream events and publishes to SNS topics
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref StreamProcessorRoleArn
+      Timeout: 60
+      MemorySize: 256
+      Layers:
+        - !Ref HicBaseLayerArn
+        - !Ref HicMessagingLayerArn
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          PAYMENT_EVENTS_TOPIC_ARN: !Ref PaymentEventsTopicArn
+          CUSTOMER_EVENTS_TOPIC_ARN: !Ref CustomerEventsTopicArn
+          LICENSE_EVENTS_TOPIC_ARN: !Ref LicenseEventsTopicArn
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodePrefix}/stream-processor.zip"
+      VpcConfig: !If
+        - HasVpcConfig
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  StreamProcessorEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName: !Ref StreamProcessorFunction
+      EventSourceArn: !Ref DynamoDBStreamArn
+      StartingPosition: TRIM_HORIZON
+      BatchSize: 100
+      MaximumBatchingWindowInSeconds: 5
+      BisectBatchOnFunctionError: true
+      MaximumRetryAttempts: 3
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAMBDA FUNCTION: Email Sender
+  # Triggered by Email Queue, sends emails via SES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  EmailSenderFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "plg-email-sender-${Environment}"
+      Description: Sends emails from Email Queue via SES
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref EmailSenderRoleArn
+      Timeout: 60
+      MemorySize: 256
+      Layers:
+        - !Ref HicBaseLayerArn
+        - !Ref HicDynamoDBLayerArn
+        - !Ref HicSesLayerArn
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          SES_FROM_EMAIL: !Ref SESFromEmail
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodePrefix}/email-sender.zip"
+      VpcConfig: !If
+        - HasVpcConfig
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  EmailSenderEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName: !Ref EmailSenderFunction
+      EventSourceArn: !Ref EmailQueueArn
+      BatchSize: 10
+      MaximumBatchingWindowInSeconds: 5
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAMBDA FUNCTION: Customer Update
+  # Triggered by CustomerUpdate Queue, updates DynamoDB and Keygen
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  CustomerUpdateFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "plg-customer-update-${Environment}"
+      Description: Updates customer state in DynamoDB and Keygen
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref CustomerUpdateRoleArn
+      Timeout: 120
+      MemorySize: 256
+      Layers:
+        - !Ref HicBaseLayerArn
+        - !Ref HicDynamoDBLayerArn
+        - !Ref HicConfigLayerArn
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodePrefix}/customer-update.zip"
+      VpcConfig: !If
+        - HasVpcConfig
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  CustomerUpdateEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName: !Ref CustomerUpdateFunction
+      EventSourceArn: !Ref CustomerUpdateQueueArn
+      BatchSize: 10
+      MaximumBatchingWindowInSeconds: 5
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAMBDA FUNCTION: Scheduled Tasks
+  # Triggered by EventBridge rules for cron jobs
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  ScheduledTasksFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "plg-scheduled-tasks-${Environment}"
+      Description: Runs scheduled jobs (trial reminders, win-back emails)
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref ScheduledTasksRoleArn
+      Timeout: 300
+      MemorySize: 512
+      Layers:
+        - !Ref HicBaseLayerArn
+        - !Ref HicDynamoDBLayerArn
+        - !Ref HicSesLayerArn
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          SES_FROM_EMAIL: !Ref SESFromEmail
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodePrefix}/scheduled-tasks.zip"
+      VpcConfig: !If
+        - HasVpcConfig
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+Outputs:
+  StreamProcessorFunctionArn:
+    Description: Stream Processor Lambda ARN
+    Value: !GetAtt StreamProcessorFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-StreamProcessorFunctionArn"
+
+  EmailSenderFunctionArn:
+    Description: Email Sender Lambda ARN
+    Value: !GetAtt EmailSenderFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-EmailSenderFunctionArn"
+
+  CustomerUpdateFunctionArn:
+    Description: Customer Update Lambda ARN
+    Value: !GetAtt CustomerUpdateFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerUpdateFunctionArn"
+
+  ScheduledTasksFunctionArn:
+    Description: Scheduled Tasks Lambda ARN
+    Value: !GetAtt ScheduledTasksFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ScheduledTasksFunctionArn"
+
+  ScheduledTasksFunctionName:
+    Description: Scheduled Tasks Lambda name (for EventBridge targeting)
+    Value: !Ref ScheduledTasksFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-ScheduledTasksFunctionName"

@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG SES Email Infrastructure
+
+  Resources:
+  - SES Domain Identity (verified sending domain)
+  - SES Configuration Set (bounce/complaint tracking)
+  - SNS Topic for bounce notifications
+
+  Note: Domain verification requires DNS record creation in GoDaddy
+
+  Per: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  EmailDomain:
+    Type: String
+    Default: hic-ai.com
+    Description: Domain for sending emails
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SES CONFIGURATION SET
+  # Tracks email delivery, bounces, complaints
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  SESConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Sub "plg-email-config-${Environment}"
+      DeliveryOptions:
+        TlsPolicy: REQUIRE
+      ReputationOptions:
+        ReputationMetricsEnabled: true
+      SendingOptions:
+        SendingEnabled: true
+      SuppressionOptions:
+        SuppressedReasons:
+          - BOUNCE
+          - COMPLAINT
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SNS TOPICS FOR SES NOTIFICATIONS
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  BounceNotificationTopic:
+    Type: AWS::SNS::Topic
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TopicName: !Sub "plg-ses-bounces-${Environment}"
+      DisplayName: PLG Email Bounces
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  ComplaintNotificationTopic:
+    Type: AWS::SNS::Topic
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TopicName: !Sub "plg-ses-complaints-${Environment}"
+      DisplayName: PLG Email Complaints
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SES EVENT DESTINATIONS
+  # Route delivery events to CloudWatch for metrics
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  SESEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    Properties:
+      ConfigurationSetName: !Ref SESConfigurationSet
+      EventDestination:
+        Name: !Sub "plg-cloudwatch-events-${Environment}"
+        Enabled: true
+        MatchingEventTypes:
+          - send
+          - delivery
+          - bounce
+          - complaint
+          - reject
+          - open
+          - click
+        CloudWatchDestination:
+          DimensionConfigurations:
+            - DimensionName: Environment
+              DimensionValueSource: emailHeader
+              DefaultDimensionValue: !Ref Environment
+            - DimensionName: EmailType
+              DimensionValueSource: emailHeader
+              DefaultDimensionValue: transactional
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SES EMAIL IDENTITY (Domain)
+  # Note: After stack creation, add DNS records to GoDaddy for verification
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  SESEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !If
+        - IsProduction
+        - !Ref EmailDomain
+        - !Sub "${Environment}.${EmailDomain}"
+      ConfigurationSetAttributes:
+        ConfigurationSetName: !Ref SESConfigurationSet
+      DkimAttributes:
+        SigningEnabled: true
+      FeedbackAttributes:
+        EmailForwardingEnabled: true
+      MailFromAttributes:
+        MailFromDomain: !If
+          - IsProduction
+          - !Sub "mail.${EmailDomain}"
+          - !Sub "mail.${Environment}.${EmailDomain}"
+        BehaviorOnMxFailure: USE_DEFAULT_VALUE
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
+
+Outputs:
+  ConfigurationSetName:
+    Description: SES Configuration Set name
+    Value: !Ref SESConfigurationSet
+    Export:
+      Name: !Sub "${AWS::StackName}-ConfigurationSetName"
+
+  EmailIdentity:
+    Description: Verified email identity (domain)
+    Value: !Ref SESEmailIdentity
+    Export:
+      Name: !Sub "${AWS::StackName}-EmailIdentity"
+
+  BounceNotificationTopicArn:
+    Description: SNS topic for bounce notifications
+    Value: !Ref BounceNotificationTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-BounceNotificationTopicArn"
+
+  ComplaintNotificationTopicArn:
+    Description: SNS topic for complaint notifications
+    Value: !Ref ComplaintNotificationTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-ComplaintNotificationTopicArn"
+
+  # DNS Records needed for verification (displayed in stack outputs)
+  DomainVerificationNote:
+    Description: After deployment, check AWS Console for DKIM/SPF DNS records
+    Value: !Sub |
+      Add these DNS records in GoDaddy for ${Environment}:
+      1. DKIM records (3 CNAME records) - See SES Console
+      2. SPF record: v=spf1 include:amazonses.com ~all
+      3. MAIL FROM MX record: 10 feedback-smtp.${AWS::Region}.amazonses.com

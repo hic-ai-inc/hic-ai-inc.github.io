@@ -1,0 +1,18 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "staging"
+  },
+  {
+    "ParameterKey": "TemplatesBucket",
+    "ParameterValue": "hic-plg-templates-staging"
+  },
+  {
+    "ParameterKey": "EmailDomain",
+    "ParameterValue": "hic-ai.com"
+  },
+  {
+    "ParameterKey": "AlertEmail",
+    "ParameterValue": "simon@hic-ai.com"
+  }
+]

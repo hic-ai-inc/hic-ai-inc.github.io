@@ -1,0 +1,405 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG CloudWatch Monitoring Infrastructure
+
+  Resources:
+  - Log Groups for Lambda functions
+  - Metric Filters extracting business metrics from HicLog
+  - CloudWatch Alarms for error conditions
+  - CloudWatch Dashboard for business overview
+
+  Per: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A.6)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  KmsMasterKeyId:
+    Type: String
+    Default: ""
+    Description: KMS key ARN for CloudWatch Logs encryption (leave empty to use default encryption)
+
+  AlertEmail:
+    Type: String
+    Default: alerts@hic-ai.com
+    Description: Email address for CloudWatch alerts
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LOG GROUPS
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  StreamProcessorLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/plg-stream-processor-${Environment}"
+      RetentionInDays: 30
+      KmsKeyId: !If [HasKmsKey, !Ref KmsMasterKeyId, !Ref "AWS::NoValue"]
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  EmailSenderLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/plg-email-sender-${Environment}"
+      RetentionInDays: 30
+      KmsKeyId: !If [HasKmsKey, !Ref KmsMasterKeyId, !Ref "AWS::NoValue"]
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  CustomerUpdateLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/plg-customer-update-${Environment}"
+      RetentionInDays: 30
+      KmsKeyId: !If [HasKmsKey, !Ref KmsMasterKeyId, !Ref "AWS::NoValue"]
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  ScheduledTasksLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/plg-scheduled-tasks-${Environment}"
+      RetentionInDays: 30
+      KmsKeyId: !If [HasKmsKey, !Ref KmsMasterKeyId, !Ref "AWS::NoValue"]
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # METRIC FILTERS - Extract business metrics from HicLog output
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  PaymentSucceededMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CustomerUpdateLogGroup
+      FilterPattern: '{ $.event = "PAYMENT_SUCCEEDED" }'
+      MetricTransformations:
+        - MetricName: PaymentSucceeded
+          MetricNamespace: !Sub "PLG/${Environment}"
+          MetricValue: "1"
+          Unit: Count
+
+  PaymentFailedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CustomerUpdateLogGroup
+      FilterPattern: '{ $.event = "PAYMENT_FAILED" }'
+      MetricTransformations:
+        - MetricName: PaymentFailed
+          MetricNamespace: !Sub "PLG/${Environment}"
+          MetricValue: "1"
+          Unit: Count
+
+  NewCustomerMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CustomerUpdateLogGroup
+      FilterPattern: '{ $.event = "CUSTOMER_CREATED" }'
+      MetricTransformations:
+        - MetricName: NewCustomer
+          MetricNamespace: !Sub "PLG/${Environment}"
+          MetricValue: "1"
+          Unit: Count
+
+  EmailSentMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref EmailSenderLogGroup
+      FilterPattern: '{ $.event = "EMAIL_SENT" }'
+      MetricTransformations:
+        - MetricName: EmailSent
+          MetricNamespace: !Sub "PLG/${Environment}"
+          MetricValue: "1"
+          Unit: Count
+
+  EmailFailedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref EmailSenderLogGroup
+      FilterPattern: '{ $.event = "EMAIL_FAILED" }'
+      MetricTransformations:
+        - MetricName: EmailFailed
+          MetricNamespace: !Sub "PLG/${Environment}"
+          MetricValue: "1"
+          Unit: Count
+
+  LambdaErrorMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref StreamProcessorLogGroup
+      FilterPattern: "ERROR"
+      MetricTransformations:
+        - MetricName: LambdaErrors
+          MetricNamespace: !Sub "PLG/${Environment}"
+          MetricValue: "1"
+          Unit: Count
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SNS TOPIC FOR ALARMS
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TopicName: !Sub "plg-alerts-${Environment}"
+      DisplayName: PLG Alerts
+      KmsMasterKeyId: alias/aws/sns
+
+  AlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsProduction
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CLOUDWATCH ALARMS
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "plg-high-error-rate-${Environment}"
+      AlarmDescription: High Lambda error rate detected
+      MetricName: LambdaErrors
+      Namespace: !Sub "PLG/${Environment}"
+      Statistic: Sum
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  PaymentFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "plg-payment-failures-${Environment}"
+      AlarmDescription: Multiple payment failures detected
+      MetricName: PaymentFailed
+      Namespace: !Sub "PLG/${Environment}"
+      Statistic: Sum
+      Period: 3600 # 1 hour
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  EmailFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "plg-email-failures-${Environment}"
+      AlarmDescription: Email delivery failures detected
+      MetricName: EmailFailed
+      Namespace: !Sub "PLG/${Environment}"
+      Statistic: Sum
+      Period: 3600 # 1 hour
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CLOUDWATCH DASHBOARD
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  PLGDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "PLG-${Environment}"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "properties": {
+                "title": "New Customers (24h)",
+                "view": "singleValue",
+                "metrics": [
+                  ["PLG/${Environment}", "NewCustomer", {"stat": "Sum", "period": 86400}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "properties": {
+                "title": "Payments (24h)",
+                "view": "singleValue",
+                "metrics": [
+                  ["PLG/${Environment}", "PaymentSucceeded", {"stat": "Sum", "period": 86400, "label": "Succeeded", "color": "#2ca02c"}],
+                  ["PLG/${Environment}", "PaymentFailed", {"stat": "Sum", "period": 86400, "label": "Failed", "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "properties": {
+                "title": "Emails (24h)",
+                "view": "singleValue",
+                "metrics": [
+                  ["PLG/${Environment}", "EmailSent", {"stat": "Sum", "period": 86400, "label": "Sent", "color": "#2ca02c"}],
+                  ["PLG/${Environment}", "EmailFailed", {"stat": "Sum", "period": 86400, "label": "Failed", "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 18,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "properties": {
+                "title": "Errors (24h)",
+                "view": "singleValue",
+                "metrics": [
+                  ["PLG/${Environment}", "LambdaErrors", {"stat": "Sum", "period": 86400, "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "New Customers Over Time",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["PLG/${Environment}", "NewCustomer", {"stat": "Sum", "period": 3600}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Payment Activity",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["PLG/${Environment}", "PaymentSucceeded", {"stat": "Sum", "period": 3600, "color": "#2ca02c"}],
+                  ["PLG/${Environment}", "PaymentFailed", {"stat": "Sum", "period": 3600, "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Email Delivery",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["PLG/${Environment}", "EmailSent", {"stat": "Sum", "period": 3600, "color": "#2ca02c"}],
+                  ["PLG/${Environment}", "EmailFailed", {"stat": "Sum", "period": 3600, "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Lambda Errors",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["PLG/${Environment}", "LambdaErrors", {"stat": "Sum", "period": 300, "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            }
+          ]
+        }
+
+Conditions:
+  HasKmsKey: !Not [!Equals [!Ref KmsMasterKeyId, ""]]
+  IsProduction: !Equals [!Ref Environment, prod]
+
+Outputs:
+  DashboardName:
+    Description: CloudWatch Dashboard name
+    Value: !Ref PLGDashboard
+    Export:
+      Name: !Sub "${AWS::StackName}-DashboardName"
+
+  DashboardUrl:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=PLG-${Environment}"
+
+  AlertTopicArn:
+    Description: Alert SNS topic ARN
+    Value: !Ref AlertTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-AlertTopicArn"
+
+  LogGroupArns:
+    Description: Lambda log group ARNs
+    Value: !Sub |
+      StreamProcessor: ${StreamProcessorLogGroup.Arn}
+      EmailSender: ${EmailSenderLogGroup.Arn}
+      CustomerUpdate: ${CustomerUpdateLogGroup.Arn}
+      ScheduledTasks: ${ScheduledTasksLogGroup.Arn}

@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG Main Stack - Nested Stack Orchestrator
+
+  Deploys all PLG infrastructure as nested stacks:
+  1. DynamoDB (table + GSIs + stream)
+  2. Messaging (SNS topics + SQS queues)
+  3. IAM (roles for Amplify + Lambdas)
+  4. Compute (4 Lambda functions)
+  5. SES (email identity + config set)
+  6. Scheduled (EventBridge rules)
+  7. Monitoring (logs + metrics + alarms + dashboard)
+
+  Per: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Default: dev
+    Description: Deployment environment
+
+  TemplatesBucket:
+    Type: String
+    Description: S3 bucket containing nested CloudFormation templates
+
+  EmailDomain:
+    Type: String
+    Default: hic-ai.com
+    Description: Domain for sending emails
+
+  AlertEmail:
+    Type: String
+    Default: alerts@hic-ai.com
+    Description: Email address for CloudWatch alerts
+
+  # VPC Configuration (optional)
+  VpcSubnetIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: VPC subnet IDs for Lambda functions (leave empty for no VPC)
+
+  VpcSecurityGroupIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: VPC security group IDs for Lambda functions (leave empty for no VPC)
+
+  # Lambda Code Location
+  LambdaCodeBucket:
+    Type: String
+    Description: S3 bucket containing Lambda deployment packages
+
+  LambdaCodePrefix:
+    Type: String
+    Default: lambda
+    Description: S3 key prefix for Lambda deployment packages
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Lambda Layer ARNs (from HIC DM layers deployed separately)
+  # ═══════════════════════════════════════════════════════════════════════════
+  HicBaseLayerArn:
+    Type: String
+    Description: |
+      ARN of hic-base-layer (HicLog, safeLog, safeJsonParse, etc.)
+      Format: arn:aws:lambda:REGION:ACCOUNT:layer:hic-base-layer:VERSION
+
+  HicMessagingLayerArn:
+    Type: String
+    Description: |
+      ARN of hic-messaging-layer (SNSClient, SQSClient)
+      Format: arn:aws:lambda:REGION:ACCOUNT:layer:hic-messaging-layer:VERSION
+
+  HicDynamoDBLayerArn:
+    Type: String
+    Description: |
+      ARN of hic-dynamodb-layer (DynamoDBClient, DocumentClient)
+      Format: arn:aws:lambda:REGION:ACCOUNT:layer:hic-dynamodb-layer:VERSION
+
+  HicSesLayerArn:
+    Type: String
+    Description: |
+      ARN of hic-ses-layer (SESClient, SendEmailCommand)
+      Format: arn:aws:lambda:REGION:ACCOUNT:layer:hic-ses-layer:VERSION
+
+  HicConfigLayerArn:
+    Type: String
+    Description: |
+      ARN of hic-config-layer (SecretsManager, SSM)
+      Format: arn:aws:lambda:REGION:ACCOUNT:layer:hic-config-layer:VERSION
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAYER 1: DATABASE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  DynamoDBStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/plg-dynamodb.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        TableNamePrefix: hic-plg
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: StackLayer
+          Value: database
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAYER 2: MESSAGING
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  MessagingStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/plg-messaging.yaml"
+      Parameters:
+        Environment: !Ref Environment
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: StackLayer
+          Value: messaging
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAYER 3: IAM ROLES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  IAMStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/plg-iam.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        DynamoDBTableArn: !GetAtt DynamoDBStack.Outputs.TableArn
+        DynamoDBStreamArn: !GetAtt DynamoDBStack.Outputs.StreamArn
+        PaymentEventsTopicArn: !GetAtt MessagingStack.Outputs.PaymentEventsTopicArn
+        CustomerEventsTopicArn: !GetAtt MessagingStack.Outputs.CustomerEventsTopicArn
+        LicenseEventsTopicArn: !GetAtt MessagingStack.Outputs.LicenseEventsTopicArn
+        EmailQueueArn: !GetAtt MessagingStack.Outputs.EmailQueueArn
+        CustomerUpdateQueueArn: !GetAtt MessagingStack.Outputs.CustomerUpdateQueueArn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: StackLayer
+          Value: security
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAYER 4: COMPUTE (LAMBDA FUNCTIONS)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  ComputeStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/plg-compute.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        DynamoDBTableName: !GetAtt DynamoDBStack.Outputs.TableName
+        DynamoDBStreamArn: !GetAtt DynamoDBStack.Outputs.StreamArn
+        PaymentEventsTopicArn: !GetAtt MessagingStack.Outputs.PaymentEventsTopicArn
+        CustomerEventsTopicArn: !GetAtt MessagingStack.Outputs.CustomerEventsTopicArn
+        LicenseEventsTopicArn: !GetAtt MessagingStack.Outputs.LicenseEventsTopicArn
+        EmailQueueArn: !GetAtt MessagingStack.Outputs.EmailQueueArn
+        CustomerUpdateQueueArn: !GetAtt MessagingStack.Outputs.CustomerUpdateQueueArn
+        StreamProcessorRoleArn: !GetAtt IAMStack.Outputs.StreamProcessorRoleArn
+        EmailSenderRoleArn: !GetAtt IAMStack.Outputs.EmailSenderRoleArn
+        CustomerUpdateRoleArn: !GetAtt IAMStack.Outputs.CustomerUpdateRoleArn
+        ScheduledTasksRoleArn: !GetAtt IAMStack.Outputs.ScheduledTasksRoleArn
+        SESFromEmail: !Sub "noreply@${Environment}.${EmailDomain}"
+        VpcSubnetIds: !Join [",", !Ref VpcSubnetIds]
+        VpcSecurityGroupIds: !Join [",", !Ref VpcSecurityGroupIds]
+        LambdaCodeBucket: !Ref LambdaCodeBucket
+        LambdaCodePrefix: !Ref LambdaCodePrefix
+        HicBaseLayerArn: !Ref HicBaseLayerArn
+        HicMessagingLayerArn: !Ref HicMessagingLayerArn
+        HicDynamoDBLayerArn: !Ref HicDynamoDBLayerArn
+        HicSesLayerArn: !Ref HicSesLayerArn
+        HicConfigLayerArn: !Ref HicConfigLayerArn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: StackLayer
+          Value: compute
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAYER 5: EMAIL (SES)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  SESStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/plg-ses.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        EmailDomain: !Ref EmailDomain
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: StackLayer
+          Value: email
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAYER 6: SCHEDULED TASKS
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  ScheduledStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/plg-scheduled.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        ScheduledTasksFunctionArn: !GetAtt ComputeStack.Outputs.ScheduledTasksFunctionArn
+        ScheduledTasksFunctionName: !GetAtt ComputeStack.Outputs.ScheduledTasksFunctionName
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: StackLayer
+          Value: scheduled
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAYER 7: MONITORING
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  MonitoringStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/plg-monitoring.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        AlertEmail: !Ref AlertEmail
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: StackLayer
+          Value: monitoring
+
+Outputs:
+  # Database
+  DynamoDBTableName:
+    Description: DynamoDB table name
+    Value: !GetAtt DynamoDBStack.Outputs.TableName
+    Export:
+      Name: !Sub "${AWS::StackName}-DynamoDBTableName"
+
+  DynamoDBTableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt DynamoDBStack.Outputs.TableArn
+    Export:
+      Name: !Sub "${AWS::StackName}-DynamoDBTableArn"
+
+  # IAM
+  AmplifyExecutionRoleArn:
+    Description: Amplify execution role ARN (use in Amplify Console)
+    Value: !GetAtt IAMStack.Outputs.AmplifyExecutionRoleArn
+    Export:
+      Name: !Sub "${AWS::StackName}-AmplifyExecutionRoleArn"
+
+  # Monitoring
+  DashboardUrl:
+    Description: CloudWatch Dashboard URL
+    Value: !GetAtt MonitoringStack.Outputs.DashboardUrl
+
+  # SES
+  EmailIdentity:
+    Description: SES verified email identity
+    Value: !GetAtt SESStack.Outputs.EmailIdentity
+
+  # Summary
+  DeploymentSummary:
+    Description: Deployment summary
+    Value: !Sub |
+      PLG Infrastructure deployed to ${Environment}
+
+      DynamoDB Table: ${DynamoDBStack.Outputs.TableName}
+      Amplify Role: ${IAMStack.Outputs.AmplifyExecutionRoleArn}
+      Dashboard: ${MonitoringStack.Outputs.DashboardUrl}
+
+      Next steps:
+      1. Add SES DNS records to GoDaddy (see SES Console)
+      2. Configure Amplify with AmplifyExecutionRoleArn
+      3. Set environment variables in Amplify Console

@@ -1,7 +1,7 @@
 {
   "layer": "hic-base-layer",
-  "version": "1.0.0",
-  "contentHash": "ce6a71488e7d656a55c922f9b34d1f11ef9da2c59e321f62b0275a1fe30b9e32",
+  "version": "1.0.1",
+  "contentHash": "b65ff9a7a15bf0d6ff8068f10fb7debd87443e7a6271e6c433ac3e378c8b4d51",
   "exports": [
     "export { HicLog } from \"./hic-log.js\";",
     "export { LambdaClient, InvokeCommand } from \"@aws-sdk/client-lambda\";",
@@ -21,6 +21,7 @@
     "publish.0.2.3.manifest.json",
     "publish.0.2.4.manifest.json",
     "publish.0.2.7.manifest.json",
+    "publish.1.0.0.manifest.json",
     "publish.sh",
     "src\\container-exports.js",
     "src\\hic-log.js",
@@ -28,7 +29,7 @@
     "src\\safe-json-parse.js",
     "src\\safe-log.js",
     "src\\safe-path.js",
-    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2025-10-01T14:00:45.986Z"
+  "builtAt": "2026-01-23T16:17:44.690Z"
 }

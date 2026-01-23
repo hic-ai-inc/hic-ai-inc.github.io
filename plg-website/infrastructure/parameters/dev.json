@@ -1,0 +1,18 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "dev"
+  },
+  {
+    "ParameterKey": "TemplatesBucket",
+    "ParameterValue": "hic-plg-templates-dev"
+  },
+  {
+    "ParameterKey": "EmailDomain",
+    "ParameterValue": "hic-ai.com"
+  },
+  {
+    "ParameterKey": "AlertEmail",
+    "ParameterValue": "simon@hic-ai.com"
+  }
+]

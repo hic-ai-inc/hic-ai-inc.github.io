@@ -1,0 +1,164 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG DynamoDB Table with GSIs and DynamoDB Streams
+
+  Single-table design supporting:
+  - CUSTOMER entities (profile, subscription)
+  - LICENSE entities (details, activations)
+  - EVENT entities (webhook events for idempotency)
+  - ORG entities (enterprise organizations)
+
+  Per: 20260121_GC_EVENT_DRIVEN_INFRASTRUCTURE_RECOMMENDATION.md
+  Updated: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  TableNamePrefix:
+    Type: String
+    Default: hic-plg
+    Description: Prefix for table name
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DYNAMODB TABLE
+  # ═══════════════════════════════════════════════════════════════════════════
+  PLGTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "${TableNamePrefix}-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+
+      # Enable DynamoDB Streams for event-driven architecture
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+      # Primary key: Single-table design
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        # GSI1: Stripe Customer ID lookup
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        # GSI2: License Key lookup
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+        # GSI3: Auth0 User ID lookup
+        - AttributeName: GSI3PK
+          AttributeType: S
+        - AttributeName: GSI3SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      GlobalSecondaryIndexes:
+        # GSI1: Lookup by Stripe Customer ID
+        # Pattern: GSI1PK = "STRIPE_CUSTOMER#cus_xxx"
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+        # GSI2: Lookup by License Key
+        # Pattern: GSI2PK = "LICENSE_KEY#MOUSE-XXX-XXX"
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+        # GSI3: Lookup by Auth0 User ID
+        # Pattern: GSI3PK = "AUTH0_USER#auth0|xxx"
+        - IndexName: GSI3
+          KeySchema:
+            - AttributeName: GSI3PK
+              KeyType: HASH
+            - AttributeName: GSI3SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+      # Point-in-Time Recovery for data protection
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      # Server-side encryption
+      SSESpecification:
+        SSEEnabled: true
+
+      # TTL for EVENT records (auto-cleanup after 90 days)
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: CostCenter
+          Value: plg
+
+Outputs:
+  TableName:
+    Description: DynamoDB table name
+    Value: !Ref PLGTable
+    Export:
+      Name: !Sub "${AWS::StackName}-TableName"
+
+  TableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt PLGTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-TableArn"
+
+  StreamArn:
+    Description: DynamoDB stream ARN for event processing
+    Value: !GetAtt PLGTable.StreamArn
+    Export:
+      Name: !Sub "${AWS::StackName}-StreamArn"
+
+  GSI1Name:
+    Description: GSI1 (Stripe Customer ID) index name
+    Value: GSI1
+    Export:
+      Name: !Sub "${AWS::StackName}-GSI1Name"
+
+  GSI2Name:
+    Description: GSI2 (License Key) index name
+    Value: GSI2
+    Export:
+      Name: !Sub "${AWS::StackName}-GSI2Name"
+
+  GSI3Name:
+    Description: GSI3 (Auth0 User ID) index name
+    Value: GSI3
+    Export:
+      Name: !Sub "${AWS::StackName}-GSI3Name"

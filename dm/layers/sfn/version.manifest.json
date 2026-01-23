@@ -1,7 +1,7 @@
 {
   "layer": "hic-sfn-layer",
-  "version": "0.1.6",
-  "contentHash": "2e13b5cbde308576cb674717536c02ad316cd749b6eba6b3db56f15638e6f9df",
+  "version": "0.1.7",
+  "contentHash": "57349393855a70ed5f97ff78595f598aac96edf0ea52d2237e7965cc6754a755",
   "exports": [
     "export * from \"@aws-sdk/client-sfn\";"
   ],
@@ -13,9 +13,10 @@
     "publish.0.1.3.manifest.json",
     "publish.0.1.4.manifest.json",
     "publish.0.1.5.manifest.json",
+    "publish.0.1.6.manifest.json",
     "publish.sh",
     "src\\index.js",
-    "C:\\Users\\SimonAdmin\\source\\repos\\hic\\dm\\layers\\versions.env"
+    "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2025-09-26T20:31:44.606Z"
+  "builtAt": "2026-01-23T16:28:12.463Z"
 }

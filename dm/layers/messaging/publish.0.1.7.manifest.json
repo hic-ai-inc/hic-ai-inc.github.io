@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-messaging-layer",
+  "version": "0.1.7",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-messaging-layer/0.1.7/hic-messaging-layer-0.1.7.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-messaging-layer:8",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic-ai-inc.github.io/dm/dist/hic-messaging-layer-0.1.7.zip",
+  "publishedAt": "2026-01-23T16:20:23Z"
+}

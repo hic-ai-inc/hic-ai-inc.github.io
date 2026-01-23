@@ -1,0 +1,53 @@
+version: 1
+applications:
+  - appRoot: plg-website
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - echo "Node version:" && node --version
+            - echo "NPM version:" && npm --version
+            - npm ci
+        build:
+          commands:
+            - echo "Building for environment: $AMPLIFY_ENV"
+            - npm run build
+        postBuild:
+          commands:
+            - echo "Build complete"
+      artifacts:
+        baseDirectory: .next
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - node_modules/**/*
+          - .next/cache/**/*
+
+    # Environment variables per branch
+    # Set in Amplify Console or here (non-sensitive only)
+    # See .env.example for full list of required variables
+
+# Build settings
+build:
+  commands: []
+
+# Custom headers for security
+customHeaders:
+  - pattern: "**/*"
+    headers:
+      - key: X-Frame-Options
+        value: DENY
+      - key: X-Content-Type-Options
+        value: nosniff
+      - key: X-XSS-Protection
+        value: "1; mode=block"
+      - key: Referrer-Policy
+        value: strict-origin-when-cross-origin
+
+# Redirects for SPA routing
+customRules:
+  - source: /<*>
+    target: /index.html
+    status: "404-200"
+    condition: null

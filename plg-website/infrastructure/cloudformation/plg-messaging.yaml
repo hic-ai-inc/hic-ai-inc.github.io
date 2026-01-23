@@ -1,0 +1,309 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG Messaging Infrastructure - SNS Topics and SQS Queues
+
+  Event-driven architecture with:
+  - 3 SNS Topics for event fan-out (Payment, Customer, License)
+  - 2 SQS Queues for async processing (Email, CustomerUpdate)
+  - 2 DLQ Queues for failure handling
+
+  Per: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  KmsMasterKeyId:
+    Type: String
+    Default: alias/aws/sns
+    Description: KMS key ID for SNS topic encryption (use 'alias/aws/sns' for AWS-managed key)
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SNS TOPICS - Event Fan-out
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  PaymentEventsTopic:
+    Type: AWS::SNS::Topic
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TopicName: !Sub "plg-payment-events-${Environment}"
+      DisplayName: PLG Payment Events
+      KmsMasterKeyId: !Ref KmsMasterKeyId
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  CustomerEventsTopic:
+    Type: AWS::SNS::Topic
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TopicName: !Sub "plg-customer-events-${Environment}"
+      DisplayName: PLG Customer Events
+      KmsMasterKeyId: !Ref KmsMasterKeyId
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  LicenseEventsTopic:
+    Type: AWS::SNS::Topic
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TopicName: !Sub "plg-license-events-${Environment}"
+      DisplayName: PLG License Events
+      KmsMasterKeyId: !Ref KmsMasterKeyId
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SQS QUEUES - Dead Letter Queues (must be created first)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  EmailDLQ:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "plg-email-dlq-${Environment}"
+      MessageRetentionPeriod: 1209600 # 14 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  CustomerUpdateDLQ:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "plg-customer-update-dlq-${Environment}"
+      MessageRetentionPeriod: 1209600 # 14 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SQS QUEUES - Primary Queues
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  EmailQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "plg-email-queue-${Environment}"
+      VisibilityTimeout: 300 # 5 minutes (must be > Lambda timeout)
+      MessageRetentionPeriod: 345600 # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt EmailDLQ.Arn
+        maxReceiveCount: 3 # Move to DLQ after 3 failures
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  CustomerUpdateQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "plg-customer-update-queue-${Environment}"
+      VisibilityTimeout: 300 # 5 minutes
+      MessageRetentionPeriod: 345600 # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt CustomerUpdateDLQ.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SQS QUEUE POLICIES - Allow SNS to send messages
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  EmailQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref EmailQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSNSToSendMessages
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt EmailQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  - !Ref PaymentEventsTopic
+                  - !Ref CustomerEventsTopic
+                  - !Ref LicenseEventsTopic
+
+  CustomerUpdateQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref CustomerUpdateQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSNSToSendMessages
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt CustomerUpdateQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  - !Ref PaymentEventsTopic
+                  - !Ref CustomerEventsTopic
+                  - !Ref LicenseEventsTopic
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SNS SUBSCRIPTIONS - Route events to queues
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Email Queue subscribes to all topics (sends relevant emails)
+  EmailQueueSubscriptionPayment:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref PaymentEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt EmailQueue.Arn
+      RawMessageDelivery: true
+
+  EmailQueueSubscriptionCustomer:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref CustomerEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt EmailQueue.Arn
+      RawMessageDelivery: true
+
+  EmailQueueSubscriptionLicense:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref LicenseEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt EmailQueue.Arn
+      RawMessageDelivery: true
+
+  # CustomerUpdate Queue subscribes to all topics (updates state)
+  CustomerUpdateQueueSubscriptionPayment:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref PaymentEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt CustomerUpdateQueue.Arn
+      RawMessageDelivery: true
+
+  CustomerUpdateQueueSubscriptionCustomer:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref CustomerEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt CustomerUpdateQueue.Arn
+      RawMessageDelivery: true
+
+  CustomerUpdateQueueSubscriptionLicense:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref LicenseEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt CustomerUpdateQueue.Arn
+      RawMessageDelivery: true
+
+Outputs:
+  # SNS Topics
+  PaymentEventsTopicArn:
+    Description: Payment events SNS topic ARN
+    Value: !Ref PaymentEventsTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-PaymentEventsTopicArn"
+
+  CustomerEventsTopicArn:
+    Description: Customer events SNS topic ARN
+    Value: !Ref CustomerEventsTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerEventsTopicArn"
+
+  LicenseEventsTopicArn:
+    Description: License events SNS topic ARN
+    Value: !Ref LicenseEventsTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-LicenseEventsTopicArn"
+
+  # SQS Queues
+  EmailQueueUrl:
+    Description: Email queue URL
+    Value: !Ref EmailQueue
+    Export:
+      Name: !Sub "${AWS::StackName}-EmailQueueUrl"
+
+  EmailQueueArn:
+    Description: Email queue ARN
+    Value: !GetAtt EmailQueue.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-EmailQueueArn"
+
+  CustomerUpdateQueueUrl:
+    Description: Customer update queue URL
+    Value: !Ref CustomerUpdateQueue
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerUpdateQueueUrl"
+
+  CustomerUpdateQueueArn:
+    Description: Customer update queue ARN
+    Value: !GetAtt CustomerUpdateQueue.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerUpdateQueueArn"
+
+  # DLQ Queues
+  EmailDLQUrl:
+    Description: Email DLQ URL (for monitoring)
+    Value: !Ref EmailDLQ
+    Export:
+      Name: !Sub "${AWS::StackName}-EmailDLQUrl"
+
+  EmailDLQArn:
+    Description: Email DLQ ARN
+    Value: !GetAtt EmailDLQ.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-EmailDLQArn"
+
+  CustomerUpdateDLQUrl:
+    Description: Customer update DLQ URL (for monitoring)
+    Value: !Ref CustomerUpdateDLQ
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerUpdateDLQUrl"
+
+  CustomerUpdateDLQArn:
+    Description: Customer update DLQ ARN
+    Value: !GetAtt CustomerUpdateDLQ.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerUpdateDLQArn"

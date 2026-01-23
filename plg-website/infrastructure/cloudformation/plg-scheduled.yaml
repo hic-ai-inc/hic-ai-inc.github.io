@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG EventBridge Scheduled Rules
+
+  Scheduled jobs:
+  - Trial Reminder: Daily 9 AM UTC - Remind users 3 days before trial ends
+  - Win-back 30 Day: Daily 10 AM UTC - Email users 30 days after cancellation
+  - Win-back 90 Day: Daily 10 AM UTC - Email users 90 days after cancellation (with discount)
+
+  Per: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A.5)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  ScheduledTasksFunctionArn:
+    Type: String
+    Description: ARN of the Scheduled Tasks Lambda function
+
+  ScheduledTasksFunctionName:
+    Type: String
+    Description: Name of the Scheduled Tasks Lambda function
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # EVENTBRIDGE RULES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Trial Reminder - Daily at 9 AM UTC
+  TrialReminderRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "plg-trial-reminder-${Environment}"
+      Description: Send trial ending reminders (3 days before expiry)
+      ScheduleExpression: "cron(0 9 * * ? *)" # 9 AM UTC daily
+      State: !If [IsProduction, ENABLED, DISABLED]
+      Targets:
+        - Id: ScheduledTasksLambda
+          Arn: !Ref ScheduledTasksFunctionArn
+          Input: '{"taskType": "trial-reminder"}'
+
+  TrialReminderPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScheduledTasksFunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt TrialReminderRule.Arn
+
+  # Win-back 30 Day - Daily at 10 AM UTC
+  Winback30Rule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "plg-winback-30-${Environment}"
+      Description: Send win-back email 30 days after cancellation
+      ScheduleExpression: "cron(0 10 * * ? *)" # 10 AM UTC daily
+      State: !If [IsProduction, ENABLED, DISABLED]
+      Targets:
+        - Id: ScheduledTasksLambda
+          Arn: !Ref ScheduledTasksFunctionArn
+          Input: '{"taskType": "winback-30"}'
+
+  Winback30Permission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScheduledTasksFunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt Winback30Rule.Arn
+
+  # Win-back 90 Day - Daily at 10:05 AM UTC (offset to avoid Lambda cold start overlap)
+  Winback90Rule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "plg-winback-90-${Environment}"
+      Description: Send win-back email with discount 90 days after cancellation
+      ScheduleExpression: "cron(5 10 * * ? *)" # 10:05 AM UTC daily
+      State: !If [IsProduction, ENABLED, DISABLED]
+      Targets:
+        - Id: ScheduledTasksLambda
+          Arn: !Ref ScheduledTasksFunctionArn
+          Input: '{"taskType": "winback-90"}'
+
+  Winback90Permission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScheduledTasksFunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt Winback90Rule.Arn
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
+
+Outputs:
+  TrialReminderRuleArn:
+    Description: Trial Reminder EventBridge rule ARN
+    Value: !GetAtt TrialReminderRule.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-TrialReminderRuleArn"
+
+  Winback30RuleArn:
+    Description: Win-back 30 Day EventBridge rule ARN
+    Value: !GetAtt Winback30Rule.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Winback30RuleArn"
+
+  Winback90RuleArn:
+    Description: Win-back 90 Day EventBridge rule ARN
+    Value: !GetAtt Winback90Rule.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Winback90RuleArn"
+
+  ScheduledRulesStatus:
+    Description: Status of scheduled rules
+    Value:
+      !If [IsProduction, "ENABLED (production)", "DISABLED (non-production)"]
