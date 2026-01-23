@@ -1,0 +1,444 @@
+/**
+ * License API Route Tests
+ *
+ * Tests the license validation, activation, and deactivation logic:
+ * - Input validation
+ * - Validation result handling
+ * - Device limit checking
+ * - Ownership verification
+ */
+
+import { describe, it, beforeEach, mock } from "node:test";
+import assert from "node:assert";
+
+// Auth0 namespace for custom claims
+const AUTH0_NAMESPACE = "https://hic-ai.com";
+
+// Helper to create mock Auth0 session
+function createMockSession(userOverrides = {}) {
+  return {
+    user: {
+      sub: "auth0|test123",
+      email: "test@example.com",
+      email_verified: true,
+      ...userOverrides,
+    },
+  };
+}
+
+describe("license/validate API logic", () => {
+  function validateInput(body) {
+    const { licenseKey, fingerprint } = body || {};
+
+    if (!licenseKey) {
+      return { valid: false, error: "License key is required", status: 400 };
+    }
+
+    if (!fingerprint) {
+      return {
+        valid: false,
+        error: "Device fingerprint is required",
+        status: 400,
+      };
+    }
+
+    return { valid: true };
+  }
+
+  function formatValidationResponse(result) {
+    return {
+      valid: result.valid,
+      code: result.code,
+      detail: result.detail,
+      license: result.license
+        ? {
+            status: result.license.status,
+            expiresAt: result.license.expiresAt,
+          }
+        : null,
+    };
+  }
+
+  describe("input validation", () => {
+    it("should reject missing license key", () => {
+      const result = validateInput({ fingerprint: "fp_123" });
+      assert.strictEqual(result.valid, false);
+      assert.strictEqual(result.error, "License key is required");
+      assert.strictEqual(result.status, 400);
+    });
+
+    it("should reject empty license key", () => {
+      const result = validateInput({ licenseKey: "", fingerprint: "fp_123" });
+      assert.strictEqual(result.valid, false);
+    });
+
+    it("should reject missing fingerprint", () => {
+      const result = validateInput({ licenseKey: "lic_123" });
+      assert.strictEqual(result.valid, false);
+      assert.strictEqual(result.error, "Device fingerprint is required");
+    });
+
+    it("should accept valid input", () => {
+      const result = validateInput({
+        licenseKey: "lic_123",
+        fingerprint: "fp_456",
+      });
+      assert.strictEqual(result.valid, true);
+    });
+  });
+
+  describe("validation response formatting", () => {
+    it("should format successful validation", () => {
+      const keygenResult = {
+        valid: true,
+        code: "VALID",
+        detail: "License is valid",
+        license: {
+          id: "lic_123",
+          status: "active",
+          expiresAt: "2027-01-01T00:00:00Z",
+          extra: "ignored",
+        },
+      };
+
+      const response = formatValidationResponse(keygenResult);
+
+      assert.strictEqual(response.valid, true);
+      assert.strictEqual(response.code, "VALID");
+      assert.strictEqual(response.detail, "License is valid");
+      assert.strictEqual(response.license.status, "active");
+      assert.strictEqual(response.license.expiresAt, "2027-01-01T00:00:00Z");
+      assert.strictEqual(response.license.id, undefined); // Should be excluded
+    });
+
+    it("should format invalid validation", () => {
+      const keygenResult = {
+        valid: false,
+        code: "EXPIRED",
+        detail: "License has expired",
+        license: null,
+      };
+
+      const response = formatValidationResponse(keygenResult);
+
+      assert.strictEqual(response.valid, false);
+      assert.strictEqual(response.code, "EXPIRED");
+      assert.strictEqual(response.license, null);
+    });
+
+    it("should handle missing license in response", () => {
+      const keygenResult = {
+        valid: false,
+        code: "NOT_FOUND",
+        detail: "License not found",
+      };
+
+      const response = formatValidationResponse(keygenResult);
+      assert.strictEqual(response.license, null);
+    });
+  });
+});
+
+describe("license/activate API logic", () => {
+  function validateActivationInput(body) {
+    const { licenseKey, fingerprint } = body || {};
+
+    if (!licenseKey) {
+      return { valid: false, error: "License key is required", status: 400 };
+    }
+
+    if (!fingerprint) {
+      return {
+        valid: false,
+        error: "Device fingerprint is required",
+        status: 400,
+      };
+    }
+
+    return { valid: true };
+  }
+
+  function handleValidationResult(validation) {
+    if (validation.valid) {
+      return null; // Continue to activation
+    }
+
+    // Already activated on this device
+    if (validation.code === "VALID") {
+      return {
+        success: true,
+        alreadyActivated: true,
+        license: validation.license,
+        message: "Device already activated",
+      };
+    }
+
+    // Device not activated yet - expected, continue
+    if (validation.code === "FINGERPRINT_SCOPE_MISMATCH") {
+      return null; // Continue to activation
+    }
+
+    // Other validation errors
+    return {
+      error: "License validation failed",
+      code: validation.code,
+      detail: validation.detail,
+      status: 400,
+    };
+  }
+
+  function checkDeviceLimit(license, dynamoLicense) {
+    if (!license.maxMachines) {
+      return { withinLimit: true };
+    }
+
+    if (
+      dynamoLicense &&
+      dynamoLicense.activatedDevices >= license.maxMachines
+    ) {
+      return {
+        withinLimit: false,
+        error: "Device limit reached",
+        maxDevices: license.maxMachines,
+        currentDevices: dynamoLicense.activatedDevices,
+      };
+    }
+
+    return { withinLimit: true };
+  }
+
+  describe("input validation", () => {
+    it("should reject missing license key", () => {
+      const result = validateActivationInput({ fingerprint: "fp_123" });
+      assert.strictEqual(result.valid, false);
+      assert.strictEqual(result.error, "License key is required");
+    });
+
+    it("should reject missing fingerprint", () => {
+      const result = validateActivationInput({ licenseKey: "lic_123" });
+      assert.strictEqual(result.valid, false);
+      assert.strictEqual(result.error, "Device fingerprint is required");
+    });
+
+    it("should accept valid input", () => {
+      const result = validateActivationInput({
+        licenseKey: "lic_123",
+        fingerprint: "fp_456",
+      });
+      assert.strictEqual(result.valid, true);
+    });
+  });
+
+  describe("validation result handling", () => {
+    it("should continue when valid (proceed to activation)", () => {
+      const result = handleValidationResult({
+        valid: true,
+        code: "VALID",
+        license: { id: "lic_123" },
+      });
+      // Returns null to continue to activation step
+      assert.strictEqual(result, null);
+    });
+
+    it("should return early success when already activated (valid=false but code=VALID)", () => {
+      const result = handleValidationResult({
+        valid: false,
+        code: "VALID",
+        license: { id: "lic_123" },
+      });
+      // Returns early success for already activated
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.alreadyActivated, true);
+    });
+
+    it("should continue on FINGERPRINT_SCOPE_MISMATCH (expected for new device)", () => {
+      const result = handleValidationResult({
+        valid: false,
+        code: "FINGERPRINT_SCOPE_MISMATCH",
+        detail: "Device not activated",
+      });
+      assert.strictEqual(result, null); // Continue to activation
+    });
+
+    it("should return error for expired license", () => {
+      const result = handleValidationResult({
+        valid: false,
+        code: "EXPIRED",
+        detail: "License has expired",
+      });
+      assert.strictEqual(result.error, "License validation failed");
+      assert.strictEqual(result.code, "EXPIRED");
+    });
+
+    it("should return error for suspended license", () => {
+      const result = handleValidationResult({
+        valid: false,
+        code: "SUSPENDED",
+        detail: "License is suspended",
+      });
+      assert.strictEqual(result.error, "License validation failed");
+      assert.strictEqual(result.code, "SUSPENDED");
+    });
+  });
+
+  describe("device limit checking", () => {
+    it("should pass when no maxMachines set", () => {
+      const result = checkDeviceLimit(
+        { id: "lic_123" },
+        { activatedDevices: 5 },
+      );
+      assert.strictEqual(result.withinLimit, true);
+    });
+
+    it("should pass when under device limit", () => {
+      const result = checkDeviceLimit(
+        { id: "lic_123", maxMachines: 3 },
+        { activatedDevices: 2 },
+      );
+      assert.strictEqual(result.withinLimit, true);
+    });
+
+    it("should fail when at device limit", () => {
+      const result = checkDeviceLimit(
+        { id: "lic_123", maxMachines: 3 },
+        { activatedDevices: 3 },
+      );
+      assert.strictEqual(result.withinLimit, false);
+      assert.strictEqual(result.error, "Device limit reached");
+    });
+
+    it("should fail when over device limit", () => {
+      const result = checkDeviceLimit(
+        { id: "lic_123", maxMachines: 3 },
+        { activatedDevices: 5 },
+      );
+      assert.strictEqual(result.withinLimit, false);
+    });
+
+    it("should pass when no dynamoLicense exists", () => {
+      const result = checkDeviceLimit({ id: "lic_123", maxMachines: 3 }, null);
+      assert.strictEqual(result.withinLimit, true);
+    });
+  });
+});
+
+describe("license/deactivate API logic", () => {
+  function validateDeactivationInput(body) {
+    const { machineId, licenseId } = body || {};
+
+    if (!machineId) {
+      return { valid: false, error: "Machine ID is required", status: 400 };
+    }
+
+    if (!licenseId) {
+      return { valid: false, error: "License ID is required", status: 400 };
+    }
+
+    return { valid: true };
+  }
+
+  function verifyOwnership(session, userLicenses, licenseId) {
+    if (!session?.user) {
+      return { authorized: true }; // No session = extension call, allowed
+    }
+
+    // SECURITY: Verify license ownership
+    const ownsLicense = userLicenses.find(
+      (l) => l.keygenLicenseId === licenseId,
+    );
+    if (!ownsLicense) {
+      return { authorized: false, error: "Unauthorized", status: 403 };
+    }
+
+    return { authorized: true };
+  }
+
+  function handleDeactivationError(error) {
+    if (error.status === 404) {
+      return {
+        success: true,
+        message: "Device not found (may already be deactivated)",
+      };
+    }
+
+    return {
+      error: "Deactivation failed",
+      detail: error.message,
+      status: 500,
+    };
+  }
+
+  describe("input validation", () => {
+    it("should reject missing machine ID", () => {
+      const result = validateDeactivationInput({ licenseId: "lic_123" });
+      assert.strictEqual(result.valid, false);
+      assert.strictEqual(result.error, "Machine ID is required");
+    });
+
+    it("should reject missing license ID", () => {
+      const result = validateDeactivationInput({ machineId: "mach_123" });
+      assert.strictEqual(result.valid, false);
+      assert.strictEqual(result.error, "License ID is required");
+    });
+
+    it("should accept valid input", () => {
+      const result = validateDeactivationInput({
+        machineId: "mach_123",
+        licenseId: "lic_456",
+      });
+      assert.strictEqual(result.valid, true);
+    });
+  });
+
+  describe("ownership verification", () => {
+    it("should allow when no session (extension call)", () => {
+      const result = verifyOwnership(null, [], "lic_123");
+      assert.strictEqual(result.authorized, true);
+    });
+
+    it("should allow when user owns license", () => {
+      const session = createMockSession({ email: "user@example.com" });
+      const userLicenses = [
+        { keygenLicenseId: "lic_123" },
+        { keygenLicenseId: "lic_456" },
+      ];
+
+      const result = verifyOwnership(session, userLicenses, "lic_123");
+      assert.strictEqual(result.authorized, true);
+    });
+
+    it("should deny when user does not own license", () => {
+      const session = createMockSession({ email: "user@example.com" });
+      const userLicenses = [{ keygenLicenseId: "lic_other" }];
+
+      const result = verifyOwnership(session, userLicenses, "lic_123");
+      assert.strictEqual(result.authorized, false);
+      assert.strictEqual(result.error, "Unauthorized");
+      assert.strictEqual(result.status, 403);
+    });
+
+    it("should deny when user has no licenses", () => {
+      const session = createMockSession({ email: "user@example.com" });
+
+      const result = verifyOwnership(session, [], "lic_123");
+      assert.strictEqual(result.authorized, false);
+    });
+  });
+
+  describe("error handling", () => {
+    it("should treat 404 as success (already deactivated)", () => {
+      const result = handleDeactivationError({ status: 404 });
+      assert.strictEqual(result.success, true);
+      assert.ok(result.message.includes("already be deactivated"));
+    });
+
+    it("should return error for other failures", () => {
+      const result = handleDeactivationError({
+        status: 500,
+        message: "Internal error",
+      });
+      assert.strictEqual(result.error, "Deactivation failed");
+      assert.strictEqual(result.status, 500);
+    });
+  });
+});

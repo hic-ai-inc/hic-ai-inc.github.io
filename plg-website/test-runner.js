@@ -3,19 +3,21 @@
  * PLG Unit Test Runner
  *
  * Programmatic test runner for PLG website tests.
- * Uses HIC custom testing framework with ESM loader.
+ * Uses node:test with HIC custom ESM loader.
+ * Counts individual test cases, not just files.
  *
  * Usage:
  *   node --loader ../dm/facade/utils/test-loader.js test-runner.js
- *   node --loader ../dm/facade/utils/test-loader.js test-runner.js --file path/to/test.js
+ *   node --loader ../dm/facade/utils/test-loader.js test-runner.js __tests__/unit/lib
  *   node --loader ../dm/facade/utils/test-loader.js test-runner.js --pattern "stripe"
  *
  * For interactive debugging, use: ./scripts/debug-tests.sh
  */
 
+import { run } from "node:test";
+import { spec } from "node:test/reporters";
 import { glob } from "glob";
-import { pathToFileURL } from "url";
-import { dirname, join } from "path";
+import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,12 +29,21 @@ function parseArgs() {
   const options = {
     file: null,
     pattern: null,
+    directory: null,
     verbose: false,
     help: false,
   };
 
   for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
+    const arg = args[i];
+
+    // Check if it's a path argument (not a flag)
+    if (!arg.startsWith("-") && !options.directory) {
+      options.directory = arg;
+      continue;
+    }
+
+    switch (arg) {
       case "--file":
       case "-f":
         options.file = args[++i];
@@ -61,7 +72,7 @@ function showHelp() {
 PLG Test Runner
 
 Usage:
-  node --loader ../dm/facade/utils/test-loader.js test-runner.js [options]
+  node --loader ../dm/facade/utils/test-loader.js test-runner.js [options] [directory]
 
 Options:
   -f, --file <path>     Run a specific test file
@@ -71,13 +82,16 @@ Options:
 
 Examples:
   # Run all tests
-  node --loader ../dm/facade/utils/test-loader.js test-runner.js
+  npm test
+
+  # Run tests in a specific directory
+  npm test -- __tests__/unit/lib
 
   # Run specific test file
-  node --loader ../dm/facade/utils/test-loader.js test-runner.js -f __tests__/unit/lib/stripe.test.js
+  npm test -- -f __tests__/unit/lib/stripe.test.js
 
   # Run tests matching pattern
-  node --loader ../dm/facade/utils/test-loader.js test-runner.js -p auth
+  npm test -- -p auth
 
 For interactive debugging, use: ./scripts/debug-tests.sh
 `);
@@ -86,19 +100,25 @@ For interactive debugging, use: ./scripts/debug-tests.sh
 // Find test files based on options
 async function findTestFiles(options) {
   if (options.file) {
-    return [options.file];
+    return [resolve(options.file)];
   }
 
-  let pattern = `${TESTS_ROOT}/**/*.test.js`;
-  const files = await glob(pattern);
+  // Determine the search root
+  let searchRoot = TESTS_ROOT;
+  if (options.directory) {
+    searchRoot = resolve(options.directory);
+  }
+
+  const pattern = `${searchRoot}/**/*.test.js`;
+  let files = await glob(pattern);
 
   if (options.pattern) {
-    return files.filter((f) =>
+    files = files.filter((f) =>
       f.toLowerCase().includes(options.pattern.toLowerCase()),
     );
   }
 
-  return files;
+  return files.sort();
 }
 
 // Main test runner
@@ -119,28 +139,42 @@ async function runTests() {
 
   console.log(`\n🧪 Running ${testFiles.length} test file(s)...\n`);
 
-  let passed = 0;
-  let failed = 0;
+  // Track test results
+  let totalTests = 0;
+  let passedTests = 0;
+  let failedTests = 0;
   const failures = [];
   const startTime = Date.now();
 
-  for (const file of testFiles) {
-    const relativePath = file.replace(process.cwd() + "/", "");
+  // Use node:test's run() API for proper test execution and counting
+  const stream = run({
+    files: testFiles,
+    concurrency: 1, // Run sequentially to avoid output interleaving
+  });
 
-    if (options.verbose) {
-      console.log(`📄 Running: ${relativePath}`);
-    }
+  // Pipe to spec reporter for nice output
+  stream.compose(spec).pipe(process.stdout);
 
-    try {
-      await import(pathToFileURL(file).href);
-      passed++;
-      if (options.verbose) {
-        console.log(`   ✅ Passed\n`);
+  // Also collect results for our summary
+  for await (const event of stream) {
+    if (event.type === "test:pass" && event.data.details?.type !== "suite") {
+      // Only count leaf tests (not describe blocks)
+      if (!event.data.name.includes("▶")) {
+        totalTests++;
+        passedTests++;
       }
-    } catch (error) {
-      failed++;
-      failures.push({ file: relativePath, error });
-      console.log(`   ❌ ${relativePath}: ${error.message}\n`);
+    } else if (
+      event.type === "test:fail" &&
+      event.data.details?.type !== "suite"
+    ) {
+      if (!event.data.name.includes("▶")) {
+        totalTests++;
+        failedTests++;
+        failures.push({
+          name: event.data.name,
+          error: event.data.details?.error,
+        });
+      }
     }
   }
 
@@ -148,17 +182,17 @@ async function runTests() {
 
   // Summary
   console.log("\n" + "=".repeat(60));
-  console.log(`📊 Results: ${passed} passed, ${failed} failed (${duration}s)`);
+  console.log(
+    `📊 Results: ${passedTests} passed, ${failedTests} failed of ${totalTests} tests (${duration}s)`,
+  );
+  console.log(`📁 Files: ${testFiles.length}`);
 
   if (failures.length > 0) {
-    console.log("\n❌ Failures:");
-    failures.forEach(({ file, error }) => {
-      console.log(`\n  📄 ${file}`);
-      console.log(`     ${error.message}`);
-      if (options.verbose && error.stack) {
-        console.log(
-          `     ${error.stack.split("\n").slice(1, 4).join("\n     ")}`,
-        );
+    console.log("\n❌ Failed tests:");
+    failures.forEach(({ name, error }) => {
+      console.log(`\n  ✖ ${name}`);
+      if (error?.message) {
+        console.log(`    ${error.message}`);
       }
     });
     process.exit(1);
