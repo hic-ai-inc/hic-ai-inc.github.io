@@ -5,6 +5,7 @@
  */
 
 import Link from "next/link";
+import Image from "next/image";
 import { EXTERNAL_URLS, COMPANY_NAME } from "@/lib/constants";
 
 const footerLinks = {
@@ -43,6 +44,13 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2">
+              <Image
+                src="/images/mouse-logo.png"
+                alt="Mouse Logo"
+                width={28}
+                height={28}
+                className="h-7 w-7"
+              />
               <span className="text-xl font-bold tracking-wider text-frost-white">
                 MOUSE
               </span>

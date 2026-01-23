@@ -161,29 +161,10 @@ export default function HomePage() {
               Simple, Transparent Pricing
             </h2>
             <p className="text-xl text-silver mb-12">
-              Start free. Upgrade when you&apos;re ready.
+              Start with a free trial. Upgrade when you&apos;re ready.
             </p>
 
-            <div className="grid sm:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* OSS */}
-              <div className="card">
-                <h3 className="text-lg font-semibold text-frost-white">
-                  Open Source
-                </h3>
-                <div className="my-4">
-                  <span className="text-4xl font-bold text-frost-white">
-                    $0
-                  </span>
-                  <span className="text-slate-grey">/forever</span>
-                </div>
-                <p className="text-sm text-slate-grey mb-6">
-                  {PRICING.oss.description}
-                </p>
-                <Button href="/pricing" variant="ghost" className="w-full">
-                  Learn More
-                </Button>
-              </div>
-
+            <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
               {/* Individual */}
               <div className="card border-cerulean-mist/50 relative">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">

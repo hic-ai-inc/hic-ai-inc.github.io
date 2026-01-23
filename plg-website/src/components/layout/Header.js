@@ -7,6 +7,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { NAV_LINKS, EXTERNAL_URLS } from "@/lib/constants";
 import Button from "@/components/ui/Button";
@@ -16,91 +17,82 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-midnight-navy/80 backdrop-blur-md border-b border-card-border">
-      <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <MouseLogo className="h-8 w-8" />
-          <span className="text-xl font-bold tracking-wider text-frost-white">
-            MOUSE
-          </span>
-        </Link>
+      <div className="flex items-center h-16">
+        {/* Logo Icon - Left corner, fills header height, will toggle sidebar */}
+        <button
+          className="h-14 w-14 ml-3 my-1 flex items-center justify-center flex-shrink-0 hover:bg-white/5 transition-colors overflow-hidden rounded"
+          aria-label="Toggle sidebar"
+          onClick={() => {
+            // TODO: Implement sidebar toggle
+            console.log("Sidebar toggle clicked");
+          }}
+        >
+          <Image
+            src="/images/mouse-logo.png"
+            alt="Mouse Logo"
+            width={192}
+            height={192}
+            className="h-48 w-48 scale-100"
+            style={{ objectFit: "none", objectPosition: "center 55%" }}
+          />
+        </button>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-8">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-silver hover:text-frost-white transition-colors text-sm font-medium"
-            >
-              {link.label}
-            </Link>
-          ))}
-          <a
-            href={EXTERNAL_URLS.github}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-silver hover:text-frost-white transition-colors"
-            aria-label="GitHub"
-          >
-            <GitHubIcon className="h-5 w-5" />
-          </a>
-        </div>
+        {/* Main Nav Content */}
+        <nav className="flex-1 max-w-7xl mx-auto px-6 flex items-center justify-between">
+          {/* Brand Text */}
+          <Link href="/" className="flex items-center">
+            <span className="text-xl font-bold tracking-wider text-frost-white">
+              MOUSE
+            </span>
+          </Link>
 
-        {/* Auth Buttons */}
-        <div className="flex items-center gap-4">
-          {isLoading ? (
-            <div className="w-24 h-10 bg-card-bg rounded-lg animate-pulse" />
-          ) : user ? (
-            <Button href="/portal" variant="primary" size="sm">
-              Portal
-            </Button>
-          ) : (
-            <>
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-8">
+            {NAV_LINKS.map((link) => (
               <Link
-                href="/auth/login"
-                className="text-silver hover:text-frost-white transition-colors text-sm font-medium hidden sm:block"
+                key={link.href}
+                href={link.href}
+                className="text-silver hover:text-frost-white transition-colors text-sm font-medium"
               >
-                Sign In
+                {link.label}
               </Link>
-              <Button href="/pricing" variant="primary" size="sm">
-                Get Started
-              </Button>
-            </>
-          )}
-        </div>
-      </nav>
-    </header>
-  );
-}
+            ))}
+            <a
+              href={EXTERNAL_URLS.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-silver hover:text-frost-white transition-colors"
+              aria-label="GitHub"
+            >
+              <GitHubIcon className="h-5 w-5" />
+            </a>
+          </div>
 
-function MouseLogo({ className }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect
-        x="4"
-        y="4"
-        width="24"
-        height="24"
-        rx="4"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="text-cerulean-mist"
-      />
-      <path
-        d="M10 16L14 20L22 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-frost-white"
-      />
-    </svg>
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-4">
+            {isLoading ? (
+              <div className="w-24 h-10 bg-card-bg rounded-lg animate-pulse" />
+            ) : user ? (
+              <Button href="/portal" variant="primary" size="sm">
+                Portal
+              </Button>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="text-silver hover:text-frost-white transition-colors text-sm font-medium hidden sm:block"
+                >
+                  Sign In
+                </Link>
+                <Button href="/pricing" variant="primary" size="sm">
+                  Get Started
+                </Button>
+              </>
+            )}
+          </div>
+        </nav>
+      </div>
+    </header>
   );
 }
 
