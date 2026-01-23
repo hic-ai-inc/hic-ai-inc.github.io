@@ -16,16 +16,10 @@ import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
 const createLogger = (operation) => new HicLog(`plg-stripe-${operation}`);
 
 /**
- * Server-side Stripe client
- * Use this in API routes and server components only
+ * Server-side Stripe client (lazy-initialized)
+ * Use getStripeClient() to access - enables testing without API key
  */
-let stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-12-18.acacia",
-  typescript: false,
-});
-
-// Export as getter for consistent access
-export const stripe = stripeClient;
+let stripeClient = null;
 
 /**
  * Injectable seam for testing - allows replacing the Stripe client
@@ -36,12 +30,28 @@ export function __setStripeClientForTests(mockClient) {
 }
 
 /**
- * Get the current Stripe client (respects test injection)
- * Use this in functions that need the client dynamically
+ * Reset the Stripe client (for test cleanup)
+ */
+export function __resetStripeClientForTests() {
+  stripeClient = null;
+}
+
+/**
+ * Get the current Stripe client (lazy-initialized, respects test injection)
+ * Use this in functions that need the client
  */
 export function getStripeClient() {
+  if (!stripeClient) {
+    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2024-12-18.acacia",
+      typescript: false,
+    });
+  }
   return stripeClient;
 }
+
+// Export getter for backward compatibility - prefer getStripeClient()
+export const stripe = { get: getStripeClient };
 
 /**
  * Client-side Stripe.js promise
