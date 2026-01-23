@@ -1,9 +1,16 @@
 # HIC AI Product-Led Growth (PLG) Roadmap
 
-**Document Version:** 2.0  
-**Last Updated:** January 22, 2026  
+**Document Version:** 2.1  
+**Last Updated:** January 23, 2026  
 **Owner:** General Counsel  
 **Status:** 🟢 ACTIVE
+
+**v2.1 Changes (Implementation Progress):**
+
+- **Backend Implementation:** Complete (all lib modules, middleware, API routes)
+- **Unit Test Coverage:** 430 tests across 13 test files (lib, middleware, API)
+- **Testing Infrastructure:** Custom node:test runner with proper test counting
+- Phase 2 Website MVP sections updated with completion status
 
 **v2.0 Changes (Pricing Restructure):**
 
@@ -107,14 +114,16 @@ This roadmap outlines the complete path from MVP to mature PLG-driven self-servi
 
 ### 1.1 Stripe Configuration
 
-| Task                             | Description                           | Est. Hours | Status |
-| -------------------------------- | ------------------------------------- | ---------- | ------ |
-| Create Stripe Products           | 6 products (3 tiers, see below)       | 1 hr       | ⬜     |
-| Configure Stripe Coupons         | EARLYADOPTER20 for time-boxed promos  | 0.5 hr     | ⬜     |
-| Set up Stripe Checkout           | Embedded checkout with seat selection | 4 hrs      | ⬜     |
-| Configure Stripe Customer Portal | Self-service billing management       | 2 hrs      | ⬜     |
-| Implement Stripe Webhooks        | 5 events (see GC memo Section II.B)   | 4 hrs      | ⬜     |
-| Enable Stripe Radar              | Fraud prevention for large purchases  | 1 hr       | ⬜     |
+| Task                             | Description                           | Est. Hours | Status          |
+| -------------------------------- | ------------------------------------- | ---------- | --------------- |
+| Create Stripe Products           | 6 products (3 tiers, see below)       | 1 hr       | ⬜ Stripe setup |
+| Configure Stripe Coupons         | EARLYADOPTER20 for time-boxed promos  | 0.5 hr     | ⬜ Stripe setup |
+| Set up Stripe Checkout           | Embedded checkout with seat selection | 4 hrs      | ✅ Complete     |
+| Configure Stripe Customer Portal | Self-service billing management       | 2 hrs      | ✅ Complete     |
+| Implement Stripe Webhooks        | 5 events (see GC memo Section II.B)   | 4 hrs      | ✅ Complete     |
+| Enable Stripe Radar              | Fraud prevention for large purchases  | 1 hr       | ⬜ Stripe setup |
+| **Stripe Client Library**        | Checkout, portal, webhooks, subs      | 6 hrs      | ✅ Complete     |
+| **Stripe Unit Tests**            | 27 tests covering all Stripe ops      | 2 hrs      | ✅ Complete     |
 
 **Stripe Products (6 total):**
 
@@ -144,14 +153,16 @@ No Stripe product — manual license issuance via Keygen.sh
 
 ### 1.2 Keygen.sh Configuration
 
-| Task                        | Description                                  | Est. Hours | Status |
-| --------------------------- | -------------------------------------------- | ---------- | ------ |
-| Create Keygen Account       | Starter plan ($99/mo)                        | 0.5 hr     | ⬜     |
-| Define License Policies     | OSS (1), Individual (3), Enterprise (2/seat) | 2 hrs      | ⬜     |
-| Configure Heartbeat         | 24-hour validation interval                  | 1 hr       | ⬜     |
-| Set up Keygen Webhooks      | License lifecycle events                     | 2 hrs      | ⬜     |
-| Configure OSS Verification  | GitHub API integration for eligibility       | 2 hrs      | ⬜     |
-| Test License Validation API | Integration with Mouse extension             | 4 hrs      | ⬜     |
+| Task                        | Description                                  | Est. Hours | Status          |
+| --------------------------- | -------------------------------------------- | ---------- | --------------- |
+| Create Keygen Account       | Starter plan ($99/mo)                        | 0.5 hr     | ⬜ Keygen setup |
+| Define License Policies     | OSS (1), Individual (3), Enterprise (2/seat) | 2 hrs      | ⬜ Keygen setup |
+| Configure Heartbeat         | 24-hour validation interval                  | 1 hr       | ⬜ Keygen setup |
+| Set up Keygen Webhooks      | License lifecycle events                     | 2 hrs      | ✅ Complete     |
+| Configure OSS Verification  | GitHub API integration for eligibility       | 2 hrs      | ⬜ Deferred     |
+| Test License Validation API | Integration with Mouse extension             | 4 hrs      | ✅ Complete     |
+| **Keygen Client Library**   | Validation, activation, deactivation         | 4 hrs      | ✅ Complete     |
+| **Keygen Unit Tests**       | 29 tests covering all license ops            | 2 hrs      | ✅ Complete     |
 
 **Keygen Policies:**
 
@@ -187,30 +198,63 @@ mouse_enterprise:
 
 ### 1.3 Auth0 Configuration
 
-| Task                       | Description                        | Est. Hours | Status      |
-| -------------------------- | ---------------------------------- | ---------- | ----------- |
-| Apply for Startup Program  | Free tier now, Startup banked      | 0.5 hr     | ✅ Complete |
-| Create Auth0 Tenant        | dev-vby1x2u5b7c882n5.us.auth0.com  | 1 hr       | ✅ Created  |
-| Configure Universal Login  | Branded login page                 | 2 hrs      | ⬜          |
-| Enable Social Connections  | Google, GitHub OAuth               | 1 hr       | ⬜          |
-| Configure Organizations    | Multi-tenancy for enterprise       | 4 hrs      | ⬜          |
-| Set up Roles & Permissions | Owner, Admin, Member               | 2 hrs      | ⬜          |
-| Implement Domain Detection | Tier auto-assignment (edu/org/gov) | 2 hrs      | ⬜          |
+| Task                       | Description                        | Est. Hours | Status         |
+| -------------------------- | ---------------------------------- | ---------- | -------------- |
+| Apply for Startup Program  | Free tier now, Startup banked      | 0.5 hr     | ✅ Complete    |
+| Create Auth0 Tenant        | dev-vby1x2u5b7c882n5.us.auth0.com  | 1 hr       | ✅ Created     |
+| Configure Universal Login  | Branded login page                 | 2 hrs      | ⬜ Auth0 setup |
+| Enable Social Connections  | Google, GitHub OAuth               | 1 hr       | ⬜ Auth0 setup |
+| Configure Organizations    | Multi-tenancy for enterprise       | 4 hrs      | ⬜ Auth0 setup |
+| Set up Roles & Permissions | Owner, Admin, Member               | 2 hrs      | ⬜ Auth0 setup |
+| Implement Domain Detection | Tier auto-assignment (edu/org/gov) | 2 hrs      | ⬜             |
+| **Auth0 Client Library**   | Session, org context, helpers      | 4 hrs      | ✅ Complete    |
+| **Auth0 Unit Tests**       | 27 tests + auth.test.js (47 tests) | 2 hrs      | ✅ Complete    |
 
 ### 1.4 AWS Infrastructure (DynamoDB + Lambda)
 
 | Task                             | Description                           | Est. Hours | Status              |
 | -------------------------------- | ------------------------------------- | ---------- | ------------------- |
 | Apply for AWS Activate           | $1,000 credits                        | 0.5 hr     | ✅ Applied (Jan 22) |
-| Create DynamoDB Table            | Single-table design per Q's schema    | 2 hrs      | ⬜                  |
-| Create GSI1 (Stripe lookup)      | Stripe Customer ID → Customer         | 1 hr       | ⬜                  |
-| Create GSI2 (License lookup)     | License Key → Customer (KEYGEN#)      | 1 hr       | ⬜                  |
-| Create GSI3 (Auth0 lookup)       | Auth0 User ID → Customer              | 1 hr       | ⬜                  |
-| Deploy Stripe Webhook Lambda     | Process checkout, subscription events | 4 hrs      | ⬜                  |
-| Deploy Keygen Webhook Lambda     | Process license lifecycle events      | 2 hrs      | ⬜                  |
-| Deploy License Validation Lambda | High-frequency validation endpoint    | 4 hrs      | ⬜                  |
-| Configure API Gateway            | REST API for webhooks + validation    | 2 hrs      | ⬜                  |
-| Set up CloudWatch Alarms         | Throttling, errors, latency           | 2 hrs      | ⬜                  |
+| Create DynamoDB Table            | Single-table design per Q's schema    | 2 hrs      | ✅ Schema complete  |
+| Create GSI1 (Stripe lookup)      | Stripe Customer ID → Customer         | 1 hr       | ✅ Designed         |
+| Create GSI2 (License lookup)     | License Key → Customer (KEYGEN#)      | 1 hr       | ✅ Designed         |
+| Create GSI3 (Auth0 lookup)       | Auth0 User ID → Customer              | 1 hr       | ✅ Designed         |
+| **DynamoDB Client Library**      | Full CRUD operations, all entities    | 8 hrs      | ✅ Complete         |
+| **DynamoDB Unit Tests**          | 27 tests covering all operations      | 2 hrs      | ✅ Complete         |
+| Deploy Stripe Webhook Lambda     | Process checkout, subscription events | 4 hrs      | ✅ Route complete   |
+| Deploy Keygen Webhook Lambda     | Process license lifecycle events      | 2 hrs      | ✅ Route complete   |
+| Deploy License Validation Lambda | High-frequency validation endpoint    | 4 hrs      | ✅ Route complete   |
+| **Webhook Unit Tests**           | Stripe + Keygen event handling tests  | 4 hrs      | ✅ Complete         |
+| Configure API Gateway            | REST API for webhooks + validation    | 2 hrs      | ⬜ Infra pending    |
+| Set up CloudWatch Alarms         | Throttling, errors, latency           | 2 hrs      | ⬜ Infra pending    |
+
+### 1.5 Testing Infrastructure ✅ NEW
+
+| Component                    | Description                              | Tests | Status      |
+| ---------------------------- | ---------------------------------------- | ----- | ----------- |
+| **Test Runner**              | node:test with proper test counting      | -     | ✅ Complete |
+| **Test Helpers (dm/facade)** | createSpy, expect, mocks for AWS/Auth0   | -     | ✅ Complete |
+| **Lib Unit Tests**           | auth, auth0, constants, dynamodb, keygen | 247   | ✅ Complete |
+|                              | index, ses, stripe                       |       |             |
+| **Middleware Tests**         | Route protection logic                   | 37    | ✅ Complete |
+| **API Route Tests**          | checkout, license, portal, webhooks      | 146   | ✅ Complete |
+| **Total Test Coverage**      | 13 files, all passing                    | 430   | ✅ Complete |
+
+**Test Files:**
+
+```
+__tests__/unit/lib/           # 8 files (auth, auth0, constants, dynamodb, index, keygen, ses, stripe)
+__tests__/unit/middleware.test.js
+__tests__/unit/api/           # 4 files (checkout, license, portal, webhooks)
+```
+
+**Running Tests:**
+
+```bash
+npm test                           # Run all 430 tests
+npm test -- __tests__/unit/lib     # Run lib tests only
+npm test -- -p stripe              # Run tests matching "stripe"
+```
 
 ---
 
@@ -220,13 +264,15 @@ mouse_enterprise:
 
 ### 2.1 Next.js Project Setup
 
-| Task                          | Description                      | Est. Hours | Status |
-| ----------------------------- | -------------------------------- | ---------- | ------ |
-| Initialize Next.js 14 project | App Router, JavaScript, Tailwind | 2 hrs      | ⬜     |
-| Configure Amplify deployment  | Production + preview branches    | 1 hr       | ⬜     |
-| Set up Auth0 SDK              | @auth0/nextjs-auth0 SDK          | 4 hrs      | ⬜     |
-| Set up Stripe SDK             | @stripe/stripe-js + server-side  | 2 hrs      | ⬜     |
-| Environment configuration     | Development, staging, production | 1 hr       | ⬜     |
+| Task                           | Description                      | Est. Hours | Status      |
+| ------------------------------ | -------------------------------- | ---------- | ----------- |
+| Initialize Next.js 14 project  | App Router, JavaScript, Tailwind | 2 hrs      | ✅ Complete |
+| Configure Amplify deployment   | Production + preview branches    | 1 hr       | ⬜          |
+| Set up Auth0 SDK               | @auth0/nextjs-auth0 SDK          | 4 hrs      | ✅ Complete |
+| Set up Stripe SDK              | @stripe/stripe-js + server-side  | 2 hrs      | ✅ Complete |
+| Environment configuration      | Development, staging, production | 1 hr       | ✅ Complete |
+| **Backend API Implementation** | All route handlers complete      | 20 hrs     | ✅ Complete |
+| **Backend Unit Tests**         | 430 tests, 13 files, 100% pass   | 16 hrs     | ✅ Complete |
 
 ### 2.2 Landing Page (/)
 
@@ -252,15 +298,17 @@ mouse_enterprise:
 
 ### 2.4 Checkout Flow (/checkout)
 
-| Task                        | Description                         | Est. Hours | Status |
-| --------------------------- | ----------------------------------- | ---------- | ------ |
-| Seat selector component     | Quantity input (Enterprise 10+ min) | 2 hrs      | ⬜     |
-| Volume discount display     | Show 10%/20% off at thresholds      | 1 hr       | ⬜     |
-| Real-time price calculator  | Live total as inputs change         | 2 hrs      | ⬜     |
-| Stripe Checkout integration | Redirect to Stripe-hosted page      | 4 hrs      | ⬜     |
-| Trial flow (Individual)     | 14 days, no card required           | 2 hrs      | ⬜     |
-| Trial flow (Enterprise)     | 30 days, card required              | 2 hrs      | ⬜     |
-| Success redirect handler    | /welcome → account creation         | 2 hrs      | ⬜     |
+| Task                        | Description                         | Est. Hours | Status        |
+| --------------------------- | ----------------------------------- | ---------- | ------------- |
+| Seat selector component     | Quantity input (Enterprise 10+ min) | 2 hrs      | 🟡 UI pending |
+| Volume discount display     | Show 10%/20% off at thresholds      | 1 hr       | 🟡 UI pending |
+| Real-time price calculator  | Live total as inputs change         | 2 hrs      | 🟡 UI pending |
+| Stripe Checkout integration | Redirect to Stripe-hosted page      | 4 hrs      | ✅ Complete   |
+| Trial flow (Individual)     | 14 days, no card required           | 2 hrs      | ✅ Complete   |
+| Trial flow (Enterprise)     | 30 days, card required              | 2 hrs      | ✅ Complete   |
+| Success redirect handler    | /welcome → account creation         | 2 hrs      | ✅ Complete   |
+| **Checkout API routes**     | /api/checkout, /api/checkout/verify | 4 hrs      | ✅ Complete   |
+| **Checkout API tests**      | 35+ tests covering checkout logic   | 2 hrs      | ✅ Complete   |
 
 ### 2.5 Welcome Page (/welcome)
 
@@ -275,16 +323,18 @@ mouse_enterprise:
 
 ### 2.6 Customer Portal (/portal)
 
-| Task                             | Description                            | Est. Hours | Status |
-| -------------------------------- | -------------------------------------- | ---------- | ------ |
-| Portal layout                    | Authenticated shell with sidebar       | 4 hrs      | ⬜     |
-| Dashboard page (/portal)         | Overview, trial countdown, quick stats | 4 hrs      | ⬜     |
-| License page (/portal/license)   | View key, copy, regenerate if needed   | 2 hrs      | ⬜     |
-| Devices page (/portal/devices)   | View activations, deactivate old       | 4 hrs      | ⬜     |
-| Billing page (/portal/billing)   | Stripe Customer Portal redirect        | 2 hrs      | ⬜     |
-| Invoices page (/portal/invoices) | Invoice history, PDF download          | 2 hrs      | ⬜     |
-| Settings page (/portal/settings) | Change password, email prefs           | 2 hrs      | ⬜     |
-| Team management (enterprise)     | /portal/team - invite, remove, roles   | 8 hrs      | ⬜     |
+| Task                             | Description                            | Est. Hours | Status      |
+| -------------------------------- | -------------------------------------- | ---------- | ----------- |
+| Portal layout                    | Authenticated shell with sidebar       | 4 hrs      | ✅ Complete |
+| Dashboard page (/portal)         | Overview, trial countdown, quick stats | 4 hrs      | ✅ Complete |
+| License page (/portal/license)   | View key, copy, regenerate if needed   | 2 hrs      | ✅ Complete |
+| Devices page (/portal/devices)   | View activations, deactivate old       | 4 hrs      | ✅ Complete |
+| Billing page (/portal/billing)   | Stripe Customer Portal redirect        | 2 hrs      | ✅ Complete |
+| Invoices page (/portal/invoices) | Invoice history, PDF download          | 2 hrs      | ✅ Complete |
+| Settings page (/portal/settings) | Change password, email prefs           | 2 hrs      | ✅ Complete |
+| Team management (enterprise)     | /portal/team - invite, remove, roles   | 8 hrs      | ✅ Complete |
+| **Portal API routes**            | license, devices, invoices, stripe     | 8 hrs      | ✅ Complete |
+| **Portal API tests**             | 50+ tests covering all portal logic    | 4 hrs      | ✅ Complete |
 
 ---
 
