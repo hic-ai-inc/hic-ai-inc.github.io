@@ -12,8 +12,12 @@
 
 This memo outlines a systematic plan to expand Mouse's compatibility from its current proven configuration (GitHub Copilot + Q Developer in VS Code with Anthropic models) to a broader ecosystem of AI agents, IDEs, and model providers. Work is organized in ascending order of difficulty to build momentum, capture easy wins first, and inform estimates for harder challenges.
 
-**Current State:** Works with 2 MCP clients + **Copilot CLI (VERIFIED 2026-01-24)**, 1 IDE, 1 model family  
+**Current State:** Works with 2 MCP clients + **Copilot CLI + Packaged Mouse (VERIFIED 2026-01-24)**, 1 IDE, 1 model family  
 **Target State:** Works with 6+ MCP clients, 3+ IDEs, 2+ model families
+
+**🚀 MARKET OPPORTUNITY (2026-01-24):** VS Code MCP extensions alone represent **6.75M potential users**:
+- Cline: 2.9M | Roo Code: 1.2M | Continue: 2.0M | Kilo Code: 650K
+- These are **easy wins** — same IDE, same config format, many use Anthropic models
 
 **Estimated Total Effort:** 5-12 days (depending on unforeseen blockers)
 
@@ -21,6 +25,10 @@ This memo outlines a systematic plan to expand Mouse's compatibility from its cu
 > All core tools working: `read_lines`, `quick_edit`, `batch_quick_edit`, `find_in_file`, 
 > `get_file_metadata`, `make_note`, `list_notes`, `save_changes`, `cancel_changes`, `ADJUST`.
 > See [Appendix B](#appendix-b-github-copilot-cli-setup-guide) for setup instructions.
+>
+> **🎉 PACKAGED VERSION VALIDATED (2026-01-24):** Tested `npx @get-hic/mouse` installation!
+> Packaged server at `.hic/mcp/src/core/server.js` works identically to dev source.
+> Refinement Mode confirmed working (2-pass workflow: initial batch + ADJUST).
 
 ---
 
@@ -70,8 +78,8 @@ This memo outlines a systematic plan to expand Mouse's compatibility from its cu
 | ------------------ | --------- | ------------ | --------------------------------------- |
 | GitHub Copilot CLI | ✅ WORKING | 11/11        | Terminal agent, full MCP support        |
 
-> **Note:** Copilot CLI verified with **development source** (`hic/mcp/src/core/server.js`).
-> Packaged version (`{workspace}/.hic/mcp/`) still needs validation.
+> **Note:** Copilot CLI verified with BOTH development source AND packaged npm installation.
+> Packaged version (`{workspace}/.hic/mcp/`) validated 2026-01-24 via `npx @get-hic/mouse`.
 
 ### What We Haven't Tested ❓
 
@@ -79,9 +87,31 @@ This memo outlines a systematic plan to expand Mouse's compatibility from its cu
 | ---------------------- | ------------------- | --------------------------------------- |
 | Claude Code (terminal) | Easy                | Anthropic models, documented MCP        |
 | Cursor                 | Easy-Medium         | Good MCP support, documented            |
+| **VS Code MCP Extensions** | **Easy**       | **Same config as Copilot, many options** |
 | Kiro                   | Medium              | AWS ecosystem, should work like Q       |
 | Windsurf               | Medium              | Codeium's IDE, MCP support unclear      |
 | Other terminal agents  | Medium-Hard         | Varies by implementation                |
+
+### VS Code MCP Extensions Discovered (2026-01-24)
+
+**Priority Testing Candidates** (all support MCP, installed via VS Code Marketplace):
+
+| Extension | Installs | Rating | MCP Support | Notes |
+|-----------|----------|--------|-------------|-------|
+| **Cline** | 2.9M | 4.34 | ✅ Native | **⚠️ BLOCKED: needs agentId support** |
+| **Roo Code** | 1.2M | 4.84 | ✅ Native | "Team of AI agents" |
+| **Continue** | 2.0M | 3.77 | ✅ Native | Open-source, multi-model |
+| **Kilo Code** | 650K | 4.49 | ✅ Native | 500+ model support |
+| **Augment Code** | 689K | 3.68 | ✅ Native | Enterprise-focused |
+| **CodeGPT** | 2.2M | 3.51 | ✅ Native | Official API connections |
+| **BLACKBOX AI** | 4.7M | 4.06 | ✅ Tagged | High installs |
+| **Copilot MCP** | 75K | 4.25 | ✅ MCP management | Server discovery tool |
+
+**Why These Are Easy Wins:**
+- Same IDE (VS Code) = same workspace context
+- MCP config likely compatible with existing `.vscode/mcp.json`
+- Many support Anthropic models (proven compatible)
+- No additional IDE setup required
 
 ---
 
@@ -436,9 +466,15 @@ Based on difficulty assessment and strategic value:
 | 1.3 | Set up GitHub Copilot CLI with Mouse MCP  | 2-3 hours | ✅ DONE |
 | 1.4 | Run smoke tests on Copilot CLI            | 2 hours   | ✅ DONE |
 | 1.5 | Run full E2E suite on Copilot CLI         | 4-6 hours | ⏳ Partial (11 tools tested) |
-| 1.6 | Set up Claude Code with Mouse MCP         | 2-3 hours |
-| 1.7 | Run smoke + E2E tests on Claude Code      | 4-6 hours |
-| 1.8 | Document both terminal agent setups       | 2 hours   |
+| 1.6 | **Test Cline (2.9M users)**               | 1-2 hours | ⏳ NEXT |
+| 1.7 | **Test Roo Code (1.2M users)**            | 1-2 hours | |
+| 1.8 | **Test Continue (2.0M users)**            | 1-2 hours | |
+| 1.9 | **Test Kilo Code (650K users)**           | 1-2 hours | |
+| 1.10| Set up Claude Code with Mouse MCP        | 2-3 hours | |
+| 1.11| Run smoke + E2E tests on Claude Code     | 4-6 hours | |
+| 1.12| Document all setups                      | 2 hours   | |
+
+**End of Phase 1:** 4 VS Code extensions + 2 terminal agents = **6.75M+ potential users validated**
 
 **End of Day 3:** Two terminal agents (Copilot CLI + Claude Code) fully tested.
 
@@ -564,7 +600,52 @@ Based on difficulty assessment and strategic value:
 
 | Item                    | Status       | Resolution                              |
 | ----------------------- | ------------ | --------------------------------------- |
-| GitHub Copilot CLI      | ✅ Verified  | All 11 tested tools work (2026-01-24)   |
+| GitHub Copilot CLI (dev) | ✅ Verified  | All 11 tested tools work (2026-01-24)   |
+| Copilot CLI (packaged)   | ✅ Verified  | `npx @get-hic/mouse` validated (2026-01-24) |
+
+### Blocked (Easy Fix Required) ⚠️
+
+| Item | Status | Resolution |
+| ---- | ------ | ---------- |
+| **Cline** | ⚠️ Blocked | Agent ID `cline` not in `supportedAgents` array (2026-01-24) |
+| **Claude Code CLI** | ⚠️ Blocked | Agent ID `claude` not in `supportedAgents` array (2026-01-24) |
+
+**Cline Details (2026-01-24):**
+- MCP connection: ✅ Working
+- Tool discovery: ✅ All tools visible
+- Calculator tools: ✅ Working
+- DateTime tools: ✅ Working
+- Notepad list_notes: ✅ Working
+- **File read/edit tools: ❌ BLOCKED** — `Invalid agent ID: cline. Supported: copilot, q-developer`
+- **Notepad write tools: ❌ BLOCKED** — Same agent ID validation issue
+
+**Fix Required (v0.9.9):**
+Add `"cline"` AND `"claude"` to `supportedAgents` array in:
+- `mouse/src/services/StagingService.js`
+- `mouse/src/services/ClipboardService.js`
+- `mouse/src/services/ModeManager.js`
+- `utils/notepad/src/helpers/validation-utils.js`
+
+**Estimated Fix Effort:** 30 minutes (same files, add both IDs)
+
+**Pattern Confirmed:** MCP works perfectly with these clients. Only the hardcoded
+`supportedAgents = ["copilot", "q-developer"]` array is blocking. Easy fix unlocks
+**5.9M+ potential users** (Cline 2.9M + Claude Code ecosystem).
+
+**Claude Code (VS Code Extension) Details (2026-01-24):**
+- Extension installed: ✅ `anthropic.claude-code`
+- Anthropic Console auth: ⚠️ Buggy OAuth flow, API key issues
+- MCP config created: ✅ `.mcp.json` in project root
+- **Status: Installation difficulties** — Auth flow unreliable in VS Code chat interface
+
+**Claude Code CLI Details (2026-01-24):**
+- CLI installed: ✅ v2.1.19
+- MCP connection: ✅ Working
+- Tool discovery: ✅ All tools visible (prefixed `mcp__hic_local__`)
+- **File read/edit tools: ❌ BLOCKED** — `Invalid agent ID: claude. Supported: copilot, q-developer`
+- **Same pattern as Cline** — Agent ID validation is the only blocker
+
+**Claude Code Status:** ⚠️ BLOCKED on agent ID (same fix as Cline)
 
 ### Low Risk Items
 
@@ -581,7 +662,8 @@ Based on difficulty assessment and strategic value:
 - [ ] Smoke test checklist finalized
 - [ ] Compatibility matrix template created
 - [x] **Copilot CLI working (dev source)** (2026-01-24) — 11 tools verified
-- [ ] Copilot CLI working (packaged `.hic/mcp/`) — needs validation
+- [x] **Copilot CLI working (packaged `.hic/mcp/`)** (2026-01-24) — `npx @get-hic/mouse` validated
+- [ ] VS Code MCP extensions (Cline, Roo Code, etc.) — **NEW: 8 extensions identified**
 - [ ] Claude Code fully working
 
 ### Before Starting Phase 3 (Schema Sanitizer)
@@ -841,8 +923,8 @@ Copilot CLI stores MCP config at:
 
 ### Packaging Note
 
-> ⚠️ **TODO:** Validate packaged version at `{workspace}/.hic/mcp/` works.
-> Current verification used development source at `hic/mcp/src/core/server.js`.
+> ✅ **DONE (2026-01-24):** Packaged version at `{workspace}/.hic/mcp/` validated!
+> Tested via `npx @get-hic/mouse` in clean folder. Refinement Mode working.
 
 ---
 
@@ -851,7 +933,11 @@ Copilot CLI stores MCP config at:
 | Client         | IDE      | Models    | Status           | Notes                     |
 | -------------- | -------- | --------- | ---------------- | ------------------------- |
 | GitHub Copilot | VS Code  | Anthropic | ✅ Supported     | Primary development       |
-| **Copilot CLI**| Terminal | Anthropic | **✅ Verified**  | **11 tools tested 2026-01-24** |
+| **Copilot CLI (dev)**| Terminal | Anthropic | **✅ Verified**  | **11 tools tested 2026-01-24** |
+| **Copilot CLI (pkg)**| Terminal | Anthropic | **✅ Verified**  | **Packaged npm version 2026-01-24** |
+| Cline          | VS Code  | Multi     | ⚠️ **BLOCKED**   | **Needs `cline` added to supportedAgents (easy fix)** |
+| Roo Code       | VS Code  | Multi     | ⏳ Planned       | **NEW: 1.2M installs, MCP native** |
+| Continue       | VS Code  | Multi     | ⏳ Planned       | **NEW: Open-source, MCP native** |
 | GitHub Copilot | VS Code  | Gemini    | ⏳ Planned       | Requires schema sanitizer |
 | GitHub Copilot | VS Code  | GPT       | ❌ Not supported | No path forward           |
 | Q Developer    | VS Code  | Anthropic | ✅ Supported     |                           |
@@ -868,6 +954,9 @@ Copilot CLI stores MCP config at:
 | ---------- | -------------- | ---------------- |
 | 2026-01-24 | GitHub Copilot | Initial document |
 | 2026-01-24 | GitHub Copilot | **Copilot CLI verified working!** Added Appendix B setup guide |
+| 2026-01-24 | GitHub Copilot | **Packaged npm version validated!** `npx @get-hic/mouse` E2E confirmed |
+| 2026-01-24 | GitHub Copilot | **VS Code MCP extensions discovered!** 8 competitors with native MCP support added |
+| 2026-01-24 | GitHub Copilot | **Cline tested!** MCP works, blocked on agentId support (easy fix for v0.9.9) |
 
 ---
 

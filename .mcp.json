@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "hic_local": {
+      "command": "node",
+      "args": ["c:/Users/SimonAdmin/source/repos/hic/mcp/src/core/server.js"],
+      "env": {
+        "DEBUG": "true",
+        "HIC_AGENT_ADAPTER": "claude"
+      }
+    }
+  }
+}

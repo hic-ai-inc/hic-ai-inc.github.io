@@ -1,0 +1,11 @@
+{
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "hic_local"
+  ],
+  "permissions": {
+    "allow": [
+      "mcp__hic_local__read_lines"
+    ]
+  }
+}
