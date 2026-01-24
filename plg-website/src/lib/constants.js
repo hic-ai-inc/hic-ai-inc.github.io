@@ -18,8 +18,8 @@ export const PRICING = {
     id: "individual",
     name: "Individual",
     description: "For professional developers",
-    priceMonthly: 10,
-    priceAnnual: 100, // 2 months free
+    priceMonthly: 15,
+    priceAnnual: 150, // 2 months free
     seats: 1,
     maxDevices: 3,
     trialDays: 14,
@@ -138,7 +138,8 @@ export const STRIPE_PRICES = {
 // ===========================================
 
 export const NAV_LINKS = [
-  { label: "Features", href: "/#features" },
+  { label: "Features", href: "/features" },
+  { label: "Research", href: "/research" },
   { label: "Pricing", href: "/pricing" },
   { label: "Docs", href: "/docs" },
 ];

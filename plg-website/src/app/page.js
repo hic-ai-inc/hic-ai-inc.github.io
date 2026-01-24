@@ -32,9 +32,10 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-silver max-w-3xl mx-auto mb-10">
-              Mouse is the first tool proven to reduce Execution Slop—the unintended
-              repo damage from agent edits. 67 paired trials. 3 preregistered studies.
-              Statistically significant results.
+              Mouse is the first tool proven to reduce Execution Slop—right
+              plan, right tool call, wrong output. Without Mouse, GitHub Copilot
+              is 3.6× slower and costs 58% more. The odds our results were due
+              to chance? Less than 1 in a million.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -60,9 +61,9 @@ export default function HomePage() {
                 The Problem: Execution Slop
               </h2>
               <p className="text-xl text-silver max-w-2xl mx-auto">
-                Merriam-Webster named &quot;slop&quot; its 2025 Word of the Year.
-                Execution Slop is unintended repo damage from agent edits—the agent
-                understood the goal, but the edit still damaged the file.
+                Merriam-Webster named &quot;slop&quot; its 2025 Word of the
+                Year. Execution Slop is when AI makes the right plan, calls the
+                right tool, but still produces the wrong output.
               </p>
             </div>
 
@@ -117,52 +118,6 @@ export default function HomePage() {
                 </ul>
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Evidence Section */}
-        <section className="py-24 bg-card-bg/30 border-y border-card-border">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold text-frost-white mb-4">
-                The Evidence
-              </h2>
-              <p className="text-xl text-silver">
-                67 paired trials · 3 preregistered studies · Peer-review ready
-              </p>
-            </div>
-
-            <div className="grid sm:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              <div className="card text-center">
-                <div className="text-4xl md:text-5xl font-bold text-gradient mb-2">
-                  56%
-                </div>
-                <p className="text-frost-white font-medium">Perfect First Try</p>
-                <p className="text-sm text-slate-grey mt-1">vs 0% baseline</p>
-                <p className="text-xs text-cerulean-mist mt-2">p = 1.2 × 10⁻⁴</p>
-              </div>
-              <div className="card text-center">
-                <div className="text-4xl md:text-5xl font-bold text-gradient mb-2">
-                  89.5%
-                </div>
-                <p className="text-frost-white font-medium">Capability Unlock</p>
-                <p className="text-sm text-slate-grey mt-1">vs 0% baseline</p>
-                <p className="text-xs text-cerulean-mist mt-2">p = 7.6 × 10⁻⁶</p>
-              </div>
-              <div className="card text-center">
-                <div className="text-4xl md:text-5xl font-bold text-gradient mb-2">
-                  3.6×
-                </div>
-                <p className="text-frost-white font-medium">Faster Completion</p>
-                <p className="text-sm text-slate-grey mt-1">uniform advantage</p>
-                <p className="text-xs text-cerulean-mist mt-2">p &lt; 10⁻⁷</p>
-              </div>
-            </div>
-
-            <p className="text-center text-sm text-slate-grey mt-8 max-w-2xl mx-auto">
-              On hard tasks, baseline never succeeds. Mouse nearly always succeeds.
-              Effect sizes 2-3× the &quot;large&quot; threshold by Cohen&apos;s benchmarks.
-            </p>
           </div>
         </section>
 
@@ -232,7 +187,7 @@ export default function HomePage() {
         <section className="py-24 bg-gradient-to-b from-midnight-navy to-card-bg/30 border-t border-card-border">
           <div className="max-w-3xl mx-auto px-6 text-center">
             <h2 className="text-4xl md:text-5xl font-bold text-frost-white mb-4">
-              Tiny but Powerful
+              Ready to Eliminate Execution Slop?
             </h2>
             <p className="text-xl text-silver mb-8">
               Mouse gives AI coding agents surgical accuracy and consistency.

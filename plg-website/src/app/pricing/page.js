@@ -1,13 +1,15 @@
 /**
  * Pricing Page
  *
- * Three-tier pricing: Open Source ($0) / Individual ($10/mo) / Enterprise ($25/seat)
+ * Two-tier pricing: Individual ($15/mo) / Enterprise ($25/seat for 2+ seats)
+ * Volume discounts for Enterprise: 5% (10+), 10% (100+), 15% (500+), 20% (1000+)
  *
  * @see PLG User Journey - Section 2.2
- * @see Proposed Pricing Changes document
  */
 
 import Link from "next/link";
+import { Header, Footer } from "@/components/layout";
+import { Button, Badge } from "@/components/ui";
 
 export const metadata = {
   title: "Pricing - Mouse by HIC AI",
@@ -17,37 +19,23 @@ export const metadata = {
 
 const tiers = [
   {
-    name: "Open Source",
-    price: "$0",
-    period: "forever",
-    description: "For OSS maintainers and contributors",
-    cta: "Apply for OSS",
-    ctaLink: "/checkout/oss",
-    featured: false,
-    features: [
-      "1 device activation",
-      "Core slop detection",
-      "Community support",
-      "GitHub verification required",
-    ],
-    limitations: ["Non-commercial use only", "No priority support"],
-  },
-  {
     name: "Individual",
-    price: "$10",
+    price: "$15",
     period: "/month",
-    annualPrice: "$100/year (save $20)",
+    annualPrice: "$150/year (save $30)",
     description: "For professional developers",
     cta: "Start Free Trial",
     ctaLink: "/checkout/individual",
     featured: true,
     trial: "14-day free trial, no card required",
     features: [
+      "Single user license",
       "3 device activations",
-      "Advanced slop detection",
-      "Priority email support",
-      "Usage analytics dashboard",
+      "Full Mouse editing toolkit",
+      "Best-in-class file navigation tools",
+      "Commercial use permitted",
       "Early access to new features",
+      "Community support",
     ],
     limitations: [],
   },
@@ -55,35 +43,37 @@ const tiers = [
     name: "Enterprise",
     price: "$25",
     period: "/seat/month",
-    annualPrice: "Billed annually",
-    description: "For teams and organizations",
+    annualPrice: "$250/seat/year (save $50/seat)",
+    description: "For teams of 2 or more",
     cta: "Start Enterprise Trial",
     ctaLink: "/checkout/enterprise",
     featured: false,
-    trial: "30-day trial, card required",
+    trial: "30-day trial for teams",
     features: [
+      "Minimum 2 seats",
       "2 devices per seat",
+      "Full Mouse editing toolkit",
       "SSO (SAML, Okta, Azure AD)",
       "Team management portal",
       "Centralized billing",
-      "Dedicated support",
-      "Custom onboarding",
-      "Volume discounts available",
+      "Priority email support",
     ],
     limitations: [],
     volumeDiscounts: [
-      { seats: "10-99", discount: "Standard pricing" },
+      { seats: "2-9", discount: "Standard pricing" },
+      { seats: "10-99", discount: "5% off" },
       { seats: "100-499", discount: "10% off" },
-      { seats: "500+", discount: "20% off" },
+      { seats: "500-999", discount: "15% off" },
+      { seats: "1,000+", discount: "20% off" },
     ],
   },
 ];
 
 const faqs = [
   {
-    question: "What is execution slop?",
+    question: "What is Execution Slop?",
     answer:
-      "Execution slop refers to AI-generated code that appears correct but contains subtle logic errors, inefficiencies, or anti-patterns. Mouse detects these issues before they reach your codebase.",
+      "Execution Slop is when an AI coding agent makes the right plan, calls the right tool, but still produces the wrong output. Mouse's precision editing tools eliminate this problem by giving agents coordinate-based addressing and atomic operations.",
   },
   {
     question: "Can I switch plans later?",
@@ -101,207 +91,169 @@ const faqs = [
       "Yes. If you're not satisfied within the first 30 days, contact us for a full refund. No questions asked.",
   },
   {
-    question: "How does the OSS tier work?",
+    question: "Can I use Mouse for commercial projects?",
     answer:
-      "The Open Source tier is free for verified OSS maintainers. You'll need to verify your GitHub account and show active contributions to qualifying open source projects.",
+      "Yes! Both Individual and Enterprise plans permit commercial use, subject to our Terms of Service.",
   },
   {
     question: "What payment methods do you accept?",
     answer:
-      "We accept all major credit cards (Visa, Mastercard, Amex) via Stripe. Enterprise customers can also pay by invoice.",
+      "We accept all major credit cards, PayPal, and local payment methods depending on your region. Payments are processed securely by our payment partner.",
+  },
+  {
+    question: "Are prices shown before or after tax?",
+    answer:
+      "All prices shown are before applicable taxes. Sales tax, VAT, or GST will be calculated and added at checkout based on your location.",
+  },
+  {
+    question: "What's the minimum seat count for Enterprise?",
+    answer:
+      "Enterprise licenses require a minimum of 2 seats. For single-user commercial use, the Individual plan is the right choice.",
+  },
+  {
+    question: "How do volume discounts work?",
+    answer:
+      "Volume discounts apply automatically based on the number of seats purchased: 5% off for 10-99 seats, 10% off for 100-499 seats, 15% off for 500-999 seats, and 20% off for 1,000+ seats. Discounts apply to all seats in your order.",
   },
 ];
 
 export default function PricingPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-slate-900/80 backdrop-blur-sm border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-white tracking-wider">
-                MOUSE
-              </span>
-              <span className="ml-2 text-sm text-slate-400">by HIC AI</span>
-            </Link>
-            <div className="flex items-center space-x-6">
-              <Link href="/pricing" className="text-white font-medium">
-                Pricing
-              </Link>
-              <Link
-                href="/docs"
-                className="text-slate-300 hover:text-white transition"
-              >
-                Docs
-              </Link>
-              <Link
-                href="/auth/login"
-                className="text-slate-300 hover:text-white transition"
-              >
-                Sign In
-              </Link>
-            </div>
+    <>
+      <Header />
+      <main className="pt-16 min-h-screen bg-midnight-navy">
+        {/* Header */}
+        <section className="py-24 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-midnight-navy via-midnight-navy to-midnight-navy/95" />
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-cerulean-mist/10 blur-[100px] rounded-full" />
+
+          <div className="relative z-10 max-w-4xl mx-auto text-center px-6">
+            <h1 className="text-4xl md:text-5xl font-bold text-frost-white mb-4">
+              Simple, Transparent Pricing
+            </h1>
+            <p className="text-xl text-silver">
+              Start with a free trial. Upgrade when you're ready.
+            </p>
           </div>
-        </div>
-      </nav>
+        </section>
 
-      {/* Header */}
-      <section className="pt-32 pb-12 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Simple, Transparent Pricing
-          </h1>
-          <p className="text-xl text-slate-300">
-            Start free. Upgrade when you're ready. No hidden fees.
-          </p>
-        </div>
-      </section>
-
-      {/* Pricing Tiers */}
-      <section className="py-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
-            {tiers.map((tier) => (
-              <div
-                key={tier.name}
-                className={`bg-slate-800 rounded-2xl p-8 ${
-                  tier.featured
-                    ? "border-2 border-cyan-500 relative"
-                    : "border border-slate-700"
-                }`}
-              >
-                {tier.featured && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-cyan-500 text-slate-900 text-sm font-semibold px-4 py-1 rounded-full">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-
-                <h2 className="text-2xl font-bold text-white mb-2">
-                  {tier.name}
-                </h2>
-                <p className="text-slate-400 mb-4">{tier.description}</p>
-
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-white">
-                    {tier.price}
-                  </span>
-                  <span className="text-slate-400">{tier.period}</span>
-                  {tier.annualPrice && (
-                    <p className="text-sm text-cyan-400 mt-1">
-                      {tier.annualPrice}
-                    </p>
-                  )}
-                </div>
-
-                {tier.trial && (
-                  <p className="text-sm text-slate-400 mb-4">{tier.trial}</p>
-                )}
-
-                <Link
-                  href={tier.ctaLink}
-                  className={`block text-center py-3 px-6 rounded-lg font-semibold transition mb-6 ${
+        {/* Pricing Tiers */}
+        <section className="py-12 px-6">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-8">
+              {tiers.map((tier) => (
+                <div
+                  key={tier.name}
+                  className={`card ${
                     tier.featured
-                      ? "bg-cyan-500 hover:bg-cyan-400 text-slate-900"
-                      : "bg-slate-700 hover:bg-slate-600 text-white"
+                      ? "border-2 border-cerulean-mist relative"
+                      : ""
                   }`}
                 >
-                  {tier.cta}
-                </Link>
+                  {tier.featured && (
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                      <Badge variant="info">Most Popular</Badge>
+                    </div>
+                  )}
 
-                <ul className="space-y-3">
-                  {tier.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start text-slate-300"
-                    >
-                      <span className="text-cyan-400 mr-2">✓</span>
-                      {feature}
-                    </li>
-                  ))}
-                  {tier.limitations.map((limitation) => (
-                    <li
-                      key={limitation}
-                      className="flex items-start text-slate-500"
-                    >
-                      <span className="mr-2">–</span>
-                      {limitation}
-                    </li>
-                  ))}
-                </ul>
+                  <h2 className="text-2xl font-bold text-frost-white mb-2">
+                    {tier.name}
+                  </h2>
+                  <p className="text-slate-grey mb-4">{tier.description}</p>
 
-                {tier.volumeDiscounts && (
-                  <div className="mt-6 pt-6 border-t border-slate-700">
-                    <p className="text-sm font-medium text-white mb-2">
-                      Volume Discounts:
-                    </p>
-                    <ul className="text-sm text-slate-400 space-y-1">
-                      {tier.volumeDiscounts.map((vd) => (
-                        <li key={vd.seats}>
-                          {vd.seats} seats: {vd.discount}
-                        </li>
-                      ))}
-                    </ul>
+                  <div className="mb-6">
+                    <span className="text-4xl font-bold text-frost-white">
+                      {tier.price}
+                    </span>
+                    <span className="text-slate-grey">{tier.period}</span>
+                    {tier.annualPrice && (
+                      <p className="text-sm text-cerulean-mist mt-1">
+                        {tier.annualPrice}
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* FAQ Section */}
-      <section className="py-20 px-4 bg-slate-800/50">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-white text-center mb-12">
-            Frequently Asked Questions
-          </h2>
-          <div className="space-y-6">
-            {faqs.map((faq) => (
-              <div key={faq.question} className="bg-slate-800 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {faq.question}
-                </h3>
-                <p className="text-slate-400">{faq.answer}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+                  {tier.trial && (
+                    <p className="text-sm text-slate-grey mb-4">{tier.trial}</p>
+                  )}
 
-      {/* Footer */}
-      <footer className="py-12 px-4 border-t border-slate-700">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-4 md:mb-0">
-              <span className="text-xl font-bold text-white">MOUSE</span>
-              <span className="ml-2 text-sm text-slate-400">by HIC AI</span>
+                  <Button
+                    href={tier.ctaLink}
+                    variant={tier.featured ? "primary" : "secondary"}
+                    className="w-full mb-6"
+                  >
+                    {tier.cta}
+                  </Button>
+
+                  <ul className="space-y-3">
+                    {tier.features.map((feature) => (
+                      <li
+                        key={feature}
+                        className="flex items-start text-silver"
+                      >
+                        <span className="text-success mr-2">✓</span>
+                        {feature}
+                      </li>
+                    ))}
+                    {tier.limitations.map((limitation) => (
+                      <li
+                        key={limitation}
+                        className="flex items-start text-slate-grey"
+                      >
+                        <span className="mr-2">–</span>
+                        {limitation}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {tier.volumeDiscounts && (
+                    <div className="mt-6 pt-6 border-t border-card-border">
+                      <p className="text-sm font-medium text-frost-white mb-2">
+                        Volume Discounts:
+                      </p>
+                      <ul className="text-sm text-slate-grey space-y-1">
+                        {tier.volumeDiscounts.map((vd) => (
+                          <li key={vd.seats}>
+                            {vd.seats} seats: {vd.discount}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="flex space-x-6 text-slate-400 text-sm">
-              <Link href="/privacy" className="hover:text-white transition">
-                Privacy
-              </Link>
-              <Link href="/terms" className="hover:text-white transition">
-                Terms
-              </Link>
-              <Link href="/docs" className="hover:text-white transition">
-                Documentation
-              </Link>
-              <a
-                href="mailto:support@hic-ai.com"
-                className="hover:text-white transition"
-              >
-                Support
-              </a>
+
+            {/* Tax note */}
+            <p className="text-center text-slate-grey text-sm mt-8">
+              All prices are in USD and exclude applicable taxes (sales tax,
+              VAT, GST).
+              <br />
+              Taxes are calculated at checkout based on your location.
+            </p>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="py-20 px-6 bg-card-bg/30 border-t border-card-border">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold text-frost-white text-center mb-12">
+              Frequently Asked Questions
+            </h2>
+            <div className="space-y-6">
+              {faqs.map((faq) => (
+                <div key={faq.question} className="card">
+                  <h3 className="text-lg font-semibold text-frost-white mb-2">
+                    {faq.question}
+                  </h3>
+                  <p className="text-silver">{faq.answer}</p>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="mt-8 text-center text-slate-500 text-sm">
-            © {new Date().getFullYear()} HIC AI Inc. All rights reserved.
-          </div>
-        </div>
-      </footer>
-    </main>
+        </section>
+      </main>
+      <Footer />
+    </>
   );
 }
