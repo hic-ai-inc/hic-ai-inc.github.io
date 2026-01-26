@@ -1,6 +1,6 @@
 # PLG Roadmap v3 — Final Sprint to Launch
 
-**Document Version:** 3.0.8  
+**Document Version:** 3.0.9  
 **Date:** January 26, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -24,13 +24,13 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 1   | Analytics                          | ⬜ Not started     | 4-8h       | GC         | —                |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented      | 2h         | GC         | —                |
 | 3   | Auth (Auth0 Integration)           | ✅ Dashboard done  | 8-12h      | GC + Simon | 4 (Admin Portal) |
-| 4   | Admin Portal (Individuals + Teams) | ⚠️ APIs built      | 24-32h     | GC         | 5, 6             |
+| 4   | Admin Portal (Individuals + Teams) | ✅ Phases 1-3 done | 24-32h     | GC         | 5, 6             |
 | 5   | Licensing (KeyGen.sh)              | ✅ **COMPLETE**    | 8-12h      | Simon      | 7                |
 | 6   | Payments (Stripe)                  | ✅ **COMPLETE**    | 4-6h       | Simon      | —                |
 | 7   | AWS Infrastructure                 | ✅ Templates exist | 4-6h       | GC         | —                |
 | 8   | VS Code Extension (VSIX)           | ⬜ Not started     | 4-8h       | Simon      | 5, 6             |
-| 9   | Back-End E2E Testing               | ⬜ Not started     | 8-12h      | GC         | 3-8              |
-| 10  | Front-End Polish                   | ⬜ Not started     | 16-24h     | GC         | 9                |
+| 9   | Back-End E2E Testing               | ⚠️ Unit tests done | 8-12h      | GC         | 3-8              |
+| 10  | Front-End Polish                   | ⚠️ Partial        | 16-24h     | GC         | 9                |
 | 11  | Deployment & Launch                | ⬜ Not started     | 8-12h      | GC + Simon | 1-10             |
 | 12  | Support & Community                | ⬜ Not started     | 4-8h       | Simon      | —                |
 
@@ -168,7 +168,7 @@ Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2
 
 ## 4. Admin Portal (Individuals + Teams)
 
-**Status:** ⬜ Not started  
+**Status:** ✅ Phases 1-3 COMPLETE  
 **Est. Hours:** 24-32h  
 **Documentation:** [20260125_TEAM_ADMIN_PORTAL.md](./20260125_TEAM_ADMIN_PORTAL.md)
 
@@ -180,36 +180,36 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 | Phase | Description                              | Est. Hours | Status |
 | ----- | ---------------------------------------- | ---------- | ------ |
-| 1     | API Endpoints (GET/POST/DELETE team)     | 6h         | ⬜     |
-| 2     | Invite Flow (accept endpoint, page)      | 6h         | ⬜     |
-| 3     | Frontend Wire-up (team page, modals)     | 8h         | ⬜     |
-| 4     | Role Management (PATCH role, Auth0 sync) | 4h         | ⬜     |
-| 5     | Polish & Edge Cases                      | 4h         | ⬜     |
+| 1     | API Endpoints (GET/POST/DELETE team)     | 6h         | ✅     |
+| 2     | Invite Flow (accept endpoint, page)      | 6h         | ✅     |
+| 3     | Frontend Wire-up (team page, modals)     | 8h         | ✅     |
+| 4     | Role Management (PATCH role, Auth0 sync) | 4h         | ⚠️     |
+| 5     | Polish & Edge Cases                      | 4h         | ⚠️     |
 
 ### 4.3 Detailed Checklist
 
 | Task                                                  | Status | Blocks               |
 | ----------------------------------------------------- | ------ | -------------------- |
 | **Phase 1: API Endpoints**                            |        |                      |
-| `GET /api/portal/team` — List members + invites       | ⬜     | —                    |
-| `POST /api/portal/team/invite` — Create invite        | ⬜     | —                    |
-| `DELETE /api/portal/team/members/:id` — Revoke member | ⬜     | —                    |
-| `DELETE /api/portal/team/invites/:id` — Cancel invite | ⬜     | —                    |
-| DynamoDB: `createInvite()`                            | ⬜     | —                    |
-| DynamoDB: `getOrgInvites()`                           | ⬜     | —                    |
-| DynamoDB: `deleteInvite()`                            | ⬜     | —                    |
-| DynamoDB: `getInviteByToken()` + GSI                  | ⬜     | —                    |
+| `GET /api/portal/team` — List members + invites       | ✅     | —                    |
+| `POST /api/portal/team` (action: invite) — Create invite | ✅     | —                    |
+| `DELETE /api/portal/team` (action: revoke) — Revoke member | ✅     | —                    |
+| `DELETE /api/portal/team` (action: cancel) — Cancel invite | ✅     | —                    |
+| DynamoDB: `createOrgInvite()`                         | ✅     | —                    |
+| DynamoDB: `getOrgInvites()`                           | ✅     | —                    |
+| DynamoDB: `deleteOrgInvite()`                         | ✅     | —                    |
+| DynamoDB: `getInviteByToken()` + GSI                  | ✅     | —                    |
 | **Phase 2: Invite Flow**                              |        |                      |
-| `POST /api/portal/team/invite/:token/accept`          | ⬜     | Phase 1              |
-| DynamoDB: `acceptInvite()`                            | ⬜     | Phase 1              |
-| `/invite/[token]/page.js` — Acceptance UI             | ⬜     | Phase 1              |
+| `POST /api/portal/invite/[token]` — Accept invite     | ✅     | Phase 1              |
+| DynamoDB: `acceptOrgInvite()`                         | ✅     | Phase 1              |
+| `/invite/[token]/page.js` — Acceptance UI             | ✅     | Phase 1              |
 | Auth0: Add user to org on accept                      | ⬜     | Auth0 config         |
 | KeyGen: Create license on accept                      | ⬜     | KeyGen config        |
 | **Phase 3: Frontend Wire-up**                         |        |                      |
-| Update `/portal/team/page.js` to use API              | ⬜     | Phase 1              |
-| Create `InviteModal` component                        | ⬜     | —                    |
-| Create `RevokeConfirmDialog` component                | ⬜     | —                    |
-| Wire role change dropdown                             | ⬜     | —                    |
+| Update `/portal/team/page.js` to use API              | ✅     | Phase 1              |
+| Create `InviteModal` component                        | ✅     | In TeamManagement.js |
+| Create `RevokeConfirmDialog` component                | ✅     | In TeamManagement.js |
+| Wire role change dropdown                             | ✅     | In TeamManagement.js |
 | Update `portal/layout.js` for role-based nav          | ⬜     | —                    |
 | Protect `/portal/billing` from team members           | ⬜     | Auth helpers         |
 | Protect `/portal/team` from non-admins                | ⬜     | Auth helpers         |
@@ -223,7 +223,7 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 | Invite expiration handling (7-day TTL)                | ⬜     | —                    |
 | "No seats available" error state                      | ⬜     | —                    |
 | Self-revocation prevention                            | ⬜     | —                    |
-| Loading states and error boundaries                   | ⬜     | —                    |
+| Loading states and error boundaries                   | ✅     | All portal pages     |
 | Mobile responsive team table                          | ⬜     | —                    |
 
 ---
@@ -469,13 +469,13 @@ The Mouse extension currently has **Lemon Squeezy** endpoints hardcoded:
 | Concurrent session enforcement                    | ⬜     | Heartbeat timeout       |
 | **Portal Flows**                                  |        |                         |
 | Login → View dashboard                            | ⬜     | Auth0 + Portal          |
-| View/copy license key                             | ⬜     | Portal                  |
-| Deactivate device                                 | ⬜     | Portal + KeyGen         |
-| Update payment method                             | ⬜     | Portal + Stripe         |
+| View/copy license key                             | ✅     | Portal license page     |
+| Deactivate device                                 | ✅     | Devices page wired      |
+| Update payment method                             | ✅     | Stripe Portal link      |
 | **Team Admin Flows**                              |        |                         |
-| Invite member → Accept → Login                    | ⬜     | Full invite flow        |
-| Revoke member → License deactivated               | ⬜     | Admin action            |
-| Change role (member → admin)                      | ⬜     | Auth0 metadata          |
+| Invite member → Accept → Login                    | ✅     | Full invite flow        |
+| Revoke member → License deactivated               | ✅     | TeamManagement.js       |
+| Change role (member → admin)                      | ✅     | TeamManagement.js       |
 | **Webhook Flows**                                 |        |                         |
 | Stripe subscription created                       | ⬜     | License provisioning    |
 | Stripe subscription cancelled                     | ⬜     | License revocation      |
@@ -493,7 +493,7 @@ The Mouse extension currently has **Lemon Squeezy** endpoints hardcoded:
 
 ## 10. Front-End Polish
 
-**Status:** ⬜ Not started  
+**Status:** ⚠️ Partially complete  
 **Est. Hours:** 16-24h  
 **Prerequisites:** E2E tests passing
 
@@ -506,23 +506,23 @@ The Mouse extension currently has **Lemon Squeezy** endpoints hardcoded:
 | IP review of FAQ content                   | ⬜     | Legal review        |
 | Proofread all copy                         | ⬜     | Grammar, tone       |
 | **Features Page**                          |        |                     |
-| Update feature list (current capabilities) | ⬜     | Match v0.9.9        |
-| Update model compatibility table           | ⬜     | Claude, GPT, Gemini |
+| Update feature list (current capabilities) | ✅     | Match v0.9.9        |
+| Update model compatibility table           | ✅     | Claude, GPT, Gemini |
 | Add screenshots/GIFs                       | ⬜     | Visual demos        |
 | **Pricing Page**                           |        |                     |
-| Update to 2-tier model (Individual/Team)   | ⬜     | Remove Enterprise   |
-| Add "Contact Sales" for Enterprise         | ⬜     | Placeholder         |
-| Verify checkout links work                 | ⬜     | Stripe integration  |
+| Update to 2-tier model (Individual/Team)   | ✅     | v4.2 pricing done   |
+| Add "Contact Sales" for Enterprise         | ✅     | On pricing page     |
+| Verify checkout links work                 | ✅     | Stripe integration  |
 | **Checkout Flows**                         |        |                     |
-| Individual checkout → success page         | ⬜     | Full flow           |
-| Team checkout → success page               | ⬜     | Full flow           |
+| Individual checkout → success page         | ✅     | Full flow           |
+| Team checkout → success page               | ✅     | Full flow           |
 | Error states (payment failed, etc)         | ⬜     | Edge cases          |
 | **Legal Pages**                            |        |                     |
 | Update Terms of Service                    | ⬜     | Current pricing     |
 | Update Privacy Policy (Plausible mention)  | ⬜     | Analytics           |
 | Verify all links work                      | ⬜     | No 404s             |
 | **SEO & Meta**                             |        |                     |
-| Meta tags on all pages                     | ⬜     | Title, description  |
+| Meta tags on all pages                     | ✅     | Title, description  |
 | Open Graph tags                            | ⬜     | Social sharing      |
 | Sitemap.xml                                | ⬜     | Search indexing     |
 
