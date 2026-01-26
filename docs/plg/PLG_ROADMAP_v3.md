@@ -1,6 +1,6 @@
 # PLG Roadmap v3 — Final Sprint to Launch
 
-**Document Version:** 3.0.7  
+**Document Version:** 3.0.8  
 **Date:** January 26, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -25,8 +25,8 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 2   | Cookie/Privacy Compliance          | ✅ Documented      | 2h         | GC         | —                |
 | 3   | Auth (Auth0 Integration)           | ✅ Dashboard done  | 8-12h      | GC + Simon | 4 (Admin Portal) |
 | 4   | Admin Portal (Individuals + Teams) | ⚠️ APIs built      | 24-32h     | GC         | 5, 6             |
-| 5   | Licensing (KeyGen.sh)              | ✅ Dashboard done  | 8-12h      | Simon      | 7                |
-| 6   | Payments (Stripe)                  | ✅ Dashboard done  | 4-6h       | Simon      | —                |
+| 5   | Licensing (KeyGen.sh)              | ✅ **COMPLETE**    | 8-12h      | Simon      | 7                |
+| 6   | Payments (Stripe)                  | ✅ **COMPLETE**    | 4-6h       | Simon      | —                |
 | 7   | AWS Infrastructure                 | ✅ Templates exist | 4-6h       | GC         | —                |
 | 8   | VS Code Extension (VSIX)           | ⬜ Not started     | 4-8h       | Simon      | 5, 6             |
 | 9   | Back-End E2E Testing               | ⬜ Not started     | 8-12h      | GC         | 3-8              |
@@ -242,31 +242,31 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ### 5.2 Simon's KeyGen.sh Dashboard Tasks
 
-| Task                                                                     | Status | Notes                                                         |
-| ------------------------------------------------------------------------ | ------ | ------------------------------------------------------------- |
-| **Account Setup**                                                        |        |                                                               |
-| Log into KeyGen.sh dashboard                                             | ✅     | keygen.sh                                                     |
-| Note Account ID                                                          | ✅     | `868fccd3-676d-4b9d-90ab-c86ae54419f6`                        |
-| Generate Admin API Token                                                 | ✅     | Product Token created                                         |
-| Generate Product Token (read-only)                                       | ✅     | Saved in .env.local                                           |
-| **Product Configuration**                                                |        |                                                               |
-| Create Product: "Mouse"                                                  | ✅     | `4abf1f35-fc54-45ab-8499-10012073ac2d`                        |
-| **Policy Configuration**                                                 |        |                                                               |
-| Create Policy: `policy_individual`                                       | ✅     | `91f1947e-0730-48f9-b19a-eb8016ae2f84` (3 machines, Floating) |
-| Create Policy: `policy_business`                                         | ✅     | `b0bcab98-6693-4c44-ad0d-ee3dbb069aea` (5 machines, Floating) |
-| Set policy type: Floating                                                | ✅     | Allows machine swapping                                       |
-| Enable heartbeat for concurrent sessions                                 | ✅     | 10-min heartbeat, Keep Dead + Always Revive                   |
-| **Webhook Configuration**                                                |        |                                                               |
-| Add webhook URL: `https://hic-ai.com/api/webhooks/keygen`                | ✅     | Endpoint ID: `4c09c047-20ac-4862-a6c5-97937742ad59`           |
-| Select events: `*` (all events)                                          | ✅     | Subscribed to all license/machine events                      |
-| Configure Ed25519 signature verification                                 | ✅     | Public key saved in .env.local                                |
-| **Environment Variables**                                                |        |                                                               |
-| `KEYGEN_ACCOUNT_ID`                                                      | ✅     | Saved in .env.local                                           |
-| `KEYGEN_PRODUCT_ID`                                                      | ✅     | `4abf1f35-fc54-45ab-8499-10012073ac2d`                        |
-| `KEYGEN_PRODUCT_TOKEN`                                                   | ✅     | Saved in .env.local                                           |
-| `KEYGEN_POLICY_ID_INDIVIDUAL`                                            | ✅     | Saved in .env.local                                           |
-| `KEYGEN_POLICY_ID_BUSINESS`                                              | ✅     | Saved in .env.local                                           |
-| `KEYGEN_WEBHOOK_PUBLIC_KEY`                                              | ✅     | Ed25519 public key saved in .env.local                        |
+| Task                                                      | Status | Notes                                                         |
+| --------------------------------------------------------- | ------ | ------------------------------------------------------------- |
+| **Account Setup**                                         |        |                                                               |
+| Log into KeyGen.sh dashboard                              | ✅     | keygen.sh                                                     |
+| Note Account ID                                           | ✅     | `868fccd3-676d-4b9d-90ab-c86ae54419f6`                        |
+| Generate Admin API Token                                  | ✅     | Product Token created                                         |
+| Generate Product Token (read-only)                        | ✅     | Saved in .env.local                                           |
+| **Product Configuration**                                 |        |                                                               |
+| Create Product: "Mouse"                                   | ✅     | `4abf1f35-fc54-45ab-8499-10012073ac2d`                        |
+| **Policy Configuration**                                  |        |                                                               |
+| Create Policy: `policy_individual`                        | ✅     | `91f1947e-0730-48f9-b19a-eb8016ae2f84` (3 machines, Floating) |
+| Create Policy: `policy_business`                          | ✅     | `b0bcab98-6693-4c44-ad0d-ee3dbb069aea` (5 machines, Floating) |
+| Set policy type: Floating                                 | ✅     | Allows machine swapping                                       |
+| Enable heartbeat for concurrent sessions                  | ✅     | 10-min heartbeat, Keep Dead + Always Revive                   |
+| **Webhook Configuration**                                 |        |                                                               |
+| Add webhook URL: `https://hic-ai.com/api/webhooks/keygen` | ✅     | Endpoint ID: `4c09c047-20ac-4862-a6c5-97937742ad59`           |
+| Select events: `*` (all events)                           | ✅     | Subscribed to all license/machine events                      |
+| Configure Ed25519 signature verification                  | ✅     | Public key saved in .env.local                                |
+| **Environment Variables**                                 |        |                                                               |
+| `KEYGEN_ACCOUNT_ID`                                       | ✅     | Saved in .env.local                                           |
+| `KEYGEN_PRODUCT_ID`                                       | ✅     | `4abf1f35-fc54-45ab-8499-10012073ac2d`                        |
+| `KEYGEN_PRODUCT_TOKEN`                                    | ✅     | Saved in .env.local                                           |
+| `KEYGEN_POLICY_ID_INDIVIDUAL`                             | ✅     | Saved in .env.local                                           |
+| `KEYGEN_POLICY_ID_BUSINESS`                               | ✅     | Saved in .env.local                                           |
+| `KEYGEN_WEBHOOK_PUBLIC_KEY`                               | ✅     | Ed25519 public key saved in .env.local                        |
 
 ### 5.3 Code Tasks
 
@@ -318,11 +318,14 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ### 6.3 Stripe Customer Portal
 
-| Task                         | Status | Notes                                         |
-| ---------------------------- | ------ | --------------------------------------------- |
-| Enable Customer Portal       | ⬜     | Stripe Dashboard → Settings → Customer Portal |
-| Configure allowed actions    | ⬜     | Update payment, cancel subscription           |
-| Brand portal with HIC colors | ⬜     | Optional polish                               |
+| Task                         | Status | Notes                                                            |
+| ---------------------------- | ------ | ---------------------------------------------------------------- |
+| Enable Customer Portal       | ✅     | Activated — `billing.stripe.com/p/login/7sYbJ0a2H2TO2Q74FKa3u00` |
+| Configure allowed actions    | ✅     | Update payment methods, view invoices, cancel at period end      |
+| Add Terms/Privacy links      | ✅     | hic-ai.com/terms + /privacy linked                               |
+| Set support email            | ✅     | billing@hic-ai.com                                               |
+| Enable Tax ID on invoices    | ✅     | Customers can add Tax ID                                         |
+| Brand portal with HIC colors | ⬜     | Optional polish — can do later                                   |
 
 ---
 
@@ -753,19 +756,21 @@ Parallel workstreams (no dependencies):
 
 ## Document History
 
-| Version | Date         | Changes                                                                                                                                                                                                  |
-| ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 3.0     | Jan 26, 2026 | Complete rewrite consolidating all workstreams                                                                                                                                                           |
-| 3.0.1   | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section                                                                                                                       |
-| 3.0.2   | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified                                                                                                                             |
-| 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                             |
-| 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model. See [v4.1 addendum](./20260126_PRICING_v4.1_BUSINESS_TIER_AND_MACHINE_MODEL.md) |
-| 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance. See [v4.2 final](./20260126_PRICING_v4.2_FINAL_FEATURE_MATRIX.md)                  |
-| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments. Remaining: env vars, Organizations for Business tier   |
-| 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                |
-| 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                      |
-| 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                   |
-| 1.0     | Jan 21, 2026 | Initial roadmap                                                                                                                                                                                          |
+| Version | Date         | Changes                                                                                                                                                                                                     |
+| ------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.0     | Jan 26, 2026 | Complete rewrite consolidating all workstreams                                                                                                                                                              |
+| 3.0.1   | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section                                                                                                                          |
+| 3.0.2   | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified                                                                                                                                |
+| 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                                |
+| 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model. See [v4.1 addendum](./20260126_PRICING_v4.1_BUSINESS_TIER_AND_MACHINE_MODEL.md)    |
+| 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance. See [v4.2 final](./20260126_PRICING_v4.2_FINAL_FEATURE_MATRIX.md)                     |
+| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments. Remaining: env vars, Organizations for Business tier      |
+| 3.0.7   | Jan 26, 2026 | **Stripe products + KeyGen policies** — All 4 price IDs created, Stripe webhook configured. KeyGen policies (Floating, 3/5 machines) created, product token generated                                       |
+| 3.0.8   | Jan 26, 2026 | **STRIPE + KEYGEN COMPLETE** — KeyGen webhook with Ed25519 verification, Stripe Customer Portal activated (`billing.stripe.com/p/login/7sYbJ0a2H2TO2Q74FKa3u00`). All third-party services fully configured |
+| 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                   |
+| 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                         |
+| 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                      |
+| 1.0     | Jan 21, 2026 | Initial roadmap                                                                                                                                                                                             |
 
 ---
 
