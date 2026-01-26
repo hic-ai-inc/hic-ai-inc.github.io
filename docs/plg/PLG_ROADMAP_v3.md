@@ -738,6 +738,7 @@ Parallel workstreams (no dependencies):
 | 3.0 | Jan 26, 2026 | Complete rewrite consolidating all workstreams |
 | 3.0.1 | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section |
 | 3.0.2 | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified |
+| 3.0.3 | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred |
 | 2.1 | Jan 23, 2026 | Backend completion status |
 | 2.0 | Jan 22, 2026 | Pricing restructure |
 | 1.1 | Jan 21, 2026 | Infrastructure updates |
