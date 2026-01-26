@@ -1,12 +1,27 @@
 # HIC AI — PLG Technical Specification
 
-**Document Type:** Technical Specification  
-**Author:** GC (General Counsel AI)  
-**Date:** January 22, 2026  
-**Version:** 2.0  
+**Document Type:** Technical Specification
+**Author:** GC (General Counsel AI)
+**Date:** January 22, 2026
+**Version:** 2.0
 **Status:** Draft for Review
 
+> ⚠️ **PARTIAL SUPERSESSION NOTICE (January 25, 2026)**
+>
+> The **pricing and licensing architecture sections** of this document have been superseded by:
+>
+> - [20260125_ADDENDUM_PRICING_MODEL_v3_CONCURRENT_SESSIONS.md](./20260125_ADDENDUM_PRICING_MODEL_v3_CONCURRENT_SESSIONS.md)
+>
+> Key changes:
+>
+> - **New tiers:** Individual ($15) / Team ($35) / Enterprise ($49) / Automation (Contact Sales)
+> - **Session-based licensing:** Concurrent heartbeat model replaces device-count model
+> - **Removed tiers:** Power User, Enterprise Standard, Enterprise Premiere, OSS (deferred)
+>
+> The system architecture, database design, and API structure sections remain valid.
+
 **v2.0 Changes:**
+
 - Pricing restructured: Open Source ($0) / Individual ($10/mo) / Enterprise ($25/seat/mo)
 - Simplified to 6 Stripe products (removed launch SKUs)
 - Device limits reconciled: Individual = 3, Enterprise = 2/seat
@@ -775,23 +790,23 @@ Create one Product per offering:
 
 Multiple Prices per Product for billing flexibility:
 
-| Price ID                   | Product    | Interval | Amount        | Notes                    |
-| -------------------------- | ---------- | -------- | ------------- | ------------------------ |
-| `price_individual_monthly` | Individual | Monthly  | $10.00        | 14-day trial, no card    |
-| `price_individual_annual`  | Individual | Annual   | $100.00       | 2 months free            |
-| `price_enterprise_10`      | Enterprise | Annual   | $3,000        | 10 seats @ $300/seat     |
-| `price_enterprise_100`     | Enterprise | Annual   | $27,000       | 100 seats @ $270 (10% off) |
-| `price_enterprise_500`     | Enterprise | Annual   | $120,000      | 500 seats @ $240 (20% off) |
-| `price_enterprise_custom`  | Enterprise | Annual   | Custom        | 1000+ seats              |
+| Price ID                   | Product    | Interval | Amount   | Notes                      |
+| -------------------------- | ---------- | -------- | -------- | -------------------------- |
+| `price_individual_monthly` | Individual | Monthly  | $10.00   | 14-day trial, no card      |
+| `price_individual_annual`  | Individual | Annual   | $100.00  | 2 months free              |
+| `price_enterprise_10`      | Enterprise | Annual   | $3,000   | 10 seats @ $300/seat       |
+| `price_enterprise_100`     | Enterprise | Annual   | $27,000  | 100 seats @ $270 (10% off) |
+| `price_enterprise_500`     | Enterprise | Annual   | $120,000 | 500 seats @ $240 (20% off) |
+| `price_enterprise_custom`  | Enterprise | Annual   | Custom   | 1000+ seats                |
 
 ### 4.3 Coupons & Promotions
 
-| Coupon ID         | Type        | Value | Duration        | Use Case                     |
-| ----------------- | ----------- | ----- | --------------- | ---------------------------- |
-| `EARLYADOPTER20`  | Percent Off | 20%   | First year      | Time-boxed launch promo      |
-| `STUDENT50`       | Percent Off | 50%   | Forever         | Academic discount            |
-| `NONPROFIT40`     | Percent Off | 40%   | Forever         | Nonprofit discount           |
-| `CONF2026`        | Percent Off | 25%   | Once            | Conference promo code        |
+| Coupon ID        | Type        | Value | Duration   | Use Case                |
+| ---------------- | ----------- | ----- | ---------- | ----------------------- |
+| `EARLYADOPTER20` | Percent Off | 20%   | First year | Time-boxed launch promo |
+| `STUDENT50`      | Percent Off | 50%   | Forever    | Academic discount       |
+| `NONPROFIT40`    | Percent Off | 40%   | Forever    | Nonprofit discount      |
+| `CONF2026`       | Percent Off | 25%   | Once       | Conference promo code   |
 
 **Note:** No "LAUNCH50" or permanent discount SKUs. Use time-boxed coupons instead.
 
@@ -849,11 +864,11 @@ Enable Stripe Customer Portal with:
 
 ### 5.3 Policies
 
-| Policy ID        | Name            | Max Machines | Duration            | Features           |
-| ---------------- | --------------- | ------------ | ------------------- | ------------------ |
+| Policy ID        | Name            | Max Machines | Duration            | Features                     |
+| ---------------- | --------------- | ------------ | ------------------- | ---------------------------- |
 | `pol_oss`        | Open Source     | 1            | Annual (reverify)   | All features, non-commercial |
-| `pol_individual` | Individual      | 3            | Subscription-linked | All features       |
-| `pol_enterprise` | Enterprise Seat | 2            | Subscription-linked | All features + SSO |
+| `pol_individual` | Individual      | 3            | Subscription-linked | All features                 |
+| `pol_enterprise` | Enterprise Seat | 2            | Subscription-linked | All features + SSO           |
 
 ### 5.4 License Key Format
 

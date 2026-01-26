@@ -7,19 +7,24 @@
 
 **Version:** 1.1 (revised per GPT-5.2 peer review)
 
----
+> ⚠️ **SUPERSEDED (January 25, 2026)**
+>
+> This document has been superseded by:
+>
+> - [20260125_ADDENDUM_PRICING_MODEL_v3_CONCURRENT_SESSIONS.md](./20260125_ADDENDUM_PRICING_MODEL_v3_CONCURRENT_SESSIONS.md)
+>
+> Key changes from this proposal:
+>
+> - **Pricing increased:** Individual $10→$15, Enterprise $25→$49, new Team tier at $35
+> - **OSS tier deferred:** Will implement post-launch if needed
+> - **Session-based licensing:** Replaces device-count model to solve container problems
+>
+> This document is retained for historical context only.
 
-## Executive Summary
-
-This memo proposes a fundamental restructuring of Mouse pricing from a premium enterprise-focused model to a volume-driven adoption model. The change positions Mouse as a **beachhead product**—a GTM proving ground that generates cash flow and brand equity—while preserving HIC AI's long-term path to the $100B+ knowledge worker market via OOXML compatibility.
-
-**Proposed Pricing Structure:**
-
-| Tier        | Price          | Target Segment                    |
 | ----------- | -------------- | --------------------------------- |
-| Open Source | $0/month       | Verified OSS maintainers          |
-| Individual  | $10/seat/month | Solo developers, freelancers, SMB |
-| Enterprise  | $25/seat/month | Organizations with 10+ seats      |
+| Open Source | $0/month | Verified OSS maintainers |
+| Individual | $10/seat/month | Solo developers, freelancers, SMB |
+| Enterprise | $25/seat/month | Organizations with 10+ seats |
 
 **Key Rationale:**
 
@@ -341,13 +346,13 @@ At $25/seat for Enterprise, we're competitive. At $10/seat for Individual, we're
 
 **Market pricing reference (January 2026):**
 
-| Competitor | Individual | Business/Team | Enterprise |
-|------------|------------|---------------|------------|
-| GitHub Copilot | $10/mo | $19/seat/mo | $39/seat/mo |
-| Cursor | $20/mo | $40/seat/mo | Custom |
-| Windsurf | $15/mo | $30/seat/mo | Custom |
-| Amazon Q Developer | — | $19/seat/mo | Custom |
-| **Mouse (proposed)** | **$10/mo** | — | **$25/seat/mo** |
+| Competitor           | Individual | Business/Team | Enterprise      |
+| -------------------- | ---------- | ------------- | --------------- |
+| GitHub Copilot       | $10/mo     | $19/seat/mo   | $39/seat/mo     |
+| Cursor               | $20/mo     | $40/seat/mo   | Custom          |
+| Windsurf             | $15/mo     | $30/seat/mo   | Custom          |
+| Amazon Q Developer   | —          | $19/seat/mo   | Custom          |
+| **Mouse (proposed)** | **$10/mo** | —             | **$25/seat/mo** |
 
 Mouse Individual matches Copilot Individual. Mouse Enterprise undercuts Copilot Business while offering complementary value (reliability layer vs. code generation).
 
@@ -449,6 +454,7 @@ Verification: GitHub API (100+ stars, Sponsors, or NPM/PyPI maintainer)
 ```
 
 **Why this is better:**
+
 - No SKU sprawl (6 products vs. 10)
 - No anchor damage from "50% off" permanent discounts
 - Webhook handlers simpler (fewer price IDs to match)
@@ -462,21 +468,21 @@ Verification: GitHub API (100+ stars, Sponsors, or NPM/PyPI maintainer)
 
 ### 8.1 Trial Policy (Reconciled)
 
-| Tier | Trial Duration | Credit Card Required? | Rationale |
-|------|----------------|----------------------|------------|
-| Open Source | N/A | N/A | Free tier, no trial needed |
-| Individual | 14 days | ❌ No | Maximize conversion at $10/mo impulse price |
-| Enterprise | 30 days | ✅ Yes | Filters tire-kickers, matches buyer expectations |
+| Tier        | Trial Duration | Credit Card Required? | Rationale                                        |
+| ----------- | -------------- | --------------------- | ------------------------------------------------ |
+| Open Source | N/A            | N/A                   | Free tier, no trial needed                       |
+| Individual  | 14 days        | ❌ No                 | Maximize conversion at $10/mo impulse price      |
+| Enterprise  | 30 days        | ✅ Yes                | Filters tire-kickers, matches buyer expectations |
 
 **Correction:** PLG Roadmap previously stated "14-day trial with credit card required" for all tiers. This should be updated to match the above.
 
 ### 8.2 Device Limits (Reconciled)
 
-| Tier | Devices | Rationale |
-|------|---------|----------|
-| Open Source | 1 | Minimal footprint for free tier |
-| Individual | 3 | Desktop + laptop + home machine |
-| Enterprise | 2 per seat | Governance-friendly, standard for enterprise tools |
+| Tier        | Devices    | Rationale                                          |
+| ----------- | ---------- | -------------------------------------------------- |
+| Open Source | 1          | Minimal footprint for free tier                    |
+| Individual  | 3          | Desktop + laptop + home machine                    |
+| Enterprise  | 2 per seat | Governance-friendly, standard for enterprise tools |
 
 **Correction:** PLG Roadmap previously stated "Standard 2 devices, Enterprise 3 devices." This inverts the logic. Individual developers need more flexibility; enterprise buyers prioritize control.
 
@@ -489,21 +495,23 @@ Verification: GitHub API (100+ stars, Sponsors, or NPM/PyPI maintainer)
 ### 9.1 Recommended Change: Seat-Based Market Sizing
 
 **Current approach (fragile):**
+
 - TAM/SAM expressed in dollars
 - Implicitly assumes $50/seat/month
 - "50K seats → $30M ARR" math breaks if pricing changes
 
 **Recommended approach (resilient):**
+
 - TAM/SAM expressed in **seats** (developer counts)
 - Separate "monetization" callout showing price range
 - SOM can flex with pricing without redoing market research
 
 ### 9.2 SOM Framing Options
 
-| Option | SOM Target | ARR Implication | Investor Narrative |
-|--------|------------|-----------------|-------------------|
-| **A (recommended)** | 50K seats | ~$10M ARR (beachhead) | "Developer beachhead revenue; OOXML expansion drives $30M+" |
-| **B** | 165K seats | ~$30M ARR | "Volume-driven model requires higher adoption" |
+| Option              | SOM Target | ARR Implication       | Investor Narrative                                          |
+| ------------------- | ---------- | --------------------- | ----------------------------------------------------------- |
+| **A (recommended)** | 50K seats  | ~$10M ARR (beachhead) | "Developer beachhead revenue; OOXML expansion drives $30M+" |
+| **B**               | 165K seats | ~$30M ARR             | "Volume-driven model requires higher adoption"              |
 
 **Recommendation:** Option A. It's more credible for an early-stage company to target 50K seats than 165K. The $30M ARR narrative shifts to OOXML expansion (the endgame), which is the story we want to tell anyway.
 
