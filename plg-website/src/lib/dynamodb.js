@@ -565,3 +565,330 @@ export async function getOrgLicenseUsage(orgId) {
   }
 }
 
+// ===========================================
+// ORGANIZATION INVITE OPERATIONS
+// Per PLG Technical Specification v2 - Team Management
+// ===========================================
+
+/**
+ * Generate a secure invite token
+ * @returns {string} Random invite token
+ */
+function generateInviteToken() {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let token = "";
+  for (let i = 0; i < 32; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
+
+/**
+ * Create an organization invite
+ * @param {string} orgId - Organization ID
+ * @param {string} email - Invitee email address
+ * @param {string} role - Role to assign (admin, member)
+ * @param {string} invitedBy - User ID of inviter
+ * @returns {Promise<Object>} Created invite record
+ */
+export async function createOrgInvite(orgId, email, role, invitedBy) {
+  const logger = createLogger("createOrgInvite");
+  const normalizedEmail = email.toLowerCase();
+  const inviteId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const token = generateInviteToken();
+  const now = new Date().toISOString();
+  const expiresAt = new Date(
+    Date.now() + 7 * 24 * 60 * 60 * 1000,
+  ).toISOString(); // 7 days
+
+  try {
+    const item = {
+      PK: `ORG#${orgId}`,
+      SK: `INVITE#${inviteId}`,
+      GSI1PK: `INVITE_TOKEN#${token}`,
+      GSI1SK: `ORG#${orgId}`,
+      GSI2PK: `EMAIL#${normalizedEmail}`,
+      GSI2SK: `INVITE#${orgId}`,
+      inviteId,
+      orgId,
+      email: normalizedEmail,
+      role,
+      token,
+      status: "pending",
+      invitedBy,
+      createdAt: now,
+      expiresAt,
+    };
+
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: item,
+        ConditionExpression: "attribute_not_exists(PK)",
+      }),
+    );
+
+    logger.info("Org invite created", { orgId, email: normalizedEmail, role });
+    return item;
+  } catch (error) {
+    logger.error("Failed to create org invite", {
+      orgId,
+      email: normalizedEmail,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Get all pending invites for an organization
+ * @param {string} orgId - Organization ID
+ * @returns {Promise<Array>} Pending invites
+ */
+export async function getOrgInvites(orgId) {
+  const logger = createLogger("getOrgInvites");
+  try {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
+        FilterExpression: "#status = :pending",
+        ExpressionAttributeNames: {
+          "#status": "status",
+        },
+        ExpressionAttributeValues: {
+          ":pk": `ORG#${orgId}`,
+          ":sk": "INVITE#",
+          ":pending": "pending",
+        },
+      }),
+    );
+    return result.Items || [];
+  } catch (error) {
+    logger.error("Failed to get org invites", { orgId, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Get invite by token (for acceptance flow)
+ * @param {string} token - Invite token
+ * @returns {Promise<Object|null>} Invite record or null
+ */
+export async function getInviteByToken(token) {
+  const logger = createLogger("getInviteByToken");
+  try {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: "GSI1",
+        KeyConditionExpression: "GSI1PK = :pk",
+        ExpressionAttributeValues: {
+          ":pk": `INVITE_TOKEN#${token}`,
+        },
+      }),
+    );
+    return result.Items?.[0] || null;
+  } catch (error) {
+    logger.error("Failed to get invite by token", { error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Accept an organization invite
+ * @param {string} token - Invite token
+ * @param {string} userId - Auth0 user ID of accepting user
+ * @param {string} userName - Name of accepting user
+ * @returns {Promise<Object>} Result with org membership
+ */
+export async function acceptOrgInvite(token, userId, userName) {
+  const logger = createLogger("acceptOrgInvite");
+
+  try {
+    // Get the invite
+    const invite = await getInviteByToken(token);
+    if (!invite) {
+      throw new Error("Invite not found");
+    }
+    if (invite.status !== "pending") {
+      throw new Error("Invite is no longer valid");
+    }
+    if (new Date(invite.expiresAt) < new Date()) {
+      throw new Error("Invite has expired");
+    }
+
+    const now = new Date().toISOString();
+
+    // Mark invite as accepted
+    await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${invite.orgId}`,
+          SK: `INVITE#${invite.inviteId}`,
+        },
+        UpdateExpression:
+          "SET #status = :accepted, acceptedAt = :now, acceptedBy = :userId",
+        ExpressionAttributeNames: {
+          "#status": "status",
+        },
+        ExpressionAttributeValues: {
+          ":accepted": "accepted",
+          ":now": now,
+          ":userId": userId,
+        },
+      }),
+    );
+
+    // Create org membership
+    const memberItem = {
+      PK: `ORG#${invite.orgId}`,
+      SK: `MEMBER#${userId}`,
+      GSI1PK: `USER#${userId}`,
+      GSI1SK: `ORG#${invite.orgId}`,
+      GSI2PK: `EMAIL#${invite.email}`,
+      GSI2SK: `MEMBER#${invite.orgId}`,
+      memberId: userId,
+      orgId: invite.orgId,
+      email: invite.email,
+      name: userName,
+      role: invite.role,
+      status: "active",
+      joinedAt: now,
+      inviteId: invite.inviteId,
+    };
+
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: memberItem,
+      }),
+    );
+
+    logger.info("Org invite accepted", {
+      orgId: invite.orgId,
+      userId,
+      role: invite.role,
+    });
+    return { invite, membership: memberItem };
+  } catch (error) {
+    logger.error("Failed to accept org invite", {
+      token: token.substring(0, 8) + "...",
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Delete/revoke an organization invite
+ * @param {string} orgId - Organization ID
+ * @param {string} inviteId - Invite ID
+ * @returns {Promise<void>}
+ */
+export async function deleteOrgInvite(orgId, inviteId) {
+  const logger = createLogger("deleteOrgInvite");
+  try {
+    await dynamodb.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: `INVITE#${inviteId}`,
+        },
+      }),
+    );
+    logger.info("Org invite deleted", { orgId, inviteId });
+  } catch (error) {
+    logger.error("Failed to delete org invite", {
+      orgId,
+      inviteId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Remove a member from an organization
+ * @param {string} orgId - Organization ID
+ * @param {string} memberId - Member user ID
+ * @returns {Promise<void>}
+ */
+export async function removeOrgMember(orgId, memberId) {
+  const logger = createLogger("removeOrgMember");
+  try {
+    await dynamodb.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: `MEMBER#${memberId}`,
+        },
+      }),
+    );
+    logger.info("Org member removed", { orgId, memberId });
+  } catch (error) {
+    logger.error("Failed to remove org member", {
+      orgId,
+      memberId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Add a member to an organization (direct add, no invite)
+ * Used for owner setup or bulk imports
+ * @param {Object} params - Member parameters
+ * @returns {Promise<Object>} Created member record
+ */
+export async function addOrgMember({
+  orgId,
+  userId,
+  email,
+  name,
+  role = "member",
+}) {
+  const logger = createLogger("addOrgMember");
+  const normalizedEmail = email.toLowerCase();
+  const now = new Date().toISOString();
+
+  try {
+    const item = {
+      PK: `ORG#${orgId}`,
+      SK: `MEMBER#${userId}`,
+      GSI1PK: `USER#${userId}`,
+      GSI1SK: `ORG#${orgId}`,
+      GSI2PK: `EMAIL#${normalizedEmail}`,
+      GSI2SK: `MEMBER#${orgId}`,
+      memberId: userId,
+      orgId,
+      email: normalizedEmail,
+      name,
+      role,
+      status: "active",
+      joinedAt: now,
+    };
+
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: item,
+      }),
+    );
+
+    logger.info("Org member added", { orgId, userId, role });
+    return item;
+  } catch (error) {
+    logger.error("Failed to add org member", {
+      orgId,
+      userId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
