@@ -2,11 +2,14 @@
  * Invoice History Page
  *
  * Display all invoices with download links.
+ * Fetches real invoice data from /api/portal/invoices (Stripe API).
  *
  * @see PLG User Journey - Section 2.6
  */
 
-import { getSession } from "@/lib/auth";
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   Card,
   CardHeader,
@@ -15,53 +18,74 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { AUTH0_NAMESPACE } from "@/lib/constants";
 
-export const metadata = {
-  title: "Invoices",
-};
+export default function InvoicesPage() {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
 
-// Mock invoice data - in production this comes from Stripe API
-const mockInvoices = [
-  {
-    id: "inv_001",
-    date: "2026-01-22",
-    amount: 1000,
-    status: "paid",
-    description: "Mouse Individual - Monthly",
-    pdfUrl: "#",
-  },
-  {
-    id: "inv_002",
-    date: "2025-12-22",
-    amount: 1000,
-    status: "paid",
-    description: "Mouse Individual - Monthly",
-    pdfUrl: "#",
-  },
-  {
-    id: "inv_003",
-    date: "2025-11-22",
-    amount: 1000,
-    status: "paid",
-    description: "Mouse Individual - Monthly",
-    pdfUrl: "#",
-  },
-  {
-    id: "inv_004",
-    date: "2025-10-22",
-    amount: 1000,
-    status: "paid",
-    description: "Mouse Individual - Monthly",
-    pdfUrl: "#",
-  },
-];
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
 
-export default async function InvoicesPage() {
-  const session = await getSession();
-  const user = session.user;
+  async function fetchInvoices(limit = 20) {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`/api/portal/invoices?limit=${limit}`);
+      if (!res.ok) {
+        throw new Error("Failed to fetch invoices");
+      }
+      const data = await res.json();
+      setInvoices(data.invoices || []);
+      setHasMore(data.hasMore || false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const invoices = mockInvoices; // Would fetch from Stripe API
+  if (loading) {
+    return (
+      <div className="max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-frost-white">Invoices</h1>
+          <p className="text-slate-grey mt-1">
+            Loading your billing history...
+          </p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <div className="animate-pulse">
+              <div className="h-4 bg-card-border rounded w-48 mx-auto mb-4"></div>
+              <div className="h-4 bg-card-border rounded w-32 mx-auto"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-frost-white">Invoices</h1>
+          <p className="text-slate-grey mt-1">
+            View and download your billing history
+          </p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-red-400 mb-4">{error}</p>
+            <Button onClick={() => fetchInvoices()}>Try Again</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl">
@@ -80,6 +104,9 @@ export default async function InvoicesPage() {
                 <tr className="border-b border-card-border">
                   <th className="text-left py-4 px-6 text-sm font-medium text-slate-grey">
                     Date
+                  </th>
+                  <th className="text-left py-4 px-6 text-sm font-medium text-slate-grey">
+                    Invoice #
                   </th>
                   <th className="text-left py-4 px-6 text-sm font-medium text-slate-grey">
                     Description
@@ -104,30 +131,40 @@ export default async function InvoicesPage() {
                     <td className="py-4 px-6 text-frost-white">
                       {formatDate(invoice.date)}
                     </td>
+                    <td className="py-4 px-6 text-slate-grey text-sm">
+                      {invoice.number || "—"}
+                    </td>
                     <td className="py-4 px-6 text-frost-white">
                       {invoice.description}
                     </td>
                     <td className="py-4 px-6 text-frost-white">
-                      {formatCurrency(invoice.amount)}
+                      {formatCurrency(invoice.amount, invoice.currency)}
                     </td>
                     <td className="py-4 px-6">
-                      <Badge
-                        variant={
-                          invoice.status === "paid" ? "success" : "warning"
-                        }
-                      >
-                        {invoice.status}
-                      </Badge>
+                      <StatusBadge status={invoice.status} />
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <a
-                        href={invoice.pdfUrl}
-                        className="text-cerulean-mist hover:text-frost-white text-sm"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Download PDF
-                      </a>
+                      {invoice.pdfUrl ? (
+                        <a
+                          href={invoice.pdfUrl}
+                          className="text-cerulean-mist hover:text-frost-white text-sm"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Download PDF
+                        </a>
+                      ) : invoice.hostedUrl ? (
+                        <a
+                          href={invoice.hostedUrl}
+                          className="text-cerulean-mist hover:text-frost-white text-sm"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View Invoice
+                        </a>
+                      ) : (
+                        <span className="text-slate-grey text-sm">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -138,6 +175,17 @@ export default async function InvoicesPage() {
           {invoices.length === 0 && (
             <div className="py-12 text-center">
               <p className="text-slate-grey">No invoices yet.</p>
+              <p className="text-sm text-slate-grey mt-2">
+                Your invoices will appear here after your first payment.
+              </p>
+            </div>
+          )}
+
+          {hasMore && (
+            <div className="py-4 text-center border-t border-card-border">
+              <Button variant="ghost" onClick={() => fetchInvoices(50)}>
+                Load More Invoices
+              </Button>
             </div>
           )}
         </CardContent>
@@ -146,7 +194,32 @@ export default async function InvoicesPage() {
   );
 }
 
+function StatusBadge({ status }) {
+  const variants = {
+    paid: "success",
+    open: "warning",
+    draft: "secondary",
+    uncollectible: "danger",
+    void: "secondary",
+  };
+
+  const labels = {
+    paid: "Paid",
+    open: "Open",
+    draft: "Draft",
+    uncollectible: "Uncollectible",
+    void: "Void",
+  };
+
+  return (
+    <Badge variant={variants[status] || "secondary"}>
+      {labels[status] || status}
+    </Badge>
+  );
+}
+
 function formatDate(dateString) {
+  if (!dateString) return "—";
   return new Date(dateString).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
@@ -154,9 +227,10 @@ function formatDate(dateString) {
   });
 }
 
-function formatCurrency(cents) {
+function formatCurrency(cents, currency = "usd") {
+  if (cents == null) return "—";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: currency.toUpperCase(),
   }).format(cents / 100);
 }

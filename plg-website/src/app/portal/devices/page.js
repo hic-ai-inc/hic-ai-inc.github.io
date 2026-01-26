@@ -2,11 +2,14 @@
  * Device Management Page
  *
  * View and manage activated devices.
+ * Fetches real device data from /api/portal/devices.
  *
  * @see PLG User Journey - Section 2.6
  */
 
-import { getSession } from "@/lib/auth";
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   Card,
   CardHeader,
@@ -15,33 +18,102 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { AUTH0_NAMESPACE } from "@/lib/constants";
 
-export const metadata = {
-  title: "Devices",
-};
+export default function DevicesPage() {
+  const [devices, setDevices] = useState([]);
+  const [maxDevices, setMaxDevices] = useState(3);
+  const [licenseId, setLicenseId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [deactivating, setDeactivating] = useState(null);
 
-// Mock device data - in production this would come from Keygen API
-const mockDevices = [
-  {
-    id: "dev_1",
-    name: "MacBook Pro",
-    fingerprint: "abc123...",
-    lastSeen: "2026-01-22T10:30:00Z",
-    platform: "darwin",
-    vsCodeVersion: "1.96.0",
-    activated: true,
-  },
-];
+  useEffect(() => {
+    fetchDevices();
+  }, []);
 
-export default async function DevicesPage() {
-  const session = await getSession();
-  const user = session.user;
-  const namespace = AUTH0_NAMESPACE;
+  async function fetchDevices() {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/portal/devices");
+      if (!res.ok) {
+        throw new Error("Failed to fetch devices");
+      }
+      const data = await res.json();
+      setDevices(data.devices || []);
+      setMaxDevices(data.maxDevices || 3);
+      setLicenseId(data.licenseId || null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const accountType = user[`${namespace}/account_type`] || "individual";
-  const maxDevices = accountType === "enterprise" ? 2 : 3;
-  const devices = mockDevices; // Would fetch from API
+  async function handleDeactivate(machineId) {
+    if (!licenseId) return;
+
+    const confirmed = window.confirm(
+      "Are you sure you want to deactivate this device? You can reactivate it later.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeactivating(machineId);
+      const res = await fetch("/api/portal/devices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ machineId, licenseId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to deactivate device");
+      }
+
+      // Refresh the device list
+      await fetchDevices();
+    } catch (err) {
+      alert("Failed to deactivate device: " + err.message);
+    } finally {
+      setDeactivating(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-frost-white">Devices</h1>
+          <p className="text-slate-grey mt-1">Loading your devices...</p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <div className="animate-pulse">
+              <div className="h-4 bg-card-border rounded w-48 mx-auto mb-4"></div>
+              <div className="h-4 bg-card-border rounded w-32 mx-auto"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-frost-white">Devices</h1>
+          <p className="text-slate-grey mt-1">Manage your activated devices</p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-red-400 mb-4">{error}</p>
+            <Button onClick={fetchDevices}>Try Again</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl">
@@ -82,18 +154,26 @@ export default async function DevicesPage() {
                   </div>
                   <div>
                     <h3 className="font-medium text-frost-white">
-                      {device.name}
+                      {device.name || "Unknown Device"}
                     </h3>
                     <p className="text-sm text-slate-grey">
-                      VS Code {device.vsCodeVersion} • Last seen{" "}
-                      {formatRelativeTime(device.lastSeen)}
+                      {device.platform &&
+                        `${getPlatformName(device.platform)} • `}
+                      {device.lastSeen
+                        ? `Last seen ${formatRelativeTime(device.lastSeen)}`
+                        : `Activated ${formatRelativeTime(device.createdAt)}`}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant="success">Active</Badge>
-                  <Button variant="danger" size="sm">
-                    Deactivate
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDeactivate(device.id)}
+                    disabled={deactivating === device.id}
+                  >
+                    {deactivating === device.id ? "..." : "Deactivate"}
                   </Button>
                 </div>
               </div>
@@ -114,7 +194,7 @@ export default async function DevicesPage() {
       </div>
 
       {/* Add Device CTA */}
-      {devices.length < maxDevices && (
+      {devices.length < maxDevices && devices.length > 0 && (
         <div className="mt-6 p-6 border-2 border-dashed border-card-border rounded-2xl text-center">
           <p className="text-slate-grey mb-4">
             You can activate {maxDevices - devices.length} more{" "}
@@ -132,13 +212,29 @@ export default async function DevicesPage() {
 function DeviceIcon({ platform }) {
   const icons = {
     darwin: "🍎",
+    macos: "🍎",
     win32: "🪟",
+    windows: "🪟",
     linux: "🐧",
   };
-  return <span className="text-xl">{icons[platform] || "💻"}</span>;
+  return (
+    <span className="text-xl">{icons[platform?.toLowerCase()] || "💻"}</span>
+  );
+}
+
+function getPlatformName(platform) {
+  const names = {
+    darwin: "macOS",
+    macos: "macOS",
+    win32: "Windows",
+    windows: "Windows",
+    linux: "Linux",
+  };
+  return names[platform?.toLowerCase()] || platform;
 }
 
 function formatRelativeTime(dateString) {
+  if (!dateString) return "unknown";
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now - date;
