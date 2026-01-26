@@ -218,12 +218,11 @@ describe("constants.js", () => {
       expect(STRIPE_PRICES.individual).toHaveProperty("annual");
     });
 
-    it("should have enterprise pricing structure", () => {
-      expect(STRIPE_PRICES.enterprise).toBeDefined();
-      expect(STRIPE_PRICES.enterprise).toHaveProperty("seats10");
-      expect(STRIPE_PRICES.enterprise).toHaveProperty("seats100");
-      expect(STRIPE_PRICES.enterprise).toHaveProperty("seats500");
-      expect(STRIPE_PRICES.enterprise).toHaveProperty("custom");
+    // v4.2: Business tier has monthly/annual pricing
+    it("should have business pricing structure", () => {
+      expect(STRIPE_PRICES.business).toBeDefined();
+      expect(STRIPE_PRICES.business).toHaveProperty("monthly");
+      expect(STRIPE_PRICES.business).toHaveProperty("annual");
     });
   });
 

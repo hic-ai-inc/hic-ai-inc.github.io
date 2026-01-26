@@ -43,21 +43,18 @@ describe("checkout API logic", () => {
     return { valid: true };
   }
 
-  function getPriceId(plan, billingCycle = "monthly", seats = 1) {
+  // v4.2: Simple monthly/annual for both tiers
+  function getPriceId(plan, billingCycle = "monthly") {
     if (plan === "individual") {
       return billingCycle === "annual"
         ? STRIPE_PRICES.individual.annual
         : STRIPE_PRICES.individual.monthly;
     }
 
-    // Team - select tier based on seat count
-    if (seats >= 500) {
-      return STRIPE_PRICES.team.seats500;
-    } else if (seats >= 100) {
-      return STRIPE_PRICES.team.seats100;
-    } else {
-      return STRIPE_PRICES.team.seats5;
-    }
+    // Business - monthly or annual per-seat pricing
+    return billingCycle === "annual"
+      ? STRIPE_PRICES.business.annual
+      : STRIPE_PRICES.business.monthly;
   }
 
   function getQuantity(plan, seats = 1) {
@@ -151,28 +148,15 @@ describe("checkout API logic", () => {
       assert.strictEqual(priceId, STRIPE_PRICES.individual.annual);
     });
 
-    it("should return seats10 price for enterprise with 10-99 seats", () => {
-      const priceId = getPriceId("enterprise", "monthly", 10);
-      assert.strictEqual(priceId, STRIPE_PRICES.enterprise.seats10);
-
-      const priceId2 = getPriceId("enterprise", "monthly", 99);
-      assert.strictEqual(priceId2, STRIPE_PRICES.enterprise.seats10);
+    // v4.2: Business uses monthly/annual pricing (quantity set at checkout)
+    it("should return monthly price for business monthly", () => {
+      const priceId = getPriceId("business", "monthly");
+      assert.strictEqual(priceId, STRIPE_PRICES.business.monthly);
     });
 
-    it("should return seats100 price for enterprise with 100-499 seats", () => {
-      const priceId = getPriceId("enterprise", "monthly", 100);
-      assert.strictEqual(priceId, STRIPE_PRICES.enterprise.seats100);
-
-      const priceId2 = getPriceId("enterprise", "monthly", 499);
-      assert.strictEqual(priceId2, STRIPE_PRICES.enterprise.seats100);
-    });
-
-    it("should return seats500 price for enterprise with 500+ seats", () => {
-      const priceId = getPriceId("enterprise", "monthly", 500);
-      assert.strictEqual(priceId, STRIPE_PRICES.enterprise.seats500);
-
-      const priceId2 = getPriceId("enterprise", "monthly", 1000);
-      assert.strictEqual(priceId2, STRIPE_PRICES.enterprise.seats500);
+    it("should return annual price for business annual", () => {
+      const priceId = getPriceId("business", "annual");
+      assert.strictEqual(priceId, STRIPE_PRICES.business.annual);
     });
   });
 

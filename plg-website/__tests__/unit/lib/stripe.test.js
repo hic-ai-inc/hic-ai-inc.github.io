@@ -63,16 +63,13 @@ describe("stripe.js", () => {
       expect(STRIPE_PRODUCTS.INDIVIDUAL_ANNUAL).toBe("price_individual_annual");
     });
 
-    it("should have ENTERPRISE_10 price ID", () => {
-      expect(STRIPE_PRODUCTS.ENTERPRISE_10).toBe("price_enterprise_10");
+    // v4.2: Business tier has monthly/annual pricing
+    it("should have BUSINESS_MONTHLY price ID", () => {
+      expect(STRIPE_PRODUCTS.BUSINESS_MONTHLY).toBe("price_business_monthly");
     });
 
-    it("should have ENTERPRISE_100 price ID", () => {
-      expect(STRIPE_PRODUCTS.ENTERPRISE_100).toBe("price_enterprise_100");
-    });
-
-    it("should have ENTERPRISE_500 price ID", () => {
-      expect(STRIPE_PRODUCTS.ENTERPRISE_500).toBe("price_enterprise_500");
+    it("should have BUSINESS_ANNUAL price ID", () => {
+      expect(STRIPE_PRODUCTS.BUSINESS_ANNUAL).toBe("price_business_annual");
     });
   });
 

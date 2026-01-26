@@ -126,27 +126,21 @@ export const LICENSE_STATUS_DISPLAY = {
 // STRIPE PRICE IDS
 // ===========================================
 
+// v4.2: Simple monthly/annual for both tiers
+// Business uses per-seat pricing — quantity is set at checkout
 export const STRIPE_PRICES = {
   individual: {
     monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_INDIVIDUAL_MONTHLY,
     annual: process.env.NEXT_PUBLIC_STRIPE_PRICE_INDIVIDUAL_ANNUAL,
   },
   business: {
-    seats5: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_5,
-    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_100,
-    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_500,
+    monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_MONTHLY,
+    annual: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_ANNUAL,
   },
-  // Legacy: keep team/enterprise aliases for backward compatibility during migration
+  // Legacy aliases for backward compatibility
   team: {
-    seats5: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_5, // Alias to business
-    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_100,
-    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_500,
-  },
-  enterprise: {
-    seats10: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_5, // Alias to business
-    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_100,
-    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_500,
-    custom: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_CUSTOM,
+    monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_MONTHLY,
+    annual: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_ANNUAL,
   },
 };
 

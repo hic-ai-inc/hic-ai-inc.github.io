@@ -70,14 +70,13 @@ export function getStripe() {
  * Stripe product IDs (configured in Stripe Dashboard)
  * Update these after creating products in Stripe
  */
+// v4.2: Individual + Business tiers (monthly/annual)
 export const STRIPE_PRODUCTS = {
   INDIVIDUAL_MONTHLY: "price_individual_monthly",
   INDIVIDUAL_ANNUAL: "price_individual_annual",
-  ENTERPRISE_10: "price_enterprise_10",
-  ENTERPRISE_100: "price_enterprise_100",
-  ENTERPRISE_500: "price_enterprise_500",
+  BUSINESS_MONTHLY: "price_business_monthly",
+  BUSINESS_ANNUAL: "price_business_annual",
 };
-
 /**
  * Stripe coupon codes
  */
