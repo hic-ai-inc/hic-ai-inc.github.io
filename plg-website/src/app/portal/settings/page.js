@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Account Settings Page
  *
@@ -6,7 +8,7 @@
  * @see PLG User Journey - Section 2.6
  */
 
-import { getSession } from "@/lib/auth";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardHeader,
@@ -16,15 +18,229 @@ import {
   Button,
   Input,
 } from "@/components/ui";
-import { AUTH0_NAMESPACE } from "@/lib/constants";
 
-export const metadata = {
-  title: "Settings",
-};
+export default function SettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
-export default async function SettingsPage() {
-  const session = await getSession();
-  const user = session.user;
+  // Profile state
+  const [profile, setProfile] = useState({
+    name: "",
+    email: "",
+    picture: "",
+    accountType: "individual",
+  });
+
+  // Notification preferences state
+  const [notifications, setNotifications] = useState({
+    productUpdates: true,
+    usageAlerts: true,
+    billingReminders: true,
+    marketingEmails: false,
+  });
+
+  // Delete account state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  // Fetch settings on mount
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const response = await fetch("/api/portal/settings");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load settings");
+        }
+
+        setProfile({
+          name: data.profile.name || "",
+          email: data.profile.email || "",
+          picture: data.profile.picture || "",
+          accountType: data.profile.accountType || "individual",
+        });
+
+        if (data.notifications) {
+          setNotifications({
+            productUpdates: data.notifications.productUpdates ?? true,
+            usageAlerts: data.notifications.usageAlerts ?? true,
+            billingReminders: data.notifications.billingReminders ?? true,
+            marketingEmails: data.notifications.marketingEmails ?? false,
+          });
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSettings();
+  }, []);
+
+  // Save profile changes
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch("/api/portal/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profile.name }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save profile");
+      }
+
+      setSuccess("Profile updated successfully");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Save notification preferences
+  const handleSaveNotifications = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch("/api/portal/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notifications }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save preferences");
+      }
+
+      setSuccess("Notification preferences updated");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Export account data
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/portal/settings/export", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to export data");
+      }
+
+      // Get the filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get("Content-Disposition");
+      let filename = "mouse-data-export.json";
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) filename = match[1];
+      }
+
+      // Create download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+
+      setSuccess("Data exported successfully");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Delete account
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== "DELETE MY ACCOUNT") {
+      setError("Please type 'DELETE MY ACCOUNT' to confirm");
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/portal/settings/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmation: deleteConfirmation,
+          reason: "User requested deletion",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete account");
+      }
+
+      // Redirect to homepage after successful deletion request
+      window.location.href = "/api/auth/logout?returnTo=/";
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Toggle notification
+  const toggleNotification = (key) => {
+    setNotifications((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl">
+        <div className="mb-8">
+          <div className="h-9 w-32 bg-card-border rounded animate-pulse"></div>
+          <div className="h-5 w-48 bg-card-border rounded animate-pulse mt-2"></div>
+        </div>
+        <div className="space-y-6">
+          <div className="h-64 bg-card-border rounded-lg animate-pulse"></div>
+          <div className="h-64 bg-card-border rounded-lg animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl">
@@ -33,38 +249,57 @@ export default async function SettingsPage() {
         <p className="text-slate-grey mt-1">Manage your account preferences</p>
       </div>
 
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="mb-6 p-4 bg-success/10 border border-success/30 rounded-lg text-success">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="mb-6 p-4 bg-error/10 border border-error/30 rounded-lg text-error">
+          {error}
+        </div>
+      )}
+
       {/* Profile Section */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Profile</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Input
-                label="Full Name"
-                name="name"
-                defaultValue={user.name || ""}
-                placeholder="Your name"
-              />
-              <Input
-                label="Email"
-                name="email"
-                type="email"
-                defaultValue={user.email}
-                disabled
-                className="opacity-60"
-              />
+        <form onSubmit={handleSaveProfile}>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <Input
+                  label="Full Name"
+                  name="name"
+                  value={profile.name}
+                  onChange={(e) =>
+                    setProfile((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Your name"
+                />
+                <Input
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={profile.email}
+                  disabled
+                  className="opacity-60"
+                />
+              </div>
+              <p className="text-sm text-slate-grey">
+                Email changes must be done through Auth0. Contact support if
+                needed.
+              </p>
             </div>
-            <p className="text-sm text-slate-grey">
-              Email changes must be done through Auth0. Contact support if
-              needed.
-            </p>
-          </form>
-        </CardContent>
-        <CardFooter>
-          <Button>Save Changes</Button>
-        </CardFooter>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
 
       {/* Notification Preferences */}
@@ -72,33 +307,41 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Notifications</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <NotificationToggle
-              label="Product updates"
-              description="News about new features and improvements"
-              defaultChecked={true}
-            />
-            <NotificationToggle
-              label="Usage alerts"
-              description="Notifications when approaching device limits"
-              defaultChecked={true}
-            />
-            <NotificationToggle
-              label="Billing reminders"
-              description="Payment confirmations and renewal notices"
-              defaultChecked={true}
-            />
-            <NotificationToggle
-              label="Marketing emails"
-              description="Tips, tutorials, and promotional content"
-              defaultChecked={false}
-            />
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button>Save Preferences</Button>
-        </CardFooter>
+        <form onSubmit={handleSaveNotifications}>
+          <CardContent>
+            <div className="space-y-4">
+              <NotificationToggle
+                label="Product updates"
+                description="News about new features and improvements"
+                checked={notifications.productUpdates}
+                onChange={() => toggleNotification("productUpdates")}
+              />
+              <NotificationToggle
+                label="Usage alerts"
+                description="Notifications when approaching device limits"
+                checked={notifications.usageAlerts}
+                onChange={() => toggleNotification("usageAlerts")}
+              />
+              <NotificationToggle
+                label="Billing reminders"
+                description="Payment confirmations and renewal notices"
+                checked={notifications.billingReminders}
+                onChange={() => toggleNotification("billingReminders")}
+              />
+              <NotificationToggle
+                label="Marketing emails"
+                description="Tips, tutorials, and promotional content"
+                checked={notifications.marketingEmails}
+                onChange={() => toggleNotification("marketingEmails")}
+              />
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save Preferences"}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
 
       {/* Danger Zone */}
@@ -117,21 +360,61 @@ export default async function SettingsPage() {
                   Download all your data in JSON format
                 </p>
               </div>
-              <Button variant="secondary" size="sm">
-                Export
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExport}
+                disabled={exporting}
+              >
+                {exporting ? "Exporting..." : "Export"}
               </Button>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-error/5 rounded-lg border border-error/20">
-              <div>
-                <h4 className="font-medium text-frost-white">Delete Account</h4>
-                <p className="text-sm text-slate-grey">
-                  Permanently delete your account and all data
-                </p>
+            <div className="p-4 bg-error/5 rounded-lg border border-error/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-frost-white">
+                    Delete Account
+                  </h4>
+                  <p className="text-sm text-slate-grey">
+                    Permanently delete your account and all data
+                  </p>
+                </div>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+                >
+                  {showDeleteConfirm ? "Cancel" : "Delete Account"}
+                </Button>
               </div>
-              <Button variant="danger" size="sm">
-                Delete Account
-              </Button>
+
+              {showDeleteConfirm && (
+                <div className="mt-4 pt-4 border-t border-error/20">
+                  <p className="text-sm text-error mb-3">
+                    This action cannot be undone. Your account will be scheduled
+                    for deletion with a 30-day grace period. Type{" "}
+                    <strong>DELETE MY ACCOUNT</strong> to confirm.
+                  </p>
+                  <div className="flex gap-3">
+                    <Input
+                      value={deleteConfirmation}
+                      onChange={(e) => setDeleteConfirmation(e.target.value)}
+                      placeholder="Type DELETE MY ACCOUNT"
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="danger"
+                      onClick={handleDeleteAccount}
+                      disabled={
+                        deleting || deleteConfirmation !== "DELETE MY ACCOUNT"
+                      }
+                    >
+                      {deleting ? "Deleting..." : "Confirm Delete"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -140,7 +423,7 @@ export default async function SettingsPage() {
   );
 }
 
-function NotificationToggle({ label, description, defaultChecked }) {
+function NotificationToggle({ label, description, checked, onChange }) {
   return (
     <label className="flex items-center justify-between cursor-pointer">
       <div>
@@ -150,7 +433,8 @@ function NotificationToggle({ label, description, defaultChecked }) {
       <div className="relative">
         <input
           type="checkbox"
-          defaultChecked={defaultChecked}
+          checked={checked}
+          onChange={onChange}
           className="sr-only peer"
         />
         <div className="w-11 h-6 bg-card-border rounded-full peer peer-checked:bg-cerulean-mist transition-colors"></div>

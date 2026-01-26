@@ -18,7 +18,9 @@ import {
   deleteOrgInvite,
   updateOrgMemberStatus,
   removeOrgMember,
+  getCustomerByAuth0Id,
 } from "@/lib/dynamodb";
+import { sendEnterpriseInviteEmail } from "@/lib/ses";
 
 /**
  * GET /api/portal/team
@@ -192,6 +194,26 @@ export async function POST(request) {
 
         // Create invite
         const invite = await createOrgInvite(orgId, email, role, user.sub);
+
+        // Send invite email
+        try {
+          // Get inviter info for the email
+          const inviter = await getCustomerByAuth0Id(user.sub);
+          const inviterName =
+            inviter?.name || user.name || user.email || "Your team";
+          const organizationName =
+            inviter?.organizationName || "Your organization";
+
+          await sendEnterpriseInviteEmail(
+            email,
+            organizationName,
+            inviterName,
+            invite.token,
+          );
+        } catch (emailError) {
+          // Log but don't fail the invite creation
+          console.error("Failed to send invite email:", emailError);
+        }
 
         return NextResponse.json({
           success: true,
