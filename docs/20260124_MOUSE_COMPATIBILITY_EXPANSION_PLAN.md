@@ -18,7 +18,8 @@
 |--------------|--------|-----------------|------|
 | **Anthropic Claude** | ✅ WORKING | Haiku 4.5, Sonnet 4, Sonnet 4.5, Opus 4.5 | Original |
 | **Google Gemini** | ✅ WORKING | Gemini 2.0 Flash, Gemini 2.5 Pro | Jan 25, 2026 |
-| **OpenAI GPT** | ✅ WORKING | GPT-5.2, GPT-5, GPT-5-mini, GPT-4o | **Jan 26, 2026** |
+| **OpenAI GPT** | ✅ WORKING | GPT-5.2, GPT-5, GPT-5-mini, GPT-4o, Raptor mini | **Jan 26, 2026** |
+| **xAI Grok** | ⚠️ PARTIAL | Grok Code Fast 1 (simple tools only) | Jan 26, 2026 |
 
 **This means Mouse now works with 100% of major LLM providers used in AI coding assistants.**
 
@@ -104,6 +105,7 @@ This memo outlines a systematic plan to expand Mouse's compatibility from its cu
 - GPT-5
 - GPT-5-mini
 - GPT-4o
+- Raptor mini (preview) — free-tier model!
 
 **Gemini Models Verified Working (2026-01-25):**
 - Gemini 2.0 Flash
@@ -126,6 +128,8 @@ This memo outlines a systematic plan to expand Mouse's compatibility from its cu
 | **GPT-5**            | ✅ WORKING | All        | Serendipitous fix via Gemini schema |
 | **GPT-5-mini**       | ✅ WORKING | All        | Serendipitous fix via Gemini schema |
 | **GPT-4o**           | ✅ WORKING | All        | Serendipitous fix via Gemini schema |
+| **Raptor mini (preview)** | ✅ WORKING | All | Free-tier model, refinement mode verified |
+| **Grok Code Fast 1** | ⚠️ PARTIAL | Simple only | Complex tools (batch_quick_edit) fail |
 
 > **Note:** Copilot CLI verified with BOTH development source AND packaged npm installation.
 > Packaged version (`{workspace}/.hic/mcp/`) validated 2026-01-24 via `npx @get-hic/mouse`.
@@ -1008,6 +1012,7 @@ Copilot CLI stores MCP config at:
 | 2026-01-24 | GitHub Copilot | **Cline tested!** MCP works, blocked on agentId support (easy fix for v0.9.9) |
 | 2026-01-25 | GitHub Copilot | **Gemini models verified working!** Schema sanitizer in v0.9.9 enables Gemini 2.0 Flash and 2.5 Pro |
 | 2026-01-26 | GitHub Copilot | **��� MAJOR BREAKTHROUGH: OpenAI/GPT models now working!** Gemini schema sanitizer serendipitously fixed GPT compatibility. All 3 major model families now supported! |
+| 2026-01-26 | GitHub Copilot | **Raptor mini verified!** Free-tier GitHub Copilot model works with Mouse including batch_quick_edit refinement. Grok Code Fast 1 partial (simple tools only). |
 
 ---
 
