@@ -1,10 +1,10 @@
 /**
  * Pricing Page
  *
- * Two-tier pricing: Individual ($15/mo) / Enterprise ($25/seat for 2+ seats)
- * Volume discounts for Enterprise: 5% (10+), 10% (100+), 15% (500+), 20% (1000+)
+ * Two-tier pricing: Individual ($15/mo) / Business ($35/seat/mo)
+ * Volume discounts for Business: 10% (50+), 15% (100+), 20% (500+)
  *
- * @see PLG User Journey - Section 2.2
+ * @see 20260126_PRICING_v4.2_FINAL_FEATURE_MATRIX.md
  */
 
 import Link from "next/link";
@@ -29,42 +29,45 @@ const tiers = [
     featured: true,
     trial: "14-day free trial, no card required",
     features: [
-      "Single user license",
-      "3 device activations",
-      "Full Mouse editing toolkit",
-      "Best-in-class file navigation tools",
-      "Commercial use permitted",
+      "All Mouse precision editing tools",
+      "3 concurrent machines",
+      "Commercial use allowed",
+      "Social login (Google, GitHub, Microsoft)",
+      "Usage dashboard",
+      "Discord community support",
+      "Documentation access",
       "Early access to new features",
-      "Community support",
     ],
     limitations: [],
   },
   {
-    name: "Enterprise",
-    price: "$25",
+    name: "Business",
+    price: "$35",
     period: "/seat/month",
-    annualPrice: "$250/seat/year (save $50/seat)",
-    description: "For teams of 2 or more",
-    cta: "Start Enterprise Trial",
-    ctaLink: "/checkout/enterprise",
+    annualPrice: "$350/seat/year (save $70/seat)",
+    description: "For teams and power users",
+    cta: "Start Free Trial",
+    ctaLink: "/checkout/business",
     featured: false,
-    trial: "30-day trial for teams",
+    trial: "14-day free trial, no card required",
     features: [
-      "Minimum 2 seats",
-      "2 devices per seat",
-      "Full Mouse editing toolkit",
-      "SSO (SAML, Okta, Azure AD)",
+      "Everything in Individual",
+      "5 concurrent machines per seat",
       "Team management portal",
-      "Centralized billing",
-      "Priority email support",
+      "Invite & manage team members",
+      "Role-based access control (RBAC)",
+      "Full audit logging & exports",
+      "License reassignment",
+      "Email support (24h response)",
+      "Volume discounts (50+ seats)",
+      "Enterprise SSO (Contact Sales)",
     ],
     limitations: [],
     volumeDiscounts: [
-      { seats: "2-9", discount: "Standard pricing" },
-      { seats: "10-99", discount: "5% off" },
-      { seats: "100-499", discount: "10% off" },
-      { seats: "500-999", discount: "15% off" },
-      { seats: "1,000+", discount: "20% off" },
+      { seats: "1-49", discount: "Standard pricing" },
+      { seats: "50-99", discount: "10% off" },
+      { seats: "100-499", discount: "15% off" },
+      { seats: "500+", discount: "20% off" },
     ],
   },
 ];
@@ -78,12 +81,12 @@ const faqs = [
   {
     question: "Can I switch plans later?",
     answer:
-      "Yes! You can upgrade or downgrade at any time. When upgrading, you'll be prorated for the remainder of your billing cycle. When downgrading, the change takes effect at your next billing date.",
+      "Yes! You can upgrade from Individual to Business at any time. When upgrading, you'll be prorated for the remainder of your billing cycle. You can also add seats to Business plans anytime.",
   },
   {
-    question: "What counts as a device?",
+    question: "What counts as a machine?",
     answer:
-      "Each VS Code installation on a unique machine counts as one device. You can deactivate old devices anytime from your portal to free up slots.",
+      "Each unique device (laptop, desktop, or Dev Container) counts as one machine. Multiple VS Code windows on the same device count as one machine. You can deactivate old machines anytime from your portal.",
   },
   {
     question: "Do you offer refunds?",
@@ -93,27 +96,27 @@ const faqs = [
   {
     question: "Can I use Mouse for commercial projects?",
     answer:
-      "Yes! Both Individual and Enterprise plans permit commercial use, subject to our Terms of Service.",
+      "Yes! Both Individual and Business plans permit commercial use, subject to our Terms of Service.",
   },
   {
     question: "What payment methods do you accept?",
     answer:
-      "We accept all major credit cards, PayPal, and local payment methods depending on your region. Payments are processed securely by our payment partner.",
+      "We accept all major credit cards, PayPal, and local payment methods depending on your region. Payments are processed securely by Stripe.",
   },
   {
-    question: "Are prices shown before or after tax?",
+    question: "What's the difference between Individual and Business?",
     answer:
-      "All prices shown are before applicable taxes. Sales tax, VAT, or GST will be calculated and added at checkout based on your location.",
+      "Business includes 5 machines per seat (vs 3), team management features, RBAC, full audit logging, email support, and volume discounts. Solo developers who need more machines or email support can upgrade to Business.",
   },
   {
-    question: "What's the minimum seat count for Enterprise?",
+    question: "Do you offer Enterprise SSO (SAML)?",
     answer:
-      "Enterprise licenses require a minimum of 2 seats. For single-user commercial use, the Individual plan is the right choice.",
+      "Yes, Enterprise SSO with SAML, Okta, and Azure AD is available for Business customers. Contact Sales to set up SSO for your organization.",
   },
   {
     question: "How do volume discounts work?",
     answer:
-      "Volume discounts apply automatically based on the number of seats purchased: 5% off for 10-99 seats, 10% off for 100-499 seats, 15% off for 500-999 seats, and 20% off for 1,000+ seats. Discounts apply to all seats in your order.",
+      "Volume discounts apply automatically for Business plans: 10% off for 50-99 seats, 15% off for 100-499 seats, and 20% off for 500+ seats. Discounts apply to all seats in your subscription.",
   },
 ];
 

@@ -2,17 +2,17 @@
  * Application Constants
  *
  * Central configuration for pricing, plans, and application constants.
- * v4: Individual ($15/mo) / Team ($35/seat/mo)
+ * v4.2: Individual ($15/mo) / Business ($35/seat/mo)
  * Note: Enterprise tier deferred to post-launch per v4 addendum
  *
- * @see 20260126_PRICING_v4_FINAL_INDIVIDUAL_AND_TEAM.md
+ * @see 20260126_PRICING_v4.2_FINAL_FEATURE_MATRIX.md
  */
 
 // ===========================================
 // PRICING TIERS
 // ===========================================
 
-// v4: 2-tier model for launch — Individual + Team only
+// v4.2: 2-tier model for launch — Individual + Business only
 export const PRICING = {
   individual: {
     id: "individual",
@@ -21,34 +21,40 @@ export const PRICING = {
     priceMonthly: 15,
     priceAnnual: 150, // 2 months free (17% savings)
     seats: 1,
-    maxConcurrentSessions: 2,
+    maxConcurrentMachines: 3,
     trialDays: 14,
     requiresCard: false,
     features: [
       "All Mouse tools",
-      "2 concurrent sessions",
+      "3 concurrent machines",
       "Commercial use allowed",
-      "Email support (48h response)",
-      "Usage analytics dashboard",
+      "Social login (Google, GitHub, Microsoft)",
+      "Usage dashboard",
+      "Discord community support",
+      "Documentation access",
       "Early access to new features",
     ],
   },
-  team: {
-    id: "team",
-    name: "Team",
+  business: {
+    id: "business",
+    name: "Business",
     description: "For teams and organizations",
     pricePerSeat: 35, // Monthly per seat
-    minSeats: 5,
-    maxConcurrentSessionsPerSeat: 5,
+    minSeats: 1, // v4.2: Changed from 5 — enables Individual → Business upgrades
+    maxConcurrentMachinesPerSeat: 5, // v4.2: Changed from 3 — clear upgrade value
     trialDays: 14,
     requiresCard: false,
     features: [
       "Everything in Individual",
-      "5 concurrent sessions per seat",
+      "5 concurrent machines per seat",
       "Team management portal",
+      "Invite & manage team members",
+      "Role-based access control (RBAC)",
+      "Full audit logging & exports",
       "License reassignment",
-      "Priority email support (24h)",
+      "Email support (24h response)",
       "Volume discounts available",
+      "Enterprise SSO (Contact Sales)",
     ],
     volumeDiscounts: {
       50: 0.1, // 10% off at 50+ seats
@@ -68,7 +74,7 @@ export const PROMO_CODES = {
     discount: 0.2,
     description: "Early adopter discount - 20% off first year",
     validUntil: "2026-12-31",
-    applicableTiers: ["individual", "team"],
+    applicableTiers: ["individual", "business"],
   },
   STUDENT50: {
     code: "STUDENT50",
@@ -84,7 +90,7 @@ export const PROMO_CODES = {
     description: "Nonprofit discount - 40% off",
     validUntil: null,
     requiresVerification: true,
-    applicableTiers: ["individual", "team"],
+    applicableTiers: ["individual", "business"],
   },
 };
 
@@ -125,16 +131,21 @@ export const STRIPE_PRICES = {
     monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_INDIVIDUAL_MONTHLY,
     annual: process.env.NEXT_PUBLIC_STRIPE_PRICE_INDIVIDUAL_ANNUAL,
   },
-  team: {
-    seats5: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_5,
-    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_100,
-    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_500,
+  business: {
+    seats5: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_5,
+    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_100,
+    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_500,
   },
-  // Legacy: keep enterprise aliases for backward compatibility during migration
+  // Legacy: keep team/enterprise aliases for backward compatibility during migration
+  team: {
+    seats5: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_5, // Alias to business
+    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_100,
+    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_500,
+  },
   enterprise: {
-    seats10: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_5, // Alias to team
-    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_100,
-    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_500,
+    seats10: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_5, // Alias to business
+    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_100,
+    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_500,
     custom: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_CUSTOM,
   },
 };
@@ -153,7 +164,7 @@ export const NAV_LINKS = [
 export const PORTAL_NAV = [
   { label: "Dashboard", href: "/portal", icon: "dashboard" },
   { label: "License", href: "/portal/license", icon: "key" },
-  { label: "Devices", href: "/portal/devices", icon: "devices" },
+  { label: "Machines", href: "/portal/machines", icon: "devices" },
   { label: "Billing", href: "/portal/billing", icon: "credit-card" },
   { label: "Invoices", href: "/portal/invoices", icon: "receipt" },
   { label: "Settings", href: "/portal/settings", icon: "settings" },

@@ -27,17 +27,17 @@ function createMockSession(userOverrides = {}) {
 describe("checkout API logic", () => {
   // Mock functions that simulate route handler logic
   function validatePlan(plan) {
-    if (!plan || !["individual", "team"].includes(plan)) {
+    if (!plan || !["individual", "business"].includes(plan)) {
       return { valid: false, error: "Invalid plan specified" };
     }
     return { valid: true };
   }
 
   function validateEnterpriseSeats(plan, seats) {
-    if (plan === "team" && seats < PRICING.team.minSeats) {
+    if (plan === "business" && seats < PRICING.business.minSeats) {
       return {
         valid: false,
-        error: `Team plan requires minimum ${PRICING.team.minSeats} seats`,
+        error: `Business plan requires minimum ${PRICING.business.minSeats} seats`,
       };
     }
     return { valid: true };
@@ -108,29 +108,29 @@ describe("checkout API logic", () => {
       assert.strictEqual(result.valid, true);
     });
 
-    it("should accept team plan", () => {
-      const result = validatePlan("team");
+    it("should accept business plan", () => {
+      const result = validatePlan("business");
       assert.strictEqual(result.valid, true);
     });
   });
 
-  describe("team seat validation", () => {
-    it("should reject team with too few seats", () => {
-      const result = validateEnterpriseSeats("team", 3);
+  describe("business seat validation", () => {
+    it("should reject business with zero seats", () => {
+      const result = validateEnterpriseSeats("business", 0);
       assert.strictEqual(result.valid, false);
       assert.ok(result.error.includes("minimum"));
     });
 
-    it("should accept team with minimum seats", () => {
+    it("should accept business with minimum seats (1)", () => {
       const result = validateEnterpriseSeats(
-        "team",
-        PRICING.team.minSeats,
+        "business",
+        PRICING.business.minSeats,
       );
       assert.strictEqual(result.valid, true);
     });
 
-    it("should accept team with more than minimum seats", () => {
-      const result = validateEnterpriseSeats("team", 50);
+    it("should accept business with more than minimum seats", () => {
+      const result = validateEnterpriseSeats("business", 50);
       assert.strictEqual(result.valid, true);
     });
 

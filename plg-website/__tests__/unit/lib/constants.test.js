@@ -56,8 +56,8 @@ describe("constants.js", () => {
         expect(PRICING.individual.seats).toBe(1);
       });
 
-      it("should allow 2 concurrent sessions", () => {
-        expect(PRICING.individual.maxConcurrentSessions).toBe(2);
+      it("should allow 3 concurrent machines", () => {
+        expect(PRICING.individual.maxConcurrentMachines).toBe(3);
       });
 
       it("should have 14-day trial", () => {
@@ -74,41 +74,41 @@ describe("constants.js", () => {
       });
     });
 
-    describe("team tier", () => {
-      it("should have id of team", () => {
-        expect(PRICING.team.id).toBe("team");
+    describe("business tier", () => {
+      it("should have id of business", () => {
+        expect(PRICING.business.id).toBe("business");
       });
 
       it("should have price per seat of $35", () => {
-        expect(PRICING.team.pricePerSeat).toBe(35);
+        expect(PRICING.business.pricePerSeat).toBe(35);
       });
 
-      it("should have minimum of 5 seats", () => {
-        expect(PRICING.team.minSeats).toBe(5);
+      it("should have minimum of 1 seat", () => {
+        expect(PRICING.business.minSeats).toBe(1);
       });
 
-      it("should allow 5 concurrent sessions per seat", () => {
-        expect(PRICING.team.maxConcurrentSessionsPerSeat).toBe(5);
+      it("should allow 5 concurrent machines per seat", () => {
+        expect(PRICING.business.maxConcurrentMachinesPerSeat).toBe(5);
       });
 
       it("should have 14-day trial", () => {
-        expect(PRICING.team.trialDays).toBe(14);
+        expect(PRICING.business.trialDays).toBe(14);
       });
 
       it("should not require card for trial", () => {
-        expect(PRICING.team.requiresCard).toBe(false);
+        expect(PRICING.business.requiresCard).toBe(false);
       });
 
       it("should have volume discounts", () => {
-        expect(PRICING.team.volumeDiscounts).toBeDefined();
-        expect(PRICING.team.volumeDiscounts[50]).toBe(0.1);
-        expect(PRICING.team.volumeDiscounts[100]).toBe(0.15);
-        expect(PRICING.team.volumeDiscounts[500]).toBe(0.2);
+        expect(PRICING.business.volumeDiscounts).toBeDefined();
+        expect(PRICING.business.volumeDiscounts[50]).toBe(0.1);
+        expect(PRICING.business.volumeDiscounts[100]).toBe(0.15);
+        expect(PRICING.business.volumeDiscounts[500]).toBe(0.2);
       });
 
       it("should have features array", () => {
-        expect(Array.isArray(PRICING.team.features)).toBe(true);
-        expect(PRICING.team.features.length).toBeGreaterThan(0);
+        expect(Array.isArray(PRICING.business.features)).toBe(true);
+        expect(PRICING.business.features.length).toBeGreaterThan(0);
       });
     });
   });
@@ -134,16 +134,16 @@ describe("constants.js", () => {
       expect(PROMO_CODES.NONPROFIT40.requiresVerification).toBe(true);
     });
 
-    it("EARLYADOPTER20 should apply to both individual and team", () => {
+    it("EARLYADOPTER20 should apply to both individual and business", () => {
       expect(PROMO_CODES.EARLYADOPTER20.applicableTiers).toContain(
         "individual",
       );
-      expect(PROMO_CODES.EARLYADOPTER20.applicableTiers).toContain("team");
+      expect(PROMO_CODES.EARLYADOPTER20.applicableTiers).toContain("business");
     });
 
     it("STUDENT50 should only apply to individual", () => {
       expect(PROMO_CODES.STUDENT50.applicableTiers).toContain("individual");
-      expect(PROMO_CODES.STUDENT50.applicableTiers).not.toContain("team");
+      expect(PROMO_CODES.STUDENT50.applicableTiers).not.toContain("business");
     });
   });
 
@@ -260,10 +260,10 @@ describe("constants.js", () => {
       expect(licenseLink.href).toBe("/portal/license");
     });
 
-    it("should have Devices link", () => {
-      const devicesLink = PORTAL_NAV.find((l) => l.label === "Devices");
-      expect(devicesLink).toBeDefined();
-      expect(devicesLink.href).toBe("/portal/devices");
+    it("should have Machines link", () => {
+      const machinesLink = PORTAL_NAV.find((l) => l.label === "Machines");
+      expect(machinesLink).toBeDefined();
+      expect(machinesLink.href).toBe("/portal/machines");
     });
 
     it("should have Billing link", () => {
