@@ -23,8 +23,8 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | --- | ---------------------------------- | ------------------ | ---------- | ---------- | ---------------- |
 | 1   | Analytics                          | ⬜ Not started     | 4-8h       | GC         | —                |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented      | 2h         | GC         | —                |
-| 3   | Auth (Auth0 Integration)           | ⚠️ Partial         | 8-12h      | GC         | 4 (Admin Portal) |
-| 4   | Admin Portal (Individuals + Teams) | ⬜ Not started     | 24-32h     | GC         | 3, 5, 6          |
+| 3   | Auth (Auth0 Integration)           | ✅ Dashboard done  | 8-12h      | GC + Simon | 4 (Admin Portal) |
+| 4   | Admin Portal (Individuals + Teams) | ⚠️ APIs built      | 24-32h     | GC         | 5, 6             |
 | 5   | Licensing (KeyGen.sh)              | ⚠️ Partial         | 8-12h      | Simon      | 7                |
 | 6   | Payments (Stripe)                  | ⚠️ Partial         | 4-6h       | Simon      | —                |
 | 7   | AWS Infrastructure                 | ✅ Templates exist | 4-6h       | GC         | —                |
@@ -122,7 +122,7 @@ curl -s "https://plausible.io/api/v1/stats/aggregate?site_id=$SITE_ID&period=$DA
 
 ## 3. Auth (Auth0 Integration)
 
-**Status:** ⚠️ Partial — Code exists, not wired to portal  
+**Status:** ✅ Dashboard configured — Ready for E2E testing  
 **Est. Hours:** 8-12h  
 **Documentation:** [20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md](./20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md)
 
@@ -130,33 +130,39 @@ curl -s "https://plausible.io/api/v1/stats/aggregate?site_id=$SITE_ID&period=$DA
 
 - `src/lib/auth.js` — Role-based auth helpers (`requireAuth`, `requireAdmin`, `requireBillingContact`)
 - `src/middleware.js` — Route protection for `/portal/*` and `/admin/*`
-- Auth0 account created
+- `/api/auth/[auth0]/route.js` — Auth0 login/logout routes
+- Auth0 tenant: `dev-vby1x2u5b7c882n5.us.auth0.com`
 
-### 3.2 What's Missing
+### 3.2 Auth0 Dashboard Configuration ✅
 
-| Task                                 | Status | Notes                                  |
-| ------------------------------------ | ------ | -------------------------------------- |
-| **Auth0 Dashboard Configuration**    |        |                                        |
-| Create Application (Regular Web App) | ⬜     | Get Client ID + Secret                 |
-| Configure callback URLs              | ⬜     | `https://hic-ai.com/api/auth/callback` |
-| Configure logout URLs                | ⬜     | `https://hic-ai.com`                   |
-| Enable Organizations (for Teams)     | ⬜     | Required for `org_roles`               |
-| Create custom namespace claims       | ⬜     | `https://hic-ai.com/org_roles` etc     |
-| **Environment Variables**            |        |                                        |
-| Set `AUTH0_SECRET`                   | ⬜     | Generate with `openssl rand -hex 32`   |
-| Set `AUTH0_BASE_URL`                 | ⬜     | `https://hic-ai.com`                   |
-| Set `AUTH0_ISSUER_BASE_URL`          | ⬜     | `https://YOUR_TENANT.auth0.com`        |
-| Set `AUTH0_CLIENT_ID`                | ⬜     | From Auth0 dashboard                   |
-| Set `AUTH0_CLIENT_SECRET`            | ⬜     | From Auth0 dashboard                   |
-| **Code Integration**                 |        |                                        |
-| Add Auth0 login/logout routes        | ⬜     | `/api/auth/[auth0]/route.js`           |
-| Wire portal layout to session        | ⬜     | Show user info in nav                  |
-| Implement role-based nav items       | ⬜     | Per Team Admin Portal spec             |
-| Test login → portal flow             | ⬜     | E2E verification                       |
+| Task                                 | Status | Notes                                           |
+| ------------------------------------ | ------ | ----------------------------------------------- |
+| **Auth0 Dashboard Configuration**    |        |                                                 |
+| Create Application (Regular Web App) | ✅     | "Mouse" app with logo configured                |
+| Configure callback URLs              | ✅     | localhost + hic-ai.com + staging                |
+| Configure logout URLs                | ✅     | localhost + hic-ai.com + staging                |
+| Configure web origins (CORS)         | ✅     | localhost + hic-ai.com + staging                |
+| Enable Google social connection      | ✅     | Using Auth0 dev keys (swap for prod)            |
+| Enable GitHub social connection      | ✅     | Using Auth0 dev keys (swap for prod)            |
+| Enable refresh token rotation        | ✅     | 30-day absolute, 15-day inactivity, 10s overlap |
+| Enable Organizations (for Teams)     | ⬜     | Required for Business tier `org_roles`          |
+| Create custom namespace claims       | ⬜     | `https://hic-ai.com/org_roles` etc              |
+| **Environment Variables**            |        |                                                 |
+| Set `AUTH0_SECRET`                   | ⬜     | Generate with `openssl rand -hex 32`            |
+| Set `AUTH0_BASE_URL`                 | ⬜     | `https://hic-ai.com`                            |
+| Set `AUTH0_ISSUER_BASE_URL`          | ✅     | `https://dev-vby1x2u5b7c882n5.us.auth0.com`     |
+| Set `AUTH0_CLIENT_ID`                | ⬜     | Copy from Auth0 dashboard → .env.local          |
+| Set `AUTH0_CLIENT_SECRET`            | ⬜     | Copy from Auth0 dashboard → .env.local          |
+| **Code Integration**                 |        |                                                 |
+| Add Auth0 login/logout routes        | ✅     | `/api/auth/[auth0]/route.js`                    |
+| Wire portal layout to session        | ⬜     | Show user info in nav                           |
+| Implement role-based nav items       | ⬜     | Per Team Admin Portal spec                      |
+| Test login → portal flow             | ⬜     | E2E verification                                |
 
-### 3.3 SSO/SAML (Deferred)
+### 3.3 SSO/SAML (Contact Sales)
 
-SSO is **post-launch** (Enterprise tier). Auth0 supports it via Enterprise Connections when ready.
+Enterprise SSO (SAML, Okta, Azure AD) is available for Business customers via Contact Sales.  
+Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2_FINAL_FEATURE_MATRIX.md#saml-implementation-details).
 
 ---
 
@@ -756,6 +762,7 @@ Parallel workstreams (no dependencies):
 | 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                             |
 | 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model. See [v4.1 addendum](./20260126_PRICING_v4.1_BUSINESS_TIER_AND_MACHINE_MODEL.md) |
 | 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance. See [v4.2 final](./20260126_PRICING_v4.2_FINAL_FEATURE_MATRIX.md)                  |
+| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments. Remaining: env vars, Organizations for Business tier   |
 | 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                |
 | 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                      |
 | 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                   |
