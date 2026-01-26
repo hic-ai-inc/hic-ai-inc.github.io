@@ -27,17 +27,17 @@ function createMockSession(userOverrides = {}) {
 describe("checkout API logic", () => {
   // Mock functions that simulate route handler logic
   function validatePlan(plan) {
-    if (!plan || !["individual", "enterprise"].includes(plan)) {
+    if (!plan || !["individual", "team"].includes(plan)) {
       return { valid: false, error: "Invalid plan specified" };
     }
     return { valid: true };
   }
 
   function validateEnterpriseSeats(plan, seats) {
-    if (plan === "enterprise" && seats < PRICING.enterprise.minSeats) {
+    if (plan === "team" && seats < PRICING.team.minSeats) {
       return {
         valid: false,
-        error: `Enterprise plan requires minimum ${PRICING.enterprise.minSeats} seats`,
+        error: `Team plan requires minimum ${PRICING.team.minSeats} seats`,
       };
     }
     return { valid: true };
@@ -50,18 +50,18 @@ describe("checkout API logic", () => {
         : STRIPE_PRICES.individual.monthly;
     }
 
-    // Enterprise - select tier based on seat count
+    // Team - select tier based on seat count
     if (seats >= 500) {
-      return STRIPE_PRICES.enterprise.seats500;
+      return STRIPE_PRICES.team.seats500;
     } else if (seats >= 100) {
-      return STRIPE_PRICES.enterprise.seats100;
+      return STRIPE_PRICES.team.seats100;
     } else {
-      return STRIPE_PRICES.enterprise.seats10;
+      return STRIPE_PRICES.team.seats5;
     }
   }
 
   function getQuantity(plan, seats = 1) {
-    return plan === "individual" ? 1 : seats;
+    return plan === "individual" ? 1 : seats; // team has variable seats
   }
 
   function getCustomerEmail(session, bodyEmail) {
@@ -108,29 +108,29 @@ describe("checkout API logic", () => {
       assert.strictEqual(result.valid, true);
     });
 
-    it("should accept enterprise plan", () => {
-      const result = validatePlan("enterprise");
+    it("should accept team plan", () => {
+      const result = validatePlan("team");
       assert.strictEqual(result.valid, true);
     });
   });
 
-  describe("enterprise seat validation", () => {
-    it("should reject enterprise with too few seats", () => {
-      const result = validateEnterpriseSeats("enterprise", 5);
+  describe("team seat validation", () => {
+    it("should reject team with too few seats", () => {
+      const result = validateEnterpriseSeats("team", 3);
       assert.strictEqual(result.valid, false);
       assert.ok(result.error.includes("minimum"));
     });
 
-    it("should accept enterprise with minimum seats", () => {
+    it("should accept team with minimum seats", () => {
       const result = validateEnterpriseSeats(
-        "enterprise",
-        PRICING.enterprise.minSeats,
+        "team",
+        PRICING.team.minSeats,
       );
       assert.strictEqual(result.valid, true);
     });
 
-    it("should accept enterprise with more than minimum seats", () => {
-      const result = validateEnterpriseSeats("enterprise", 50);
+    it("should accept team with more than minimum seats", () => {
+      const result = validateEnterpriseSeats("team", 50);
       assert.strictEqual(result.valid, true);
     });
 

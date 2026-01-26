@@ -44,20 +44,20 @@ describe("constants.js", () => {
         expect(PRICING.individual.id).toBe("individual");
       });
 
-      it("should have monthly price of $10", () => {
-        expect(PRICING.individual.priceMonthly).toBe(10);
+      it("should have monthly price of $15", () => {
+        expect(PRICING.individual.priceMonthly).toBe(15);
       });
 
-      it("should have annual price of $100 (2 months free)", () => {
-        expect(PRICING.individual.priceAnnual).toBe(100);
+      it("should have annual price of $150 (2 months free)", () => {
+        expect(PRICING.individual.priceAnnual).toBe(150);
       });
 
       it("should have 1 seat", () => {
         expect(PRICING.individual.seats).toBe(1);
       });
 
-      it("should allow up to 3 devices", () => {
-        expect(PRICING.individual.maxDevices).toBe(3);
+      it("should allow 2 concurrent sessions", () => {
+        expect(PRICING.individual.maxConcurrentSessions).toBe(2);
       });
 
       it("should have 14-day trial", () => {
@@ -74,40 +74,41 @@ describe("constants.js", () => {
       });
     });
 
-    describe("enterprise tier", () => {
-      it("should have id of enterprise", () => {
-        expect(PRICING.enterprise.id).toBe("enterprise");
+    describe("team tier", () => {
+      it("should have id of team", () => {
+        expect(PRICING.team.id).toBe("team");
       });
 
-      it("should have price per seat of $25", () => {
-        expect(PRICING.enterprise.pricePerSeat).toBe(25);
+      it("should have price per seat of $35", () => {
+        expect(PRICING.team.pricePerSeat).toBe(35);
       });
 
-      it("should have minimum of 10 seats", () => {
-        expect(PRICING.enterprise.minSeats).toBe(10);
+      it("should have minimum of 5 seats", () => {
+        expect(PRICING.team.minSeats).toBe(5);
       });
 
-      it("should allow 2 devices per seat", () => {
-        expect(PRICING.enterprise.maxDevicesPerSeat).toBe(2);
+      it("should allow 5 concurrent sessions per seat", () => {
+        expect(PRICING.team.maxConcurrentSessionsPerSeat).toBe(5);
       });
 
-      it("should have 30-day trial", () => {
-        expect(PRICING.enterprise.trialDays).toBe(30);
+      it("should have 14-day trial", () => {
+        expect(PRICING.team.trialDays).toBe(14);
       });
 
-      it("should require card for trial", () => {
-        expect(PRICING.enterprise.requiresCard).toBe(true);
+      it("should not require card for trial", () => {
+        expect(PRICING.team.requiresCard).toBe(false);
       });
 
       it("should have volume discounts", () => {
-        expect(PRICING.enterprise.volumeDiscounts).toBeDefined();
-        expect(PRICING.enterprise.volumeDiscounts[100]).toBe(0.1);
-        expect(PRICING.enterprise.volumeDiscounts[500]).toBe(0.2);
+        expect(PRICING.team.volumeDiscounts).toBeDefined();
+        expect(PRICING.team.volumeDiscounts[50]).toBe(0.1);
+        expect(PRICING.team.volumeDiscounts[100]).toBe(0.15);
+        expect(PRICING.team.volumeDiscounts[500]).toBe(0.2);
       });
 
       it("should have features array", () => {
-        expect(Array.isArray(PRICING.enterprise.features)).toBe(true);
-        expect(PRICING.enterprise.features.length).toBeGreaterThan(0);
+        expect(Array.isArray(PRICING.team.features)).toBe(true);
+        expect(PRICING.team.features.length).toBeGreaterThan(0);
       });
     });
   });
@@ -133,18 +134,16 @@ describe("constants.js", () => {
       expect(PROMO_CODES.NONPROFIT40.requiresVerification).toBe(true);
     });
 
-    it("EARLYADOPTER20 should apply to both individual and enterprise", () => {
+    it("EARLYADOPTER20 should apply to both individual and team", () => {
       expect(PROMO_CODES.EARLYADOPTER20.applicableTiers).toContain(
         "individual",
       );
-      expect(PROMO_CODES.EARLYADOPTER20.applicableTiers).toContain(
-        "enterprise",
-      );
+      expect(PROMO_CODES.EARLYADOPTER20.applicableTiers).toContain("team");
     });
 
     it("STUDENT50 should only apply to individual", () => {
       expect(PROMO_CODES.STUDENT50.applicableTiers).toContain("individual");
-      expect(PROMO_CODES.STUDENT50.applicableTiers).not.toContain("enterprise");
+      expect(PROMO_CODES.STUDENT50.applicableTiers).not.toContain("team");
     });
   });
 
@@ -232,7 +231,7 @@ describe("constants.js", () => {
     it("should have Features link", () => {
       const featuresLink = NAV_LINKS.find((l) => l.label === "Features");
       expect(featuresLink).toBeDefined();
-      expect(featuresLink.href).toBe("/#features");
+      expect(featuresLink.href).toBe("/features");
     });
 
     it("should have Pricing link", () => {

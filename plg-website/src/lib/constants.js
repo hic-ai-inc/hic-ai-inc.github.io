@@ -2,57 +2,57 @@
  * Application Constants
  *
  * Central configuration for pricing, plans, and application constants.
- * v2.1: Individual ($10/mo) / Enterprise ($25/seat/mo)
- * Note: OSS tier deferred per Addendum A.1
+ * v4: Individual ($15/mo) / Team ($35/seat/mo)
+ * Note: Enterprise tier deferred to post-launch per v4 addendum
  *
- * @see PLG Technical Specification v2
+ * @see 20260126_PRICING_v4_FINAL_INDIVIDUAL_AND_TEAM.md
  */
 
 // ===========================================
 // PRICING TIERS
 // ===========================================
 
-// v2.1: OSS tier deferred per Addendum A.1 — focus on Individual and Enterprise only
+// v4: 2-tier model for launch — Individual + Team only
 export const PRICING = {
   individual: {
     id: "individual",
     name: "Individual",
     description: "For professional developers",
     priceMonthly: 15,
-    priceAnnual: 150, // 2 months free
+    priceAnnual: 150, // 2 months free (17% savings)
     seats: 1,
-    maxDevices: 3,
+    maxConcurrentSessions: 2,
     trialDays: 14,
     requiresCard: false,
     features: [
       "All Mouse tools",
-      "Up to 3 devices",
+      "2 concurrent sessions",
       "Commercial use allowed",
-      "Priority email support",
+      "Email support (48h response)",
       "Usage analytics dashboard",
       "Early access to new features",
     ],
   },
-  enterprise: {
-    id: "enterprise",
-    name: "Enterprise",
+  team: {
+    id: "team",
+    name: "Team",
     description: "For teams and organizations",
-    pricePerSeat: 25, // Monthly per seat
-    minSeats: 10,
-    maxDevicesPerSeat: 2,
-    trialDays: 30,
-    requiresCard: true,
+    pricePerSeat: 35, // Monthly per seat
+    minSeats: 5,
+    maxConcurrentSessionsPerSeat: 5,
+    trialDays: 14,
+    requiresCard: false,
     features: [
       "Everything in Individual",
-      "SSO/SAML integration",
-      "Dedicated support",
-      "Custom SLA available",
-      "Invoice billing (NET-30)",
-      "Volume discounts available",
+      "5 concurrent sessions per seat",
       "Team management portal",
+      "License reassignment",
+      "Priority email support (24h)",
+      "Volume discounts available",
     ],
     volumeDiscounts: {
-      100: 0.1, // 10% off at 100+ seats
+      50: 0.1, // 10% off at 50+ seats
+      100: 0.15, // 15% off at 100+ seats
       500: 0.2, // 20% off at 500+ seats
     },
   },
@@ -68,7 +68,7 @@ export const PROMO_CODES = {
     discount: 0.2,
     description: "Early adopter discount - 20% off first year",
     validUntil: "2026-12-31",
-    applicableTiers: ["individual", "enterprise"],
+    applicableTiers: ["individual", "team"],
   },
   STUDENT50: {
     code: "STUDENT50",
@@ -84,7 +84,7 @@ export const PROMO_CODES = {
     description: "Nonprofit discount - 40% off",
     validUntil: null,
     requiresVerification: true,
-    applicableTiers: ["individual", "enterprise"],
+    applicableTiers: ["individual", "team"],
   },
 };
 
@@ -125,10 +125,16 @@ export const STRIPE_PRICES = {
     monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_INDIVIDUAL_MONTHLY,
     annual: process.env.NEXT_PUBLIC_STRIPE_PRICE_INDIVIDUAL_ANNUAL,
   },
+  team: {
+    seats5: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_5,
+    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_100,
+    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_500,
+  },
+  // Legacy: keep enterprise aliases for backward compatibility during migration
   enterprise: {
-    seats10: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_10,
-    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_100,
-    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_500,
+    seats10: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_5, // Alias to team
+    seats100: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_100,
+    seats500: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_500,
     custom: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_CUSTOM,
   },
 };

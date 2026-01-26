@@ -255,9 +255,9 @@ describe("portal/devices API logic", () => {
     return { devices: [], maxDevices: 0 };
   }
 
-  function getMaxDevicesForPlan(accountType) {
+  function getMaxConcurrentSessionsForPlan(accountType) {
     const planConfig = PRICING[accountType];
-    return planConfig?.maxDevices || planConfig?.maxDevicesPerSeat || 3;
+    return planConfig?.maxConcurrentSessions || planConfig?.maxConcurrentSessionsPerSeat || 3;
   }
 
   function mergeDeviceData(localDevices, keygenDevices) {
@@ -310,20 +310,20 @@ describe("portal/devices API logic", () => {
     });
   });
 
-  describe("max devices by plan", () => {
+  describe("max concurrent sessions by plan", () => {
     it("should return correct max for individual plan", () => {
-      const max = getMaxDevicesForPlan("individual");
-      assert.strictEqual(max, PRICING.individual.maxDevices);
+      const max = getMaxConcurrentSessionsForPlan("individual");
+      assert.strictEqual(max, PRICING.individual.maxConcurrentSessions);
     });
 
-    it("should return correct max for enterprise plan", () => {
-      const max = getMaxDevicesForPlan("enterprise");
-      // Enterprise uses maxDevicesPerSeat
+    it("should return correct max for team plan", () => {
+      const max = getMaxConcurrentSessionsForPlan("team");
+      // Team uses maxConcurrentSessionsPerSeat
       assert.ok(max > 0);
     });
 
     it("should default to 3 for unknown plan", () => {
-      const max = getMaxDevicesForPlan("unknown");
+      const max = getMaxConcurrentSessionsForPlan("unknown");
       assert.strictEqual(max, 3);
     });
   });
