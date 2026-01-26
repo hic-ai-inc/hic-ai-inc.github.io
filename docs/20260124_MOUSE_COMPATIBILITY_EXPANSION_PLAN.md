@@ -33,6 +33,27 @@
 
 **Total Addressable Market just expanded from "Anthropic model users" to "everyone."**
 
+### í¾¯ Key Marketing Angle: "Never Get Stranded"
+
+**The Problem:** GitHub Copilot Pro/Pro+ users get a monthly allocation of premium credits.
+When those run out, users are downgraded to "included" models (GPT-5-mini, Raptor mini).
+These weaker models often struggle with complex coding tasks.
+
+**The Solution:** Mouse works seamlessly with ALL modelsâ€”including free-tier ones!
+
+**Messaging Ideas:**
+- "Never get stranded when premium credits run out!"
+- "Mouse keeps Copilot on pointâ€”even with weaker models"
+- "Premium performance from non-premium models"
+- "Your safety net when credits hit zero"
+
+**Why This Matters:**
+1. **Reduces churn** â€” Users don't abandon Copilot mid-month
+2. **Democratizes access** â€” Free-tier users get pro-level tooling
+3. **Differentiator** â€” No other MCP server offers this "model insurance"
+
+> **í³Š DEFERRED:** Benchmark studies comparing Mouse+weak model vs. strong model alone.
+> Would make compelling marketing data but not prioritized for v0.9.9 timeline.
 ---
 
 ## Executive Summary
