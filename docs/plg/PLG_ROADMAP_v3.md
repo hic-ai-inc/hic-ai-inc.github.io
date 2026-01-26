@@ -1,9 +1,9 @@
 # PLG Roadmap v3 — Final Sprint to Launch
 
-**Document Version:** 3.0  
+**Document Version:** 3.0.7  
 **Date:** January 26, 2026  
 **Owner:** General Counsel  
-**Status:** ��� ACTIVE — SPRINT TO LAUNCH
+**Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
 
 ---
 
@@ -25,8 +25,8 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 2   | Cookie/Privacy Compliance          | ✅ Documented      | 2h         | GC         | —                |
 | 3   | Auth (Auth0 Integration)           | ✅ Dashboard done  | 8-12h      | GC + Simon | 4 (Admin Portal) |
 | 4   | Admin Portal (Individuals + Teams) | ⚠️ APIs built      | 24-32h     | GC         | 5, 6             |
-| 5   | Licensing (KeyGen.sh)              | ⚠️ Partial         | 8-12h      | Simon      | 7                |
-| 6   | Payments (Stripe)                  | ⚠️ Partial         | 4-6h       | Simon      | —                |
+| 5   | Licensing (KeyGen.sh)              | ✅ Dashboard done  | 8-12h      | Simon      | 7                |
+| 6   | Payments (Stripe)                  | ✅ Dashboard done  | 4-6h       | Simon      | —                |
 | 7   | AWS Infrastructure                 | ✅ Templates exist | 4-6h       | GC         | —                |
 | 8   | VS Code Extension (VSIX)           | ⬜ Not started     | 4-8h       | Simon      | 5, 6             |
 | 9   | Back-End E2E Testing               | ⬜ Not started     | 8-12h      | GC         | 3-8              |
@@ -230,7 +230,7 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ## 5. Licensing (KeyGen.sh)
 
-**Status:** ⚠️ Partial — Account created, code exists, not configured  
+**Status:** ✅ Dashboard configured — Product, policies, and token created  
 **Est. Hours:** 8-12h  
 **Documentation:** [20260122_SECURITY_CONSIDERATIONS_FOR_KEYGEN_LICENSING.md](./20260122_SECURITY_CONSIDERATIONS_FOR_KEYGEN_LICENSING.md)
 
@@ -242,32 +242,31 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ### 5.2 Simon's KeyGen.sh Dashboard Tasks
 
-| Task                                                                     | Status | Notes                           |
-| ------------------------------------------------------------------------ | ------ | ------------------------------- |
-| **Account Setup**                                                        |        |                                 |
-| Log into KeyGen.sh dashboard                                             | ⬜     | keygen.sh                       |
-| Note Account ID                                                          | ⬜     | For env vars                    |
-| Generate Admin API Token                                                 | ⬜     | For server-side calls           |
-| Generate Product Token (read-only)                                       | ⬜     | For client validation           |
-| **Product Configuration**                                                |        |                                 |
-| Create Product: "Mouse"                                                  | ⬜     | Main product                    |
-| **Policy Configuration**                                                 |        |                                 |
-| Create Policy: `policy_individual`                                       | ⬜     | maxMachines: 2, heartbeat: 900s |
-| Create Policy: `policy_team`                                             | ⬜     | maxMachines: 5, heartbeat: 900s |
-| Set overage strategy: `ALWAYS_ALLOW_OVERAGE`                             | ⬜     | Per pricing spec                |
-| Enable heartbeat for concurrent sessions                                 | ⬜     | 5-min ping, 15-min expiry       |
-| **Webhook Configuration**                                                |        |                                 |
-| Add webhook URL: `https://hic-ai.com/api/webhooks/keygen`                | ⬜     | —                               |
-| Select events: `license.created`, `license.revoked`, `machine.activated` | ⬜     | —                               |
-| Note webhook secret                                                      | ⬜     | For signature verification      |
-| **Environment Variables**                                                |        |                                 |
-| `KEYGEN_ACCOUNT_ID`                                                      | ⬜     | From dashboard                  |
-| `KEYGEN_PRODUCT_ID`                                                      | ⬜     | From product creation           |
-| `KEYGEN_ADMIN_TOKEN`                                                     | ⬜     | For license creation            |
-| `KEYGEN_PRODUCT_TOKEN`                                                   | ⬜     | For validation (optional)       |
-| `KEYGEN_POLICY_INDIVIDUAL_ID`                                            | ⬜     | From policy creation            |
-| `KEYGEN_POLICY_TEAM_ID`                                                  | ⬜     | From policy creation            |
-| `KEYGEN_WEBHOOK_SECRET`                                                  | ⬜     | From webhook config             |
+| Task                                                                     | Status | Notes                                                         |
+| ------------------------------------------------------------------------ | ------ | ------------------------------------------------------------- |
+| **Account Setup**                                                        |        |                                                               |
+| Log into KeyGen.sh dashboard                                             | ✅     | keygen.sh                                                     |
+| Note Account ID                                                          | ✅     | `868fccd3-676d-4b9d-90ab-c86ae54419f6`                        |
+| Generate Admin API Token                                                 | ✅     | Product Token created                                         |
+| Generate Product Token (read-only)                                       | ✅     | Saved in .env.local                                           |
+| **Product Configuration**                                                |        |                                                               |
+| Create Product: "Mouse"                                                  | ✅     | `4abf1f35-fc54-45ab-8499-10012073ac2d`                        |
+| **Policy Configuration**                                                 |        |                                                               |
+| Create Policy: `policy_individual`                                       | ✅     | `91f1947e-0730-48f9-b19a-eb8016ae2f84` (3 machines, Floating) |
+| Create Policy: `policy_business`                                         | ✅     | `b0bcab98-6693-4c44-ad0d-ee3dbb069aea` (5 machines, Floating) |
+| Set policy type: Floating                                                | ✅     | Allows machine swapping                                       |
+| Enable heartbeat for concurrent sessions                                 | ✅     | 10-min heartbeat, Keep Dead + Always Revive                   |
+| **Webhook Configuration**                                                |        |                                                               |
+| Add webhook URL: `https://hic-ai.com/api/webhooks/keygen`                | ⬜     | TODO                                                          |
+| Select events: `license.created`, `license.revoked`, `machine.activated` | ⬜     | TODO                                                          |
+| Note webhook secret                                                      | ⬜     | For signature verification                                    |
+| **Environment Variables**                                                |        |                                                               |
+| `KEYGEN_ACCOUNT_ID`                                                      | ✅     | Saved in .env.local                                           |
+| `KEYGEN_PRODUCT_ID`                                                      | ✅     | `4abf1f35-fc54-45ab-8499-10012073ac2d`                        |
+| `KEYGEN_PRODUCT_TOKEN`                                                   | ✅     | Saved in .env.local                                           |
+| `KEYGEN_POLICY_ID_INDIVIDUAL`                                            | ✅     | Saved in .env.local                                           |
+| `KEYGEN_POLICY_ID_BUSINESS`                                              | ✅     | Saved in .env.local                                           |
+| `KEYGEN_WEBHOOK_SECRET`                                                  | ⬜     | Pending webhook config                                        |
 
 ### 5.3 Code Tasks
 
@@ -283,7 +282,7 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ## 6. Payments (Stripe)
 
-**Status:** ⚠️ Partial — Account created, code exists, products not created  
+**Status:** ✅ Dashboard configured — Products, prices, and webhooks created  
 **Est. Hours:** 4-6h  
 **Documentation:** [20260122_SECURITY_CONSIDERATIONS_FOR_STRIPE_PAYMENTS.md](./20260122_SECURITY_CONSIDERATIONS_FOR_STRIPE_PAYMENTS.md)
 
@@ -295,27 +294,27 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ### 6.2 Simon's Stripe Dashboard Tasks
 
-| Task                                                                                | Status | Notes                                              |
-| ----------------------------------------------------------------------------------- | ------ | -------------------------------------------------- |
-| **Products to Create**                                                              |        |                                                    |
-| `mouse_individual_monthly` — $15/month                                              | ⬜     | metadata: `{tier: "individual", maxConcurrent: 2}` |
-| `mouse_individual_annual` — $150/year                                               | ⬜     | metadata: `{tier: "individual", maxConcurrent: 2}` |
-| `mouse_team_monthly` — $35/month                                                    | ⬜     | metadata: `{tier: "team", maxConcurrent: 5}`       |
-| `mouse_team_annual` — $350/year                                                     | ⬜     | metadata: `{tier: "team", maxConcurrent: 5}`       |
-| **Coupons (Optional)**                                                              |        |                                                    |
-| `EARLYADOPTER20` — 20% off first year                                               | ⬜     | Time-boxed promo                                   |
-| **Webhook Configuration**                                                           |        |                                                    |
-| Add webhook URL: `https://hic-ai.com/api/webhooks/stripe`                           | ⬜     | —                                                  |
-| Select events: `checkout.session.completed`, `customer.subscription.*`, `invoice.*` | ⬜     | —                                                  |
-| Note webhook signing secret                                                         | ⬜     | For signature verification                         |
-| **Environment Variables**                                                           |        |                                                    |
-| `STRIPE_SECRET_KEY`                                                                 | ⬜     | sk*live*... (or sk*test*...)                       |
-| `STRIPE_PUBLISHABLE_KEY`                                                            | ⬜     | pk*live*...                                        |
-| `STRIPE_WEBHOOK_SECRET`                                                             | ⬜     | whsec\_...                                         |
-| `STRIPE_PRICE_INDIVIDUAL_MONTHLY`                                                   | ⬜     | price\_...                                         |
-| `STRIPE_PRICE_INDIVIDUAL_ANNUAL`                                                    | ⬜     | price\_...                                         |
-| `STRIPE_PRICE_TEAM_MONTHLY`                                                         | ⬜     | price\_...                                         |
-| `STRIPE_PRICE_TEAM_ANNUAL`                                                          | ⬜     | price\_...                                         |
+| Task                                                      | Status | Notes                                          |
+| --------------------------------------------------------- | ------ | ---------------------------------------------- |
+| **Products Created**                                      |        |                                                |
+| Mouse Individual — $15/month                              | ✅     | `price_1StthcA4W8nJ0u4TVZkkEcUn`               |
+| Mouse Individual — $150/year                              | ✅     | `price_1Sttp1A4W8nJ0u4T0Tw3bqNO`               |
+| Mouse Business — $35/seat/month                           | ✅     | `price_1SttsRA4W8nJ0u4TrFSEG9E5`               |
+| Mouse Business — $350/seat/year                           | ✅     | `price_1SttsRA4W8nJ0u4TaqmRFVf5`               |
+| **Coupons (Optional)**                                    |        |                                                |
+| `EARLYADOPTER20` — 20% off first year                     | ⬜     | Time-boxed promo                               |
+| **Webhook Configuration**                                 |        |                                                |
+| Add webhook URL: `https://hic-ai.com/api/webhooks/stripe` | ✅     | Destination: "PLG Website"                     |
+| Select events (15+ event types)                           | ✅     | checkout, subscription, invoice, dispute, etc. |
+| Note webhook signing secret                               | ✅     | Saved in .env.local                            |
+| **Environment Variables**                                 |        |                                                |
+| `STRIPE_SECRET_KEY`                                       | ✅     | Saved in .env.local (test mode)                |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`                      | ✅     | Saved in .env.local (test mode)                |
+| `STRIPE_WEBHOOK_SECRET`                                   | ✅     | Saved in .env.local                            |
+| `NEXT_PUBLIC_STRIPE_PRICE_INDIVIDUAL_MONTHLY`             | ✅     | Saved in .env.local                            |
+| `NEXT_PUBLIC_STRIPE_PRICE_INDIVIDUAL_ANNUAL`              | ✅     | Saved in .env.local                            |
+| `NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_MONTHLY`               | ✅     | Saved in .env.local                            |
+| `NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_ANNUAL`                | ✅     | Saved in .env.local                            |
 
 ### 6.3 Stripe Customer Portal
 
