@@ -154,22 +154,22 @@ export default function HomePage() {
                 </Button>
               </div>
 
-              {/* Enterprise */}
+              {/* Business */}
               <div className="card">
                 <h3 className="text-lg font-semibold text-frost-white">
-                  Enterprise
+                  Business
                 </h3>
                 <div className="my-4">
                   <span className="text-4xl font-bold text-frost-white">
-                    ${PRICING.enterprise.pricePerSeat}
+                    ${PRICING.business.pricePerSeat}
                   </span>
                   <span className="text-slate-grey">/seat/mo</span>
                 </div>
                 <p className="text-sm text-slate-grey mb-6">
-                  {PRICING.enterprise.description}
+                  {PRICING.business.description}
                 </p>
                 <Button href="/pricing" variant="secondary" className="w-full">
-                  Contact Sales
+                  Start Free Trial
                 </Button>
               </div>
             </div>

@@ -498,6 +498,141 @@ export default function FeaturesPage() {
           </div>
         </section>
 
+        {/* Compatibility Section - Expansion Plan v0.9.9 Results */}
+        <section
+          aria-labelledby="compatibility-heading"
+          className="py-20 px-6 border-t border-card-border"
+        >
+          <div className="max-w-6xl mx-auto">
+            <h2
+              id="compatibility-heading"
+              className="text-3xl font-bold text-frost-white mb-4 text-center"
+            >
+              Compatibility
+            </h2>
+            <p className="text-silver text-center mb-12 max-w-3xl mx-auto">
+              Mouse works with an extensive range of IDEs, extensions, and AI
+              models.
+            </p>
+
+            <div className="grid lg:grid-cols-3 gap-8">
+              {/* IDEs Table */}
+              <div className="bg-card-bg rounded-lg p-6 border border-card-border">
+                <h3 className="text-xl font-semibold text-frost-white mb-4">
+                  IDEs & Editors
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">VS Code</span>
+                    <span className="text-green-400">✓ Confirmed</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Cursor</span>
+                    <span className="text-green-400">✓ Confirmed</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Kiro</span>
+                    <span className="text-green-400">✓ Confirmed</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Windsurf</span>
+                    <span className="text-amber-400">⏳ Pending</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Visual Studio</span>
+                    <span className="text-amber-400">⏳ Pending</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-silver">JetBrains IDEs</span>
+                    <span className="text-amber-400">⏳ Pending</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Extensions Table */}
+              <div className="bg-card-bg rounded-lg p-6 border border-card-border">
+                <h3 className="text-xl font-semibold text-frost-white mb-4">
+                  VS Code Extensions
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">GitHub Copilot</span>
+                    <span className="text-green-400">✓</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Amazon Q Developer</span>
+                    <span className="text-green-400">✓</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Claude Code</span>
+                    <span className="text-green-400">✓</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Roo Code</span>
+                    <span className="text-green-400">✓</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Cline</span>
+                    <span className="text-green-400">✓</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-card-border/50">
+                    <span className="text-silver">Kilo Code</span>
+                    <span className="text-green-400">✓</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-silver">CodeGPT Chat</span>
+                    <span className="text-green-400">✓</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Models Table */}
+              <div className="bg-card-bg rounded-lg p-6 border border-card-border">
+                <h3 className="text-xl font-semibold text-frost-white mb-4">
+                  AI Models
+                </h3>
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <p className="text-electric-cyan font-medium mb-1">
+                      Anthropic
+                    </p>
+                    <p className="text-silver">All Claude models (4.0+)</p>
+                  </div>
+                  <div>
+                    <p className="text-electric-cyan font-medium mb-1">
+                      Google
+                    </p>
+                    <p className="text-silver">All Gemini models (2.5+)</p>
+                  </div>
+                  <div>
+                    <p className="text-electric-cyan font-medium mb-1">
+                      OpenAI
+                    </p>
+                    <p className="text-silver">All GPT models (4o+)</p>
+                  </div>
+                  <div>
+                    <p className="text-electric-cyan font-medium mb-1">Other</p>
+                    <p className="text-silver">Raptor mini</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Value Proposition */}
+            <div className="mt-10 bg-card-bg rounded-lg p-8 border-2 border-green-500/60 text-center">
+              <h3 className="text-xl font-bold text-green-400 mb-3">
+                Keep Coding When Credits Run Out
+              </h3>
+              <p className="text-silver max-w-2xl mx-auto text-lg">
+                Mouse&apos;s compatibility with free-tier and lower-cost models
+                means human developers can continue high-stakes work even after
+                premium monthly credits are exhausted. Token efficiency makes
+                every model more capable.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section className="py-24 bg-gradient-to-b from-midnight-navy to-card-bg/30 border-t border-card-border">
           <div className="max-w-3xl mx-auto px-6 text-center">

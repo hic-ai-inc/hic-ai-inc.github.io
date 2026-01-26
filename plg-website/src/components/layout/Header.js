@@ -32,6 +32,7 @@ export default function Header() {
             alt="Mouse Logo"
             width={192}
             height={192}
+            priority
             className="h-48 w-48 scale-100"
             style={{ objectFit: "none", objectPosition: "center 55%" }}
           />
@@ -59,11 +60,9 @@ export default function Header() {
             ))}
           </div>
 
-          {/* Auth Buttons */}
+          {/* Auth Buttons - Show default (logged out) state immediately, no loading flicker */}
           <div className="flex items-center gap-4">
-            {isLoading ? (
-              <div className="w-24 h-10 bg-card-bg rounded-lg animate-pulse" />
-            ) : user ? (
+            {!isLoading && user ? (
               <Button href="/portal" variant="primary" size="sm">
                 Portal
               </Button>

@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 import { PRICING, STRIPE_PRICES } from "@/lib/constants";
 
 export async function POST(request) {
@@ -18,18 +18,18 @@ export async function POST(request) {
     const { plan, billingCycle = "monthly", seats = 1, promoCode } = body;
 
     // Validate plan
-    if (!plan || !["individual", "enterprise"].includes(plan)) {
+    if (!plan || !["individual", "business"].includes(plan)) {
       return NextResponse.json(
         { error: "Invalid plan specified" },
         { status: 400 },
       );
     }
 
-    // Enterprise requires minimum seats
-    if (plan === "enterprise" && seats < PRICING.enterprise.minSeats) {
+    // Business requires minimum seats
+    if (plan === "business" && seats < PRICING.business.minSeats) {
       return NextResponse.json(
         {
-          error: `Enterprise plan requires minimum ${PRICING.enterprise.minSeats} seats`,
+          error: `Business plan requires minimum ${PRICING.business.minSeats} seats`,
         },
         { status: 400 },
       );
@@ -45,14 +45,11 @@ export async function POST(request) {
           ? STRIPE_PRICES.individual.annual
           : STRIPE_PRICES.individual.monthly;
     } else {
-      // Enterprise - select tier based on seat count
-      if (seats >= 500) {
-        priceId = STRIPE_PRICES.enterprise.seats500;
-      } else if (seats >= 100) {
-        priceId = STRIPE_PRICES.enterprise.seats100;
-      } else {
-        priceId = STRIPE_PRICES.enterprise.seats10;
-      }
+      // Business - per-seat pricing
+      priceId =
+        billingCycle === "annual"
+          ? STRIPE_PRICES.business.annual
+          : STRIPE_PRICES.business.monthly;
       quantity = seats;
     }
 
@@ -93,9 +90,10 @@ export async function POST(request) {
     }
 
     // Add specific promo code if provided
+    const stripeClient = getStripeClient();
     if (promoCode) {
       // Look up promotion code in Stripe
-      const promotionCodes = await stripe.promotionCodes.list({
+      const promotionCodes = await stripeClient.promotionCodes.list({
         code: promoCode,
         active: true,
         limit: 1,
@@ -110,7 +108,7 @@ export async function POST(request) {
 
     // Create checkout session
     const checkoutSession =
-      await stripe.checkout.sessions.create(checkoutParams);
+      await stripeClient.checkout.sessions.create(checkoutParams);
 
     return NextResponse.json({
       sessionId: checkoutSession.id,
