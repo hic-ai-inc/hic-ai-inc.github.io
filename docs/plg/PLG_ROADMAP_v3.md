@@ -257,16 +257,16 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 | Set policy type: Floating                                                | ✅     | Allows machine swapping                                       |
 | Enable heartbeat for concurrent sessions                                 | ✅     | 10-min heartbeat, Keep Dead + Always Revive                   |
 | **Webhook Configuration**                                                |        |                                                               |
-| Add webhook URL: `https://hic-ai.com/api/webhooks/keygen`                | ⬜     | TODO                                                          |
-| Select events: `license.created`, `license.revoked`, `machine.activated` | ⬜     | TODO                                                          |
-| Note webhook secret                                                      | ⬜     | For signature verification                                    |
+| Add webhook URL: `https://hic-ai.com/api/webhooks/keygen`                | ✅     | Endpoint ID: `4c09c047-20ac-4862-a6c5-97937742ad59`           |
+| Select events: `*` (all events)                                          | ✅     | Subscribed to all license/machine events                      |
+| Configure Ed25519 signature verification                                 | ✅     | Public key saved in .env.local                                |
 | **Environment Variables**                                                |        |                                                               |
 | `KEYGEN_ACCOUNT_ID`                                                      | ✅     | Saved in .env.local                                           |
 | `KEYGEN_PRODUCT_ID`                                                      | ✅     | `4abf1f35-fc54-45ab-8499-10012073ac2d`                        |
 | `KEYGEN_PRODUCT_TOKEN`                                                   | ✅     | Saved in .env.local                                           |
 | `KEYGEN_POLICY_ID_INDIVIDUAL`                                            | ✅     | Saved in .env.local                                           |
 | `KEYGEN_POLICY_ID_BUSINESS`                                              | ✅     | Saved in .env.local                                           |
-| `KEYGEN_WEBHOOK_SECRET`                                                  | ⬜     | Pending webhook config                                        |
+| `KEYGEN_WEBHOOK_PUBLIC_KEY`                                              | ✅     | Ed25519 public key saved in .env.local                        |
 
 ### 5.3 Code Tasks
 

@@ -20,35 +20,107 @@ import {
 import { sendPaymentFailedEmail, sendLicenseRevokedEmail } from "@/lib/ses";
 import crypto from "crypto";
 
-const KEYGEN_WEBHOOK_SECRET = process.env.KEYGEN_WEBHOOK_SECRET;
+// Ed25519 public key from KeyGen webhook configuration
+// Format: base64-encoded public key
+const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
 
 /**
- * Verify Keygen webhook signature
+ * Verify Keygen webhook signature using Ed25519
+ *
+ * KeyGen sends signatures in the format:
+ * Keygen-Signature: keyid="..." algorithm="ed25519" signature="<base64-signature>" headers="..."
+ *
+ * @param {string} payload - Raw request body
+ * @param {string} signatureHeader - Value of Keygen-Signature header
+ * @param {Request} request - Original request for reconstructing signing string
+ * @returns {boolean} - Whether signature is valid
  */
-function verifySignature(payload, signature) {
-  if (!KEYGEN_WEBHOOK_SECRET) {
-    console.warn("KEYGEN_WEBHOOK_SECRET not set, skipping verification");
+function verifySignature(payload, signatureHeader, request) {
+  if (!KEYGEN_WEBHOOK_PUBLIC_KEY) {
+    console.warn("KEYGEN_WEBHOOK_PUBLIC_KEY not set, skipping verification");
     return true;
   }
 
-  const expectedSignature = crypto
-    .createHmac("sha256", KEYGEN_WEBHOOK_SECRET)
-    .update(payload)
-    .digest("hex");
+  if (!signatureHeader) {
+    console.warn("No Keygen-Signature header present");
+    return false;
+  }
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature),
-  );
+  try {
+    // Parse the signature header
+    // Format: keyid="..." algorithm="ed25519" signature="<base64>" headers="(request-target) host date digest"
+    const parts = {};
+    const regex = /(\w+)="([^"]+)"/g;
+    let match;
+    while ((match = regex.exec(signatureHeader)) !== null) {
+      parts[match[1]] = match[2];
+    }
+
+    const { algorithm, signature, headers } = parts;
+
+    if (algorithm !== "ed25519") {
+      console.error(`Unexpected algorithm: ${algorithm}`);
+      return false;
+    }
+
+    // Reconstruct the signing string based on headers
+    const headerList = headers.split(" ");
+    const signingParts = [];
+
+    for (const header of headerList) {
+      if (header === "(request-target)") {
+        signingParts.push(`(request-target): post /api/webhooks/keygen`);
+      } else if (header === "digest") {
+        // Digest is SHA-256 of the body
+        const digest = crypto
+          .createHash("sha256")
+          .update(payload)
+          .digest("base64");
+        signingParts.push(`digest: sha-256=${digest}`);
+      } else if (header === "host") {
+        signingParts.push(
+          `host: ${request.headers.get("host") || "hic-ai.com"}`,
+        );
+      } else if (header === "date") {
+        signingParts.push(`date: ${request.headers.get("date") || ""}`);
+      } else {
+        const value = request.headers.get(header);
+        if (value) {
+          signingParts.push(`${header}: ${value}`);
+        }
+      }
+    }
+
+    const signingString = signingParts.join("\n");
+
+    // Verify the Ed25519 signature
+    const publicKey = crypto.createPublicKey({
+      key: Buffer.from(KEYGEN_WEBHOOK_PUBLIC_KEY, "base64"),
+      format: "der",
+      type: "spki",
+    });
+
+    const isValid = crypto.verify(
+      null, // Ed25519 doesn't use a separate hash algorithm
+      Buffer.from(signingString),
+      publicKey,
+      Buffer.from(signature, "base64"),
+    );
+
+    return isValid;
+  } catch (error) {
+    console.error("Signature verification error:", error);
+    return false;
+  }
 }
 
 export async function POST(request) {
   try {
     const payload = await request.text();
-    const signature = request.headers.get("keygen-signature");
+    const signatureHeader = request.headers.get("keygen-signature");
 
-    // Verify webhook signature
-    if (signature && !verifySignature(payload, signature)) {
+    // Verify webhook signature (Ed25519)
+    if (!verifySignature(payload, signatureHeader, request)) {
       console.error("Invalid Keygen webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
