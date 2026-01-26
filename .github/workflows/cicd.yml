@@ -1,0 +1,167 @@
+name: PLG Website CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [development, main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [development, main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "development"
+        type: choice
+        options: [development, production]
+
+env:
+  NODE_VERSION: "20.x"
+  AWS_REGION: "us-east-1"
+  HEALTH_CHECK_TIMEOUT_DEV: "30"
+  HEALTH_CHECK_TIMEOUT_PROD: "60"
+  HEALTH_CHECK_INTERVAL: "10"
+  # Optional guard if tests key off this to avoid OS-specific side effects:
+  HIC_TEST_MODE: "1"
+
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Stage 1: Code Quality Gate (Fast feedback)
+  code-quality:
+    name: Code Quality Gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      systems: ${{ steps.detect-systems.outputs.systems }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      # Ensure dm (dependency facade) is installed FIRST so its helpers can resolve deps
+      - name: Preinstall dm facade deps
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "dm" ] && [ -f "dm/package.json" ]; then
+            pushd dm >/dev/null
+            if [ -f "package-lock.json" ]; then
+              env -u NODE_OPTIONS npm ci
+            else
+              env -u NODE_OPTIONS npm install
+            fi
+            popd >/dev/null
+          fi
+
+      # Dynamic detection: find all directories with package.json
+      - name: Detect systems
+        id: detect-systems
+        shell: bash
+        run: |
+          set -euo pipefail
+          SYSTEMS=""
+          # Find all first-level directories with package.json
+          for dir in */; do
+            system="${dir%/}"
+            if [ -f "${system}/package.json" ]; then
+              SYSTEMS="$SYSTEMS ${system}"
+            fi
+          done
+          echo "systems=${SYSTEMS# }" >> "$GITHUB_OUTPUT"
+          echo "Found systems:${SYSTEMS}"
+
+      - name: Install deps and run tests per system
+        shell: bash
+        env:
+          # Set NODE_OPTIONS only during test execution after deps are installed
+          NODE_OPTIONS: "--import=${{ github.workspace }}/dm/facade/utils/test-loader.js"
+        run: |
+          set -euo pipefail
+
+          # Use detected systems, but ensure 'dm' runs first if present
+          SYSTEMS="${{ steps.detect-systems.outputs.systems }}"
+          if echo "$SYSTEMS" | grep -qw dm; then
+            ORDERED="dm $(printf '%s\n' $SYSTEMS | tr ' ' '\n' | grep -vw dm | xargs)"
+          else
+            ORDERED="$SYSTEMS"
+          fi
+
+          for system in $ORDERED; do
+            echo "::group::${system} - install"
+            pushd "$system" >/dev/null
+            # Install without NODE_OPTIONS to avoid test-loader dependency issues
+            # Use npm ci if package-lock.json exists, otherwise use npm install
+            if [ -f "package-lock.json" ]; then
+              env -u NODE_OPTIONS npm ci
+            else
+              env -u NODE_OPTIONS npm install
+            fi
+            echo "::endgroup::"
+
+            echo "::group::${system} - test"
+            # Run coverage if available (includes tests), otherwise run tests
+            if jq -er '.scripts["test:coverage"]' package.json >/dev/null 2>&1; then
+              npm run test:coverage
+            elif jq -er '.scripts.test' package.json >/dev/null 2>&1; then
+              npm test
+            else
+              echo "No test script in ${system}/package.json; skipping"
+            fi
+            echo "::endgroup::"
+            popd >/dev/null
+          done
+
+  # Stage 2: System Integration (Development environment) - DISABLED for now
+  system-integration:
+    name: System Integration Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+    if: false # Enable after AWS OIDC role wired up
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Placeholder
+        run: echo "System integration tests disabled until AWS configuration is complete"
+
+  # Stage 3: Production Readiness (Main branch) - DISABLED for now
+  production-readiness:
+    name: Production Readiness Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+    if: false
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Placeholder
+        run: echo "Production deployment disabled until AWS configuration is complete"
+
+  notify:
+    name: Pipeline Results
+    runs-on: ubuntu-latest
+    needs: [code-quality, system-integration, production-readiness]
+    if: always()
+    steps:
+      - name: Report results
+        run: |
+          if [ "${{ needs.code-quality.result }}" = "success" ]; then
+            echo "✅ Code quality tests passed"
+            echo "Systems tested: ${{ needs.code-quality.outputs.systems }}"
+          else
+            echo "❌ Code quality tests failed"
+            exit 1
+          fi
