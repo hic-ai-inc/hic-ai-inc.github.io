@@ -25,7 +25,7 @@
 | ------------------------------------------------ | ------- | ---------------------------------------------- |
 | `mouse/src/licensing/constants.js`               | ⬜ TODO | Remove LS URLs, add HIC API URLs, update tiers |
 | `mouse/src/licensing/providers/http-provider.js` | ⬜ TODO | JSON format, add heartbeat method              |
-| `mouse/src/licensing/license-checker.js`         | ⬜ TODO | Add heartbeat loop (5 min interval)            |
+| `mouse/src/licensing/license-checker.js`         | ⬜ TODO | Add heartbeat loop (10 min interval)           |
 | `mouse/src/licensing/license-state.js`           | ⬜ TODO | Store sessionId, remove instanceId references  |
 
 ### 🔴 HIGH PRIORITY: Website Backend (hic-ai-inc.github.io repo)

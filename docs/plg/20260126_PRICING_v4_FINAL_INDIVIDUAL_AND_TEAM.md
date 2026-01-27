@@ -11,12 +11,14 @@
 **Decision:** Enterprise tier ($49/mo with SSO/SCIM) is **deferred to post-launch**.
 
 **Rationale:**
+
 - SSO/SAML integration requires significant Auth0 configuration and testing
 - SCIM provisioning adds complexity we don't need for launch
 - Focus on proving PLG model with Individual + Team first
 - Enterprise features can be added once we have B2B traction
 
 **Impact:**
+
 - 2-tier model simplifies implementation
 - Team tier becomes the "top" tier for now
 - Enterprise prospects can contact sales for custom arrangements
@@ -25,10 +27,10 @@
 
 ## Quick Reference: Final Pricing (v4)
 
-| Tier       | Price   | Sessions     | Annual    | Target                |
-| ---------- | ------- | ------------ | --------- | --------------------- |
-| Individual | $15/mo  | 2 concurrent | $150/year | PLG self-serve        |
-| Team       | $35/mo  | 5 concurrent | $350/year | Default B2B, managers |
+| Tier       | Price  | Sessions     | Annual    | Target                |
+| ---------- | ------ | ------------ | --------- | --------------------- |
+| Individual | $15/mo | 2 concurrent | $150/year | PLG self-serve        |
+| Team       | $35/mo | 5 concurrent | $350/year | Default B2B, managers |
 
 > **Note:** Enterprise tier (SSO/SCIM, $49/mo) deferred to post-launch. Contact sales for custom arrangements.
 
@@ -42,7 +44,7 @@
 | ------------------------------------------------ | ------- | ---------------------------------------------- |
 | `mouse/src/licensing/constants.js`               | ⬜ TODO | Remove LS URLs, add HIC API URLs, update tiers |
 | `mouse/src/licensing/providers/http-provider.js` | ⬜ TODO | JSON format, add heartbeat method              |
-| `mouse/src/licensing/license-checker.js`         | ⬜ TODO | Add heartbeat loop (5 min interval)            |
+| `mouse/src/licensing/license-checker.js`         | ⬜ TODO | Add heartbeat loop (10 min interval)           |
 | `mouse/src/licensing/license-state.js`           | ⬜ TODO | Store sessionId, remove instanceId references  |
 
 ### 🔴 HIGH PRIORITY: Website Backend (hic-ai-inc.github.io repo)
@@ -182,9 +184,9 @@ If concurrent session model causes issues:
 
 ## Document History
 
-| Version | Date | Changes |
-|---------|------|---------|
-| v4 | Jan 26, 2026 | Remove Enterprise tier, 2-tier launch model |
-| v3 | Jan 25, 2026 | Added Enterprise with SSO/SCIM |
+| Version | Date         | Changes                                     |
+| ------- | ------------ | ------------------------------------------- |
+| v4      | Jan 26, 2026 | Remove Enterprise tier, 2-tier launch model |
+| v3      | Jan 25, 2026 | Added Enterprise with SSO/SCIM              |
 
 _This is the definitive pricing document for Mouse PLG launch._

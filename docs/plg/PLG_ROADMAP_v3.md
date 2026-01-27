@@ -276,7 +276,7 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 | Task                                      | Status | Notes                   |
 | ----------------------------------------- | ------ | ----------------------- |
 | Update `keygen.js` with heartbeat support | ⬜     | For concurrent sessions |
-| Implement machine heartbeat in extension  | ⬜     | 5-min interval          |
+| Implement machine heartbeat in extension  | ⬜     | 10-min interval         |
 | Test license creation flow                | ⬜     | Stripe → KeyGen         |
 | Test activation/deactivation              | ⬜     | Portal → KeyGen         |
 | Test heartbeat timeout                    | ⬜     | Session expiry          |
@@ -442,7 +442,7 @@ Mouse is currently distributed via GitHub Packages (`@hic/mouse`). For VS Code M
 | **Licensing Integration**                         |        |                                            |
 | Wire extension to call HIC API for validation     | ⬜     | Currently points to Lemon Squeezy!         |
 | Update `http-provider.js` to use `api.hic-ai.com` | ⬜     | Critical fix                               |
-| Add heartbeat loop for concurrent sessions        | ⬜     | 5-min interval                             |
+| Add heartbeat loop for concurrent sessions        | ⬜     | 10-min interval                            |
 
 ### 8.3 Critical: Extension Licensing Fix
 

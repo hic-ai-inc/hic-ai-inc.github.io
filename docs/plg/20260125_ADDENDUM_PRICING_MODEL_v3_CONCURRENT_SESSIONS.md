@@ -43,7 +43,7 @@ This addendum documents a fundamental restructure of the Mouse pricing and licen
 | -------------- | ------------- | -------------------- | ----------------------------- | --------------- |
 | **Individual** | $15/seat/mo   | 2                    | Solo developers, PLG funnel   | At payment      |
 | **Team**       | $35/seat/mo   | 5                    | Default B2B, manager-friendly | At payment      |
-| **Enterprise** | $49/seat/mo   | 10                   | SSO, SCIM, priority support     | At payment      |
+| **Enterprise** | $49/seat/mo   | 10                   | SSO, SCIM, priority support   | At payment      |
 | **Automation** | Contact Sales | Per concurrent agent | Agent farms, CI/CD            | Sales process   |
 
 \> **Note:** Enterprise tier includes SSO/SAML integration, SCIM provisioning for license reassignment, priority support SLA, and audit logging.
@@ -80,19 +80,20 @@ Team and Enterprise require annual billing minimum for volume discounts.
 
 The Enterprise tier ($49/seat/mo) includes exclusive features that justify the premium over Team ($35/seat/mo):
 
-| Feature | Individual | Team | Enterprise |
-| ------- | ---------- | ---- | ---------- |
-| Concurrent sessions | 2 | 5 | **10** |
-| SSO/SAML integration | ❌ | ❌ | ✅ |
-| SCIM provisioning | ❌ | ❌ | ✅ |
-| License reassignment | Self-serve | Self-serve | **Admin portal + SCIM** |
-| Support SLA | Community | Email (48h) | **Priority (4h)** |
-| Audit logging | ❌ | ❌ | ✅ |
-| Dedicated success manager | ❌ | ❌ | 50+ seats |
-| Custom contract terms | ❌ | ❌ | Available |
-| Invoice billing (NET-30) | ❌ | ❌ | ✅ |
+| Feature                   | Individual | Team        | Enterprise              |
+| ------------------------- | ---------- | ----------- | ----------------------- |
+| Concurrent sessions       | 2          | 5           | **10**                  |
+| SSO/SAML integration      | ❌         | ❌          | ✅                      |
+| SCIM provisioning         | ❌         | ❌          | ✅                      |
+| License reassignment      | Self-serve | Self-serve  | **Admin portal + SCIM** |
+| Support SLA               | Community  | Email (48h) | **Priority (4h)**       |
+| Audit logging             | ❌         | ❌          | ✅                      |
+| Dedicated success manager | ❌         | ❌          | 50+ seats               |
+| Custom contract terms     | ❌         | ❌          | Available               |
+| Invoice billing (NET-30)  | ❌         | ❌          | ✅                      |
 
 **Why $49/mo is justified:**
+
 1. **SSO/SAML**: Enterprises require identity federation — Okta, Azure AD, OneLogin
 2. **SCIM**: Automated user provisioning/deprovisioning when employees join/leave
 3. **Priority support**: 4-hour response SLA vs 48-hour for Team
@@ -332,7 +333,7 @@ Each Stripe product should include metadata:
 
 Configure KeyGen machine heartbeat:
 
-- **Heartbeat interval**: 5 minutes
+- **Heartbeat interval**: 10 minutes
 - **Expiry after no heartbeat**: 15 minutes
 - **Resurrection window**: None (new session required)
 

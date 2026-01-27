@@ -23,25 +23,25 @@ The backend infrastructure (KeyGen.sh, Stripe, DynamoDB, SES) is **already compl
 
 ### In `hic-ai-inc/hic` (Mouse Repo)
 
-| Component | Status | Location |
-|-----------|--------|----------|
-| **MCP Server** | ✅ Production-ready | `mouse/src/` |
-| **All Mouse Tools** | ✅ Working | `mouse/src/tools/` |
-| **NPX Distribution** | ✅ Working | `npx @hic-ai-inc/mouse` |
-| **E2E Tests** | ✅ Passing | `mouse/__tests__/` |
-| **Packaging Scripts** | ✅ Exist | `packaging/` |
+| Component             | Status              | Location                |
+| --------------------- | ------------------- | ----------------------- |
+| **MCP Server**        | ✅ Production-ready | `mouse/src/`            |
+| **All Mouse Tools**   | ✅ Working          | `mouse/src/tools/`      |
+| **NPX Distribution**  | ✅ Working          | `npx @hic-ai-inc/mouse` |
+| **E2E Tests**         | ✅ Passing          | `mouse/__tests__/`      |
+| **Packaging Scripts** | ✅ Exist            | `packaging/`            |
 
 ### In `hic-ai-inc/hic-ai-inc.github.io` (Website Repo)
 
-| Component | Status | Location |
-|-----------|--------|----------|
-| **KeyGen.sh Client** | ✅ Complete (359 lines) | `plg-website/src/lib/keygen.js` |
-| **`machineHeartbeat()` function** | ✅ Implemented | `plg-website/src/lib/keygen.js#L299` |
-| **License Validation API** | ✅ Complete | `plg-website/src/app/api/license/validate/route.js` |
-| **License Activation API** | ✅ Complete | `plg-website/src/app/api/license/activate/route.js` |
-| **Webhook Handlers** | ✅ Complete | `plg-website/src/app/api/webhooks/keygen/route.js` |
-| **DynamoDB Device Tracking** | ✅ Complete | `plg-website/src/lib/dynamodb.js` |
-| **SES Email Templates** | ✅ Complete (893 lines) | `plg-website/src/lib/ses.js` |
+| Component                         | Status                  | Location                                            |
+| --------------------------------- | ----------------------- | --------------------------------------------------- |
+| **KeyGen.sh Client**              | ✅ Complete (359 lines) | `plg-website/src/lib/keygen.js`                     |
+| **`machineHeartbeat()` function** | ✅ Implemented          | `plg-website/src/lib/keygen.js#L299`                |
+| **License Validation API**        | ✅ Complete             | `plg-website/src/app/api/license/validate/route.js` |
+| **License Activation API**        | ✅ Complete             | `plg-website/src/app/api/license/activate/route.js` |
+| **Webhook Handlers**              | ✅ Complete             | `plg-website/src/app/api/webhooks/keygen/route.js`  |
+| **DynamoDB Device Tracking**      | ✅ Complete             | `plg-website/src/lib/dynamodb.js`                   |
+| **SES Email Templates**           | ✅ Complete (893 lines) | `plg-website/src/lib/ses.js`                        |
 
 ---
 
@@ -51,12 +51,12 @@ The backend infrastructure (KeyGen.sh, Stripe, DynamoDB, SES) is **already compl
 
 Create the extension wrapper that hosts the existing MCP server.
 
-| Task | Est. | Notes |
-|------|------|-------|
-| Create `mouse-vscode/package.json` | 1h | VS Code manifest with `engines.vscode`, `activationEvents` |
-| Create `extension.js` entry point | 2h | Activate/deactivate lifecycle |
-| Create `StatusBarManager` class | 1h | Show Mouse status in VS Code |
-| Test in Extension Development Host | 1h | F5 debugging |
+| Task                               | Est. | Notes                                                      |
+| ---------------------------------- | ---- | ---------------------------------------------------------- |
+| Create `mouse-vscode/package.json` | 1h   | VS Code manifest with `engines.vscode`, `activationEvents` |
+| Create `extension.js` entry point  | 2h   | Activate/deactivate lifecycle                              |
+| Create `StatusBarManager` class    | 1h   | Show Mouse status in VS Code                               |
+| Test in Extension Development Host | 1h   | F5 debugging                                               |
 
 **Key Insight:** We're not building Mouse from scratch — we're wrapping the existing `mouse/src/` code in a VS Code extension shell.
 
@@ -64,12 +64,12 @@ Create the extension wrapper that hosts the existing MCP server.
 
 Connect the extension to the existing MCP server.
 
-| Task | Est. | Notes |
-|------|------|-------|
-| Create `McpServerManager` class | 2h | Spawn/manage server process |
-| Bundle MCP server with extension | 2h | Webpack/esbuild config |
-| Wire status bar to server state | 1h | Running/stopped/error indicators |
-| Test MCP communication | 1h | Verify tools work through extension |
+| Task                             | Est. | Notes                               |
+| -------------------------------- | ---- | ----------------------------------- |
+| Create `McpServerManager` class  | 2h   | Spawn/manage server process         |
+| Bundle MCP server with extension | 2h   | Webpack/esbuild config              |
+| Wire status bar to server state  | 1h   | Running/stopped/error indicators    |
+| Test MCP communication           | 1h   | Verify tools work through extension |
 
 **Key Insight:** The MCP server already works via `npx`. We just need to embed it.
 
@@ -77,14 +77,14 @@ Connect the extension to the existing MCP server.
 
 Create the client-side licensing that calls our existing backend APIs.
 
-| Task | Est. | Notes |
-|------|------|-------|
-| Create `licensing/config.js` | 0.5h | URLs, intervals, trial duration |
-| Create `licensing/license-state.js` | 1.5h | Local state in `~/.hic/license.json` |
-| Create `licensing/license-checker.js` | 2h | Main validation logic |
-| Create `licensing/http-provider.js` | 2h | Call `api.hic-ai.com/api/license/*` |
-| Wire to extension activation | 1h | Check license on startup |
-| Test license validation flow | 1h | Mock + real API |
+| Task                                  | Est. | Notes                                |
+| ------------------------------------- | ---- | ------------------------------------ |
+| Create `licensing/config.js`          | 0.5h | URLs, intervals, trial duration      |
+| Create `licensing/license-state.js`   | 1.5h | Local state in `~/.hic/license.json` |
+| Create `licensing/license-checker.js` | 2h   | Main validation logic                |
+| Create `licensing/http-provider.js`   | 2h   | Call `api.hic-ai.com/api/license/*`  |
+| Wire to extension activation          | 1h   | Check license on startup             |
+| Test license validation flow          | 1h   | Mock + real API                      |
 
 **Key Insight:** The backend APIs already exist and are tested. This is just the HTTP client.
 
@@ -92,12 +92,12 @@ Create the client-side licensing that calls our existing backend APIs.
 
 Implement the 5-minute heartbeat for concurrent session tracking.
 
-| Task | Est. | Notes |
-|------|------|-------|
-| Add heartbeat loop to license-checker | 1.5h | setInterval, 5-min default |
-| Store sessionId for tracking | 0.5h | UUID generated on activation |
-| Handle heartbeat failures gracefully | 1h | Don't block on network errors |
-| Test concurrent session enforcement | 1h | Two machines, one license |
+| Task                                  | Est. | Notes                         |
+| ------------------------------------- | ---- | ----------------------------- |
+| Add heartbeat loop to license-checker | 1.5h | setInterval, 10-min default   |
+| Store sessionId for tracking          | 0.5h | UUID generated on activation  |
+| Handle heartbeat failures gracefully  | 1h   | Don't block on network errors |
+| Test concurrent session enforcement   | 1h   | Two machines, one license     |
 
 **Key Insight:** `machineHeartbeat()` already exists server-side. Client just needs to call it.
 
@@ -105,15 +105,16 @@ Implement the 5-minute heartbeat for concurrent session tracking.
 
 Implement agent-facing license messaging via `_meta.license`.
 
-| Task | Est. | Notes |
-|------|------|-------|
-| Create `licensing/messages.js` | 1h | Message templates per state |
-| Implement `_meta.license` injection | 2h | Add to MCP tool responses |
-| Implement frequency algorithm | 1h | 20% → 50% → 100% escalation |
-| Implement tool blocking for expired | 1h | Return error, not result |
-| Test nag frequency | 1h | Verify escalation works |
+| Task                                | Est. | Notes                       |
+| ----------------------------------- | ---- | --------------------------- |
+| Create `licensing/messages.js`      | 1h   | Message templates per state |
+| Implement `_meta.license` injection | 2h   | Add to MCP tool responses   |
+| Implement frequency algorithm       | 1h   | 20% → 50% → 100% escalation |
+| Implement tool blocking for expired | 1h   | Return error, not result    |
+| Test nag frequency                  | 1h   | Verify escalation works     |
 
 **States to Handle:**
+
 - `TRIAL` (days 1-7): 20% of calls include reminder
 - `TRIAL_ENDING` (days 8-12): 50% of calls
 - `TRIAL_LAST_DAY` (day 13-14): Every call
@@ -125,44 +126,44 @@ Implement agent-facing license messaging via `_meta.license`.
 
 Package and publish to VS Code Marketplace.
 
-| Task | Est. | Notes |
-|------|------|-------|
-| Create VS Code Publisher account | 0.5h | marketplace.visualstudio.com |
-| Generate Personal Access Token | 0.25h | For `vsce publish` |
-| Run `vsce package` | 0.5h | Creates `.vsix` file |
-| Test sideload installation | 0.5h | Install from VSIX |
-| Submit for review | 0.25h | Marketplace submission |
-| Publish pre-release | 0.5h | `--pre-release` flag |
+| Task                             | Est.  | Notes                        |
+| -------------------------------- | ----- | ---------------------------- |
+| Create VS Code Publisher account | 0.5h  | marketplace.visualstudio.com |
+| Generate Personal Access Token   | 0.25h | For `vsce publish`           |
+| Run `vsce package`               | 0.5h  | Creates `.vsix` file         |
+| Test sideload installation       | 0.5h  | Install from VSIX            |
+| Submit for review                | 0.25h | Marketplace submission       |
+| Publish pre-release              | 0.5h  | `--pre-release` flag         |
 
 ### Phase 7: Integration Testing (4-6h)
 
 End-to-end testing of the complete flow.
 
-| Task | Est. | Notes |
-|------|------|-------|
-| Test fresh install → trial starts | 0.5h | — |
-| Test trial countdown | 0.5h | Mock time advancement |
-| Test trial expiration → block | 0.5h | — |
-| Test license key entry | 0.5h | — |
-| Test license validation | 0.5h | — |
-| Test concurrent sessions | 1h | Two machines |
-| Test heartbeat timeout | 0.5h | Session expiry |
-| Test offline mode | 0.5h | Cached validation |
-| Test payment failure → grace | 0.5h | Suspended state |
+| Task                              | Est. | Notes                 |
+| --------------------------------- | ---- | --------------------- |
+| Test fresh install → trial starts | 0.5h | —                     |
+| Test trial countdown              | 0.5h | Mock time advancement |
+| Test trial expiration → block     | 0.5h | —                     |
+| Test license key entry            | 0.5h | —                     |
+| Test license validation           | 0.5h | —                     |
+| Test concurrent sessions          | 1h   | Two machines          |
+| Test heartbeat timeout            | 0.5h | Session expiry        |
+| Test offline mode                 | 0.5h | Cached validation     |
+| Test payment failure → grace      | 0.5h | Suspended state       |
 
 ---
 
 ## Realistic Timeline
 
-| Phase | Description | Est. Hours | Cumulative |
-|-------|-------------|------------|------------|
-| 1 | Extension Scaffold | 4-6h | 4-6h |
-| 2 | MCP Integration | 4-6h | 8-12h |
-| 3 | Licensing Client | 6-8h | 14-20h |
-| 4 | Heartbeat Client | 3-4h | 17-24h |
-| 5 | Nag Banner System | 4-6h | 21-30h |
-| 6 | VSIX Packaging | 2-3h | 23-33h |
-| 7 | Integration Testing | 4-6h | **27-39h** |
+| Phase | Description         | Est. Hours | Cumulative |
+| ----- | ------------------- | ---------- | ---------- |
+| 1     | Extension Scaffold  | 4-6h       | 4-6h       |
+| 2     | MCP Integration     | 4-6h       | 8-12h      |
+| 3     | Licensing Client    | 6-8h       | 14-20h     |
+| 4     | Heartbeat Client    | 3-4h       | 17-24h     |
+| 5     | Nag Banner System   | 4-6h       | 21-30h     |
+| 6     | VSIX Packaging      | 2-3h       | 23-33h     |
+| 7     | Integration Testing | 4-6h       | **27-39h** |
 
 **Total Estimate: 27-39 hours** (not 80-100h as previously stated)
 
@@ -218,12 +219,12 @@ mouse-vscode/
 
 ## Risk Mitigation
 
-| Risk | Mitigation |
-|------|------------|
-| Marketplace approval delay | Have GitHub Packages / NPX as backup |
-| Bundling complexity | Start with simple esbuild, upgrade if needed |
-| License state corruption | Validate JSON on load, reset if invalid |
-| Network failures | Cache license state, generous offline window |
+| Risk                       | Mitigation                                   |
+| -------------------------- | -------------------------------------------- |
+| Marketplace approval delay | Have GitHub Packages / NPX as backup         |
+| Bundling complexity        | Start with simple esbuild, upgrade if needed |
+| License state corruption   | Validate JSON on load, reset if invalid      |
+| Network failures           | Cache license state, generous offline window |
 
 ---
 

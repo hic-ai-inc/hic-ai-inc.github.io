@@ -1,7 +1,7 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.0.0  
-**Date:** January 26, 2026  
+**Document Version:** 4.1.0  
+**Date:** January 27, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
 
@@ -21,22 +21,24 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 
 ## Master Checklist — All Workstreams
 
-| #   | Workstream                         | Status                      | Est. Hours | Owner      | Blocks           |
-| --- | ---------------------------------- | --------------------------- | ---------- | ---------- | ---------------- |
-| 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —                |
-| 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —                |
-| 3   | Auth (Auth0 Integration)           | ✅ **CODE COMPLETE**        | 4-6h       | GC + Simon | Env vars only    |
-| 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —                |
-| 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                |
-| 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                |
-| 7   | AWS Infrastructure                 | ✅ Templates exist          | 4-6h       | GC         | —                |
-| 8   | **VS Code Extension (VSIX)**       | 🔴 **NOT STARTED**          | **80-100h**| Simon      | **CRITICAL PATH**|
-| 9   | Back-End E2E Testing               | ⚠️ Unit tests pass          | 8-12h      | GC         | 3, 7, 8          |
-| 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —                |
-| 11  | Deployment & Launch                | ⬜ Not started              | 8-12h      | GC + Simon | 7-10             |
-| 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —                |
+| #   | Workstream                         | Status                      | Est. Hours | Owner      | Blocks            |
+| --- | ---------------------------------- | --------------------------- | ---------- | ---------- | ----------------- |
+| 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —                 |
+| 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —                 |
+| 3   | Auth (Auth0 Integration)           | ✅ **CODE COMPLETE**        | 4-6h       | GC + Simon | Env vars only     |
+| 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —                 |
+| 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
+| 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —                 |
+| 5c  | **Server-Side Trial Token API**    | ✅ **COMPLETE** (33 tests)  | 0h (done)  | GC         | —                 |
+| 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
+| 7   | AWS Infrastructure                 | ✅ Templates exist          | 4-6h       | GC         | —                 |
+| 8   | **VS Code Extension (VSIX)**       | 🟡 **IN PROGRESS**          | **60-80h** | Simon      | **CRITICAL PATH** |
+| 9   | Back-End E2E Testing               | ⚠️ Unit tests pass (580)    | 8-12h      | GC         | 3, 7, 8           |
+| 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —                 |
+| 11  | Deployment & Launch                | ⬜ Not started              | 8-12h      | GC + Simon | 7-10              |
+| 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —                 |
 
-> ⚠️ **CRITICAL:** Item 8 (VS Code Extension) is the bottleneck. The v3 roadmap estimated 4-8h, but actual implementation requires **80-100h** because **zero code exists**—only planning documents.              |
+> ⚠️ **UPDATE (Jan 27):** Server-side heartbeat and trial token APIs are now complete. Mouse client-side licensing implementation is in progress with 139 passing tests.
 
 ---
 
@@ -277,13 +279,41 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ### 5.3 Code Tasks
 
-| Task                                      | Status | Notes                   |
-| ----------------------------------------- | ------ | ----------------------- |
-| Update `keygen.js` with heartbeat support | ⬜     | For concurrent sessions |
-| Implement machine heartbeat in extension  | ⬜     | 5-min interval          |
-| Test license creation flow                | ⬜     | Stripe → KeyGen         |
-| Test activation/deactivation              | ⬜     | Portal → KeyGen         |
-| Test heartbeat timeout                    | ⬜     | Session expiry          |
+| Task                                      | Status | Notes                                |
+| ----------------------------------------- | ------ | ------------------------------------ |
+| Update `keygen.js` with heartbeat support | ✅     | `machineHeartbeat()` implemented     |
+| **Server-side heartbeat API**             | ✅     | `/api/license/heartbeat` — 27 tests  |
+| **Server-side trial token API**           | ✅     | `/api/license/trial/init` — 33 tests |
+| **Rate limiting module**                  | ✅     | `src/lib/rate-limit.js` — 18 tests   |
+| **Heartbeat integration tests**           | ✅     | 13 tests for full request flow       |
+| Implement machine heartbeat in extension  | 🟡     | Client-side — in progress            |
+| Test license creation flow                | ⬜     | Stripe → KeyGen                      |
+| Test activation/deactivation              | ⬜     | Portal → KeyGen                      |
+| Test heartbeat timeout                    | ⬜     | Session expiry                       |
+
+### 5.4 Server-Side APIs (NEW — Jan 27, 2026)
+
+**Heartbeat API** — `/api/license/heartbeat`
+
+- POST endpoint for machine heartbeat
+- License key format validation with Luhn checksum
+- Rate limiting: 10 requests/minute per license key
+- Keygen integration via `machineHeartbeat()`
+- DynamoDB device tracking via `updateDeviceLastSeen()`
+
+**Trial Token API** — `/api/license/trial/init`
+
+- POST: Initialize new 14-day trial with fingerprint
+- GET: Check trial status by fingerprint
+- HMAC-SHA256 signed tokens with `TRIAL_TOKEN_SECRET`
+- Rate limiting: 5 requests/hour per fingerprint
+- Token format: `base64url(payload).base64url(signature)`
+
+**Rate Limiting Module** — `src/lib/rate-limit.js`
+
+- In-memory sliding window algorithm
+- Presets: heartbeat (10/min), trialInit (5/hr), validate (20/min), activate (10/hr)
+- Middleware helper with standard headers (X-RateLimit-\*)
 
 ---
 
@@ -415,100 +445,104 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 
 ---
 
-## 8. VS Code Extension (VSIX) — 🔴 CRITICAL PATH
+## 8. VS Code Extension (VSIX) — � IN PROGRESS
 
-**Status:** 🔴 **NOT STARTED** — Zero production code exists  
-**Est. Hours:** 80-100h (was 4-8h in v3 — severely underestimated)  
+**Status:** 🟡 **IN PROGRESS** — Client-side licensing with 139 tests passing  
+**Est. Hours:** 60-80h remaining (was 80-100h — server-side now complete)  
 **Documentation:** [GC_STRATEGY_FOR_VS_CODE_EXTENSION_MIGRATION.md](../20260123_GC_STRATEGY_FOR_VS_CODE_EXTENSION_MIGRATION.md) (1,628 lines), [MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md](../20260124_MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md) (1,253 lines)
 
-### 8.1 Reality Check
+### 8.1 Progress Update (Jan 27, 2026)
 
-> ⚠️ **CRITICAL FINDING (v4):** The Mouse VS Code extension has **comprehensive planning documentation** but **zero implementation code** in this workspace. The MCP server itself lives in `hic-ai-inc/hic` (separate repo). All licensing, trial, heartbeat, nag banner, and extension wrapper code needs to be written from scratch.
+> ✅ **Server-Side Complete:** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration Tests (13 tests). Total: 91 new tests.
+>
+> 🟡 **Client-Side In Progress:** Security hardening complete (139 tests), fingerprint generation, state management. Ready for API integration.
 
-### 8.2 Work Breakdown (80-100h total)
+### 8.2 Work Breakdown (60-80h remaining)
 
 #### Phase 1: Extension Scaffold (8-12h)
 
-| Task                                              | Status | Notes                                      |
-| ------------------------------------------------- | ------ | ------------------------------------------ |
-| Create `mouse-vscode/` directory structure        | ⬜     | New project                                |
-| Create `package.json` with VS Code manifest       | ⬜     | `engines.vscode`, `activationEvents`       |
-| Create `extension.js` entry point                 | ⬜     | Lifecycle, status bar                      |
-| Configure webpack/esbuild bundling                | ⬜     | Bundle MCP server                          |
-| Test in Extension Development Host (F5)           | ⬜     | Basic activation                           |
+| Task                                        | Status | Notes                                |
+| ------------------------------------------- | ------ | ------------------------------------ |
+| Create `mouse-vscode/` directory structure  | ⬜     | New project                          |
+| Create `package.json` with VS Code manifest | ⬜     | `engines.vscode`, `activationEvents` |
+| Create `extension.js` entry point           | ⬜     | Lifecycle, status bar                |
+| Configure webpack/esbuild bundling          | ⬜     | Bundle MCP server                    |
+| Test in Extension Development Host (F5)     | ⬜     | Basic activation                     |
 
 #### Phase 2: MCP Server Integration (8-12h)
 
-| Task                                              | Status | Notes                                      |
-| ------------------------------------------------- | ------ | ------------------------------------------ |
-| Bundle existing MCP server into extension         | ⬜     | From `hic` repo                            |
-| Create `McpServerManager` class                   | ⬜     | Spawn/kill server process                  |
-| Implement stdio communication                     | ⬜     | —                                          |
-| Create `StatusBarManager` class                   | ⬜     | Show status icon                           |
+| Task                                      | Status | Notes                     |
+| ----------------------------------------- | ------ | ------------------------- |
+| Bundle existing MCP server into extension | ⬜     | From `hic` repo           |
+| Create `McpServerManager` class           | ⬜     | Spawn/kill server process |
+| Implement stdio communication             | ⬜     | —                         |
+| Create `StatusBarManager` class           | ⬜     | Show status icon          |
 
 #### Phase 3: Licensing Implementation (16-24h)
 
-| Task                                              | Status | Notes                                      |
-| ------------------------------------------------- | ------ | ------------------------------------------ |
-| Create `licensing/config.js`                      | ⬜     | Trial constants, URLs                      |
-| Create `licensing/license-state.js`               | ⬜     | Local state storage                        |
-| Create `licensing/license-checker.js`             | ⬜     | Main validation logic                      |
-| Create `licensing/providers/http-provider.js`     | ⬜     | **Point to `api.hic-ai.com`**              |
-| Create `licensing/messages.js`                    | ⬜     | Agent-facing messages                      |
-| Implement `_meta.license` injection               | ⬜     | Add to all tool responses                  |
-| Implement tool blocking for expired               | ⬜     | Return error, not result                   |
-| Add `license_status` always-available tool        | ⬜     | Emergency escape hatch                     |
+| Task                                          | Status | Notes                                 |
+| --------------------------------------------- | ------ | ------------------------------------- |
+| Create `licensing/config.js`                  | ✅     | Trial constants, URLs                 |
+| Create `licensing/license-state.js`           | ✅     | Local state storage (139 tests)       |
+| Create `licensing/license-checker.js`         | ✅     | Main validation logic                 |
+| Create `licensing/providers/http-provider.js` | 🟡     | **Point to `api.hic-ai.com`** — ready |
+| Create `licensing/messages.js`                | ✅     | Agent-facing messages                 |
+| Implement `_meta.license` injection           | ⬜     | Add to all tool responses             |
+| Implement tool blocking for expired           | ⬜     | Return error, not result              |
+| Add `license_status` always-available tool    | ⬜     | Emergency escape hatch                |
 
 #### Phase 4: Heartbeat Implementation (8-12h)
 
-| Task                                              | Status | Notes                                      |
-| ------------------------------------------------- | ------ | ------------------------------------------ |
-| Implement heartbeat loop in extension             | ⬜     | 5-minute interval                          |
-| Store sessionId for concurrent tracking           | ⬜     | —                                          |
-| Handle heartbeat failures gracefully              | ⬜     | Don't block on network                     |
-| Test concurrent session enforcement               | ⬜     | Multiple machines                          |
+| Task                                    | Status | Notes                               |
+| --------------------------------------- | ------ | ----------------------------------- |
+| **Server-side heartbeat API**           | ✅     | `/api/license/heartbeat` — 27 tests |
+| **Server-side rate limiting**           | ✅     | 10 req/min per license key          |
+| Implement heartbeat loop in extension   | 🟡     | 10-minute interval — client ready   |
+| Store sessionId for concurrent tracking | ✅     | fingerprint.js implemented          |
+| Handle heartbeat failures gracefully    | ⬜     | Don't block on network              |
+| Test concurrent session enforcement     | ⬜     | Multiple machines                   |
 
 #### Phase 5: Nag Banner System (8-12h)
 
-| Task                                              | Status | Notes                                      |
-| ------------------------------------------------- | ------ | ------------------------------------------ |
-| Implement deterministic metadata frequency        | ⬜     | Seeded RNG per doc                         |
-| Trial Days 1-7: ~20% of calls                     | ⬜     | Gentle reminder                            |
-| Trial Days 8-12: ~50% of calls                    | ⬜     | More urgent                                |
-| Trial Days 13-14: Every call                      | ⬜     | Final countdown                            |
-| Suspended mode (payment failed)                   | ⬜     | Grace period banner                        |
-| Expired mode: Block all tools                     | ⬜     | Hard stop                                  |
+| Task                                       | Status | Notes               |
+| ------------------------------------------ | ------ | ------------------- |
+| Implement deterministic metadata frequency | ⬜     | Seeded RNG per doc  |
+| Trial Days 1-7: ~20% of calls              | ⬜     | Gentle reminder     |
+| Trial Days 8-12: ~50% of calls             | ⬜     | More urgent         |
+| Trial Days 13-14: Every call               | ⬜     | Final countdown     |
+| Suspended mode (payment failed)            | ⬜     | Grace period banner |
+| Expired mode: Block all tools              | ⬜     | Hard stop           |
 
 #### Phase 6: VSIX Packaging (8-12h)
 
-| Task                                              | Status | Notes                                      |
-| ------------------------------------------------- | ------ | ------------------------------------------ |
-| Create VS Code Publisher account (`hic-ai`)       | ⬜     | marketplace.visualstudio.com               |
-| Generate Personal Access Token                    | ⬜     | For vsce publish                           |
-| Install vsce: `npm install -g @vscode/vsce`       | ⬜     | —                                          |
-| Build VSIX: `vsce package`                        | ⬜     | Creates `.vsix` file                       |
-| Test sideload: Install from VSIX                  | ⬜     | Verify it works                            |
-| Publish pre-release                               | ⬜     | Pre-release flag                           |
+| Task                                        | Status | Notes                        |
+| ------------------------------------------- | ------ | ---------------------------- |
+| Create VS Code Publisher account (`hic-ai`) | ⬜     | marketplace.visualstudio.com |
+| Generate Personal Access Token              | ⬜     | For vsce publish             |
+| Install vsce: `npm install -g @vscode/vsce` | ⬜     | —                            |
+| Build VSIX: `vsce package`                  | ⬜     | Creates `.vsix` file         |
+| Test sideload: Install from VSIX            | ⬜     | Verify it works              |
+| Publish pre-release                         | ⬜     | Pre-release flag             |
 
 #### Phase 7: E2E Testing (16-24h)
 
-| Task                                              | Status | Notes                                      |
-| ------------------------------------------------- | ------ | ------------------------------------------ |
-| Test fresh install → trial starts                 | ⬜     | —                                          |
-| Test trial countdown (mock time)                  | ⬜     | —                                          |
-| Test trial expiration → block                     | ⬜     | —                                          |
-| Test license key entry                            | ⬜     | —                                          |
-| Test concurrent session limits                    | ⬜     | Multiple machines                          |
-| Test heartbeat timeout                            | ⬜     | —                                          |
-| Test offline mode                                 | ⬜     | —                                          |
+| Task                              | Status | Notes             |
+| --------------------------------- | ------ | ----------------- |
+| Test fresh install → trial starts | ⬜     | —                 |
+| Test trial countdown (mock time)  | ⬜     | —                 |
+| Test trial expiration → block     | ⬜     | —                 |
+| Test license key entry            | ⬜     | —                 |
+| Test concurrent session limits    | ⬜     | Multiple machines |
+| Test heartbeat timeout            | ⬜     | —                 |
+| Test offline mode                 | ⬜     | —                 |
 
 ### 8.3 Key Design Documents
 
-| Document | Lines | Purpose |
-| -------- | ----- | ------- |
+| Document                                                                                                     | Lines | Purpose                                    |
+| ------------------------------------------------------------------------------------------------------------ | ----- | ------------------------------------------ |
 | [GC_STRATEGY_FOR_VS_CODE_EXTENSION_MIGRATION.md](../20260123_GC_STRATEGY_FOR_VS_CODE_EXTENSION_MIGRATION.md) | 1,628 | Extension architecture, manifest, bundling |
-| [MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md](../20260124_MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md) | 1,253 | Trial flow, nag UX, license states |
-| [AGENT_SALESPERSON_ENFORCEMENT_MODEL.md](./20260126_AGENT_SALESPERSON_ENFORCEMENT_MODEL.md) | — | `_meta.license` injection strategy |
+| [MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md](../20260124_MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md)     | 1,253 | Trial flow, nag UX, license states         |
+| [AGENT_SALESPERSON_ENFORCEMENT_MODEL.md](./20260126_AGENT_SALESPERSON_ENFORCEMENT_MODEL.md)                  | —     | `_meta.license` injection strategy         |
 
 ---
 
@@ -775,83 +809,81 @@ Parallel workstreams (no dependencies):
 
 ### Completed: CI/CD, Stripe, KeyGen, Admin Portal ✅
 
-| Task                              | Owner | Status           |
-| --------------------------------- | ----- | ---------------- |
-| CI/CD Pipeline                    | GC    | ✅ Done (Jan 26) |
-| Stripe Products + Webhooks        | Simon | ✅ Done          |
-| KeyGen Policies + Webhooks        | Simon | ✅ Done          |
-| Admin Portal Phases 1-5           | GC    | ✅ Done (550 tests) |
-| Auth0 Dashboard Configuration     | Simon | ✅ Done          |
+| Task                          | Owner | Status              |
+| ----------------------------- | ----- | ------------------- |
+| CI/CD Pipeline                | GC    | ✅ Done (Jan 26)    |
+| Stripe Products + Webhooks    | Simon | ✅ Done             |
+| KeyGen Policies + Webhooks    | Simon | ✅ Done             |
+| Admin Portal Phases 1-5       | GC    | ✅ Done (550 tests) |
+| Auth0 Dashboard Configuration | Simon | ✅ Done             |
 
 ### Week 1: Website Finalization (Parallel with Mouse)
 
 **Track A: Website (~30h)**
 
-| Day       | Focus                  | Tasks                                       |
-| --------- | ---------------------- | ------------------------------------------- |
-| **Day 1** | Auth0 Wire-up          | GC: Create .env.local, wire portal to live session |
-| **Day 2** | AWS Deploy             | GC: Run deploy.sh to staging, verify        |
-| **Day 3** | AWS Production         | GC: Deploy to production, verify            |
-| **Day 4** | Front-End Polish       | GC: Content review, error states            |
-| **Day 5** | Support Setup          | Simon: Discord server, issue templates      |
+| Day       | Focus            | Tasks                                              |
+| --------- | ---------------- | -------------------------------------------------- |
+| **Day 1** | Auth0 Wire-up    | GC: Create .env.local, wire portal to live session |
+| **Day 2** | AWS Deploy       | GC: Run deploy.sh to staging, verify               |
+| **Day 3** | AWS Production   | GC: Deploy to production, verify                   |
+| **Day 4** | Front-End Polish | GC: Content review, error states                   |
+| **Day 5** | Support Setup    | Simon: Discord server, issue templates             |
 
 **Track B: Mouse Extension (~80-100h)**
 
-| Day       | Focus                  | Tasks                                       |
-| --------- | ---------------------- | ------------------------------------------- |
-| **Day 1-2** | Extension Scaffold   | Simon: Create mouse-vscode/, package.json, extension.js |
-| **Day 3-4** | MCP Integration      | Simon: Bundle MCP server, McpServerManager  |
-| **Day 5** | Licensing Start        | Simon: license-state.js, license-checker.js |
+| Day         | Focus              | Tasks                                                   |
+| ----------- | ------------------ | ------------------------------------------------------- |
+| **Day 1-2** | Extension Scaffold | Simon: Create mouse-vscode/, package.json, extension.js |
+| **Day 3-4** | MCP Integration    | Simon: Bundle MCP server, McpServerManager              |
+| **Day 5**   | Licensing Start    | Simon: license-state.js, license-checker.js             |
 
 ### Week 2: Mouse Licensing Implementation
 
-| Day        | Focus                  | Tasks                                    |
-| ---------- | ---------------------- | ---------------------------------------- |
-| **Day 6-7**  | Licensing Core       | Simon: http-provider.js, _meta.license injection |
-| **Day 8-9**  | Heartbeat            | Simon: 5-min heartbeat loop, session tracking |
-| **Day 10** | Nag Banners            | Simon: Trial/expired/suspended states    |
+| Day         | Focus          | Tasks                                             |
+| ----------- | -------------- | ------------------------------------------------- |
+| **Day 6-7** | Licensing Core | Simon: http-provider.js, \_meta.license injection |
+| **Day 8-9** | Heartbeat      | Simon: 5-min heartbeat loop, session tracking     |
+| **Day 10**  | Nag Banners    | Simon: Trial/expired/suspended states             |
 
 ### Week 3: Testing & Launch Prep
 
-| Day        | Focus                  | Tasks                                    |
-| ---------- | ---------------------- | ---------------------------------------- |
-| **Day 11-12** | E2E Testing         | GC + Simon: All critical paths           |
-| **Day 13** | VSIX Packaging         | Simon: vsce package, sideload test       |
-| **Day 14** | Marketplace Submit     | Simon: Submit for review                 |
+| Day           | Focus              | Tasks                              |
+| ------------- | ------------------ | ---------------------------------- |
+| **Day 11-12** | E2E Testing        | GC + Simon: All critical paths     |
+| **Day 13**    | VSIX Packaging     | Simon: vsce package, sideload test |
+| **Day 14**    | Marketplace Submit | Simon: Submit for review           |
 
 ---
 
 ## Risk Register (v4 Updated)
 
-| Risk                              | Impact     | Mitigation                                              |
-| --------------------------------- | ---------- | ------------------------------------------------------- |
-| **Mouse extension not started**   | 🔴 Critical | Start immediately, this is the bottleneck               |
-| Auth0 wire-up issues              | Medium     | Backend code is complete, just env vars needed          |
-| VSIX marketplace approval delay   | Medium     | Submit early, have GitHub Packages as backup            |
-| AWS deployment issues             | Low        | Templates exist and are tested                          |
-| Stripe/KeyGen integration         | Low        | Already complete and configured                         |
-
-
+| Risk                            | Impact      | Mitigation                                     |
+| ------------------------------- | ----------- | ---------------------------------------------- |
+| **Mouse extension not started** | 🔴 Critical | Start immediately, this is the bottleneck      |
+| Auth0 wire-up issues            | Medium      | Backend code is complete, just env vars needed |
+| VSIX marketplace approval delay | Medium      | Submit early, have GitHub Packages as backup   |
+| AWS deployment issues           | Low         | Templates exist and are tested                 |
+| Stripe/KeyGen integration       | Low         | Already complete and configured                |
 
 ## Document History
 
-| Version | Date         | Changes                                                                                                                                                                                                     |
-| ------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **4.0** | Jan 26, 2026 | **v4 — Accurate Assessment.** Revised based on actual code review. Website ~90% complete, Mouse extension has **zero code** (80-100h work). Updated all estimates. |
-| 3.0.8   | Jan 26, 2026 | **STRIPE + KEYGEN COMPLETE** — KeyGen webhook with Ed25519 verification, Stripe Customer Portal activated. All third-party services fully configured |
-| 3.0.7   | Jan 26, 2026 | **Stripe products + KeyGen policies** — All 4 price IDs created, Stripe webhook configured. KeyGen policies (Floating, 3/5 machines) created                                       |
-| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments      |
-| 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance                     |
-| 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model    |
-| 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                                |
-| 3.0.2   | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified                                                                                                                                |
-| 3.0.1   | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section                                                                                                                          |
-| 3.0     | Jan 26, 2026 | Complete rewrite consolidating all workstreams                                                                                                                                                              |
-| 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                   |
-| 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                         |
-| 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                      |
-| 1.0     | Jan 21, 2026 | Initial roadmap                                                                                                                                                                                             |
-
+| Version | Date         | Changes                                                                                                                                                                                                    |
+| ------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.1** | Jan 27, 2026 | **Server-side APIs complete.** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration tests (13 tests). Fixed `next/headers` dynamic import. 580 total tests passing. |
+| 4.0     | Jan 26, 2026 | v4 — Accurate Assessment. Revised based on actual code review. Website ~90% complete, Mouse extension has **zero code** (80-100h work). Updated all estimates.                                             |
+| 3.0.8   | Jan 26, 2026 | **STRIPE + KEYGEN COMPLETE** — KeyGen webhook with Ed25519 verification, Stripe Customer Portal activated. All third-party services fully configured                                                       |
+| 3.0.7   | Jan 26, 2026 | **Stripe products + KeyGen policies** — All 4 price IDs created, Stripe webhook configured. KeyGen policies (Floating, 3/5 machines) created                                                               |
+| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments                                                           |
+| 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance                                                                                       |
+| 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model                                                                                    |
+| 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                               |
+| 3.0.2   | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified                                                                                                                               |
+| 3.0.1   | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section                                                                                                                         |
+| 3.0     | Jan 26, 2026 | Complete rewrite consolidating all workstreams                                                                                                                                                             |
+| 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                  |
+| 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                        |
+| 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                     |
+| 1.0     | Jan 21, 2026 | Initial roadmap                                                                                                                                                                                            |
 
 ---
 

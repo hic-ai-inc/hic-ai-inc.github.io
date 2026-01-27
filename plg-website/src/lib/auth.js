@@ -12,7 +12,7 @@
  */
 
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
-import { headers } from "next/headers";
+// Note: next/headers is dynamically imported to support testing outside Next.js runtime
 
 // Check if Auth0 is configured
 const isAuth0Configured = !!(
@@ -96,6 +96,8 @@ export const getSession = async () => {
     // Read role from URL via referer header (works for server components)
     let role = "business_owner";
     try {
+      // Dynamic import to support testing outside Next.js runtime
+      const { headers } = await import("next/headers");
       const headersList = await headers();
       const referer = headersList.get("referer") || "";
       const url = new URL(referer, "http://localhost:3000");
@@ -104,9 +106,11 @@ export const getSession = async () => {
         role = roleParam;
       }
     } catch {
-      // Ignore header parsing errors
+      // Ignore header parsing errors (also handles missing next/headers in test env)
     }
-    console.log(`[DEV] Auth0 not configured, using mock session for role: ${role}`);
+    console.log(
+      `[DEV] Auth0 not configured, using mock session for role: ${role}`,
+    );
     return getDevMockSession(role);
   }
 

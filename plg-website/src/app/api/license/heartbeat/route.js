@@ -3,7 +3,7 @@
  *
  * POST /api/license/heartbeat
  *
- * Called periodically by the VS Code extension (default: every 5 minutes)
+ * Called periodically by the VS Code extension (default: every 10 minutes)
  * to verify concurrent device limits and update last-seen timestamps.
  *
  * This endpoint is lightweight and optimized for high-frequency calls:
