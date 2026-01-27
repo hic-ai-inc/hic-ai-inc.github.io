@@ -11,15 +11,19 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 
 /**
- * Default Auth0 client instance
+ * Lazily initialized Auth0 client instance
+ * Created on first access to ensure environment variables are available
  */
-let auth0Client = new Auth0Client();
+let auth0Client = null;
 
 /**
- * Get the current Auth0 client
+ * Get the current Auth0 client (lazy initialization)
  * This should be used instead of instantiating Auth0Client directly
  */
 export function getAuth0Client() {
+  if (!auth0Client) {
+    auth0Client = new Auth0Client();
+  }
   return auth0Client;
 }
 
@@ -33,9 +37,10 @@ export function __setAuth0ClientForTests(mockClient) {
 
 /**
  * Reset to default (production) Auth0 client
+ * Sets to null so it will be lazily re-created on next access
  */
 export function __resetAuth0ClientForTests() {
-  auth0Client = new Auth0Client();
+  auth0Client = null;
 }
 
 // ============================================
