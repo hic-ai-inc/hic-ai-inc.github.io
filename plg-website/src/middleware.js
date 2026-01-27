@@ -49,6 +49,14 @@ export async function middleware(req) {
 
   // Let Auth0 handle /auth/* routes (login, logout, callback, etc.)
   const authRes = await auth0.middleware(req);
+
+  // Auth0 SDK v4: ALWAYS return authRes for /auth/* routes
+  // The middleware handles login, logout, callback, profile, access-token
+  if (path.startsWith("/auth")) {
+    return authRes;
+  }
+
+  // For non-auth routes, only return authRes if it has a response
   if (authRes) {
     return authRes;
   }
