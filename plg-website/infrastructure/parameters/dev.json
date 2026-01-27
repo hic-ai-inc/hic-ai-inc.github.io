@@ -14,5 +14,21 @@
   {
     "ParameterKey": "AlertEmail",
     "ParameterValue": "simon@hic-ai.com"
+  },
+  {
+    "ParameterKey": "LambdaCodeBucket",
+    "ParameterValue": "hic-plg-lambda-dev"
+  },
+  {
+    "ParameterKey": "LambdaCodePrefix",
+    "ParameterValue": "lambda"
+  },
+  {
+    "ParameterKey": "VpcSubnetIds",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "VpcSecurityGroupIds",
+    "ParameterValue": ""
   }
 ]

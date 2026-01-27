@@ -17,7 +17,9 @@ import { updateDeviceLastSeen } from "@/lib/dynamodb";
 export async function POST(request) {
   try {
     const body = await request.json();
+    // Support both client field names (machineId) and legacy (fingerprint)
     const { licenseKey, fingerprint, machineId } = body;
+    const deviceFingerprint = machineId || fingerprint;
 
     // Validate required fields
     if (!licenseKey) {
@@ -27,18 +29,18 @@ export async function POST(request) {
       );
     }
 
-    if (!fingerprint) {
+    if (!deviceFingerprint) {
       return NextResponse.json(
-        { error: "Device fingerprint is required" },
+        { error: "Device fingerprint or machineId is required" },
         { status: 400 },
       );
     }
 
     // Validate license with Keygen
-    const result = await validateLicense(licenseKey, fingerprint);
+    const result = await validateLicense(licenseKey, deviceFingerprint);
 
     // If valid and machine ID provided, update heartbeat
-    if (result.valid && machineId && result.license?.id) {
+    if (result.valid && deviceFingerprint && result.license?.id) {
       // Fire and forget - don't block response
       Promise.all([
         machineHeartbeat(machineId),

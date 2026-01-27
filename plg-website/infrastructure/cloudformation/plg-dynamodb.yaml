@@ -5,11 +5,13 @@ Description: |
   Single-table design supporting:
   - CUSTOMER entities (profile, subscription)
   - LICENSE entities (details, activations)
+  - TRIAL entities (machine-bound trial tokens)
   - EVENT entities (webhook events for idempotency)
   - ORG entities (enterprise organizations)
 
   Per: 20260121_GC_EVENT_DRIVEN_INFRASTRUCTURE_RECOMMENDATION.md
   Updated: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A)
+  Updated: 20260127_PRE_E2E_INFRASTRUCTURE_AND_WIRING_REQUIREMENTS.md
 
 Parameters:
   Environment:
@@ -111,7 +113,9 @@ Resources:
       SSESpecification:
         SSEEnabled: true
 
-      # TTL for EVENT records (auto-cleanup after 90 days)
+      # TTL for EVENT and TRIAL records (auto-cleanup)
+      # - EVENT: idempotency records deleted after 90 days
+      # - TRIAL: expired trials deleted 90 days after expiration
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true

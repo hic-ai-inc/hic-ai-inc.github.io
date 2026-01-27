@@ -439,6 +439,102 @@ export async function updateDeviceLastSeen(keygenLicenseId, keygenMachineId) {
 }
 
 // ===========================================
+// TRIAL OPERATIONS
+// Per: Pre-E2E Infrastructure Requirements
+// Pattern: PK=TRIAL#fingerprint, SK=TRIAL
+// ===========================================
+
+/**
+ * Get trial record by machine fingerprint
+ * Used to check if a trial has already been issued for this device
+ * @param {string} fingerprint - Machine fingerprint (hex string)
+ * @returns {Promise<Object|null>} Trial record or null
+ */
+export async function getTrialByFingerprint(fingerprint) {
+  const logger = createLogger("getTrialByFingerprint");
+  try {
+    const result = await dynamodb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `TRIAL#${fingerprint}`,
+          SK: "TRIAL",
+        },
+      }),
+    );
+    return result.Item || null;
+  } catch (error) {
+    logger.error("Failed to get trial by fingerprint", {
+      fingerprint: fingerprint.substring(0, 8) + "...",
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Create a new trial record
+ * Prevents trial farming by binding to machine fingerprint
+ * @param {Object} params - Trial parameters
+ * @param {string} params.fingerprint - Machine fingerprint
+ * @param {string} params.trialToken - HMAC-signed trial token
+ * @param {number} params.expiresAt - Expiration timestamp (ms)
+ * @param {number} params.issuedAt - Issued timestamp (ms)
+ * @param {number} params.createdAt - Created timestamp (ms)
+ * @returns {Promise<Object>} Created trial record
+ */
+export async function createTrial({
+  fingerprint,
+  trialToken,
+  expiresAt,
+  issuedAt,
+  createdAt,
+}) {
+  const logger = createLogger("createTrial");
+  try {
+    const item = {
+      PK: `TRIAL#${fingerprint}`,
+      SK: "TRIAL",
+      fingerprint,
+      trialToken,
+      expiresAt,
+      issuedAt,
+      createdAt,
+      // TTL: auto-delete 90 days after expiration (cleanup)
+      ttl: Math.floor((expiresAt + 90 * 24 * 60 * 60 * 1000) / 1000),
+    };
+
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: item,
+        // Ensure we don't overwrite an existing trial
+        ConditionExpression: "attribute_not_exists(PK)",
+      }),
+    );
+
+    logger.info("Trial created", {
+      fingerprint: fingerprint.substring(0, 8) + "...",
+      expiresAt: new Date(expiresAt).toISOString(),
+    });
+
+    return item;
+  } catch (error) {
+    if (error.name === "ConditionalCheckFailedException") {
+      logger.warn("Trial already exists for fingerprint", {
+        fingerprint: fingerprint.substring(0, 8) + "...",
+      });
+      throw new Error("Trial already exists for this device");
+    }
+    logger.error("Failed to create trial", {
+      fingerprint: fingerprint.substring(0, 8) + "...",
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+// ===========================================
 // ENTERPRISE ORGANIZATION OPERATIONS
 // Per Addendum A.5/A.7
 // ===========================================
