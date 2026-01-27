@@ -2,7 +2,7 @@
  * Team Management API
  *
  * Endpoints for managing team members and invites.
- * Requires team/enterprise subscription with org admin permissions.
+ * Requires business subscription with org admin permissions.
  *
  * @see PLG Technical Specification v2 - Section 4.5
  */
@@ -28,7 +28,7 @@ import { sendEnterpriseInviteEmail } from "@/lib/ses";
  * GET /api/portal/team
  *
  * Get team members, pending invites, and seat usage.
- * Requires team/enterprise subscription.
+ * Requires business subscription.
  */
 export async function GET() {
   try {
@@ -41,10 +41,10 @@ export async function GET() {
     const accountType = user[`${AUTH0_NAMESPACE}/account_type`];
     const orgId = user[`${AUTH0_NAMESPACE}/org_id`];
 
-    // Check for team/enterprise account
-    if (accountType !== "team" && accountType !== "enterprise") {
+    // Check for business account
+    if (accountType !== "business") {
       return NextResponse.json(
-        { error: "Team management requires a team subscription" },
+        { error: "Team management requires a business subscription" },
         { status: 403 },
       );
     }
@@ -120,8 +120,8 @@ export async function POST(request) {
     const orgId = user[`${AUTH0_NAMESPACE}/org_id`];
     const userRole = user[`${AUTH0_NAMESPACE}/org_role`];
 
-    // Check for team/enterprise account
-    if (accountType !== "team" && accountType !== "enterprise") {
+    // Check for business account
+    if (accountType !== "business") {
       return NextResponse.json(
         { error: "Team management requires a team subscription" },
         { status: 403 },
@@ -434,8 +434,8 @@ export async function DELETE(request) {
     const orgId = user[`${AUTH0_NAMESPACE}/org_id`];
     const userRole = user[`${AUTH0_NAMESPACE}/org_role`];
 
-    // Check for team/enterprise account
-    if (accountType !== "team" && accountType !== "enterprise") {
+    // Check for business account
+    if (accountType !== "business") {
       return NextResponse.json(
         { error: "Team management requires a team subscription" },
         { status: 403 },

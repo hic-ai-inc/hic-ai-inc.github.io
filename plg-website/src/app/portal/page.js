@@ -35,7 +35,7 @@ export default async function PortalDashboardPage() {
   const accountType = user[`${namespace}/account_type`] || "individual";
   const licenseStatus = user[`${namespace}/license_status`] || "ACTIVE";
   const activatedDevices = user[`${namespace}/activated_devices`] || 1;
-  const maxDevices = accountType === "enterprise" ? 2 : 3;
+  const maxDevices = accountType === "business" ? 2 : 3;
 
   const statusDisplay =
     LICENSE_STATUS_DISPLAY[licenseStatus] || LICENSE_STATUS_DISPLAY.ACTIVE;
@@ -62,7 +62,7 @@ export default async function PortalDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-slate-grey text-sm mb-4">
-              {accountType === "enterprise" ? "Enterprise" : "Individual"} Plan
+              {accountType === "business" ? "Business" : "Individual"} Plan
             </p>
             <Link
               href="/portal/license"

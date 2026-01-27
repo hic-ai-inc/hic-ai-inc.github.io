@@ -29,7 +29,7 @@ import {
   STRIPE_PRICES,
   NAV_LINKS,
   PORTAL_NAV,
-  PORTAL_NAV_ENTERPRISE,
+  PORTAL_NAV_BUSINESS,
   EXTERNAL_URLS,
   AUTH0_NAMESPACE,
   APP_NAME,
@@ -259,10 +259,10 @@ describe("constants.js", () => {
       expect(licenseLink.href).toBe("/portal/license");
     });
 
-    it("should have Machines link", () => {
-      const machinesLink = PORTAL_NAV.find((l) => l.label === "Machines");
-      expect(machinesLink).toBeDefined();
-      expect(machinesLink.href).toBe("/portal/machines");
+    it("should have Devices link", () => {
+      const devicesLink = PORTAL_NAV.find((l) => l.label === "Devices");
+      expect(devicesLink).toBeDefined();
+      expect(devicesLink.href).toBe("/portal/devices");
     });
 
     it("should have Billing link", () => {
@@ -277,15 +277,15 @@ describe("constants.js", () => {
     });
   });
 
-  describe("PORTAL_NAV_ENTERPRISE", () => {
+  describe("PORTAL_NAV_BUSINESS", () => {
     it("should have Team link", () => {
-      const teamLink = PORTAL_NAV_ENTERPRISE.find((l) => l.label === "Team");
+      const teamLink = PORTAL_NAV_BUSINESS.find((l) => l.label === "Team");
       expect(teamLink).toBeDefined();
       expect(teamLink.href).toBe("/portal/team");
     });
 
     it("should have Settings link as last item", () => {
-      const lastItem = PORTAL_NAV_ENTERPRISE[PORTAL_NAV_ENTERPRISE.length - 1];
+      const lastItem = PORTAL_NAV_BUSINESS[PORTAL_NAV_BUSINESS.length - 1];
       expect(lastItem.label).toBe("Settings");
     });
   });

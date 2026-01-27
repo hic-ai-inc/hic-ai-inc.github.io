@@ -195,7 +195,7 @@ describe("middleware route protection logic", () => {
       expect(shouldRedirectToPortal("/admin/billing", session)).toBe(true);
     });
 
-    it("should not redirect enterprise user from /admin", () => {
+    it("should not redirect business user from /admin", () => {
       // Session WITH org_id (using namespaced key)
       const session = createMockSession({
         email: "admin@acme.com",
@@ -204,7 +204,7 @@ describe("middleware route protection logic", () => {
       expect(shouldRedirectToPortal("/admin", session)).toBe(false);
     });
 
-    it("should not redirect enterprise user from /admin/members", () => {
+    it("should not redirect business user from /admin/members", () => {
       const session = createMockSession({
         email: "admin@acme.com",
         "https://hic-ai.com/org_id": "org_acme_123",
@@ -217,7 +217,7 @@ describe("middleware route protection logic", () => {
       expect(shouldRedirectToPortal("/portal", session)).toBe(false);
     });
 
-    it("should not redirect from /portal for enterprise user", () => {
+    it("should not redirect from /portal for business user", () => {
       const session = createMockSession({
         email: "admin@acme.com",
         "https://hic-ai.com/org_id": "org_acme_123",
@@ -237,13 +237,13 @@ describe("middleware route protection logic", () => {
       expect(orgId).toBe(null);
     });
 
-    it("should return org_id for enterprise session", () => {
+    it("should return org_id for business session", () => {
       const session = createMockSession({
         email: "admin@acme.com",
-        "https://hic-ai.com/org_id": "org_enterprise_123",
+        "https://hic-ai.com/org_id": "org_business_123",
       });
       const orgId = getOrganizationId(session);
-      expect(orgId).toBe("org_enterprise_123");
+      expect(orgId).toBe("org_business_123");
     });
 
     it("should return null for null session", () => {
@@ -268,10 +268,10 @@ describe("middleware route protection logic", () => {
       // Only applies to admin-only routes
       if (!isAdminOnlyRoute(path)) return false;
 
-      // Only enforce for enterprise accounts
+      // Only enforce for business accounts
       const accountType =
         session?.user?.[`${AUTH0_NAMESPACE}/account_type`] || "individual";
-      if (accountType !== "enterprise") return false;
+      if (accountType !== "business") return false;
 
       // Regular members get redirected
       const orgRole =
@@ -313,11 +313,11 @@ describe("middleware route protection logic", () => {
       });
     });
 
-    describe("enterprise owner access", () => {
+    describe("business owner access", () => {
       it("should allow owner to access /portal/billing", () => {
         const session = createMockSession({
           email: "owner@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "owner",
         });
         expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
@@ -328,7 +328,7 @@ describe("middleware route protection logic", () => {
       it("should allow owner to access /portal/team", () => {
         const session = createMockSession({
           email: "owner@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "owner",
         });
         expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
@@ -337,11 +337,11 @@ describe("middleware route protection logic", () => {
       });
     });
 
-    describe("enterprise admin access", () => {
+    describe("business admin access", () => {
       it("should allow admin to access /portal/billing", () => {
         const session = createMockSession({
           email: "admin@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "admin",
         });
         expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
@@ -352,7 +352,7 @@ describe("middleware route protection logic", () => {
       it("should allow admin to access /portal/team", () => {
         const session = createMockSession({
           email: "admin@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "admin",
         });
         expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
@@ -361,11 +361,11 @@ describe("middleware route protection logic", () => {
       });
     });
 
-    describe("enterprise member restrictions", () => {
+    describe("business member restrictions", () => {
       it("should redirect member from /portal/billing to /portal", () => {
         const session = createMockSession({
           email: "member@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "member",
         });
         expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
@@ -376,7 +376,7 @@ describe("middleware route protection logic", () => {
       it("should redirect member from /portal/team to /portal", () => {
         const session = createMockSession({
           email: "member@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "member",
         });
         expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
@@ -387,7 +387,7 @@ describe("middleware route protection logic", () => {
       it("should allow member to access /portal (dashboard)", () => {
         const session = createMockSession({
           email: "member@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "member",
         });
         expect(shouldRedirectMemberToPortal("/portal", session)).toBe(false);
@@ -396,7 +396,7 @@ describe("middleware route protection logic", () => {
       it("should allow member to access /portal/license", () => {
         const session = createMockSession({
           email: "member@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "member",
         });
         expect(shouldRedirectMemberToPortal("/portal/license", session)).toBe(
@@ -407,7 +407,7 @@ describe("middleware route protection logic", () => {
       it("should allow member to access /portal/settings", () => {
         const session = createMockSession({
           email: "member@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           [`${AUTH0_NAMESPACE}/org_role`]: "member",
         });
         expect(shouldRedirectMemberToPortal("/portal/settings", session)).toBe(
@@ -416,7 +416,7 @@ describe("middleware route protection logic", () => {
       });
     });
 
-    describe("non-enterprise accounts (no RBAC enforcement)", () => {
+    describe("non-business accounts (no RBAC enforcement)", () => {
       it("should not redirect individual user from /portal/billing", () => {
         const session = createMockSession({
           email: "individual@example.com",
@@ -428,10 +428,10 @@ describe("middleware route protection logic", () => {
         );
       });
 
-      it("should not redirect team account member from /portal/team", () => {
+      it("should not redirect oss account from /portal/team", () => {
         const session = createMockSession({
-          email: "team-member@example.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "team",
+          email: "oss-maintainer@example.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "oss",
           [`${AUTH0_NAMESPACE}/org_role`]: "member",
         });
         expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
@@ -453,8 +453,8 @@ describe("middleware route protection logic", () => {
     describe("edge cases", () => {
       it("should default org_role to member when missing", () => {
         const session = createMockSession({
-          email: "enterprise@acme.com",
-          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          email: "business@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "business",
           // No org_role set - defaults to member
         });
         expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
@@ -477,4 +477,3 @@ describe("middleware route protection logic", () => {
     });
   });
 });
-

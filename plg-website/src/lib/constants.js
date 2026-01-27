@@ -158,13 +158,13 @@ export const NAV_LINKS = [
 export const PORTAL_NAV = [
   { label: "Dashboard", href: "/portal", icon: "dashboard" },
   { label: "License", href: "/portal/license", icon: "key" },
-  { label: "Machines", href: "/portal/machines", icon: "devices" },
+  { label: "Devices", href: "/portal/devices", icon: "devices" },
   { label: "Billing", href: "/portal/billing", icon: "credit-card" },
   { label: "Invoices", href: "/portal/invoices", icon: "receipt" },
   { label: "Settings", href: "/portal/settings", icon: "settings" },
 ];
 
-export const PORTAL_NAV_ENTERPRISE = [
+export const PORTAL_NAV_BUSINESS = [
   ...PORTAL_NAV.slice(0, -1),
   { label: "Team", href: "/portal/team", icon: "users" },
   { label: "Settings", href: "/portal/settings", icon: "settings" },

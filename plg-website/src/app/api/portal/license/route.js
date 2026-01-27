@@ -40,8 +40,8 @@ export async function GET() {
 
     // Determine plan name
     const planName =
-      customer.accountType === "enterprise"
-        ? "Enterprise"
+      customer.accountType === "business"
+        ? "Business"
         : customer.accountType === "individual"
           ? "Individual"
           : "Open Source";

@@ -1,10 +1,10 @@
 /**
- * Team Management Page (Team/Enterprise Only)
+ * Team Management Page (Business Only)
  *
  * Manage team members, seats, and permissions.
  *
  * @see PLG User Journey - Section 2.6
- * @see PLG Pricing v4 - Team tier includes team management
+ * @see PLG Pricing v4 - Business tier includes team management
  */
 
 import { getSession } from "@/lib/auth";
@@ -23,8 +23,8 @@ export default async function TeamPage() {
 
   const accountType = user[`${namespace}/account_type`];
 
-  // Redirect non-team users (per v4 pricing: team and enterprise have team features)
-  if (accountType !== "team" && accountType !== "enterprise") {
+  // Redirect non-business users (per v4 pricing: only business has team features)
+  if (accountType !== "business") {
     redirect("/portal");
   }
 

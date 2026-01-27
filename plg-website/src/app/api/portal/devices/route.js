@@ -17,11 +17,51 @@ import {
 import { getLicenseMachines, deactivateDevice } from "@/lib/keygen";
 import { PRICING } from "@/lib/constants";
 
+// Mock data for development preview
+const MOCK_DEVICES = [
+  {
+    id: "machine_preview_1",
+    name: 'MacBook Pro 16"',
+    platform: "macOS",
+    fingerprint: "abc123def456",
+    lastSeen: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 mins ago
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(), // 30 days ago
+  },
+  {
+    id: "machine_preview_2",
+    name: "Windows Desktop",
+    platform: "Windows",
+    fingerprint: "xyz789ghi012",
+    lastSeen: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(), // 14 days ago
+  },
+  {
+    id: "machine_preview_3",
+    name: "Ubuntu Dev Container",
+    platform: "Linux",
+    fingerprint: "lnx456container",
+    lastSeen: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), // 10 days ago (inactive)
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(), // 60 days ago
+  },
+];
+
 export async function GET() {
   try {
     const session = await getSession();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // In development with mock user, return mock data
+    if (
+      process.env.NODE_ENV === "development" &&
+      session.user.sub === "auth0|dev-preview-user"
+    ) {
+      return NextResponse.json({
+        devices: MOCK_DEVICES,
+        maxDevices: 5,
+        licenseId: "license_preview_123",
+      });
     }
 
     // Get customer and licenses
@@ -65,7 +105,8 @@ export async function GET() {
 
     // Get max devices from customer's plan using PRICING constants
     const planConfig = PRICING[customer.accountType];
-    const maxDevices = planConfig?.maxDevices || planConfig?.maxDevicesPerSeat || 3;
+    const maxDevices =
+      planConfig?.maxDevices || planConfig?.maxDevicesPerSeat || 3;
 
     return NextResponse.json({
       devices: mergedDevices,
@@ -96,6 +137,14 @@ export async function DELETE(request) {
         { error: "Machine ID and License ID required" },
         { status: 400 },
       );
+    }
+
+    // In development with mock user, simulate success
+    if (
+      process.env.NODE_ENV === "development" &&
+      session.user.sub === "auth0|dev-preview-user"
+    ) {
+      return NextResponse.json({ success: true });
     }
 
     // Verify user owns this license

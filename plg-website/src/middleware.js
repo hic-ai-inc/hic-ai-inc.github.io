@@ -3,22 +3,60 @@
  *
  * Protects authenticated routes:
  * - /portal/* - Customer portal (requires authentication)
- * - /portal/billing, /portal/team - Admin-only routes for enterprise accounts
+ * - /portal/billing, /portal/team - Admin-only routes for business accounts
  * - /admin/*  - Admin routes (requires authentication + org context)
+ *
+ * Dev Mode: Add ?dev=preview to bypass auth for UI preview (NODE_ENV=development only)
  *
  * @see Security Considerations for Auth0 Integration - Section 7.1
  */
 
 import { NextResponse } from "next/server";
-import { getAuth0Client, getOrganizationId } from "./lib/auth0.js";
 
 const AUTH0_NAMESPACE = "https://hic-ai.com";
 
-// Routes that require admin or owner role for enterprise accounts
+// Routes that require admin or owner role for business accounts
 const ADMIN_ONLY_ROUTES = ["/portal/billing", "/portal/team"];
 
 export async function middleware(req) {
-  const auth0 = getAuth0Client();
+  const path = req.nextUrl.pathname;
+
+  // ===========================================
+  // DEV MODE BYPASS (development only)
+  // ===========================================
+  // Add ?dev=preview to any URL to bypass auth checks
+  // Only works when NODE_ENV=development
+  if (process.env.NODE_ENV === "development") {
+    const devParam = req.nextUrl.searchParams.get("dev");
+    if (devParam === "preview") {
+      console.log(`[DEV] Auth bypass for: ${path}`);
+      return NextResponse.next();
+    }
+  }
+
+  // Only apply auth checks to protected routes
+  const requiresAuth = path.startsWith("/portal") || path.startsWith("/admin");
+  if (!requiresAuth) {
+    return NextResponse.next();
+  }
+
+  // Dynamically import Auth0 only when needed (avoids errors if not configured)
+  let auth0, getOrganizationId;
+  try {
+    const auth0Module = await import("./lib/auth0.js");
+    auth0 = auth0Module.getAuth0Client();
+    getOrganizationId = auth0Module.getOrganizationId;
+  } catch (error) {
+    console.error("[Middleware] Auth0 not configured:", error.message);
+    // In development, allow access if Auth0 isn't configured
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[DEV] Auth0 not configured, allowing access to: ${path}`);
+      return NextResponse.next();
+    }
+    // In production, redirect to home if Auth0 fails
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+
   const authRes = await auth0.middleware(req);
 
   // If Auth0 middleware returned a response, use it (redirects, etc.)
@@ -26,40 +64,35 @@ export async function middleware(req) {
     return authRes;
   }
 
-  const path = req.nextUrl.pathname;
+  const session = await auth0.getSession();
 
-  // Check if route requires authentication
-  if (path.startsWith("/portal") || path.startsWith("/admin")) {
-    const session = await auth0.getSession();
+  if (!session) {
+    // Redirect to login
+    return NextResponse.redirect(new URL("/auth/login", req.url));
+  }
 
-    if (!session) {
-      // Redirect to login
-      return NextResponse.redirect(new URL("/auth/login", req.url));
-    }
+  // Role-based protection for business admin-only routes
+  if (ADMIN_ONLY_ROUTES.some((route) => path.startsWith(route))) {
+    const accountType =
+      session.user?.[`${AUTH0_NAMESPACE}/account_type`] || "individual";
+    const orgRole = session.user?.[`${AUTH0_NAMESPACE}/org_role`] || "member";
 
-    // Role-based protection for enterprise admin-only routes
-    if (ADMIN_ONLY_ROUTES.some((route) => path.startsWith(route))) {
-      const accountType =
-        session.user?.[`${AUTH0_NAMESPACE}/account_type`] || "individual";
-      const orgRole = session.user?.[`${AUTH0_NAMESPACE}/org_role`] || "member";
-
-      // Only enforce for enterprise accounts
-      if (accountType === "enterprise") {
-        // Regular members cannot access admin-only routes
-        if (orgRole === "member") {
-          return NextResponse.redirect(new URL("/portal", req.url));
-        }
-      }
-    }
-
-    // Admin routes require organization context (enterprise users)
-    if (path.startsWith("/admin")) {
-      const orgId = getOrganizationId(session);
-
-      if (!orgId) {
-        // Individual user trying to access admin - redirect to portal
+    // Only enforce for business accounts
+    if (accountType === "business") {
+      // Regular members cannot access admin-only routes
+      if (orgRole === "member") {
         return NextResponse.redirect(new URL("/portal", req.url));
       }
+    }
+  }
+
+  // Admin routes require organization context (business users)
+  if (path.startsWith("/admin")) {
+    const orgId = getOrganizationId(session);
+
+    if (!orgId) {
+      // Individual user trying to access admin - redirect to portal
+      return NextResponse.redirect(new URL("/portal", req.url));
     }
   }
 

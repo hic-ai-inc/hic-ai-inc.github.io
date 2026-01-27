@@ -2,21 +2,22 @@
  * Portal Sidebar Component
  *
  * Navigation sidebar for authenticated portal pages.
- * Filters navigation items based on user role for enterprise accounts.
+ * Filters navigation items based on user role for business accounts.
  */
 
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import {
   PORTAL_NAV,
-  PORTAL_NAV_ENTERPRISE,
+  PORTAL_NAV_BUSINESS,
   AUTH0_NAMESPACE,
 } from "@/lib/constants";
 
-// Nav items restricted to admin/owner only (enterprise accounts)
+// Nav items restricted to admin/owner only (business accounts)
 const ADMIN_ONLY_PATHS = ["/portal/billing", "/portal/team"];
 
 export default function PortalSidebar() {
@@ -28,18 +29,29 @@ export default function PortalSidebar() {
 
   // Select base nav items based on account type
   let navItems =
-    accountType === "enterprise" ? PORTAL_NAV_ENTERPRISE : PORTAL_NAV;
+    accountType === "business" ? PORTAL_NAV_BUSINESS : PORTAL_NAV;
 
-  // For enterprise accounts, filter out admin-only pages for regular members
-  if (accountType === "enterprise" && orgRole === "member") {
+  // For business accounts, filter out admin-only pages for regular members
+  if (accountType === "business" && orgRole === "member") {
     navItems = navItems.filter((item) => !ADMIN_ONLY_PATHS.includes(item.href));
   }
 
   return (
     <aside className="w-64 min-h-screen bg-midnight-navy border-r border-card-border">
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-card-border">
-        <Link href="/" className="flex items-center gap-2">
+      <div className="h-16 flex items-center px-4 border-b border-card-border">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="h-10 w-10 flex items-center justify-center overflow-hidden rounded">
+            <Image
+              src="/images/mouse-logo.png"
+              alt="Mouse Logo"
+              width={96}
+              height={96}
+              priority
+              className="h-20 w-20 scale-100"
+              style={{ objectFit: "none", objectPosition: "center 55%" }}
+            />
+          </div>
           <span className="text-xl font-bold tracking-wider text-frost-white">
             MOUSE
           </span>

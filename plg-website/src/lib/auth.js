@@ -6,16 +6,126 @@
  * - Role-based access control
  * - Permission enforcement
  *
+ * Dev Mode: Returns mock session when Auth0 is not configured (development only)
+ *
  * @see Security Considerations for Auth0 Integration - Section 6.3
  */
 
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
+import { headers } from "next/headers";
 
-// Auth0 v4 client instance
-const auth0 = new Auth0Client();
+// Check if Auth0 is configured
+const isAuth0Configured = !!(
+  process.env.AUTH0_SECRET &&
+  process.env.AUTH0_CLIENT_ID &&
+  process.env.AUTH0_CLIENT_SECRET
+);
 
-// Re-export getSession for compatibility
-export const getSession = () => auth0.getSession();
+// Dev role configurations for testing all 5 user journeys
+// Use URL param ?role=individual|business_solo|business_member|business_admin|business_owner
+const DEV_ROLE_CONFIGS = {
+  individual: {
+    account_type: "individual",
+    org_id: null,
+    org_role: null,
+    name: "Individual User",
+  },
+  business_solo: {
+    account_type: "business",
+    org_id: "org_preview_solo",
+    org_role: "owner", // Solo = owner of 1-person org
+    name: "Business Solo User",
+  },
+  business_member: {
+    account_type: "business",
+    org_id: "org_preview_123",
+    org_role: "member",
+    name: "Business Team Member",
+  },
+  business_admin: {
+    account_type: "business",
+    org_id: "org_preview_123",
+    org_role: "admin",
+    name: "Business Admin",
+  },
+  business_owner: {
+    account_type: "business",
+    org_id: "org_preview_123",
+    org_role: "owner",
+    name: "Business Owner",
+  },
+};
+
+/**
+ * Get mock session for development based on URL ?role= parameter
+ * @param {string} role - Role from URL parameter
+ * @returns {object} Mock session object
+ */
+function getDevMockSession(role = "business_owner") {
+  const config = DEV_ROLE_CONFIGS[role] || DEV_ROLE_CONFIGS.business_owner;
+
+  return {
+    user: {
+      sub: `auth0|dev-preview-${role}`,
+      email: `${role.replace("_", "-")}@example.com`,
+      name: config.name,
+      picture: null,
+      email_verified: true,
+      "https://hic-ai.com/account_type": config.account_type,
+      "https://hic-ai.com/org_id": config.org_id,
+      "https://hic-ai.com/org_role": config.org_role,
+      "https://hic-ai.com/stripe_customer_id": "cus_preview_123",
+    },
+  };
+}
+
+// Auth0 v4 client instance (only create if configured)
+let auth0 = null;
+if (isAuth0Configured) {
+  auth0 = new Auth0Client();
+}
+
+/**
+ * Get current session
+ * Returns mock session in development when Auth0 is not configured
+ * Dev mode: Use ?role=individual|business_solo|business_member|business_admin|business_owner
+ */
+export const getSession = async () => {
+  // In development without Auth0 configured, return mock session
+  if (process.env.NODE_ENV === "development" && !isAuth0Configured) {
+    // Read role from URL via referer header (works for server components)
+    let role = "business_owner";
+    try {
+      const headersList = await headers();
+      const referer = headersList.get("referer") || "";
+      const url = new URL(referer, "http://localhost:3000");
+      const roleParam = url.searchParams.get("role");
+      if (roleParam && DEV_ROLE_CONFIGS[roleParam]) {
+        role = roleParam;
+      }
+    } catch {
+      // Ignore header parsing errors
+    }
+    console.log(`[DEV] Auth0 not configured, using mock session for role: ${role}`);
+    return getDevMockSession(role);
+  }
+
+  if (!auth0) {
+    console.warn("[Auth] Auth0 not configured");
+    return null;
+  }
+
+  try {
+    return await auth0.getSession();
+  } catch (error) {
+    // In development, return mock on error
+    if (process.env.NODE_ENV === "development") {
+      console.log("[DEV] Auth0 error, returning mock session:", error.message);
+      return getDevMockSession("business_owner");
+    }
+    throw error;
+  }
+};
 
 const NAMESPACE = "https://hic-ai.com";
 
