@@ -9,7 +9,7 @@ applications:
             - 'echo "NPM version:" && npm --version'
             - npm ci
             - 'echo "Installing dm dependencies for dm/layers..."'
-            - cd ../dm && npm ci
+            - cd ../dm && npm ci && cd ../plg-website
         build:
           commands:
             - 'echo "Building for environment: $AMPLIFY_ENV"'
