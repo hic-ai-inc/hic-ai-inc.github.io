@@ -207,16 +207,17 @@ if [[ "$SKIP_UPLOAD" == "false" ]]; then
     print_step "Uploading CloudFormation templates to S3..."
     
     # Validate all templates first
+    # Note: Using $(cat ...) instead of file:// for Windows Git Bash compatibility
     for template in "${TEMPLATES_DIR}"/*.yaml; do
         template_name=$(basename "$template")
         print_step "  Validating ${template_name}..."
         
         if ! aws cloudformation validate-template \
-            --template-body "file://${template}" \
+            --template-body "$(cat "$template")" \
             --region "$REGION" > /dev/null 2>&1; then
             print_error "Template validation failed: ${template_name}"
             aws cloudformation validate-template \
-                --template-body "file://${template}" \
+                --template-body "$(cat "$template")" \
                 --region "$REGION"
             exit 1
         fi
@@ -353,6 +354,59 @@ echo "    hic-ses-layer:${HIC_SES_LAYER_VERSION}"
 echo "    hic-config-layer:${HIC_CONFIG_LAYER_VERSION}"
 
 # ───────────────────────────────────────────────────────────────────────────────
+# Verify Lambda Packages Exist in S3
+# ───────────────────────────────────────────────────────────────────────────────
+
+print_step "Verifying Lambda packages in S3..."
+
+# Get Lambda code bucket from parameters
+LAMBDA_CODE_BUCKET=$(jq -r '.[] | select(.ParameterKey == "LambdaCodeBucket") | .ParameterValue' "$PARAMS_FILE")
+LAMBDA_CODE_PREFIX=$(jq -r '.[] | select(.ParameterKey == "LambdaCodePrefix") | .ParameterValue' "$PARAMS_FILE")
+
+if [[ -z "$LAMBDA_CODE_BUCKET" ]]; then
+    print_error "LambdaCodeBucket not found in parameters file"
+    exit 1
+fi
+
+# Expected Lambda packages
+EXPECTED_LAMBDAS=(
+    "stream-processor"
+    "email-sender"
+    "customer-update"
+    "scheduled-tasks"
+)
+
+MISSING_PACKAGES=""
+for lambda_name in "${EXPECTED_LAMBDAS[@]}"; do
+    s3_key="${LAMBDA_CODE_PREFIX}/${lambda_name}.zip"
+    if ! aws s3api head-object --bucket "$LAMBDA_CODE_BUCKET" --key "$s3_key" --region "$REGION" &>/dev/null; then
+        MISSING_PACKAGES="$MISSING_PACKAGES $lambda_name"
+    fi
+done
+
+if [[ -n "$MISSING_PACKAGES" ]]; then
+    print_error "Missing Lambda packages in s3://${LAMBDA_CODE_BUCKET}/${LAMBDA_CODE_PREFIX}/:"
+    for pkg in $MISSING_PACKAGES; do
+        echo "    ❌ ${pkg}.zip"
+    done
+    echo ""
+    echo "To fix, package and upload Lambda functions:"
+    echo ""
+    echo "  cd infrastructure/lambda"
+    echo "  for fn in stream-processor email-sender customer-update scheduled-tasks; do"
+    echo "    (cd \$fn && zip -r ../\${fn}.zip .)"
+    echo "  done"
+    echo "  aws s3 cp . s3://${LAMBDA_CODE_BUCKET}/${LAMBDA_CODE_PREFIX}/ --recursive --exclude '*' --include '*.zip'"
+    echo ""
+    exit 1
+fi
+
+print_success "All Lambda packages found in S3:"
+for lambda_name in "${EXPECTED_LAMBDAS[@]}"; do
+    echo "    ✅ ${lambda_name}.zip"
+done
+
+# ───────────────────────────────────────────────────────────────────────────────
 # Merge Layer ARNs into Parameters
 # ───────────────────────────────────────────────────────────────────────────────
 
@@ -397,11 +451,12 @@ CHANGE_SET_TYPE=$(if [ "$STACK_EXISTS" == "true" ]; then echo "UPDATE"; else ech
 
 print_step "Creating change set: ${CHANGE_SET_NAME}..."
 
+# Note: Using $(cat ...) instead of file:// for Windows Git Bash compatibility
 aws cloudformation create-change-set \
     --stack-name "$STACK_NAME" \
     --change-set-name "$CHANGE_SET_NAME" \
     --template-url "https://${TEMPLATES_BUCKET}.s3.amazonaws.com/cloudformation/plg-main-stack.yaml" \
-    --parameters "file://${TEMP_PARAMS_FILE}" \
+    --parameters "$(cat "$TEMP_PARAMS_FILE")" \
     --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
     --region "$REGION" \
     --change-set-type "$CHANGE_SET_TYPE" \

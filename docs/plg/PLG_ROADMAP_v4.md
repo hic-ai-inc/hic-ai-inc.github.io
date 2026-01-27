@@ -1,6 +1,6 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.4.0  
+**Document Version:** 4.5.0  
 **Date:** January 27, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -31,14 +31,16 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —                 |
 | 5c  | **Server-Side Trial Token API**    | ✅ **COMPLETE** (33 tests)  | 0h (done)  | GC         | —                 |
 | 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
-| 7   | AWS Infrastructure                 | ✅ Templates exist          | 4-6h       | GC         | —                 |
+| 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | 0h (done)  | GC         | —                 |
 | 8   | **VS Code Extension (VSIX)**       | 🟡 **IN PROGRESS**          | **60-80h** | Simon      | **CRITICAL PATH** |
 | 9   | Back-End E2E Testing               | ⚠️ Unit tests pass (580)    | 8-12h      | GC         | 3, 7, 8           |
 | 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —                 |
-| 11  | Deployment & Launch                | ⬜ Not started              | 8-12h      | GC + Simon | 7-10              |
+| 11  | Deployment & Launch                | 🟡 **STAGING DEPLOYED**     | 4-6h       | GC + Simon | 7-10              |
 | 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —                 |
 
 > ⚠️ **UPDATE (Jan 27):** Server-side heartbeat and trial token APIs are now complete. Mouse client-side licensing implementation is in progress with 139 passing tests.
+>
+> 🚀 **MILESTONE (Jan 27, 4:13 PM EST):** AWS Infrastructure deployed to staging! DynamoDB table `hic-plg-staging` live, Amplify role created, SES domain pending verification. 57 infrastructure tests passing.
 
 ---
 
@@ -368,8 +370,8 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ## 7. AWS Infrastructure
 
-**Status:** ✅ Templates exist — need deployment  
-**Est. Hours:** 4-6h (deployment + verification)  
+**Status:** ✅ **DEPLOYED TO STAGING** (Jan 27, 2026)  
+**Est. Hours:** 0h (complete)  
 **Documentation:** [infrastructure/README.md](../../plg-website/infrastructure/README.md)
 
 ### 7.1 Summary
@@ -396,30 +398,32 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ### 7.2 Checklist
 
-| Task                                 | Status | Notes                           |
-| ------------------------------------ | ------ | ------------------------------- |
-| **CloudFormation Templates**         |        |                                 |
-| `plg-main-stack.yaml` — Orchestrator | ✅     | 13KB                            |
-| `plg-dynamodb.yaml` — Table + GSIs   | ✅     | 5KB                             |
-| `plg-iam.yaml` — IAM roles           | ✅     | 13KB                            |
-| `plg-ses.yaml` — Email               | ✅     | 7KB                             |
-| `plg-messaging.yaml` — SNS/SQS       | ✅     | 11KB                            |
-| `plg-monitoring.yaml` — CloudWatch   | ✅     | 15KB                            |
-| `plg-compute.yaml` — Lambda          | ✅     | 12KB                            |
-| `plg-scheduled.yaml` — Cron jobs     | ✅     | 4KB                             |
-| **Deployment Scripts**               |        |                                 |
-| `deploy.sh` with dry-run support     | ✅     | 24KB                            |
-| Parameter files (dev, staging, prod) | ✅     | All 3 exist                     |
-| `amplify.yml`                        | ✅     | Exists                          |
-| **Deployment Tasks**                 |        |                                 |
-| Review deploy.sh for correctness     | ⬜     | Verify commands                 |
-| Dry-run deploy to staging            | ⬜     | `./deploy.sh --dry-run staging` |
-| Deploy to staging                    | ⬜     | `./deploy.sh staging`           |
-| Verify all resources created         | ⬜     | Check AWS console               |
-| Deploy to production                 | ⬜     | `./deploy.sh prod`              |
-| **Environment Setup**                |        |                                 |
-| AWS Parameter Store secrets          | ⬜     | All API keys                    |
-| Secrets Manager for sensitive keys   | ⬜     | Stripe, KeyGen secrets          |
+| Task                                 | Status | Notes                          |
+| ------------------------------------ | ------ | ------------------------------ |
+| **CloudFormation Templates**         |        |                                |
+| `plg-main-stack.yaml` — Orchestrator | ✅     | 13KB                           |
+| `plg-dynamodb.yaml` — Table + GSIs   | ✅     | 5KB                            |
+| `plg-iam.yaml` — IAM roles           | ✅     | 13KB                           |
+| `plg-ses.yaml` — Email               | ✅     | 7KB                            |
+| `plg-messaging.yaml` — SNS/SQS       | ✅     | 11KB                           |
+| `plg-monitoring.yaml` — CloudWatch   | ✅     | 15KB                           |
+| `plg-compute.yaml` — Lambda          | ✅     | 12KB                           |
+| `plg-scheduled.yaml` — Cron jobs     | ✅     | 4KB                            |
+| **Deployment Scripts**               |        |                                |
+| `deploy.sh` with dry-run support     | ✅     | 24KB                           |
+| Parameter files (dev, staging, prod) | ✅     | All 3 exist                    |
+| `amplify.yml`                        | ✅     | Exists                         |
+| **Deployment Tasks**                 |        |                                |
+| Review deploy.sh for correctness     | ✅     | Fixed for Windows Git Bash     |
+| Dry-run deploy to staging            | ✅     | Verified                       |
+| Deploy to staging                    | ✅     | `./deploy.sh staging` SUCCESS  |
+| Verify all resources created         | ✅     | All 7 nested stacks created    |
+| Add SES DNS records to GoDaddy       | ✅     | 4 records added (3 DKIM + TXT) |
+| Verify SES domain                    | ✅     | Domain + DKIM VERIFIED! 🎉     |
+| Deploy to production                 | ⬜     | `./deploy.sh prod`             |
+| **Environment Setup**                |        |                                |
+| AWS Secrets Manager                  | ✅     | `plg/staging/env` created      |
+| .env.local complete                  | ✅     | All credentials populated      |
 
 ### 7.3 CI/CD Pipeline — ✅ COMPLETE
 
@@ -480,16 +484,16 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 
 #### Phase 3: Licensing Implementation (16-24h)
 
-| Task                                          | Status | Notes                                 |
-| --------------------------------------------- | ------ | ------------------------------------- |
-| Create `licensing/config.js`                  | ✅     | Trial constants, URLs                 |
-| Create `licensing/license-state.js`           | ✅     | Local state storage (139 tests)       |
-| Create `licensing/license-checker.js`         | ✅     | Main validation logic                 |
-| Create `licensing/providers/http-provider.js` | ✅     | KeyGen endpoints + 48 tests           |
-| Create `licensing/messages.js`                | ✅     | Agent-facing messages                 |
-| Implement `_meta.license` injection           | ✅     | In server.js (probabilistic)          |
-| Implement tool blocking for expired           | ✅     | checkToolAccess() in server.js        |
-| Add `license_status` always-available tool    | ✅     | 16 tests passing                      |
+| Task                                          | Status | Notes                           |
+| --------------------------------------------- | ------ | ------------------------------- |
+| Create `licensing/config.js`                  | ✅     | Trial constants, URLs           |
+| Create `licensing/license-state.js`           | ✅     | Local state storage (139 tests) |
+| Create `licensing/license-checker.js`         | ✅     | Main validation logic           |
+| Create `licensing/providers/http-provider.js` | ✅     | KeyGen endpoints + 48 tests     |
+| Create `licensing/messages.js`                | ✅     | Agent-facing messages           |
+| Implement `_meta.license` injection           | ✅     | In server.js (probabilistic)    |
+| Implement tool blocking for expired           | ✅     | checkToolAccess() in server.js  |
+| Add `license_status` always-available tool    | ✅     | 16 tests passing                |
 
 #### Phase 4: Heartbeat Implementation (8-12h)
 
@@ -504,14 +508,14 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 
 #### Phase 5: Nag Banner System (8-12h)
 
-| Task                                       | Status | Notes               |
-| ------------------------------------------ | ------ | ------------------- |
-| Implement deterministic metadata frequency | ✅     | Seeded RNG (mulberry32)             |
-| Trial Days 1-7: ~20% of calls              | ✅     | EARLY_TRIAL_PROBABILITY = 0.20      |
-| Trial Days 8-12: ~50% of calls             | ✅     | MID_TRIAL_PROBABILITY = 0.50        |
-| Trial Days 13-14: ~80% + Last 24h: 100%    | ✅     | FINAL/LAST_DAY_PROBABILITY          |
-| Suspended mode (payment failed)            | ✅     | GRACE_PROBABILITY = 1.0             |
-| Expired mode: Block all tools              | ✅     | checkToolAccess() blocks            |
+| Task                                       | Status | Notes                          |
+| ------------------------------------------ | ------ | ------------------------------ |
+| Implement deterministic metadata frequency | ✅     | Seeded RNG (mulberry32)        |
+| Trial Days 1-7: ~20% of calls              | ✅     | EARLY_TRIAL_PROBABILITY = 0.20 |
+| Trial Days 8-12: ~50% of calls             | ✅     | MID_TRIAL_PROBABILITY = 0.50   |
+| Trial Days 13-14: ~80% + Last 24h: 100%    | ✅     | FINAL/LAST_DAY_PROBABILITY     |
+| Suspended mode (payment failed)            | ✅     | GRACE_PROBABILITY = 1.0        |
+| Expired mode: Block all tools              | ✅     | checkToolAccess() blocks       |
 
 #### Phase 6: VSIX Packaging (8-12h)
 
@@ -626,8 +630,8 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 
 ## 11. Deployment & Launch
 
-**Status:** ⬜ Not started  
-**Est. Hours:** 8-12h  
+**Status:** 🟡 **STAGING DEPLOYED** (Jan 27, 2026)  
+**Est. Hours:** 4-6h remaining  
 **Prerequisites:** All above complete
 
 ### 11.1 Pre-Launch Checklist
@@ -635,9 +639,10 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Task                                         | Status | Notes                      |
 | -------------------------------------------- | ------ | -------------------------- |
 | **Infrastructure**                           |        |                            |
-| Deploy CloudFormation stacks                 | ⬜     | Or manual setup            |
-| Verify DynamoDB table exists                 | ⬜     | GSIs working               |
-| Verify SES domain verified                   | ⬜     | Can send email             |
+| Deploy CloudFormation stacks                 | ✅     | Staging: Jan 27, 2026      |
+| Verify DynamoDB table exists                 | ✅     | `hic-plg-staging` ACTIVE   |
+| Add SES DNS records to GoDaddy               | ✅     | 4 records added            |
+| Verify SES domain verified                   | ⏳     | Pending propagation        |
 | **Environment**                              |        |                            |
 | All env vars set in Amplify                  | ⬜     | Check .env.example         |
 | Secrets in Parameter Store / Secrets Manager | ⬜     | API keys                   |
@@ -867,26 +872,27 @@ Parallel workstreams (no dependencies):
 
 ## Document History
 
-| Version | Date         | Changes                                                                                                                                                                                                              |
-| ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **4.4** | Jan 27, 2026 | **Phase 3-5 COMPLETE.** Added `license_status` tool (16 tests). Implemented tiered nag frequency: 20%/50%/80%/100% with seeded RNG (23 tests). Updated NAG_CONFIG constants. Non-blocking heartbeat failure handling. 119 total licensing tests. |
+| Version | Date         | Changes                                                                                                                                                                                                                                           |
+| ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.4** | Jan 27, 2026 | **Phase 3-5 COMPLETE.** Added `license_status` tool (16 tests). Implemented tiered nag frequency: 20%/50%/80%/100% with seeded RNG (23 tests). Updated NAG_CONFIG constants. Non-blocking heartbeat failure handling. 119 total licensing tests.  |
 | **4.3** | Jan 27, 2026 | **MCP licensing KeyGen integration.** Updated `mouse/src/licensing/` to use KeyGen endpoints (`api.hic-ai.com`). Added http-provider.test.js (48 tests). Clarified dual licensing systems: MCP (tool gating) vs VS Code extension (heartbeat/UI). |
-| **4.2** | Jan 27, 2026 | **Multi-workspace Mouse support.** Updated `mcp/src/utils/dm-base/safe-path.js` with `HIC_ALLOWED_DIRECTORIES` env var. Mouse now works across both `hic` and `hic-ai-inc.github.io` repos in multi-root workspaces. |
-| **4.1** | Jan 27, 2026 | **Server-side APIs complete.** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration tests (13 tests). Fixed `next/headers` dynamic import. 580 total tests passing.           |
-| 4.0     | Jan 26, 2026 | v4 — Accurate Assessment. Revised based on actual code review. Website ~90% complete, Mouse extension has **zero code** (80-100h work). Updated all estimates.                                                       |
-| 3.0.8   | Jan 26, 2026 | **STRIPE + KEYGEN COMPLETE** — KeyGen webhook with Ed25519 verification, Stripe Customer Portal activated. All third-party services fully configured                                                                 |
-| 3.0.7   | Jan 26, 2026 | **Stripe products + KeyGen policies** — All 4 price IDs created, Stripe webhook configured. KeyGen policies (Floating, 3/5 machines) created                                                                         |
-| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments                                                                     |
-| 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance                                                                                                 |
-| 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model                                                                                              |
-| 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                                         |
-| 3.0.2   | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified                                                                                                                                         |
-| 3.0.1   | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section                                                                                                                                   |
-| 3.0     | Jan 26, 2026 | Complete rewrite consolidating all workstreams                                                                                                                                                                       |
-| 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                            |
-| 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                                  |
-| 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                               |
-| 1.0     | Jan 21, 2026 | Initial roadmap                                                                                                                                                                                                      |
+| **4.2** | Jan 27, 2026 | **Multi-workspace Mouse support.** Updated `mcp/src/utils/dm-base/safe-path.js` with `HIC_ALLOWED_DIRECTORIES` env var. Mouse now works across both `hic` and `hic-ai-inc.github.io` repos in multi-root workspaces.                              |
+| **4.1** | Jan 27, 2026 | **Server-side APIs complete.** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration tests (13 tests). Fixed `next/headers` dynamic import. 580 total tests passing.                                        |
+| 4.0     | Jan 26, 2026 | v4 — Accurate Assessment. Revised based on actual code review. Website ~90% complete, Mouse extension has **zero code** (80-100h work). Updated all estimates.                                                                                    |
+| 3.0.8   | Jan 26, 2026 | **STRIPE + KEYGEN COMPLETE** — KeyGen webhook with Ed25519 verification, Stripe Customer Portal activated. All third-party services fully configured                                                                                              |
+| 3.0.7   | Jan 26, 2026 | **Stripe products + KeyGen policies** — All 4 price IDs created, Stripe webhook configured. KeyGen policies (Floating, 3/5 machines) created                                                                                                      |
+| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments                                                                                                  |
+| 4.5.0   | Jan 27, 2026 | **STAGING DEPLOYED** — AWS infrastructure deployed to staging (7 nested stacks), DynamoDB `hic-plg-staging` live, SES pending DNS verification, 57 infrastructure tests, deploy.sh hardened with Lambda package verification                      |
+| 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance                                                                                                                              |
+| 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model                                                                                                                           |
+| 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                                                                      |
+| 3.0.2   | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified                                                                                                                                                                      |
+| 3.0.1   | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section                                                                                                                                                                |
+| 3.0     | Jan 26, 2026 | Complete rewrite consolidating all workstreams                                                                                                                                                                                                    |
+| 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                                                         |
+| 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                                                               |
+| 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                                                            |
+| 1.0     | Jan 21, 2026 | Initial roadmap                                                                                                                                                                                                                                   |
 
 ---
 

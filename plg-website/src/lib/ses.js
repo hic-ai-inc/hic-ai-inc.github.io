@@ -10,7 +10,11 @@
  * @see PLG Technical Specification v2 - Section 5
  */
 
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+// HIC DM Layer imports - centralized dependency management
+import {
+  SESClient,
+  SendEmailCommand,
+} from "../../../dm/layers/ses/src/index.js";
 import { HicLog } from "../../../dm/layers/base/src/index.js";
 
 const ses = new SESClient({
@@ -425,7 +429,7 @@ ${COMPANY_NAME}
           <h1 style="color: #F87171; margin-bottom: 24px;">License Revoked</h1>
           
           <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-            Your ${PRODUCT_NAME} license${organizationName ? ` from ${organizationName}` : ''} has been revoked by your organization's administrator.
+            Your ${PRODUCT_NAME} license${organizationName ? ` from ${organizationName}` : ""} has been revoked by your organization's administrator.
           </p>
           
           <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
@@ -458,7 +462,7 @@ ${COMPANY_NAME}
     text: `
 License Revoked
 
-Your ${PRODUCT_NAME} license${organizationName ? ` from ${organizationName}` : ''} has been revoked by your organization's administrator.
+Your ${PRODUCT_NAME} license${organizationName ? ` from ${organizationName}` : ""} has been revoked by your organization's administrator.
 
 This means you no longer have access to ${PRODUCT_NAME} through this license. If you believe this is an error, please contact your administrator.
 
@@ -609,7 +613,12 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_APP_URL}/unsubscribe?email=${encodeURICom
   /**
    * Enterprise team invitation (A.7)
    */
-  enterpriseInvite: ({ email, organizationName, inviterName, inviteToken }) => ({
+  enterpriseInvite: ({
+    email,
+    organizationName,
+    inviterName,
+    inviteToken,
+  }) => ({
     subject: `You've been invited to use ${PRODUCT_NAME}`,
     html: `
       <!DOCTYPE html>
@@ -700,7 +709,7 @@ ${COMPANY_NAME}
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Reason</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${reason || 'Not specified'}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${reason || "Not specified"}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Dispute ID</td>
@@ -729,7 +738,7 @@ DISPUTE ALERT
 
 Customer: ${customerEmail}
 Amount: $${(amount / 100).toFixed(2)}
-Reason: ${reason || 'Not specified'}
+Reason: ${reason || "Not specified"}
 Dispute ID: ${disputeId}
 
 Actions Taken:
@@ -743,7 +752,6 @@ Required Actions:
 View in Stripe: https://dashboard.stripe.com/disputes/${disputeId}
     `,
   }),
-
 };
 
 // ===========================================
@@ -754,9 +762,9 @@ View in Stripe: https://dashboard.stripe.com/disputes/${disputeId}
  * Send an email using a template
  */
 export async function sendEmail(templateName, to, data) {
-  const log = new HicLog('plg-ses');
-  log.logAWSCall('SES', 'SendEmail', { templateName, to });
-  
+  const log = new HicLog("plg-ses");
+  log.logAWSCall("SES", "SendEmail", { templateName, to });
+
   const template = templates[templateName];
   if (!template) {
     throw new Error(`Unknown email template: ${templateName}`);
@@ -850,7 +858,12 @@ export async function sendLicenseRevokedEmail(email, organizationName = null) {
  * Send dispute alert to support team (A.6.2)
  * Note: This goes to SUPPORT_EMAIL, not the customer
  */
-export async function sendDisputeAlert(customerEmail, amount, reason, disputeId) {
+export async function sendDisputeAlert(
+  customerEmail,
+  amount,
+  reason,
+  disputeId,
+) {
   const supportEmail = process.env.SUPPORT_EMAIL || "support@hic-ai.com";
   return sendEmail("disputeAlert", supportEmail, {
     customerEmail,
