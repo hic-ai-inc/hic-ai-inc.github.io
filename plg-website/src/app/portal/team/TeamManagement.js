@@ -37,6 +37,12 @@ export default function TeamManagement({ initialUserId }) {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState(null);
 
+  // Role change state
+  const [roleChangeLoading, setRoleChangeLoading] = useState(null);
+
+  // Resend invite state
+  const [resendLoading, setResendLoading] = useState(null);
+
   // Fetch team data
   const fetchTeamData = useCallback(async () => {
     try {
@@ -186,6 +192,73 @@ export default function TeamManagement({ initialUserId }) {
     }
   };
 
+  // Handle role change
+  const handleRoleChange = async (memberId, newRole) => {
+    if (
+      !confirm(
+        `Are you sure you want to change this member's role to ${newRole}?`,
+      )
+    ) {
+      return;
+    }
+
+    setRoleChangeLoading(memberId);
+    try {
+      const res = await fetch("/api/portal/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_role",
+          memberId,
+          role: newRole,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update role");
+      }
+
+      await fetchTeamData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setRoleChangeLoading(null);
+    }
+  };
+
+  // Handle resend invite
+  const handleResendInvite = async (inviteId, email) => {
+    setResendLoading(inviteId);
+    try {
+      const res = await fetch("/api/portal/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "resend_invite",
+          inviteId,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to resend invite");
+      }
+
+      await fetchTeamData();
+      alert(`Invite resent to ${email}`);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setResendLoading(null);
+    }
+  };
+
+  // Check if invite is expired
+  const isInviteExpired = (expiresAt) => {
+    return expiresAt && new Date(expiresAt) < new Date();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -320,7 +393,8 @@ export default function TeamManagement({ initialUserId }) {
           <CardTitle>Team Members</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-card-border">
@@ -359,23 +433,37 @@ export default function TeamManagement({ initialUserId }) {
                     >
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-cerulean-mist/20 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full bg-cerulean-mist/20 flex items-center justify-center flex-shrink-0">
                             <span className="text-sm font-medium text-cerulean-mist">
                               {member.name?.[0]?.toUpperCase() || "?"}
                             </span>
                           </div>
-                          <div>
-                            <p className="font-medium text-frost-white">
+                          <div className="min-w-0">
+                            <p className="font-medium text-frost-white truncate">
                               {member.name || "Unknown"}
                             </p>
-                            <p className="text-sm text-slate-grey">
+                            <p className="text-sm text-slate-grey truncate">
                               {member.email}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <RoleBadge role={member.role} />
+                        {member.role === "owner" ? (
+                          <RoleBadge role={member.role} />
+                        ) : (
+                          <select
+                            value={member.role}
+                            onChange={(e) =>
+                              handleRoleChange(member.id, e.target.value)
+                            }
+                            disabled={roleChangeLoading === member.id}
+                            className="bg-card-bg border border-card-border rounded px-2 py-1 text-xs font-medium text-frost-white focus:outline-none focus:border-cerulean-mist disabled:opacity-50"
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="member">Member</option>
+                          </select>
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         <Badge
@@ -435,9 +523,106 @@ export default function TeamManagement({ initialUserId }) {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden p-4 space-y-4">
+            {members.length === 0 ? (
+              <p className="text-center text-slate-grey py-4">
+                No team members yet
+              </p>
+            ) : (
+              members.map((member) => (
+                <div
+                  key={member.id}
+                  className="p-4 bg-card-bg rounded-lg border border-card-border"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-cerulean-mist/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-medium text-cerulean-mist">
+                        {member.name?.[0]?.toUpperCase() || "?"}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-frost-white truncate">
+                        {member.name || "Unknown"}
+                      </p>
+                      <p className="text-sm text-slate-grey truncate">
+                        {member.email}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    {member.role === "owner" ? (
+                      <RoleBadge role={member.role} />
+                    ) : (
+                      <select
+                        value={member.role}
+                        onChange={(e) =>
+                          handleRoleChange(member.id, e.target.value)
+                        }
+                        disabled={roleChangeLoading === member.id}
+                        className="bg-midnight-navy border border-card-border rounded px-2 py-1 text-xs font-medium text-frost-white focus:outline-none focus:border-cerulean-mist disabled:opacity-50"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="member">Member</option>
+                      </select>
+                    )}
+                    <Badge
+                      variant={
+                        member.status === "active"
+                          ? "success"
+                          : member.status === "suspended"
+                            ? "warning"
+                            : "destructive"
+                      }
+                    >
+                      {member.status}
+                    </Badge>
+                    <span className="text-xs text-slate-grey">
+                      Joined{" "}
+                      {member.joinedAt
+                        ? new Date(member.joinedAt).toLocaleDateString()
+                        : "—"}
+                    </span>
+                  </div>
+                  {member.role !== "owner" && (
+                    <div className="flex gap-2 pt-2 border-t border-card-border">
+                      {member.status === "active" ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleUpdateStatus(member.id, "suspended")
+                          }
+                        >
+                          Suspend
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleUpdateStatus(member.id, "active")
+                          }
+                        >
+                          Activate
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveMember(member.id)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
-
       {/* Pending Invitations */}
       <Card className="mt-6">
         <CardHeader>
@@ -446,31 +631,48 @@ export default function TeamManagement({ initialUserId }) {
         <CardContent>
           {invites.length > 0 ? (
             <div className="space-y-3">
-              {invites.map((invite) => (
-                <div
-                  key={invite.id}
-                  className="flex items-center justify-between p-3 bg-card-bg rounded-lg border border-card-border"
-                >
-                  <div>
-                    <p className="text-frost-white">{invite.email}</p>
-                    <p className="text-sm text-slate-grey">
-                      Invited as {invite.role} •{" "}
-                      {invite.expiresAt
-                        ? `Expires ${new Date(invite.expiresAt).toLocaleDateString()}`
-                        : ""}
-                    </p>
+              {invites.map((invite) => {
+                const expired = isInviteExpired(invite.expiresAt);
+                return (
+                  <div
+                    key={invite.id}
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-card-bg rounded-lg border ${expired ? "border-red-500/50" : "border-card-border"}`}
+                  >
+                    <div className="mb-2 sm:mb-0">
+                      <p className="text-frost-white">{invite.email}</p>
+                      <p className="text-sm text-slate-grey">
+                        Invited as {invite.role} •{" "}
+                        {expired ? (
+                          <span className="text-red-400">Expired</span>
+                        ) : invite.expiresAt ? (
+                          `Expires ${new Date(invite.expiresAt).toLocaleDateString()}`
+                        ) : (
+                          ""
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          handleResendInvite(invite.id, invite.email)
+                        }
+                        disabled={resendLoading === invite.id}
+                      >
+                        {resendLoading === invite.id ? "Sending..." : "Resend"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCancelInvite(invite.id)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCancelInvite(invite.id)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-slate-grey text-center py-4">

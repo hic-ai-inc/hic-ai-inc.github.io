@@ -17,8 +17,10 @@ import {
   createOrgInvite,
   deleteOrgInvite,
   updateOrgMemberStatus,
+  updateOrgMemberRole,
   removeOrgMember,
   getCustomerByAuth0Id,
+  resendOrgInvite,
 } from "@/lib/dynamodb";
 import { sendEnterpriseInviteEmail } from "@/lib/ses";
 
@@ -273,9 +275,135 @@ export async function POST(request) {
         });
       }
 
+      case "update_role": {
+        const { memberId, role } = body;
+
+        if (!memberId || !role) {
+          return NextResponse.json(
+            { error: "memberId and role are required" },
+            { status: 400 },
+          );
+        }
+
+        if (!["admin", "member"].includes(role)) {
+          return NextResponse.json(
+            { error: "Invalid role. Must be admin or member" },
+            { status: 400 },
+          );
+        }
+
+        // Get all members to check constraints
+        const members = await getOrgMembers(orgId);
+        const targetMember = members.find((m) => m.memberId === memberId);
+
+        if (!targetMember) {
+          return NextResponse.json(
+            { error: "Member not found" },
+            { status: 404 },
+          );
+        }
+
+        // Cannot change owner's role
+        if (targetMember.role === "owner") {
+          return NextResponse.json(
+            { error: "Cannot modify owner role" },
+            { status: 403 },
+          );
+        }
+
+        // Cannot change your own role (use another admin)
+        if (memberId === user.sub) {
+          return NextResponse.json(
+            { error: "Cannot change your own role. Contact another admin." },
+            { status: 400 },
+          );
+        }
+
+        // "Last admin" protection: prevent demoting the last admin to member
+        if (targetMember.role === "admin" && role === "member") {
+          const adminCount = members.filter(
+            (m) => m.role === "admin" || m.role === "owner",
+          ).length;
+          if (adminCount <= 1) {
+            return NextResponse.json(
+              {
+                error:
+                  "Cannot demote the last admin. Promote another member first.",
+              },
+              { status: 400 },
+            );
+          }
+        }
+
+        const updated = await updateOrgMemberRole(orgId, memberId, role);
+
+        return NextResponse.json({
+          success: true,
+          member: {
+            id: updated.memberId,
+            role: updated.role,
+          },
+        });
+      }
+
+      case "resend_invite": {
+        const { inviteId } = body;
+
+        if (!inviteId) {
+          return NextResponse.json(
+            { error: "inviteId is required" },
+            { status: 400 },
+          );
+        }
+
+        // Get the invite to resend
+        const invites = await getOrgInvites(orgId);
+        const invite = invites.find((i) => i.inviteId === inviteId);
+
+        if (!invite) {
+          return NextResponse.json(
+            { error: "Invite not found" },
+            { status: 404 },
+          );
+        }
+
+        // Refresh the invite expiration
+        const updatedInvite = await resendOrgInvite(orgId, inviteId);
+
+        // Resend the email
+        try {
+          const inviter = await getCustomerByAuth0Id(user.sub);
+          const inviterName =
+            inviter?.name || user.name || user.email || "Your team";
+          const organizationName =
+            inviter?.organizationName || "Your organization";
+
+          await sendEnterpriseInviteEmail(
+            invite.email,
+            organizationName,
+            inviterName,
+            invite.token,
+          );
+        } catch (emailError) {
+          console.error("Failed to resend invite email:", emailError);
+        }
+
+        return NextResponse.json({
+          success: true,
+          invite: {
+            id: updatedInvite.inviteId,
+            email: updatedInvite.email,
+            expiresAt: updatedInvite.expiresAt,
+          },
+        });
+      }
+
       default:
         return NextResponse.json(
-          { error: "Invalid action. Use invite or update_status" },
+          {
+            error:
+              "Invalid action. Use invite, update_status, update_role, or resend_invite",
+          },
           { status: 400 },
         );
     }

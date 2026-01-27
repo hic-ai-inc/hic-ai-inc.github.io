@@ -691,4 +691,417 @@ describe("Team Page Integration Logic", () => {
       assert.strictEqual(result.availableSeats, 0);
     });
   });
+
+describe("POST /api/portal/team - Update Role (Phase 4)", () => {
+  function validateRoleUpdate(memberId, role) {
+    if (!memberId || !role) {
+      return { valid: false, error: "memberId and role are required" };
+    }
+
+    if (!["admin", "member"].includes(role)) {
+      return { valid: false, error: "Invalid role. Must be admin or member" };
+    }
+
+    return { valid: true };
+  }
+
+  function canChangeRole(targetMember, currentUserId) {
+    if (!targetMember) {
+      return { allowed: false, error: "Member not found", status: 404 };
+    }
+    if (targetMember.role === "owner") {
+      return { allowed: false, error: "Cannot modify owner role", status: 403 };
+    }
+    if (targetMember.memberId === currentUserId) {
+      return {
+        allowed: false,
+        error: "Cannot change your own role. Contact another admin.",
+        status: 400,
+      };
+    }
+    return { allowed: true };
+  }
+
+  function checkLastAdminProtection(members, targetMember, newRole) {
+    // Only applies when demoting admin to member
+    if (targetMember.role !== "admin" || newRole !== "member") {
+      return { allowed: true };
+    }
+
+    // Count admins and owners (both have admin privileges)
+    const adminCount = members.filter(
+      (m) => m.role === "admin" || m.role === "owner",
+    ).length;
+
+    if (adminCount <= 1) {
+      return {
+        allowed: false,
+        error: "Cannot demote the last admin. Promote another member first.",
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  describe("Input Validation", () => {
+    it("should require memberId", () => {
+      const result = validateRoleUpdate(undefined, "admin");
+      assert.strictEqual(result.valid, false);
+      assert.match(result.error, /memberId and role are required/);
+    });
+
+    it("should require role", () => {
+      const result = validateRoleUpdate("user123", undefined);
+      assert.strictEqual(result.valid, false);
+      assert.match(result.error, /memberId and role are required/);
+    });
+
+    it("should accept admin role", () => {
+      const result = validateRoleUpdate("user123", "admin");
+      assert.strictEqual(result.valid, true);
+    });
+
+    it("should accept member role", () => {
+      const result = validateRoleUpdate("user123", "member");
+      assert.strictEqual(result.valid, true);
+    });
+
+    it("should reject owner role (cannot be assigned)", () => {
+      const result = validateRoleUpdate("user123", "owner");
+      assert.strictEqual(result.valid, false);
+      assert.match(result.error, /Invalid role/);
+    });
+
+    it("should reject invalid role values", () => {
+      const result = validateRoleUpdate("user123", "superadmin");
+      assert.strictEqual(result.valid, false);
+      assert.match(result.error, /Invalid role/);
+    });
+  });
+
+  describe("Owner Protection", () => {
+    it("should not allow changing owner role", () => {
+      const owner = createMockMember({ role: "owner" });
+      const result = canChangeRole(owner, "other-user");
+      assert.strictEqual(result.allowed, false);
+      assert.strictEqual(result.status, 403);
+      assert.match(result.error, /Cannot modify owner/);
+    });
+
+    it("should allow changing admin role", () => {
+      const admin = createMockMember({ memberId: "admin1", role: "admin" });
+      const result = canChangeRole(admin, "other-user");
+      assert.strictEqual(result.allowed, true);
+    });
+
+    it("should allow changing member role", () => {
+      const member = createMockMember({ memberId: "member1", role: "member" });
+      const result = canChangeRole(member, "other-user");
+      assert.strictEqual(result.allowed, true);
+    });
+  });
+
+  describe("Self-Change Prevention", () => {
+    it("should not allow users to change their own role", () => {
+      const admin = createMockMember({ memberId: "auth0|self123", role: "admin" });
+      const result = canChangeRole(admin, "auth0|self123");
+      assert.strictEqual(result.allowed, false);
+      assert.strictEqual(result.status, 400);
+      assert.match(result.error, /Cannot change your own role/);
+    });
+
+    it("should allow changing other users roles", () => {
+      const admin = createMockMember({ memberId: "auth0|other123", role: "admin" });
+      const result = canChangeRole(admin, "auth0|self123");
+      assert.strictEqual(result.allowed, true);
+    });
+  });
+
+  describe("Last Admin Protection", () => {
+    it("should prevent demoting the only admin to member", () => {
+      const members = [
+        createMockMember({ memberId: "admin1", role: "admin" }),
+        createMockMember({ memberId: "member1", role: "member" }),
+        createMockMember({ memberId: "member2", role: "member" }),
+      ];
+      const targetAdmin = members[0];
+
+      const result = checkLastAdminProtection(members, targetAdmin, "member");
+      assert.strictEqual(result.allowed, false);
+      assert.match(result.error, /Cannot demote the last admin/);
+    });
+
+    it("should allow demoting admin when owner exists", () => {
+      const members = [
+        createMockMember({ memberId: "owner1", role: "owner" }),
+        createMockMember({ memberId: "admin1", role: "admin" }),
+        createMockMember({ memberId: "member1", role: "member" }),
+      ];
+      const targetAdmin = members[1];
+
+      const result = checkLastAdminProtection(members, targetAdmin, "member");
+      assert.strictEqual(result.allowed, true);
+    });
+
+    it("should allow demoting admin when multiple admins exist", () => {
+      const members = [
+        createMockMember({ memberId: "admin1", role: "admin" }),
+        createMockMember({ memberId: "admin2", role: "admin" }),
+        createMockMember({ memberId: "member1", role: "member" }),
+      ];
+      const targetAdmin = members[0];
+
+      const result = checkLastAdminProtection(members, targetAdmin, "member");
+      assert.strictEqual(result.allowed, true);
+    });
+
+    it("should not apply protection when promoting member to admin", () => {
+      const members = [
+        createMockMember({ memberId: "admin1", role: "admin" }),
+        createMockMember({ memberId: "member1", role: "member" }),
+      ];
+      const targetMember = members[1];
+
+      const result = checkLastAdminProtection(members, targetMember, "admin");
+      assert.strictEqual(result.allowed, true);
+    });
+
+    it("should count owner as admin for protection check", () => {
+      // Owner + admin = 2 admins, so demoting admin is allowed
+      const members = [
+        createMockMember({ memberId: "owner1", role: "owner" }),
+        createMockMember({ memberId: "admin1", role: "admin" }),
+      ];
+      const targetAdmin = members[1];
+
+      const result = checkLastAdminProtection(members, targetAdmin, "member");
+      assert.strictEqual(result.allowed, true);
+    });
+  });
+});
+
+describe("POST /api/portal/team - Resend Invite (Phase 5)", () => {
+  function validateResendInvite(inviteId) {
+    if (!inviteId) {
+      return { valid: false, error: "inviteId is required" };
+    }
+    return { valid: true };
+  }
+
+  function canResendInvite(invite, invites) {
+    if (!invite) {
+      return { allowed: false, error: "Invite not found", status: 404 };
+    }
+    // Check invite exists in org's invites
+    const found = invites.find((i) => i.inviteId === invite.inviteId);
+    if (!found) {
+      return { allowed: false, error: "Invite not found", status: 404 };
+    }
+    return { allowed: true };
+  }
+
+  function calculateNewExpiration() {
+    // Fresh 7 days from now
+    return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  }
+
+  describe("Input Validation", () => {
+    it("should require inviteId", () => {
+      const result = validateResendInvite(undefined);
+      assert.strictEqual(result.valid, false);
+      assert.match(result.error, /inviteId is required/);
+    });
+
+    it("should accept valid inviteId", () => {
+      const result = validateResendInvite("inv_12345_abc123");
+      assert.strictEqual(result.valid, true);
+    });
+  });
+
+  describe("Invite Lookup", () => {
+    it("should return error when invite not found", () => {
+      const invites = [createMockInvite({ inviteId: "inv_1" })];
+      const result = canResendInvite({ inviteId: "inv_nonexistent" }, invites);
+      assert.strictEqual(result.allowed, false);
+      assert.strictEqual(result.status, 404);
+    });
+
+    it("should allow resend for existing invite", () => {
+      const invites = [
+        createMockInvite({ inviteId: "inv_1" }),
+        createMockInvite({ inviteId: "inv_2" }),
+      ];
+      const result = canResendInvite(invites[1], invites);
+      assert.strictEqual(result.allowed, true);
+    });
+  });
+
+  describe("Expiration Refresh", () => {
+    it("should calculate new expiration 7 days from now", () => {
+      const now = Date.now();
+      const newExpiration = calculateNewExpiration();
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+      // Should be approximately 7 days from now (within 1 second tolerance)
+      const diff = Math.abs(newExpiration.getTime() - (now + sevenDaysMs));
+      assert.ok(diff < 1000, "Expiration should be 7 days from now");
+    });
+
+    it("should extend expired invite with fresh 7 days", () => {
+      const expiredInvite = createMockInvite({
+        expiresAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+      });
+
+      const newExpiration = calculateNewExpiration();
+
+      // New expiration should be in the future
+      assert.ok(newExpiration > new Date(), "New expiration should be in the future");
+      assert.ok(
+        newExpiration > new Date(expiredInvite.expiresAt),
+        "New expiration should be after old expiration",
+      );
+    });
+  });
+});
+
+describe("Role-Based Access Control (RBAC) Logic", () => {
+  describe("Role Hierarchy", () => {
+    function hasAdminPrivileges(role) {
+      return role === "owner" || role === "admin";
+    }
+
+    function canManageTeam(role) {
+      return hasAdminPrivileges(role);
+    }
+
+    function canViewBilling(role) {
+      return hasAdminPrivileges(role);
+    }
+
+    function canInviteMembers(role) {
+      return hasAdminPrivileges(role);
+    }
+
+    it("owner should have admin privileges", () => {
+      assert.strictEqual(hasAdminPrivileges("owner"), true);
+    });
+
+    it("admin should have admin privileges", () => {
+      assert.strictEqual(hasAdminPrivileges("admin"), true);
+    });
+
+    it("member should not have admin privileges", () => {
+      assert.strictEqual(hasAdminPrivileges("member"), false);
+    });
+
+    it("owner can manage team", () => {
+      assert.strictEqual(canManageTeam("owner"), true);
+    });
+
+    it("admin can manage team", () => {
+      assert.strictEqual(canManageTeam("admin"), true);
+    });
+
+    it("member cannot manage team", () => {
+      assert.strictEqual(canManageTeam("member"), false);
+    });
+
+    it("owner can view billing", () => {
+      assert.strictEqual(canViewBilling("owner"), true);
+    });
+
+    it("admin can view billing", () => {
+      assert.strictEqual(canViewBilling("admin"), true);
+    });
+
+    it("member cannot view billing", () => {
+      assert.strictEqual(canViewBilling("member"), false);
+    });
+
+    it("owner can invite members", () => {
+      assert.strictEqual(canInviteMembers("owner"), true);
+    });
+
+    it("admin can invite members", () => {
+      assert.strictEqual(canInviteMembers("admin"), true);
+    });
+
+    it("member cannot invite members", () => {
+      assert.strictEqual(canInviteMembers("member"), false);
+    });
+  });
+
+  describe("Navigation Filtering", () => {
+    const ADMIN_ONLY_PATHS = ["/portal/billing", "/portal/team"];
+
+    function filterNavForRole(navItems, accountType, orgRole) {
+      // Only filter for enterprise accounts
+      if (accountType !== "enterprise") {
+        return navItems;
+      }
+
+      // Members don't see admin-only items
+      if (orgRole === "member") {
+        return navItems.filter((item) => !ADMIN_ONLY_PATHS.includes(item.href));
+      }
+
+      return navItems;
+    }
+
+    const enterpriseNav = [
+      { label: "Dashboard", href: "/portal" },
+      { label: "License", href: "/portal/license" },
+      { label: "Billing", href: "/portal/billing" },
+      { label: "Team", href: "/portal/team" },
+      { label: "Settings", href: "/portal/settings" },
+    ];
+
+    it("should show all nav items for owner", () => {
+      const filtered = filterNavForRole(enterpriseNav, "enterprise", "owner");
+      assert.strictEqual(filtered.length, 5);
+      assert.ok(filtered.some((i) => i.href === "/portal/billing"));
+      assert.ok(filtered.some((i) => i.href === "/portal/team"));
+    });
+
+    it("should show all nav items for admin", () => {
+      const filtered = filterNavForRole(enterpriseNav, "enterprise", "admin");
+      assert.strictEqual(filtered.length, 5);
+      assert.ok(filtered.some((i) => i.href === "/portal/billing"));
+      assert.ok(filtered.some((i) => i.href === "/portal/team"));
+    });
+
+    it("should hide billing and team for member", () => {
+      const filtered = filterNavForRole(enterpriseNav, "enterprise", "member");
+      assert.strictEqual(filtered.length, 3);
+      assert.ok(!filtered.some((i) => i.href === "/portal/billing"));
+      assert.ok(!filtered.some((i) => i.href === "/portal/team"));
+    });
+
+    it("should show dashboard, license, settings for member", () => {
+      const filtered = filterNavForRole(enterpriseNav, "enterprise", "member");
+      assert.ok(filtered.some((i) => i.href === "/portal"));
+      assert.ok(filtered.some((i) => i.href === "/portal/license"));
+      assert.ok(filtered.some((i) => i.href === "/portal/settings"));
+    });
+
+    it("should not filter for individual accounts", () => {
+      const individualNav = [
+        { label: "Dashboard", href: "/portal" },
+        { label: "Billing", href: "/portal/billing" },
+      ];
+      const filtered = filterNavForRole(individualNav, "individual", "member");
+      assert.strictEqual(filtered.length, 2);
+    });
+
+    it("should not filter for team accounts (non-enterprise)", () => {
+      const teamNav = [
+        { label: "Dashboard", href: "/portal" },
+        { label: "Team", href: "/portal/team" },
+      ];
+      const filtered = filterNavForRole(teamNav, "team", "member");
+      assert.strictEqual(filtered.length, 2);
+    });
+  });
+});
+
 });

@@ -2,6 +2,7 @@
  * Portal Sidebar Component
  *
  * Navigation sidebar for authenticated portal pages.
+ * Filters navigation items based on user role for enterprise accounts.
  */
 
 "use client";
@@ -15,13 +16,24 @@ import {
   AUTH0_NAMESPACE,
 } from "@/lib/constants";
 
+// Nav items restricted to admin/owner only (enterprise accounts)
+const ADMIN_ONLY_PATHS = ["/portal/billing", "/portal/team"];
+
 export default function PortalSidebar() {
   const pathname = usePathname();
   const { user } = useUser();
 
   const accountType = user?.[`${AUTH0_NAMESPACE}/account_type`] || "individual";
-  const navItems =
+  const orgRole = user?.[`${AUTH0_NAMESPACE}/org_role`] || "member";
+
+  // Select base nav items based on account type
+  let navItems =
     accountType === "enterprise" ? PORTAL_NAV_ENTERPRISE : PORTAL_NAV;
+
+  // For enterprise accounts, filter out admin-only pages for regular members
+  if (accountType === "enterprise" && orgRole === "member") {
+    navItems = navItems.filter((item) => !ADMIN_ONLY_PATHS.includes(item.href));
+  }
 
   return (
     <aside className="w-64 min-h-screen bg-midnight-navy border-r border-card-border">

@@ -509,6 +509,46 @@ export async function updateOrgMemberStatus(orgId, memberId, status) {
 }
 
 /**
+ * Update organization member role
+ * @param {string} orgId - Organization ID
+ * @param {string} memberId - Member user ID
+ * @param {string} role - New role (admin, member)
+ * @returns {Promise<Object>} Updated member record
+ */
+export async function updateOrgMemberRole(orgId, memberId, role) {
+  const logger = createLogger("updateOrgMemberRole");
+  try {
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: `MEMBER#${memberId}`,
+        },
+        UpdateExpression: "SET #role = :role, updatedAt = :now",
+        ExpressionAttributeNames: {
+          "#role": "role",
+        },
+        ExpressionAttributeValues: {
+          ":role": role,
+          ":now": new Date().toISOString(),
+        },
+        ReturnValues: "ALL_NEW",
+      }),
+    );
+    logger.info("Org member role updated", { orgId, memberId, role });
+    return result.Attributes;
+  } catch (error) {
+    logger.error("Failed to update org member role", {
+      orgId,
+      memberId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
  * Get organization license usage statistics
  * @param {string} orgId - Organization ID
  * @returns {Promise<Object>} License usage stats
@@ -667,6 +707,49 @@ export async function getOrgInvites(orgId) {
     return result.Items || [];
   } catch (error) {
     logger.error("Failed to get org invites", { orgId, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Resend an organization invite by refreshing its expiration
+ * @param {string} orgId - Organization ID
+ * @param {string} inviteId - Invite ID
+ * @returns {Promise<Object>} Updated invite record
+ */
+export async function resendOrgInvite(orgId, inviteId) {
+  const logger = createLogger("resendOrgInvite");
+  const newExpiresAt = new Date(
+    Date.now() + 7 * 24 * 60 * 60 * 1000,
+  ).toISOString(); // Fresh 7 days
+
+  try {
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: `INVITE#${inviteId}`,
+        },
+        UpdateExpression:
+          "SET expiresAt = :expiresAt, resentAt = :now, resentCount = if_not_exists(resentCount, :zero) + :one",
+        ExpressionAttributeValues: {
+          ":expiresAt": newExpiresAt,
+          ":now": new Date().toISOString(),
+          ":zero": 0,
+          ":one": 1,
+        },
+        ReturnValues: "ALL_NEW",
+      }),
+    );
+    logger.info("Org invite resent", { orgId, inviteId });
+    return result.Attributes;
+  } catch (error) {
+    logger.error("Failed to resend org invite", {
+      orgId,
+      inviteId,
+      error: error.message,
+    });
     throw error;
   }
 }

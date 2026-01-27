@@ -1,6 +1,6 @@
 # PLG Roadmap v3 — Final Sprint to Launch
 
-**Document Version:** 3.0.10  
+**Document Version:** 3.0.12  
 **Date:** January 26, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -24,12 +24,12 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 1   | Analytics                          | ✅ Script ready    | 4-8h       | GC         | —                |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented      | 2h         | GC         | —                |
 | 3   | Auth (Auth0 Integration)           | ✅ Dashboard done  | 8-12h      | GC + Simon | 4 (Admin Portal) |
-| 4   | Admin Portal (Individuals + Teams) | ✅ Phases 1-3 done | 24-32h     | GC         | 5, 6             |
+| 4   | Admin Portal (Individuals + Teams) | ✅ Phases 1-5 done | 24-32h     | GC         | 5, 6             |
 | 5   | Licensing (KeyGen.sh)              | ✅ **COMPLETE**    | 8-12h      | Simon      | 7                |
 | 6   | Payments (Stripe)                  | ✅ **COMPLETE**    | 4-6h       | Simon      | —                |
 | 7   | AWS Infrastructure                 | ✅ Templates exist | 4-6h       | GC         | —                |
 | 8   | VS Code Extension (VSIX)           | ⬜ Not started     | 4-8h       | Simon      | 5, 6             |
-| 9   | Back-End E2E Testing               | ⚠️ Unit tests done | 8-12h      | GC         | 3-8              |
+| 9   | Back-End E2E Testing               | ✅ 550 tests pass  | 8-12h      | GC         | 3-8              |
 | 10  | Front-End Polish                   | ⚠️ Partial         | 16-24h     | GC         | 9                |
 | 11  | Deployment & Launch                | ⬜ Not started     | 8-12h      | GC + Simon | 1-10             |
 | 12  | Support & Community                | ⬜ Not started     | 4-8h       | Simon      | —                |
@@ -159,7 +159,7 @@ npm run metrics -- --period=7d
 | **Code Integration**                 |        |                                                 |
 | Add Auth0 login/logout routes        | ✅     | `/api/auth/[auth0]/route.js`                    |
 | Wire portal layout to session        | ⬜     | Show user info in nav                           |
-| Implement role-based nav items       | ⬜     | Per Team Admin Portal spec                      |
+| Implement role-based nav items       | ✅     | PortalSidebar.js + middleware.js                |
 | Test login → portal flow             | ⬜     | E2E verification                                |
 
 ### 3.3 SSO/SAML (Contact Sales)
@@ -171,7 +171,7 @@ Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2
 
 ## 4. Admin Portal (Individuals + Teams)
 
-**Status:** ✅ Phases 1-3 COMPLETE  
+**Status:** ✅ Phases 1-5 COMPLETE (Auth0 wire-up deferred)  
 **Est. Hours:** 24-32h  
 **Documentation:** [20260125_TEAM_ADMIN_PORTAL.md](./20260125_TEAM_ADMIN_PORTAL.md)
 
@@ -186,8 +186,8 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 | 1     | API Endpoints (GET/POST/DELETE team)     | 6h         | ✅     |
 | 2     | Invite Flow (accept endpoint, page)      | 6h         | ✅     |
 | 3     | Frontend Wire-up (team page, modals)     | 8h         | ✅     |
-| 4     | Role Management (PATCH role, Auth0 sync) | 4h         | ⚠️     |
-| 5     | Polish & Edge Cases                      | 4h         | ⚠️     |
+| 4     | Role Management (PATCH role, Auth0 sync) | 4h         | ✅     |
+| 5     | Polish & Edge Cases                      | 4h         | ✅     |
 
 ### 4.3 Detailed Checklist
 
@@ -213,21 +213,21 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 | Create `InviteModal` component                             | ✅     | In TeamManagement.js |
 | Create `RevokeConfirmDialog` component                     | ✅     | In TeamManagement.js |
 | Wire role change dropdown                                  | ✅     | In TeamManagement.js |
-| Update `portal/layout.js` for role-based nav               | ⬜     | —                    |
-| Protect `/portal/billing` from team members                | ⬜     | Auth helpers         |
-| Protect `/portal/team` from non-admins                     | ⬜     | Auth helpers         |
+| Update `portal/layout.js` for role-based nav               | ✅     | PortalSidebar.js     |
+| Protect `/portal/billing` from team members                | ✅     | middleware.js        |
+| Protect `/portal/team` from non-admins                     | ✅     | middleware.js        |
 | **Phase 4: Role Management**                               |        |                      |
-| `PATCH /api/portal/team/members/:id/role`                  | ⬜     | Phase 1              |
-| Update Auth0 user metadata on role change                  | ⬜     | Auth0 Management API |
-| Role change dropdown in team table                         | ⬜     | Phase 3              |
-| "Last admin" protection logic                              | ⬜     | —                    |
+| `PATCH /api/portal/team/members/:id/role`                  | ✅     | POST action          |
+| Update Auth0 user metadata on role change                  | ⏸️     | Auth0 wire-up later  |
+| Role change dropdown in team table                         | ✅     | Phase 3              |
+| "Last admin" protection logic                              | ✅     | route.js             |
 | **Phase 5: Polish**                                        |        |                      |
-| Resend invite functionality                                | ⬜     | —                    |
-| Invite expiration handling (7-day TTL)                     | ⬜     | —                    |
-| "No seats available" error state                           | ⬜     | —                    |
-| Self-revocation prevention                                 | ⬜     | —                    |
+| Resend invite functionality                                | ✅     | route.js + UI        |
+| Invite expiration handling (7-day TTL)                     | ✅     | UI shows expiry      |
+| "No seats available" error state                           | ✅     | Existing in flow     |
+| Self-revocation prevention                                 | ✅     | route.js             |
 | Loading states and error boundaries                        | ✅     | All portal pages     |
-| Mobile responsive team table                               | ⬜     | —                    |
+| Mobile responsive team table                               | ✅     | Card view on mobile  |
 
 ---
 

@@ -251,4 +251,230 @@ describe("middleware route protection logic", () => {
       expect(orgId).toBe(null);
     });
   });
+
+  // ============================================
+  // RBAC ROUTE PROTECTION (Phase 4-5)
+  // ============================================
+
+  describe("RBAC route protection for admin-only portal routes", () => {
+    const AUTH0_NAMESPACE = "https://hic-ai.com";
+    const ADMIN_ONLY_ROUTES = ["/portal/billing", "/portal/team"];
+
+    function isAdminOnlyRoute(path) {
+      return ADMIN_ONLY_ROUTES.some((route) => path.startsWith(route));
+    }
+
+    function shouldRedirectMemberToPortal(path, session) {
+      // Only applies to admin-only routes
+      if (!isAdminOnlyRoute(path)) return false;
+
+      // Only enforce for enterprise accounts
+      const accountType =
+        session?.user?.[`${AUTH0_NAMESPACE}/account_type`] || "individual";
+      if (accountType !== "enterprise") return false;
+
+      // Regular members get redirected
+      const orgRole =
+        session?.user?.[`${AUTH0_NAMESPACE}/org_role`] || "member";
+      return orgRole === "member";
+    }
+
+    describe("route classification", () => {
+      it("should identify /portal/billing as admin-only", () => {
+        expect(isAdminOnlyRoute("/portal/billing")).toBe(true);
+      });
+
+      it("should identify /portal/billing/history as admin-only", () => {
+        expect(isAdminOnlyRoute("/portal/billing/history")).toBe(true);
+      });
+
+      it("should identify /portal/team as admin-only", () => {
+        expect(isAdminOnlyRoute("/portal/team")).toBe(true);
+      });
+
+      it("should identify /portal/team/invite as admin-only", () => {
+        expect(isAdminOnlyRoute("/portal/team/invite")).toBe(true);
+      });
+
+      it("should not identify /portal as admin-only", () => {
+        expect(isAdminOnlyRoute("/portal")).toBe(false);
+      });
+
+      it("should not identify /portal/license as admin-only", () => {
+        expect(isAdminOnlyRoute("/portal/license")).toBe(false);
+      });
+
+      it("should not identify /portal/settings as admin-only", () => {
+        expect(isAdminOnlyRoute("/portal/settings")).toBe(false);
+      });
+
+      it("should not identify /portal/machines as admin-only", () => {
+        expect(isAdminOnlyRoute("/portal/machines")).toBe(false);
+      });
+    });
+
+    describe("enterprise owner access", () => {
+      it("should allow owner to access /portal/billing", () => {
+        const session = createMockSession({
+          email: "owner@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "owner",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
+          false,
+        );
+      });
+
+      it("should allow owner to access /portal/team", () => {
+        const session = createMockSession({
+          email: "owner@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "owner",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
+          false,
+        );
+      });
+    });
+
+    describe("enterprise admin access", () => {
+      it("should allow admin to access /portal/billing", () => {
+        const session = createMockSession({
+          email: "admin@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "admin",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
+          false,
+        );
+      });
+
+      it("should allow admin to access /portal/team", () => {
+        const session = createMockSession({
+          email: "admin@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "admin",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
+          false,
+        );
+      });
+    });
+
+    describe("enterprise member restrictions", () => {
+      it("should redirect member from /portal/billing to /portal", () => {
+        const session = createMockSession({
+          email: "member@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "member",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
+          true,
+        );
+      });
+
+      it("should redirect member from /portal/team to /portal", () => {
+        const session = createMockSession({
+          email: "member@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "member",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
+          true,
+        );
+      });
+
+      it("should allow member to access /portal (dashboard)", () => {
+        const session = createMockSession({
+          email: "member@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "member",
+        });
+        expect(shouldRedirectMemberToPortal("/portal", session)).toBe(false);
+      });
+
+      it("should allow member to access /portal/license", () => {
+        const session = createMockSession({
+          email: "member@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "member",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/license", session)).toBe(
+          false,
+        );
+      });
+
+      it("should allow member to access /portal/settings", () => {
+        const session = createMockSession({
+          email: "member@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          [`${AUTH0_NAMESPACE}/org_role`]: "member",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/settings", session)).toBe(
+          false,
+        );
+      });
+    });
+
+    describe("non-enterprise accounts (no RBAC enforcement)", () => {
+      it("should not redirect individual user from /portal/billing", () => {
+        const session = createMockSession({
+          email: "individual@example.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "individual",
+          [`${AUTH0_NAMESPACE}/org_role`]: "member",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
+          false,
+        );
+      });
+
+      it("should not redirect team account member from /portal/team", () => {
+        const session = createMockSession({
+          email: "team-member@example.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "team",
+          [`${AUTH0_NAMESPACE}/org_role`]: "member",
+        });
+        expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
+          false,
+        );
+      });
+
+      it("should default account_type to individual when missing", () => {
+        const session = createMockSession({
+          email: "user@example.com",
+          // No account_type set
+        });
+        expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
+          false,
+        );
+      });
+    });
+
+    describe("edge cases", () => {
+      it("should default org_role to member when missing", () => {
+        const session = createMockSession({
+          email: "enterprise@acme.com",
+          [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+          // No org_role set - defaults to member
+        });
+        expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
+          true,
+        );
+      });
+
+      it("should handle null session gracefully", () => {
+        expect(shouldRedirectMemberToPortal("/portal/billing", null)).toBe(
+          false,
+        );
+      });
+
+      it("should handle undefined user in session", () => {
+        const session = { user: undefined };
+        expect(shouldRedirectMemberToPortal("/portal/billing", session)).toBe(
+          false,
+        );
+      });
+    });
+  });
 });
+
