@@ -103,7 +103,9 @@ function verifyTrialToken(token, expectedFingerprint) {
     return {
       valid: true,
       payload,
-      remainingDays: Math.ceil((payload.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)),
+      remainingDays: Math.ceil(
+        (payload.expiresAt - Date.now()) / (24 * 60 * 60 * 1000),
+      ),
     };
   } catch (error) {
     return { valid: false, reason: "Token parsing failed" };
@@ -265,7 +267,9 @@ describe("Trial API - token generation", () => {
     const { token } = generateTrialToken(fingerprint);
 
     const [payloadB64] = token.split(".");
-    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf-8"));
+    const payload = JSON.parse(
+      Buffer.from(payloadB64, "base64url").toString("utf-8"),
+    );
 
     expect(payload.type).toBe("trial");
   });
@@ -354,10 +358,9 @@ describe("Trial API - token verification", () => {
       const fingerprint = generateValidFingerprint();
       const { token } = generateTrialToken(fingerprint);
 
-      // Tamper with signature by reversing it
+      // Tamper with signature
       const [payload, signature] = token.split(".");
-      const tamperedSignature = signature.split("").reverse().join("");
-      const tamperedToken = `${payload}.${tamperedSignature}`;
+      const tamperedToken = `${payload}.${signature.replace("a", "b")}`;
 
       const result = verifyTrialToken(tamperedToken, fingerprint);
       expect(result.valid).toBe(false);
@@ -370,9 +373,13 @@ describe("Trial API - token verification", () => {
 
       // Tamper with payload
       const [payload, signature] = token.split(".");
-      const decodedPayload = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8"));
+      const decodedPayload = JSON.parse(
+        Buffer.from(payload, "base64url").toString("utf-8"),
+      );
       decodedPayload.expiresAt = Date.now() + 365 * 24 * 60 * 60 * 1000; // Try to extend to 1 year
-      const tamperedPayload = Buffer.from(JSON.stringify(decodedPayload)).toString("base64url");
+      const tamperedPayload = Buffer.from(
+        JSON.stringify(decodedPayload),
+      ).toString("base64url");
       const tamperedToken = `${tamperedPayload}.${signature}`;
 
       const result = verifyTrialToken(tamperedToken, fingerprint);
@@ -439,7 +446,8 @@ describe("Trial API - rate limiting", () => {
   });
 
   test("should use trialInit preset (5 req/hour)", async () => {
-    const { RATE_LIMIT_PRESETS } = await import("../../../src/lib/rate-limit.js");
+    const { RATE_LIMIT_PRESETS } =
+      await import("../../../src/lib/rate-limit.js");
 
     const preset = RATE_LIMIT_PRESETS.trialInit;
     expect(preset.maxRequests).toBe(5);
@@ -448,7 +456,8 @@ describe("Trial API - rate limiting", () => {
   });
 
   test("should rate limit by fingerprint", async () => {
-    const { checkRateLimit, RATE_LIMIT_PRESETS } = await import("../../../src/lib/rate-limit.js");
+    const { checkRateLimit, RATE_LIMIT_PRESETS } =
+      await import("../../../src/lib/rate-limit.js");
 
     const fingerprint = generateValidFingerprint();
     const preset = RATE_LIMIT_PRESETS.trialInit;
