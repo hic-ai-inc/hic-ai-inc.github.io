@@ -1,6 +1,6 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.1.0  
+**Document Version:** 4.2.0  
 **Date:** January 27, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -867,23 +867,24 @@ Parallel workstreams (no dependencies):
 
 ## Document History
 
-| Version | Date         | Changes                                                                                                                                                                                                    |
-| ------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **4.1** | Jan 27, 2026 | **Server-side APIs complete.** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration tests (13 tests). Fixed `next/headers` dynamic import. 580 total tests passing. |
-| 4.0     | Jan 26, 2026 | v4 — Accurate Assessment. Revised based on actual code review. Website ~90% complete, Mouse extension has **zero code** (80-100h work). Updated all estimates.                                             |
-| 3.0.8   | Jan 26, 2026 | **STRIPE + KEYGEN COMPLETE** — KeyGen webhook with Ed25519 verification, Stripe Customer Portal activated. All third-party services fully configured                                                       |
-| 3.0.7   | Jan 26, 2026 | **Stripe products + KeyGen policies** — All 4 price IDs created, Stripe webhook configured. KeyGen policies (Floating, 3/5 machines) created                                                               |
-| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments                                                           |
-| 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance                                                                                       |
-| 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model                                                                                    |
-| 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                               |
-| 3.0.2   | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified                                                                                                                               |
-| 3.0.1   | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section                                                                                                                         |
-| 3.0     | Jan 26, 2026 | Complete rewrite consolidating all workstreams                                                                                                                                                             |
-| 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                  |
-| 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                        |
-| 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                     |
-| 1.0     | Jan 21, 2026 | Initial roadmap                                                                                                                                                                                            |
+| Version | Date         | Changes                                                                                                                                                                                                              |
+| ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.2** | Jan 27, 2026 | **Multi-workspace Mouse support.** Updated `mcp/src/utils/dm-base/safe-path.js` with `HIC_ALLOWED_DIRECTORIES` env var. Mouse now works across both `hic` and `hic-ai-inc.github.io` repos in multi-root workspaces. |
+| **4.1** | Jan 27, 2026 | **Server-side APIs complete.** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration tests (13 tests). Fixed `next/headers` dynamic import. 580 total tests passing.           |
+| 4.0     | Jan 26, 2026 | v4 — Accurate Assessment. Revised based on actual code review. Website ~90% complete, Mouse extension has **zero code** (80-100h work). Updated all estimates.                                                       |
+| 3.0.8   | Jan 26, 2026 | **STRIPE + KEYGEN COMPLETE** — KeyGen webhook with Ed25519 verification, Stripe Customer Portal activated. All third-party services fully configured                                                                 |
+| 3.0.7   | Jan 26, 2026 | **Stripe products + KeyGen policies** — All 4 price IDs created, Stripe webhook configured. KeyGen policies (Floating, 3/5 machines) created                                                                         |
+| 3.0.6   | Jan 26, 2026 | **Auth0 complete** — Mouse app configured, Google + GitHub social connections, refresh token rotation, callback/logout URLs for all environments                                                                     |
+| 3.0.5   | Jan 26, 2026 | **v4.2 pricing** — Final feature matrix: minSeats=1, machines 3/5, RBAC, audit logging, support tiers, SAML guidance                                                                                                 |
+| 3.0.4   | Jan 26, 2026 | **v4.1 pricing** — Team→Business rename, sessions→machines, 3 machines included, Agent-as-Salesperson enforcement model                                                                                              |
+| 3.0.3   | Jan 26, 2026 | v4 pricing complete — Individual $15/mo + Team $35/seat, Enterprise deferred                                                                                                                                         |
+| 3.0.2   | Jan 26, 2026 | CI/CD pipeline complete — `.github/workflows/cicd.yml` deployed and verified                                                                                                                                         |
+| 3.0.1   | Jan 26, 2026 | Corrected AWS status (templates exist), added CI/CD urgency, added Support section                                                                                                                                   |
+| 3.0     | Jan 26, 2026 | Complete rewrite consolidating all workstreams                                                                                                                                                                       |
+| 2.1     | Jan 23, 2026 | Backend completion status                                                                                                                                                                                            |
+| 2.0     | Jan 22, 2026 | Pricing restructure                                                                                                                                                                                                  |
+| 1.1     | Jan 21, 2026 | Infrastructure updates                                                                                                                                                                                               |
+| 1.0     | Jan 21, 2026 | Initial roadmap                                                                                                                                                                                                      |
 
 ---
 

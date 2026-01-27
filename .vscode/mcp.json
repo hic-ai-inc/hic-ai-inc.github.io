@@ -7,7 +7,8 @@
       "env": {
         "DEBUG": "true",
         "NODE_ENV": "production",
-        "HIC_AGENT_ADAPTER": "copilot"
+        "HIC_AGENT_ADAPTER": "copilot",
+        "HIC_ALLOWED_DIRECTORIES": "c:/Users/SimonAdmin/source/repos/hic;c:/Users/SimonAdmin/source/repos/hic-ai-inc.github.io"
       }
     }
   },
