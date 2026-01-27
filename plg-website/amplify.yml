@@ -5,16 +5,16 @@ applications:
       phases:
         preBuild:
           commands:
-            - echo "Node version:" && node --version
-            - echo "NPM version:" && npm --version
+            - 'echo "Node version:" && node --version'
+            - 'echo "NPM version:" && npm --version'
             - npm ci
         build:
           commands:
-            - echo "Building for environment: $AMPLIFY_ENV"
+            - 'echo "Building for environment: $AMPLIFY_ENV"'
             - npm run build
         postBuild:
           commands:
-            - echo "Build complete"
+            - 'echo "Build complete"'
       artifacts:
         baseDirectory: .next
         files:
