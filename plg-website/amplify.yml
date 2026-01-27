@@ -47,9 +47,6 @@ customHeaders:
       - key: Referrer-Policy
         value: strict-origin-when-cross-origin
 
-# Redirects for SPA routing
-customRules:
-  - source: /<*>
-    target: /index.html
-    status: "404-200"
-    condition: null
+# Redirects - No SPA rewrites needed for Next.js SSR
+# Next.js handles routing via middleware and page resolver
+customRules: []
