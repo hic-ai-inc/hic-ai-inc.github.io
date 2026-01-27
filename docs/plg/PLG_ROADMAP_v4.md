@@ -1,6 +1,6 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.3.0  
+**Document Version:** 4.4.0  
 **Date:** January 27, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -487,9 +487,9 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Create `licensing/license-checker.js`         | ✅     | Main validation logic                 |
 | Create `licensing/providers/http-provider.js` | ✅     | KeyGen endpoints + 48 tests           |
 | Create `licensing/messages.js`                | ✅     | Agent-facing messages                 |
-| Implement `_meta.license` injection           | ⬜     | Add to all tool responses             |
-| Implement tool blocking for expired           | ⬜     | Return error, not result              |
-| Add `license_status` always-available tool    | ⬜     | Emergency escape hatch                |
+| Implement `_meta.license` injection           | ✅     | In server.js (probabilistic)          |
+| Implement tool blocking for expired           | ✅     | checkToolAccess() in server.js        |
+| Add `license_status` always-available tool    | ✅     | 16 tests passing                      |
 
 #### Phase 4: Heartbeat Implementation (8-12h)
 
@@ -499,19 +499,19 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | **Server-side rate limiting**           | ✅     | 10 req/min per license key          |
 | Implement heartbeat loop in extension   | ✅     | 10-minute interval in mouse-vscode  |
 | Store sessionId for concurrent tracking | ✅     | fingerprint.js implemented          |
-| Handle heartbeat failures gracefully    | ⬜     | Don't block on network              |
+| Handle heartbeat failures gracefully    | ✅     | Non-blocking background refresh     |
 | Test concurrent session enforcement     | ⬜     | Multiple machines                   |
 
 #### Phase 5: Nag Banner System (8-12h)
 
 | Task                                       | Status | Notes               |
 | ------------------------------------------ | ------ | ------------------- |
-| Implement deterministic metadata frequency | ⬜     | Seeded RNG per doc  |
-| Trial Days 1-7: ~20% of calls              | ⬜     | Gentle reminder     |
-| Trial Days 8-12: ~50% of calls             | ⬜     | More urgent         |
-| Trial Days 13-14: Every call               | ⬜     | Final countdown     |
-| Suspended mode (payment failed)            | ⬜     | Grace period banner |
-| Expired mode: Block all tools              | ⬜     | Hard stop           |
+| Implement deterministic metadata frequency | ✅     | Seeded RNG (mulberry32)             |
+| Trial Days 1-7: ~20% of calls              | ✅     | EARLY_TRIAL_PROBABILITY = 0.20      |
+| Trial Days 8-12: ~50% of calls             | ✅     | MID_TRIAL_PROBABILITY = 0.50        |
+| Trial Days 13-14: ~80% + Last 24h: 100%    | ✅     | FINAL/LAST_DAY_PROBABILITY          |
+| Suspended mode (payment failed)            | ✅     | GRACE_PROBABILITY = 1.0             |
+| Expired mode: Block all tools              | ✅     | checkToolAccess() blocks            |
 
 #### Phase 6: VSIX Packaging (8-12h)
 
@@ -869,6 +869,7 @@ Parallel workstreams (no dependencies):
 
 | Version | Date         | Changes                                                                                                                                                                                                              |
 | ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.4** | Jan 27, 2026 | **Phase 3-5 COMPLETE.** Added `license_status` tool (16 tests). Implemented tiered nag frequency: 20%/50%/80%/100% with seeded RNG (23 tests). Updated NAG_CONFIG constants. Non-blocking heartbeat failure handling. 119 total licensing tests. |
 | **4.3** | Jan 27, 2026 | **MCP licensing KeyGen integration.** Updated `mouse/src/licensing/` to use KeyGen endpoints (`api.hic-ai.com`). Added http-provider.test.js (48 tests). Clarified dual licensing systems: MCP (tool gating) vs VS Code extension (heartbeat/UI). |
 | **4.2** | Jan 27, 2026 | **Multi-workspace Mouse support.** Updated `mcp/src/utils/dm-base/safe-path.js` with `HIC_ALLOWED_DIRECTORIES` env var. Mouse now works across both `hic` and `hic-ai-inc.github.io` repos in multi-root workspaces. |
 | **4.1** | Jan 27, 2026 | **Server-side APIs complete.** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration tests (13 tests). Fixed `next/headers` dynamic import. 580 total tests passing.           |
