@@ -8,6 +8,8 @@ applications:
             - 'echo "Node version:" && node --version'
             - 'echo "NPM version:" && npm --version'
             - npm ci
+            - 'echo "Installing dm dependencies for dm/layers..."'
+            - cd ../dm && npm ci
         build:
           commands:
             - 'echo "Building for environment: $AMPLIFY_ENV"'
