@@ -19,6 +19,9 @@ import {
 import { sendLicenseEmail } from "@/lib/ses";
 import WelcomeCompleteClient from "./WelcomeCompleteClient";
 
+// Force dynamic rendering - requires session and Stripe data
+export const dynamic = "force-dynamic";
+
 export default async function WelcomeCompletePage({ searchParams }) {
   const params = await searchParams;
   const sessionId = params.session_id;

@@ -18,6 +18,9 @@ export const metadata = {
   description: "Set up your Mouse account and get started",
 };
 
+// Force dynamic rendering - requires session check
+export const dynamic = "force-dynamic";
+
 export default async function WelcomePage({ searchParams }) {
   const session = await getSession();
   const params = await searchParams;
