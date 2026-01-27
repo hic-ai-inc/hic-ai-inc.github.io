@@ -1,6 +1,6 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.2.0  
+**Document Version:** 4.3.0  
 **Date:** January 27, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -485,7 +485,7 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Create `licensing/config.js`                  | ✅     | Trial constants, URLs                 |
 | Create `licensing/license-state.js`           | ✅     | Local state storage (139 tests)       |
 | Create `licensing/license-checker.js`         | ✅     | Main validation logic                 |
-| Create `licensing/providers/http-provider.js` | 🟡     | **Point to `api.hic-ai.com`** — ready |
+| Create `licensing/providers/http-provider.js` | ✅     | KeyGen endpoints + 48 tests           |
 | Create `licensing/messages.js`                | ✅     | Agent-facing messages                 |
 | Implement `_meta.license` injection           | ⬜     | Add to all tool responses             |
 | Implement tool blocking for expired           | ⬜     | Return error, not result              |
@@ -497,7 +497,7 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | --------------------------------------- | ------ | ----------------------------------- |
 | **Server-side heartbeat API**           | ✅     | `/api/license/heartbeat` — 27 tests |
 | **Server-side rate limiting**           | ✅     | 10 req/min per license key          |
-| Implement heartbeat loop in extension   | 🟡     | 10-minute interval — client ready   |
+| Implement heartbeat loop in extension   | ✅     | 10-minute interval in mouse-vscode  |
 | Store sessionId for concurrent tracking | ✅     | fingerprint.js implemented          |
 | Handle heartbeat failures gracefully    | ⬜     | Don't block on network              |
 | Test concurrent session enforcement     | ⬜     | Multiple machines                   |
@@ -869,6 +869,7 @@ Parallel workstreams (no dependencies):
 
 | Version | Date         | Changes                                                                                                                                                                                                              |
 | ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.3** | Jan 27, 2026 | **MCP licensing KeyGen integration.** Updated `mouse/src/licensing/` to use KeyGen endpoints (`api.hic-ai.com`). Added http-provider.test.js (48 tests). Clarified dual licensing systems: MCP (tool gating) vs VS Code extension (heartbeat/UI). |
 | **4.2** | Jan 27, 2026 | **Multi-workspace Mouse support.** Updated `mcp/src/utils/dm-base/safe-path.js` with `HIC_ALLOWED_DIRECTORIES` env var. Mouse now works across both `hic` and `hic-ai-inc.github.io` repos in multi-root workspaces. |
 | **4.1** | Jan 27, 2026 | **Server-side APIs complete.** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration tests (13 tests). Fixed `next/headers` dynamic import. 580 total tests passing.           |
 | 4.0     | Jan 26, 2026 | v4 — Accurate Assessment. Revised based on actual code review. Website ~90% complete, Mouse extension has **zero code** (80-100h work). Updated all estimates.                                                       |
