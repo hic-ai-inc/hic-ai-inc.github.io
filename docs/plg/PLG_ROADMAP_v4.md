@@ -1,6 +1,6 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.5.0  
+**Document Version:** 4.6.0  
 **Date:** January 27, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -40,7 +40,9 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 
 > ⚠️ **UPDATE (Jan 27):** Server-side heartbeat and trial token APIs are now complete. Mouse client-side licensing implementation is in progress with 139 passing tests.
 >
-> 🚀 **MILESTONE (Jan 27, 4:13 PM EST):** AWS Infrastructure deployed to staging! DynamoDB table `hic-plg-staging` live, Amplify role created, SES domain pending verification. 57 infrastructure tests passing.
+> 🚀 **MILESTONE (Jan 27, 4:13 PM EST):** AWS Infrastructure deployed to staging! DynamoDB table `hic-plg-staging` live, SES domain VERIFIED.
+>
+> 🚀 **MILESTONE (Jan 27, 5:54 PM EST):** PLG Website deployed to staging via AWS Amplify (Build #10)! All 24 environment variables configured. Custom domain `staging.hic-ai.com` pending DNS propagation.
 
 ---
 
@@ -159,11 +161,11 @@ npm run metrics -- --period=7d
 | Enable Organizations (for Teams)     | ⬜     | Required for Business tier `org_roles`          |
 | Create custom namespace claims       | ⬜     | `https://hic-ai.com/org_roles` etc              |
 | **Environment Variables**            |        |                                                 |
-| Set `AUTH0_SECRET`                   | ⬜     | Generate with `openssl rand -hex 32`            |
-| Set `AUTH0_BASE_URL`                 | ⬜     | `https://hic-ai.com`                            |
+| Set `AUTH0_SECRET`                   | ✅     | Generated and set in Amplify                    |
+| Set `AUTH0_BASE_URL`                 | ✅     | `https://staging.hic-ai.com` (staging)          |
 | Set `AUTH0_ISSUER_BASE_URL`          | ✅     | `https://dev-vby1x2u5b7c882n5.us.auth0.com`     |
-| Set `AUTH0_CLIENT_ID`                | ⬜     | Copy from Auth0 dashboard → .env.local          |
-| Set `AUTH0_CLIENT_SECRET`            | ⬜     | Copy from Auth0 dashboard → .env.local          |
+| Set `AUTH0_CLIENT_ID`                | ✅     | `MMdXibUAwtcM7GeI4eUJRytXqFjhLu20`              |
+| Set `AUTH0_CLIENT_SECRET`            | ✅     | Set in Amplify env vars                         |
 | **Code Integration**                 |        |                                                 |
 | Add Auth0 login/logout routes        | ✅     | `/api/auth/[auth0]/route.js`                    |
 | Wire portal layout to session        | ⬜     | Show user info in nav                           |
@@ -420,6 +422,13 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 | Verify all resources created         | ✅     | All 7 nested stacks created    |
 | Add SES DNS records to GoDaddy       | ✅     | 4 records added (3 DKIM + TXT) |
 | Verify SES domain                    | ✅     | Domain + DKIM VERIFIED! 🎉     |
+| **Amplify Deployment**               |        |                                |
+| Create Amplify app                   | ✅     | App ID: `d2yhz9h4xdd5rb`       |
+| Connect GitHub repo                  | ✅     | `development` branch           |
+| Configure amplify.yml                | ✅     | With dm dependency install     |
+| Set environment variables (24)       | ✅     | All secrets configured         |
+| First successful build               | ✅     | Build #10 SUCCEEDED            |
+| Custom domain setup                  | 🟡     | `staging.hic-ai.com` pending   |
 | Deploy to production                 | ⬜     | `./deploy.sh prod`             |
 | **Environment Setup**                |        |                                |
 | AWS Secrets Manager                  | ✅     | `plg/staging/env` created      |
@@ -642,13 +651,13 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Deploy CloudFormation stacks                 | ✅     | Staging: Jan 27, 2026      |
 | Verify DynamoDB table exists                 | ✅     | `hic-plg-staging` ACTIVE   |
 | Add SES DNS records to GoDaddy               | ✅     | 4 records added            |
-| Verify SES domain verified                   | ⏳     | Pending propagation        |
+| Verify SES domain verified                   | ✅     | Domain + DKIM verified     |
 | **Environment**                              |        |                            |
-| All env vars set in Amplify                  | ⬜     | Check .env.example         |
-| Secrets in Parameter Store / Secrets Manager | ⬜     | API keys                   |
+| All env vars set in Amplify                  | ✅     | 24 variables configured    |
+| Secrets in Parameter Store / Secrets Manager | ✅     | `plg/staging/env` created  |
 | **DNS**                                      |        |                            |
-| Amplify connected to hic-ai.com              | ⬜     | Custom domain              |
-| SSL certificate provisioned                  | ⬜     | HTTPS                      |
+| Amplify connected to staging.hic-ai.com      | 🟡     | DNS records added          |
+| SSL certificate provisioned                  | 🟡     | ACM verification pending   |
 | **Third-Party Services**                     |        |                            |
 | Stripe webhooks pointing to production       | ⬜     | Update URL                 |
 | KeyGen webhooks pointing to production       | ⬜     | Update URL                 |
