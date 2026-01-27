@@ -55,7 +55,7 @@ export default function AcceptInvitePage() {
         if (response.status === 401) {
           // Store return URL and redirect to sign in
           const returnUrl = encodeURIComponent(`/invite/${token}`);
-          router.push(`/api/auth/login?returnTo=${returnUrl}`);
+          router.push(`/auth/login?returnTo=${returnUrl}`);
           return;
         }
         setError(data.error || "Failed to accept invite");

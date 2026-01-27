@@ -22,25 +22,10 @@ export async function middleware(req) {
   const path = req.nextUrl.pathname;
 
   // ===========================================
-  // DEV MODE BYPASS (development only)
+  // AUTH0 MIDDLEWARE (must run on ALL requests)
   // ===========================================
-  // Add ?dev=preview to any URL to bypass auth checks
-  // Only works when NODE_ENV=development
-  if (process.env.NODE_ENV === "development") {
-    const devParam = req.nextUrl.searchParams.get("dev");
-    if (devParam === "preview") {
-      console.log(`[DEV] Auth bypass for: ${path}`);
-      return NextResponse.next();
-    }
-  }
-
-  // Only apply auth checks to protected routes
-  const requiresAuth = path.startsWith("/portal") || path.startsWith("/admin");
-  if (!requiresAuth) {
-    return NextResponse.next();
-  }
-
-  // Dynamically import Auth0 only when needed (avoids errors if not configured)
+  // Auth0 SDK v4 handles /auth/* routes via middleware
+  // This MUST be called before any other logic
   let auth0, getOrganizationId;
   try {
     const auth0Module = await import("./lib/auth0.js");
@@ -53,15 +38,38 @@ export async function middleware(req) {
       console.log(`[DEV] Auth0 not configured, allowing access to: ${path}`);
       return NextResponse.next();
     }
-    // In production, redirect to home if Auth0 fails
-    return NextResponse.redirect(new URL("/", req.url));
+    // In production, redirect to home if Auth0 fails (except public routes)
+    const requiresAuth =
+      path.startsWith("/portal") || path.startsWith("/admin");
+    if (requiresAuth) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+    return NextResponse.next();
   }
 
+  // Let Auth0 handle /auth/* routes (login, logout, callback, etc.)
   const authRes = await auth0.middleware(req);
-
-  // If Auth0 middleware returned a response, use it (redirects, etc.)
   if (authRes) {
     return authRes;
+  }
+
+  // ===========================================
+  // DEV MODE BYPASS (development only)
+  // ===========================================
+  // Add ?dev=preview to any URL to bypass auth checks
+  // Only works when NODE_ENV=development
+  if (process.env.NODE_ENV === "development") {
+    const devParam = req.nextUrl.searchParams.get("dev");
+    if (devParam === "preview") {
+      console.log(`[DEV] Auth bypass for: ${path}`);
+      return NextResponse.next();
+    }
+  }
+
+  // Only apply additional auth checks to protected routes
+  const requiresAuth = path.startsWith("/portal") || path.startsWith("/admin");
+  if (!requiresAuth) {
+    return NextResponse.next();
   }
 
   const session = await auth0.getSession();

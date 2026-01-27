@@ -211,7 +211,7 @@ export default function SettingsPage() {
       }
 
       // Redirect to homepage after successful deletion request
-      window.location.href = "/api/auth/logout?returnTo=/";
+      window.location.href = "/auth/logout?returnTo=/";
     } catch (err) {
       setError(err.message);
     } finally {

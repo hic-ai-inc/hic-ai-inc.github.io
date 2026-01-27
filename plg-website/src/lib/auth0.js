@@ -68,32 +68,11 @@ export async function getAccessToken() {
   return auth0Client.getAccessToken();
 }
 
-/**
- * Handle login flow
- * @param {Request} req - Incoming request
- * @returns {Promise<Response>} Login redirect response
- */
-export async function handleLogin(req) {
-  return auth0Client.handleLogin(req);
-}
-
-/**
- * Handle logout flow
- * @param {Request} req - Incoming request
- * @returns {Promise<Response>} Logout redirect response
- */
-export async function handleLogout(req) {
-  return auth0Client.handleLogout(req);
-}
-
-/**
- * Handle OAuth callback
- * @param {Request} req - Incoming request
- * @returns {Promise<Response>} Callback handling response
- */
-export async function handleCallback(req) {
-  return auth0Client.handleCallback(req);
-}
+// ============================================
+// NOTE: Auth0 SDK v4 handles auth routes via middleware
+// Login/logout/callback are at /auth/login, /auth/logout, /auth/callback
+// These are NOT exposed as client methods - use middleware instead
+// ============================================
 
 /**
  * Check if user has enterprise organization
