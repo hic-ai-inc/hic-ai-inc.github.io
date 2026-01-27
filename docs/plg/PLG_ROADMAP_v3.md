@@ -1,6 +1,6 @@
 # PLG Roadmap v3 — Final Sprint to Launch
 
-**Document Version:** 3.0.9  
+**Document Version:** 3.0.10  
 **Date:** January 26, 2026  
 **Owner:** General Counsel  
 **Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
@@ -21,7 +21,7 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 
 | #   | Workstream                         | Status             | Est. Hours | Owner      | Blocks           |
 | --- | ---------------------------------- | ------------------ | ---------- | ---------- | ---------------- |
-| 1   | Analytics                          | ⬜ Not started     | 4-8h       | GC         | —                |
+| 1   | Analytics                          | ✅ Script ready    | 4-8h       | GC         | —                |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented      | 2h         | GC         | —                |
 | 3   | Auth (Auth0 Integration)           | ✅ Dashboard done  | 8-12h      | GC + Simon | 4 (Admin Portal) |
 | 4   | Admin Portal (Individuals + Teams) | ✅ Phases 1-3 done | 24-32h     | GC         | 5, 6             |
@@ -30,7 +30,7 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 7   | AWS Infrastructure                 | ✅ Templates exist | 4-6h       | GC         | —                |
 | 8   | VS Code Extension (VSIX)           | ⬜ Not started     | 4-8h       | Simon      | 5, 6             |
 | 9   | Back-End E2E Testing               | ⚠️ Unit tests done | 8-12h      | GC         | 3-8              |
-| 10  | Front-End Polish                   | ⚠️ Partial        | 16-24h     | GC         | 9                |
+| 10  | Front-End Polish                   | ⚠️ Partial         | 16-24h     | GC         | 9                |
 | 11  | Deployment & Launch                | ⬜ Not started     | 8-12h      | GC + Simon | 1-10             |
 | 12  | Support & Community                | ⬜ Not started     | 4-8h       | Simon      | —                |
 
@@ -47,50 +47,53 @@ See [Section 7.3](#73-cicd-pipeline--complete) for details.
 
 ## 1. Analytics
 
-**Status:** ⬜ Not started  
+**Status:** ✅ Script-based metrics ready (Plausible deferred)  
 **Est. Hours:** 4-8h  
 **Documentation:** [20260123_COOKIE_AND_ANALYTICS_COMPLIANCE_STRATEGY.md](./20260123_COOKIE_AND_ANALYTICS_COMPLIANCE_STRATEGY.md)
 
 ### 1.1 Decision Made
 
-We will use **Plausible Analytics** ($9/mo) — cookie-free, GDPR-compliant, no consent banner required.
+**Phase 1 (Now):** Script-based metrics pulling directly from Stripe and KeyGen APIs.  
+**Phase 2 (Post-Launch):** Plausible Analytics ($9/mo) for visitor/pageview tracking.
 
 ### 1.2 Checklist
 
-| Task                                                  | Status | Notes                                               |
-| ----------------------------------------------------- | ------ | --------------------------------------------------- |
-| Sign up for Plausible Analytics                       | ⬜     | plausible.io — $9/mo                                |
-| Add Plausible script to `_document.js` or `layout.js` | ⬜     | `<script defer data-domain="hic-ai.com" src="...">` |
-| Configure custom events for PLG metrics               | ⬜     | See 1.3                                             |
-| Create Bash script for metrics pull                   | ⬜     | `scripts/analytics-report.sh`                       |
-| Test tracking on staging                              | ⬜     | Verify events fire                                  |
+| Task                                         | Status | Notes                           |
+| -------------------------------------------- | ------ | ------------------------------- |
+| Create PLG metrics script (`plg-metrics.js`) | ✅     | Pulls from Stripe + KeyGen APIs |
+| Add unit tests for metrics script            | ✅     | 17 tests passing with mocks     |
+| Add npm scripts (`metrics`, `metrics:json`)  | ✅     | `npm run metrics` for dashboard |
+| Sign up for Plausible Analytics              | ⏸️     | Deferred to post-launch         |
+| Add Plausible script to `layout.js`          | ⏸️     | Deferred to post-launch         |
+| Configure custom events for PLG metrics      | ⏸️     | Deferred to post-launch         |
 
 ### 1.3 PLG Metrics to Track (7 Core)
 
-| Metric                       | Plausible Event             | How to Trigger                   |
-| ---------------------------- | --------------------------- | -------------------------------- |
-| **Visitors**                 | Auto                        | Default pageview                 |
-| **Pricing Page Views**       | `pageview` on `/pricing`    | Auto                             |
-| **Checkout Started**         | `Checkout: Started`         | Fire on checkout page load       |
-| **Checkout Completed**       | `Checkout: Completed`       | Fire on success redirect         |
-| **Trial Activations**        | `Trial: Activated`          | Fire from extension on first use |
-| **Conversions (Trial→Paid)** | `Conversion: Trial to Paid` | Fire on first payment            |
-| **Churn**                    | Server-side only            | Track via Stripe webhooks        |
+| Metric                       | Current Source              | Post-Launch (Plausible)     |
+| ---------------------------- | --------------------------- | --------------------------- |
+| **Visitors**                 | N/A (need Plausible)        | Auto pageview               |
+| **Pricing Page Views**       | N/A (need Plausible)        | `pageview` on `/pricing`    |
+| **Checkout Started**         | Stripe checkout sessions    | `Checkout: Started` event   |
+| **Checkout Completed**       | Stripe checkout sessions    | `Checkout: Completed` event |
+| **Trial Activations**        | KeyGen machines (monthly)   | `Trial: Activated` event    |
+| **Conversions (Trial→Paid)** | Stripe active subscriptions | `Conversion: Trial to Paid` |
+| **Churn**                    | Stripe canceled subs        | Server-side via webhooks    |
 
-### 1.4 Bash Script for Metrics
+### 1.4 PLG Metrics Script
 
 ```bash
-#!/bin/bash
-# scripts/analytics-report.sh
-# Pull PLG metrics from Plausible API
+# Run the dashboard
+npm run metrics
 
-SITE_ID="hic-ai.com"
-API_KEY="${PLAUSIBLE_API_KEY}"
-DATE_RANGE="30d"
+# JSON output for automation
+npm run metrics:json
 
-curl -s "https://plausible.io/api/v1/stats/aggregate?site_id=$SITE_ID&period=$DATE_RANGE&metrics=visitors,pageviews,bounce_rate,visit_duration" \
-  -H "Authorization: Bearer $API_KEY" | jq .
+# Specify time period
+npm run metrics -- --period=7d
 ```
+
+**Script location:** `plg-website/scripts/plg-metrics.js`  
+**Tests:** `plg-website/__tests__/unit/scripts/plg-metrics.test.js`
 
 ---
 
@@ -188,43 +191,43 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 
 ### 4.3 Detailed Checklist
 
-| Task                                                  | Status | Blocks               |
-| ----------------------------------------------------- | ------ | -------------------- |
-| **Phase 1: API Endpoints**                            |        |                      |
-| `GET /api/portal/team` — List members + invites       | ✅     | —                    |
-| `POST /api/portal/team` (action: invite) — Create invite | ✅     | —                    |
+| Task                                                       | Status | Blocks               |
+| ---------------------------------------------------------- | ------ | -------------------- |
+| **Phase 1: API Endpoints**                                 |        |                      |
+| `GET /api/portal/team` — List members + invites            | ✅     | —                    |
+| `POST /api/portal/team` (action: invite) — Create invite   | ✅     | —                    |
 | `DELETE /api/portal/team` (action: revoke) — Revoke member | ✅     | —                    |
 | `DELETE /api/portal/team` (action: cancel) — Cancel invite | ✅     | —                    |
-| DynamoDB: `createOrgInvite()`                         | ✅     | —                    |
-| DynamoDB: `getOrgInvites()`                           | ✅     | —                    |
-| DynamoDB: `deleteOrgInvite()`                         | ✅     | —                    |
-| DynamoDB: `getInviteByToken()` + GSI                  | ✅     | —                    |
-| **Phase 2: Invite Flow**                              |        |                      |
-| `POST /api/portal/invite/[token]` — Accept invite     | ✅     | Phase 1              |
-| DynamoDB: `acceptOrgInvite()`                         | ✅     | Phase 1              |
-| `/invite/[token]/page.js` — Acceptance UI             | ✅     | Phase 1              |
-| Auth0: Add user to org on accept                      | ⬜     | Auth0 config         |
-| KeyGen: Create license on accept                      | ⬜     | KeyGen config        |
-| **Phase 3: Frontend Wire-up**                         |        |                      |
-| Update `/portal/team/page.js` to use API              | ✅     | Phase 1              |
-| Create `InviteModal` component                        | ✅     | In TeamManagement.js |
-| Create `RevokeConfirmDialog` component                | ✅     | In TeamManagement.js |
-| Wire role change dropdown                             | ✅     | In TeamManagement.js |
-| Update `portal/layout.js` for role-based nav          | ⬜     | —                    |
-| Protect `/portal/billing` from team members           | ⬜     | Auth helpers         |
-| Protect `/portal/team` from non-admins                | ⬜     | Auth helpers         |
-| **Phase 4: Role Management**                          |        |                      |
-| `PATCH /api/portal/team/members/:id/role`             | ⬜     | Phase 1              |
-| Update Auth0 user metadata on role change             | ⬜     | Auth0 Management API |
-| Role change dropdown in team table                    | ⬜     | Phase 3              |
-| "Last admin" protection logic                         | ⬜     | —                    |
-| **Phase 5: Polish**                                   |        |                      |
-| Resend invite functionality                           | ⬜     | —                    |
-| Invite expiration handling (7-day TTL)                | ⬜     | —                    |
-| "No seats available" error state                      | ⬜     | —                    |
-| Self-revocation prevention                            | ⬜     | —                    |
-| Loading states and error boundaries                   | ✅     | All portal pages     |
-| Mobile responsive team table                          | ⬜     | —                    |
+| DynamoDB: `createOrgInvite()`                              | ✅     | —                    |
+| DynamoDB: `getOrgInvites()`                                | ✅     | —                    |
+| DynamoDB: `deleteOrgInvite()`                              | ✅     | —                    |
+| DynamoDB: `getInviteByToken()` + GSI                       | ✅     | —                    |
+| **Phase 2: Invite Flow**                                   |        |                      |
+| `POST /api/portal/invite/[token]` — Accept invite          | ✅     | Phase 1              |
+| DynamoDB: `acceptOrgInvite()`                              | ✅     | Phase 1              |
+| `/invite/[token]/page.js` — Acceptance UI                  | ✅     | Phase 1              |
+| Auth0: Add user to org on accept                           | ⬜     | Auth0 config         |
+| KeyGen: Create license on accept                           | ⬜     | KeyGen config        |
+| **Phase 3: Frontend Wire-up**                              |        |                      |
+| Update `/portal/team/page.js` to use API                   | ✅     | Phase 1              |
+| Create `InviteModal` component                             | ✅     | In TeamManagement.js |
+| Create `RevokeConfirmDialog` component                     | ✅     | In TeamManagement.js |
+| Wire role change dropdown                                  | ✅     | In TeamManagement.js |
+| Update `portal/layout.js` for role-based nav               | ⬜     | —                    |
+| Protect `/portal/billing` from team members                | ⬜     | Auth helpers         |
+| Protect `/portal/team` from non-admins                     | ⬜     | Auth helpers         |
+| **Phase 4: Role Management**                               |        |                      |
+| `PATCH /api/portal/team/members/:id/role`                  | ⬜     | Phase 1              |
+| Update Auth0 user metadata on role change                  | ⬜     | Auth0 Management API |
+| Role change dropdown in team table                         | ⬜     | Phase 3              |
+| "Last admin" protection logic                              | ⬜     | —                    |
+| **Phase 5: Polish**                                        |        |                      |
+| Resend invite functionality                                | ⬜     | —                    |
+| Invite expiration handling (7-day TTL)                     | ⬜     | —                    |
+| "No seats available" error state                           | ⬜     | —                    |
+| Self-revocation prevention                                 | ⬜     | —                    |
+| Loading states and error boundaries                        | ✅     | All portal pages     |
+| Mobile responsive team table                               | ⬜     | —                    |
 
 ---
 
