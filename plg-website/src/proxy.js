@@ -1,5 +1,5 @@
 /**
- * Next.js Middleware for Route Protection
+ * Next.js Proxy for Route Protection (Next.js 16+)
  *
  * Protects authenticated routes:
  * - /portal/* - Customer portal (requires authentication)
@@ -18,8 +18,11 @@ const AUTH0_NAMESPACE = "https://hic-ai.com";
 // Routes that require admin or owner role for business accounts
 const ADMIN_ONLY_ROUTES = ["/portal/billing", "/portal/team"];
 
-export async function proxy(req) {
-  const path = req.nextUrl.pathname;
+export async function proxy(request) {
+  // Next.js 16 proxy receives standard Request, not NextRequest
+  // Get path from URL
+  const url = new URL(request.url);
+  const path = url.pathname;
 
   // ===========================================
   // AUTH0 MIDDLEWARE (MUST run first on ALL requests)
@@ -42,7 +45,7 @@ export async function proxy(req) {
     const requiresAuth =
       path.startsWith("/portal") || path.startsWith("/admin");
     if (requiresAuth) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();
   }
@@ -50,7 +53,7 @@ export async function proxy(req) {
   // CRITICAL: Auth0 SDK v4 middleware handles EVERYTHING
   // - For /auth/* routes: Returns redirect to Auth0 or handles callback
   // - For other routes: Returns NextResponse.next() with session cookies
-  const authRes = await auth0.middleware(req);
+  const authRes = await auth0.middleware(request);
 
   // For /auth/* routes, ALWAYS return the Auth0 response (redirect to Auth0, callback handling, etc.)
   if (path.startsWith("/auth/")) {
@@ -71,7 +74,7 @@ export async function proxy(req) {
   // Add ?dev=preview to any URL to bypass auth checks
   // Only works when NODE_ENV=development
   if (process.env.NODE_ENV === "development") {
-    const devParam = req.nextUrl.searchParams.get("dev");
+    const devParam = url.searchParams.get("dev");
     if (devParam === "preview") {
       console.log(`[DEV] Auth bypass for: ${path}`);
       return NextResponse.next();
@@ -83,7 +86,7 @@ export async function proxy(req) {
 
   if (!session) {
     // Redirect to login with returnTo
-    const loginUrl = new URL("/auth/login", req.url);
+    const loginUrl = new URL("/auth/login", request.url);
     loginUrl.searchParams.set("returnTo", path);
     return NextResponse.redirect(loginUrl);
   }
@@ -98,7 +101,7 @@ export async function proxy(req) {
     if (accountType === "business") {
       // Regular members cannot access admin-only routes
       if (orgRole === "member") {
-        return NextResponse.redirect(new URL("/portal", req.url));
+        return NextResponse.redirect(new URL("/portal", request.url));
       }
     }
   }
@@ -109,7 +112,7 @@ export async function proxy(req) {
 
     if (!orgId) {
       // Individual user trying to access admin - redirect to portal
-      return NextResponse.redirect(new URL("/portal", req.url));
+      return NextResponse.redirect(new URL("/portal", request.url));
     }
   }
 
