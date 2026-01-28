@@ -29,7 +29,9 @@ export async function GET(request) {
   const logoutUrl = new URL(`https://${cognitoConfig.domain}/logout`);
   logoutUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
   // Use redirect_uri for RP-initiated logout (must be in app client's Sign-out URLs)
-  logoutUrl.searchParams.set("redirect_uri", `${cognitoConfig.appUrl}/`);
+  // Note: Must match EXACTLY what's configured in Cognito (no trailing slash)
+  const baseUrl = cognitoConfig.appUrl.replace(/\/$/, ""); // Remove trailing slash if present
+  logoutUrl.searchParams.set("redirect_uri", baseUrl);
   logoutUrl.searchParams.set("response_type", "code");
 
   // Clear any server-side session cookies if we add them later

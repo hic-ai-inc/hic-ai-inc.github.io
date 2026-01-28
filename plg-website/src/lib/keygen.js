@@ -24,7 +24,7 @@ let cachedProductToken = null;
 export const KEYGEN_POLICIES = {
   oss: process.env.KEYGEN_POLICY_ID_OSS,
   individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
-  enterprise: process.env.KEYGEN_POLICY_ID_ENTERPRISE,
+  business: process.env.KEYGEN_POLICY_ID_BUSINESS,
 };
 
 /**

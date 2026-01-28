@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.9.0  
+**Document Version:** 4.10.0  
 **Date:** January 28, 2026  
 **Owner:** General Counsel  
-**Status:** 🟢 COGNITO AUTH LIVE — Testing checkout flow
+**Status:** 🟢 CHECKOUT FLOW COMPLETE + Secrets Manager integrated
 
 ---
 
@@ -53,7 +53,7 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 5c  | **Server-Side Trial Token API**    | ✅ **COMPLETE** (33 tests)  | 0h (done)  | GC         | —                 |
 | 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | 0h (done)  | GC         | —                 |
-| 8   | **VS Code Extension (VSIX)**       | 🟡 **IN PROGRESS**          | **60-80h** | Simon      | **CRITICAL PATH** |
+| 8   | **VS Code Extension (VSIX)**       | 🟡 **IN PROGRESS**          | **60-80h** | GC + Simon | **CRITICAL PATH** |
 | 9   | Back-End E2E Testing               | 🟡 **UNBLOCKED**            | 8-12h      | GC         | **3 (Cognito)**   |
 | 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —                 |
 | 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**          |
@@ -471,12 +471,12 @@ The Admin Portal is the **largest single work item**. See the full spec for deta
 | Create Amplify app                   | ✅     | App ID: `d2yhz9h4xdd5rb`       |
 | Connect GitHub repo                  | ✅     | `development` branch           |
 | Configure amplify.yml                | ✅     | With dm dependency install     |
-| Set environment variables (24)       | ✅     | All secrets configured         |
+| Set environment variables (15)       | ✅     | Secrets moved to Secrets Mgr   |
 | First successful build               | ✅     | Build #10 SUCCEEDED            |
 | Custom domain setup                  | 🟡     | `staging.hic-ai.com` pending   |
 | Deploy to production                 | ⬜     | `./deploy.sh prod`             |
 | **Environment Setup**                |        |                                |
-| AWS Secrets Manager                  | ✅     | `plg/staging/env` created      |
+| AWS Secrets Manager                  | ✅     | 3 secrets: stripe, keygen, app |
 | .env.local complete                  | ✅     | All credentials populated      |
 
 ### 7.3 CI/CD Pipeline — ✅ COMPLETE
@@ -615,8 +615,8 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Scenario                                          | Status | Coverage                |
 | ------------------------------------------------- | ------ | ----------------------- |
 | **Purchase Flows**                                |        |                         |
-| Individual: Checkout → Payment → License created  | ⬜     | Stripe + KeyGen         |
-| Team: Checkout → Payment → Org + Licenses created | ⬜     | Stripe + KeyGen + Auth0 |
+| Individual: Checkout → Payment → License created  | 🟡     | UI works, webhook TODO  |
+| Team: Checkout → Payment → Org + Licenses created | 🟡     | UI works, webhook TODO  |
 | **Activation Flows**                              |        |                         |
 | Activate license with valid key                   | ⬜     | KeyGen machine create   |
 | Activate with expired/revoked key                 | ⬜     | Error handling          |
@@ -668,8 +668,8 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Add "Contact Sales" for Enterprise         | ✅     | On pricing page     |
 | Verify checkout links work                 | ✅     | Stripe integration  |
 | **Checkout Flows**                         |        |                     |
-| Individual checkout → success page         | ✅     | Full flow           |
-| Team checkout → success page               | ✅     | Full flow           |
+| Individual checkout → success page         | ✅     | Auth-gated, tested  |
+| Team checkout → success page               | ✅     | Auth-gated, tested  |
 | Error states (payment failed, etc)         | ⬜     | Edge cases          |
 | **Legal Pages**                            |        |                     |
 | Update Terms of Service                    | ⬜     | Current pricing     |
@@ -698,8 +698,8 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Add SES DNS records to GoDaddy               | ✅     | 4 records added            |
 | Verify SES domain verified                   | ✅     | Domain + DKIM verified     |
 | **Environment**                              |        |                            |
-| All env vars set in Amplify                  | ✅     | 24 variables configured    |
-| Secrets in Parameter Store / Secrets Manager | ✅     | `plg/staging/env` created  |
+| All env vars set in Amplify                  | ✅     | 15 variables (secrets moved)|
+| Secrets in Parameter Store / Secrets Manager | ✅     | 3 secrets in Secrets Manager |
 | **DNS**                                      |        |                            |
 | Amplify connected to staging.hic-ai.com      | 🟡     | DNS records added          |
 | SSL certificate provisioned                  | 🟡     | ACM verification pending   |
@@ -928,6 +928,7 @@ Parallel workstreams (no dependencies):
 
 | Version | Date         | Changes                                                                                                                                                                                                                                           |
 | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.10** | Jan 28, 2026 | **SECRETS MANAGER COMPLETE.** Migrated secrets from Amplify env vars to AWS Secrets Manager (3 secrets: `plg/staging/stripe`, `keygen`, `app`). Checkout UI with auth-gating working. Env vars reduced from 24→15. Added backup/restore scripts for Amplify. Webhook→License pipeline still TODO. |
 | **4.9** | Jan 28, 2026 | **COGNITO AUTH LIVE.** Google OAuth + email signup working on staging. Fixed logout flow (`redirect_uri` param, state clearing). Portal using `useUser()`/`useAuth()` hooks. Settings API with JWT verification via `aws-jwt-verify`. |
 | **4.4** | Jan 27, 2026 | **Phase 3-5 COMPLETE.** Added `license_status` tool (16 tests). Implemented tiered nag frequency: 20%/50%/80%/100% with seeded RNG (23 tests). Updated NAG_CONFIG constants. Non-blocking heartbeat failure handling. 119 total licensing tests.  |
 | **4.3** | Jan 27, 2026 | **MCP licensing KeyGen integration.** Updated `mouse/src/licensing/` to use KeyGen endpoints (`api.hic-ai.com`). Added http-provider.test.js (48 tests). Clarified dual licensing systems: MCP (tool gating) vs VS Code extension (heartbeat/UI). |

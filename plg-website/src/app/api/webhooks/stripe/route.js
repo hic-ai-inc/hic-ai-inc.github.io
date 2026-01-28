@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient, getWebhookSecret } from "@/lib/stripe";
 import {
   getCustomerByStripeId,
   upsertCustomer,
@@ -45,10 +45,15 @@ export async function POST(request) {
   let event;
 
   try {
+    // Get Stripe client and webhook secret from Secrets Manager
+    // getStripeClient() must be called first - it populates the secret cache
+    const stripe = await getStripeClient();
+    const webhookSecret = getWebhookSecret();
+    
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET,
+      webhookSecret,
     );
   } catch (err) {
     console.error("Webhook signature verification failed:", err.message);
@@ -118,7 +123,7 @@ async function handleCheckoutCompleted(session) {
 
   // Determine the KeyGen policy based on plan
   const policyId = plan === "business" 
-    ? KEYGEN_POLICIES.enterprise  // Business uses enterprise policy
+    ? KEYGEN_POLICIES.business
     : KEYGEN_POLICIES.individual;
 
   // Check if this customer already exists
