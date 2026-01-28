@@ -12,6 +12,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { auth0, getOrganizationId } from "./lib/auth0.js";
 
 const AUTH0_NAMESPACE = "https://hic-ai.com";
 
@@ -29,30 +30,6 @@ export async function proxy(request) {
   // ===========================================
   // Auth0 SDK v4 handles /auth/* routes via middleware
   // For all other routes, it returns NextResponse.next() with session cookies
-  let auth0, getOrganizationId;
-  try {
-    const auth0Module = await import("./lib/auth0.js");
-    auth0 = auth0Module.getAuth0Client();
-    getOrganizationId = auth0Module.getOrganizationId;
-  } catch (error) {
-    console.error("[Proxy] Auth0 not configured:", error.message);
-    // In development, allow access if Auth0 isn't configured
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[DEV] Auth0 not configured, allowing access to: ${path}`);
-      return NextResponse.next();
-    }
-    // In production, redirect to home if Auth0 fails (except public routes)
-    const requiresAuth =
-      path.startsWith("/portal") || path.startsWith("/admin");
-    if (requiresAuth) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-    return NextResponse.next();
-  }
-
-  // CRITICAL: Auth0 SDK v4 middleware handles EVERYTHING
-  // - For /auth/* routes: Returns redirect to Auth0 or handles callback
-  // - For other routes: Returns NextResponse.next() with session cookies
   const authRes = await auth0.middleware(request);
 
   // For /auth/* routes, ALWAYS return the Auth0 response (redirect to Auth0, callback handling, etc.)
