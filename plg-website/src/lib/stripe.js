@@ -2,8 +2,11 @@
  * Stripe Client Configuration
  *
  * Provides configured Stripe clients for:
- * - Server-side operations (using secret key)
+ * - Server-side operations (using secret key from AWS Secrets Manager)
  * - Client-side Stripe.js (using publishable key)
+ *
+ * Security: Stripe secrets are fetched from AWS Secrets Manager at runtime,
+ * not stored in environment variables (except for local development).
  *
  * @see Security Considerations for Stripe Payments
  */
@@ -11,6 +14,7 @@
 import Stripe from "stripe";
 import { loadStripe } from "@stripe/stripe-js";
 import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
+import { getStripeSecrets } from "./secrets.js";
 
 // Logger for Stripe operations
 const createLogger = (operation) => new HicLog(`plg-stripe-${operation}`);
@@ -20,6 +24,11 @@ const createLogger = (operation) => new HicLog(`plg-stripe-${operation}`);
  * Use getStripeClient() to access - enables testing without API key
  */
 let stripeClient = null;
+
+/**
+ * Cached secrets from Secrets Manager
+ */
+let cachedSecrets = null;
 
 /**
  * Injectable seam for testing - allows replacing the Stripe client
@@ -34,24 +43,73 @@ export function __setStripeClientForTests(mockClient) {
  */
 export function __resetStripeClientForTests() {
   stripeClient = null;
+  cachedSecrets = null;
+}
+
+/**
+ * Initialize Stripe client with secrets from AWS Secrets Manager
+ * This is called automatically by getStripeClient() but can be called
+ * explicitly during app startup for faster first request.
+ *
+ * @returns {Promise<Stripe>} Initialized Stripe client
+ */
+export async function initializeStripeClient() {
+  if (stripeClient) {
+    return stripeClient;
+  }
+
+  // Fetch secrets from AWS Secrets Manager (cached internally)
+  cachedSecrets = await getStripeSecrets();
+
+  stripeClient = new Stripe(cachedSecrets.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-12-18.acacia",
+    typescript: false,
+  });
+
+  return stripeClient;
 }
 
 /**
  * Get the current Stripe client (lazy-initialized, respects test injection)
- * Use this in functions that need the client
+ * IMPORTANT: This is now async - use await getStripeClient()
+ *
+ * @returns {Promise<Stripe>} Stripe client
  */
-export function getStripeClient() {
+export async function getStripeClient() {
   if (!stripeClient) {
-    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2024-12-18.acacia",
-      typescript: false,
-    });
+    await initializeStripeClient();
   }
   return stripeClient;
 }
 
-// Export getter for backward compatibility - prefer getStripeClient()
-export const stripe = { get: getStripeClient };
+/**
+ * Get cached Stripe webhook secret
+ * Must be called after getStripeClient() has been awaited at least once
+ *
+ * @returns {string} Webhook secret
+ */
+export function getWebhookSecret() {
+  if (!cachedSecrets) {
+    // Fallback for local development or if called before init
+    return process.env.STRIPE_WEBHOOK_SECRET;
+  }
+  return cachedSecrets.STRIPE_WEBHOOK_SECRET;
+}
+
+// Export async getter for backward compatibility
+export const stripe = {
+  get: getStripeClient,
+  webhooks: {
+    constructEvent: async (payload, signature, secret) => {
+      const client = await getStripeClient();
+      return client.webhooks.constructEvent(
+        payload,
+        signature,
+        secret || getWebhookSecret(),
+      );
+    },
+  },
+};
 
 /**
  * Client-side Stripe.js promise
@@ -88,13 +146,14 @@ export const STRIPE_COUPONS = {
  * Verify Stripe webhook signature
  * @param {string} payload - Raw request body
  * @param {string} signature - Stripe signature header
- * @returns {Stripe.Event} Verified event
+ * @returns {Promise<Stripe.Event>} Verified event
  */
-export function verifyWebhookSignature(payload, signature) {
-  return getStripeClient().webhooks.constructEvent(
+export async function verifyWebhookSignature(payload, signature) {
+  const client = await getStripeClient();
+  return client.webhooks.constructEvent(
     payload,
     signature,
-    process.env.STRIPE_WEBHOOK_SECRET,
+    getWebhookSecret(),
   );
 }
 
@@ -132,8 +191,8 @@ export async function createCheckoutSession({
       sessionParams.customer_creation = "always";
     }
 
-    const session =
-      await getStripeClient().checkout.sessions.create(sessionParams);
+    const client = await getStripeClient();
+    const session = await client.checkout.sessions.create(sessionParams);
     logger.info("Checkout session created", { sessionId: session.id });
     return session;
   } catch (error) {
@@ -151,7 +210,8 @@ export async function createCheckoutSession({
 export async function createPortalSession(customerId, returnUrl) {
   const logger = createLogger("createPortalSession");
   try {
-    const session = await getStripeClient().billingPortal.sessions.create({
+    const client = await getStripeClient();
+    const session = await client.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,
     });
@@ -174,11 +234,11 @@ export async function updateSubscriptionQuantity(subscriptionId, quantity) {
   const logger = createLogger("updateSubscriptionQuantity");
   try {
     // Get current subscription to find the item
-    const subscription =
-      await getStripeClient().subscriptions.retrieve(subscriptionId);
+    const client = await getStripeClient();
+    const subscription = await client.subscriptions.retrieve(subscriptionId);
     const subscriptionItem = subscription.items.data[0];
 
-    const updatedSubscription = await getStripeClient().subscriptions.update(
+    const updatedSubscription = await client.subscriptions.update(
       subscriptionId,
       {
         items: [

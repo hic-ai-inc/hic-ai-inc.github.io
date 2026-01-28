@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Amplify environment variable backups (contain secrets)
+/scripts/backups/
+
 # vercel
 .vercel
 

@@ -124,7 +124,7 @@ export async function POST(request) {
     }
 
     // Add specific promo code if provided
-    const stripeClient = getStripeClient();
+    const stripeClient = await getStripeClient();
     if (promoCode) {
       // Look up promotion code in Stripe
       const promotionCodes = await stripeClient.promotionCodes.list({
