@@ -21,7 +21,7 @@ import {
   getLicense,
   updateLicenseStatus,
 } from "@/lib/dynamodb";
-import { suspendLicense, reinstateLicense } from "@/lib/keygen";
+import { suspendLicense, reinstateLicense, createLicense, KEYGEN_POLICIES } from "@/lib/keygen";
 import {
   sendWelcomeEmail,
   sendPaymentFailedEmail,
@@ -105,7 +105,7 @@ export async function POST(request) {
 
 /**
  * Handle successful checkout session
- * Creates pending license record, sends welcome email
+ * Creates KeyGen license, upserts customer record, sends welcome email
  */
 async function handleCheckoutCompleted(session) {
   console.log("Checkout completed:", session.id);
@@ -113,15 +113,66 @@ async function handleCheckoutCompleted(session) {
   const { customer, customer_email, metadata, subscription } = session;
 
   // Extract plan details from metadata
-  const plan = metadata?.planType || "individual";
+  const plan = metadata?.plan || metadata?.planType || "individual";
   const seats = parseInt(metadata?.seats || "1", 10);
 
-  // Check if this customer already exists (returning customer)
+  // Determine the KeyGen policy based on plan
+  const policyId = plan === "business" 
+    ? KEYGEN_POLICIES.enterprise  // Business uses enterprise policy
+    : KEYGEN_POLICIES.individual;
+
+  // Check if this customer already exists
   const existingCustomer = await getCustomerByStripeId(customer);
 
+  let licenseKey = null;
+  let licenseId = null;
+
+  // Create KeyGen license if we have a policy configured
+  if (policyId) {
+    try {
+      const license = await createLicense({
+        policyId,
+        name: `License for ${customer_email}`,
+        email: customer_email,
+        metadata: {
+          email: customer_email.toLowerCase(),
+          stripeCustomerId: customer,
+          stripeSubscriptionId: subscription,
+          plan,
+          seats: String(seats),
+        },
+      });
+      licenseKey = license.key;
+      licenseId = license.id;
+      console.log(`KeyGen license created: ${licenseId} for ${customer_email}`);
+    } catch (error) {
+      console.error("Failed to create KeyGen license:", error);
+      // Continue anyway - we can create the license later
+    }
+  }
+
   if (!existingCustomer) {
-    // New customer - send welcome email with account creation link
-    // License will be provisioned when they complete account setup
+    // New customer - create record in DynamoDB
+    // Use email as temporary userId until they create a Cognito account
+    const tempUserId = `email:${customer_email.toLowerCase()}`;
+    
+    await upsertCustomer({
+      auth0Id: tempUserId,  // Will be updated when they sign in with Cognito
+      email: customer_email,
+      stripeCustomerId: customer,
+      keygenLicenseId: licenseId,
+      keygenLicenseKey: licenseKey,
+      accountType: plan,
+      subscriptionStatus: "active",
+      metadata: {
+        stripeSubscriptionId: subscription,
+        seats,
+        createdFromCheckout: session.id,
+      },
+    });
+    console.log(`New customer record created for ${customer_email}`);
+
+    // Send welcome email
     await sendWelcomeEmail(customer_email, session.id);
     console.log(`Welcome email sent to ${customer_email}`);
   } else {
@@ -129,6 +180,8 @@ async function handleCheckoutCompleted(session) {
     await updateCustomerSubscription(existingCustomer.auth0Id, {
       subscriptionStatus: "active",
       stripeSubscriptionId: subscription,
+      keygenLicenseId: licenseId || existingCustomer.keygenLicenseId,
+      keygenLicenseKey: licenseKey || existingCustomer.keygenLicenseKey,
       accountType: plan,
       seats,
     });

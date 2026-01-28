@@ -8,9 +8,40 @@
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { PRICING, STRIPE_PRICES } from "@/lib/constants";
+
+// Cognito JWT verifier for access tokens
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "access",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Extract user email from Cognito JWT token
+ */
+async function getUserEmailFromRequest(request) {
+  try {
+    const headersList = await headers();
+    const authHeader = headersList.get("authorization");
+
+    if (!authHeader?.startsWith("Bearer ")) {
+      return null;
+    }
+
+    const token = authHeader.slice(7);
+    const payload = await verifier.verify(token);
+
+    // Access token has username, need to get email from ID token or request body
+    return payload.username || null;
+  } catch (error) {
+    console.error("[Checkout] JWT verification failed:", error.message);
+    return null;
+  }
+}
 
 export async function POST(request) {
   try {
@@ -53,9 +84,10 @@ export async function POST(request) {
       quantity = seats;
     }
 
-    // Check if user is authenticated
-    const session = await getSession();
-    const customerEmail = session?.user?.email || body.email;
+    // Get customer email from request body or JWT token
+    // Checkout pages pass email in body; authenticated users may also have JWT
+    const jwtEmail = await getUserEmailFromRequest(request);
+    const customerEmail = body.email || jwtEmail;
 
     if (!customerEmail) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });

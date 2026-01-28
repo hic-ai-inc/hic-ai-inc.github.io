@@ -123,6 +123,37 @@ export async function createLicense({ policyId, name, email, metadata = {} }) {
 }
 
 /**
+ * Get licenses by email (searches metadata)
+ * Returns array of licenses associated with this email
+ */
+export async function getLicensesByEmail(email) {
+  try {
+    // KeyGen allows filtering by metadata
+    const response = await keygenRequest(
+      `/licenses?metadata[email]=${encodeURIComponent(email.toLowerCase())}`
+    );
+
+    if (!response.data || response.data.length === 0) {
+      return [];
+    }
+
+    return response.data.map((license) => ({
+      id: license.id,
+      key: license.attributes.key,
+      status: license.attributes.status,
+      expiresAt: license.attributes.expiry,
+      maxMachines: license.attributes.maxMachines,
+      uses: license.attributes.uses,
+      policyId: license.relationships?.policy?.data?.id,
+      metadata: license.attributes.metadata,
+    }));
+  } catch (error) {
+    console.error("[KeyGen] Failed to get licenses by email:", error.message);
+    return [];
+  }
+}
+
+/**
  * Get license by ID
  */
 export async function getLicense(licenseId) {

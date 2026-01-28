@@ -9,6 +9,8 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Card,
@@ -22,12 +24,56 @@ import {
   EXTERNAL_URLS,
   LICENSE_STATUS_DISPLAY,
 } from "@/lib/constants";
-import { useUser } from "@/lib/cognito-provider";
+import { useUser, getSession } from "@/lib/cognito-provider";
 
 export default function PortalDashboardPage() {
+  const router = useRouter();
   const { user, isLoading } = useUser();
+  const [portalStatus, setPortalStatus] = useState(null);
+  const [statusLoading, setStatusLoading] = useState(true);
 
-  if (isLoading || !user) {
+  // Check subscription status and redirect if needed
+  useEffect(() => {
+    async function checkStatus() {
+      if (!user) return;
+
+      try {
+        const session = await getSession();
+        if (!session?.idToken) {
+          setStatusLoading(false);
+          return;
+        }
+
+        const response = await fetch("/api/portal/status", {
+          headers: {
+            Authorization: `Bearer ${session.idToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPortalStatus(data);
+
+          // Smart redirect: new users go to checkout
+          if (data.shouldRedirectToCheckout) {
+            router.push("/checkout/individual");
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("[Portal] Failed to check status:", error);
+      } finally {
+        setStatusLoading(false);
+      }
+    }
+
+    if (user && !isLoading) {
+      checkStatus();
+    }
+  }, [user, isLoading, router]);
+
+  // Show loading while checking auth and subscription status
+  if (isLoading || !user || statusLoading) {
     return (
       <div className="max-w-6xl">
         <div className="animate-pulse">
