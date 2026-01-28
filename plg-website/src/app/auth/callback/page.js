@@ -2,12 +2,13 @@
  * OAuth Callback Page - Cognito Authentication
  *
  * Handles the OAuth callback from Cognito Hosted UI.
- * Amplify Auth automatically exchanges the code for tokens.
+ * Manually exchanges the authorization code for tokens since we're
+ * using a custom OAuth flow (not Amplify's signInWithRedirect).
  *
  * Flow:
  * 1. User completes login on Cognito Hosted UI
  * 2. Cognito redirects to /auth/callback?code=xxx
- * 3. This page loads, Amplify Auth detects the code and exchanges it
+ * 3. This page exchanges the code for tokens via Cognito token endpoint
  * 4. User is redirected to the stored returnTo URL
  *
  * @see docs/20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md
@@ -16,8 +17,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Hub } from "aws-amplify/utils";
-import { getSession, getReturnToUrl, configureAmplify } from "@/lib/cognito";
+import {
+  getReturnToUrl,
+  configureAmplify,
+  getCognitoConfig,
+} from "@/lib/cognito";
 
 export default function CallbackPage() {
   const [status, setStatus] = useState("processing");
@@ -36,57 +40,104 @@ export default function CallbackPage() {
     }, 500);
   }, []);
 
-  // Define checkExistingSession before it's used
-  const checkExistingSession = useCallback(async () => {
+  // Exchange authorization code for tokens
+  const exchangeCodeForTokens = useCallback(async (code) => {
     try {
-      // Give Amplify a moment to process the callback
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const config = getCognitoConfig();
+      const tokenUrl = `https://${config.domain}/oauth2/token`;
 
-      const session = await getSession();
-      if (session) {
-        handleSuccess();
+      const params = new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: config.userPoolClientId,
+        code: code,
+        redirect_uri: `${config.appUrl}/auth/callback`,
+      });
+
+      const response = await fetch(tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error_description ||
+            errorData.error ||
+            "Token exchange failed",
+        );
       }
-      // If no session yet, stay in "processing" state and wait for Hub event
+
+      const tokens = await response.json();
+
+      // Store tokens in localStorage for Amplify to pick up
+      // Amplify uses a specific key format for token storage
+      const userPoolId = config.userPoolId;
+      const clientId = config.userPoolClientId;
+
+      // Decode the ID token to get the username
+      const idTokenPayload = JSON.parse(atob(tokens.id_token.split(".")[1]));
+      const username = idTokenPayload["cognito:username"] || idTokenPayload.sub;
+
+      // Store in the format Amplify expects
+      const keyPrefix = `CognitoIdentityServiceProvider.${clientId}`;
+      localStorage.setItem(`${keyPrefix}.LastAuthUser`, username);
+      localStorage.setItem(`${keyPrefix}.${username}.idToken`, tokens.id_token);
+      localStorage.setItem(
+        `${keyPrefix}.${username}.accessToken`,
+        tokens.access_token,
+      );
+      if (tokens.refresh_token) {
+        localStorage.setItem(
+          `${keyPrefix}.${username}.refreshToken`,
+          tokens.refresh_token,
+        );
+      }
+
+      // Also store clock drift (Amplify uses this)
+      localStorage.setItem(`${keyPrefix}.${username}.clockDrift`, "0");
+
+      return true;
     } catch (err) {
-      // Not authenticated yet, wait for Hub event
-      console.log("[Callback] Waiting for authentication...");
+      console.error("[Callback] Token exchange error:", err);
+      throw err;
     }
-  }, [handleSuccess]);
+  }, []);
 
   useEffect(() => {
     // Ensure Amplify is configured
     configureAmplify();
 
-    // Listen for auth events
-    const unsubscribe = Hub.listen("auth", ({ payload }) => {
-      switch (payload.event) {
-        case "signedIn":
-          // Successfully signed in
-          handleSuccess();
-          break;
-        case "signInWithRedirect_failure":
-          // OAuth failed
-          setError(payload.data?.message || "Authentication failed");
-          setStatus("error");
-          break;
-        case "tokenRefresh":
-          // Token refreshed
-          break;
-        case "tokenRefresh_failure":
-          // Token refresh failed
-          setError("Session expired. Please sign in again.");
-          setStatus("error");
-          break;
-      }
-    });
+    // Get the authorization code from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    const errorParam = urlParams.get("error");
+    const errorDesc = urlParams.get("error_description");
 
-    // Check if we already have a session (page refresh scenario)
-    checkExistingSession();
+    if (errorParam) {
+      setError(errorDesc || errorParam);
+      setStatus("error");
+      return;
+    }
 
-    return () => {
-      unsubscribe();
-    };
-  }, [handleSuccess, checkExistingSession]);
+    if (!code) {
+      setError("No authorization code received");
+      setStatus("error");
+      return;
+    }
+
+    // Exchange code for tokens
+    exchangeCodeForTokens(code)
+      .then(() => {
+        handleSuccess();
+      })
+      .catch((err) => {
+        setError(err.message || "Authentication failed");
+        setStatus("error");
+      });
+  }, [handleSuccess, exchangeCodeForTokens]);
 
   if (status === "error") {
     return (

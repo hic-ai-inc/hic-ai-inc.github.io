@@ -39,6 +39,14 @@ export const isCognitoConfigured = !!(
 );
 
 /**
+ * Get Cognito configuration (for callback page token exchange)
+ * @returns {Object} Cognito configuration
+ */
+export function getCognitoConfig() {
+  return cognitoConfig;
+}
+
+/**
  * Configure Amplify Auth (call once at app initialization)
  * Safe to call multiple times - Amplify handles deduplication
  */
