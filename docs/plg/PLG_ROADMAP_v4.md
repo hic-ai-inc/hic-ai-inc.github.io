@@ -160,7 +160,7 @@ npm run metrics -- --period=7d
 
 ## 3. Auth (Cognito Migration)
 
-**Status:** 🟡 **IN PROGRESS** — Migrating from Auth0 to Amazon Cognito  
+**Status:** 🟡 **IN PROGRESS** — Cognito configured, testing Google OAuth flow  
 **Est. Hours:** 6-8h  
 **Documentation:** [Migration Decision Memo](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md), [Original Security Considerations](./20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md)
 
@@ -191,27 +191,27 @@ npm run metrics -- --period=7d
 | Task                                 | Status | Notes                                           |
 | ------------------------------------ | ------ | ----------------------------------------------- |
 | **Phase 1: Cognito Resources**       |        |                                                 |
-| Create User Pool (`hic-plg-users`)   | ⬜     | Email as username, custom attributes            |
-| Create User Pool Client              | ⬜     | Public client, PKCE, callback URLs              |
-| Configure Google social IdP          | ⬜     | Native Cognito integration                      |
-| Configure GitHub OIDC IdP            | ⬜     | Requires GitHub OAuth App + OIDC setup          |
+| Create User Pool (`hic-plg-users`)   | ✅     | `us-east-1_MDTi26EOf`, email as username        |
+| Create User Pool Client              | ✅     | `5tta8lcn3u3cvc956s8tcc0b7`, public+PKCE        |
+| Configure Google social IdP          | ✅     | OAuth App created, IdP configured in Cognito    |
+| Configure GitHub OIDC IdP            | ⏸️     | **Deferred** — Cognito requires OIDC well-known |
 | Create Cognito Groups for roles      | ⬜     | `org_<id>_owner`, `org_<id>_admin`, `org_<id>_member` |
 | **Phase 2: Code Migration**          |        |                                                 |
 | Remove `@auth0/nextjs-auth0` package | ⬜     | `npm uninstall @auth0/nextjs-auth0`             |
 | Add `aws-amplify` package            | ⬜     | `npm install aws-amplify`                       |
-| Create `src/lib/cognito.js`          | ⬜     | Amplify Auth configuration                      |
+| Create `src/lib/cognito.js`          | ✅     | Amplify Auth + PKCE helpers                     |
 | Rewrite `src/lib/auth.js`            | ⬜     | Switch to Amplify Auth                          |
 | Simplify `src/middleware.js`         | ⬜     | Remove Auth0 middleware, use redirect logic     |
-| Create `/auth/login/page.js`         | ⬜     | Login page (hosted UI or custom)                |
-| Create `/auth/callback/page.js`      | ⬜     | OAuth callback handler                          |
-| Create `/auth/logout/route.js`       | ⬜     | Logout API route                                |
-| Update portal pages (claim namespace)| ⬜     | Change `https://hic-ai.com/` to Cognito claims  |
+| Create `/auth/login/page.js`         | ✅     | Login page with Google button                   |
+| Create `/auth/callback/page.js`      | ✅     | Token exchange with PKCE code_verifier          |
+| Create `/auth/logout/route.js`       | ✅     | Clears tokens + Cognito logout                  |
+| Update portal pages (claim namespace)| ✅     | Client components using useUser() hook          |
 | **Phase 3: Environment Variables**   |        |                                                 |
 | Remove `AUTH0_*` from Amplify        | ⬜     | 6 variables to remove                           |
-| Add `COGNITO_*` to Amplify           | ⬜     | 6 variables to add                              |
+| Add `COGNITO_*` to Amplify           | ✅     | 4 env vars configured in Amplify console        |
 | **Phase 4: Test & Deploy**           |        |                                                 |
 | Test locally                         | ⬜     | Login flow, protected routes, roles             |
-| Deploy to staging                    | ⬜     | Amplify build                                   |
+| Deploy to staging                    | 🔄     | Build running (commit `bbc2f99`)                |
 | E2E test on staging                  | ⬜     | Full auth flow                                  |
 | **Phase 5: Cleanup**                 |        |                                                 |
 | Delete Auth0 application             | ⬜     | Auth0 Dashboard → Applications                  |

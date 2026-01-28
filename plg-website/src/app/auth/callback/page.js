@@ -2,154 +2,94 @@
  * OAuth Callback Page - Cognito Authentication
  *
  * Handles the OAuth callback from Cognito Hosted UI.
- * Manually exchanges the authorization code for tokens since we're
- * using a custom OAuth flow (not Amplify's signInWithRedirect).
+ * Uses Amplify's built-in OAuth listener to complete the sign-in flow.
+ *
+ * Required for Multi-Page Applications:
+ * @see https://docs.amplify.aws/react/build-a-backend/auth/concepts/external-identity-providers/#required-for-multi-page-applications-complete-external-sign-in-after-redirect
  *
  * Flow:
- * 1. User completes login on Cognito Hosted UI
+ * 1. User completes login on Cognito Hosted UI (or Google)
  * 2. Cognito redirects to /auth/callback?code=xxx
- * 3. This page exchanges the code for tokens via Cognito token endpoint
- * 4. User is redirected to the stored returnTo URL
+ * 3. Amplify's OAuth listener automatically exchanges the code for tokens
+ * 4. Hub emits 'signInWithRedirect' event when complete
+ * 5. We redirect to the stored returnTo URL
  *
  * @see docs/20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md
  */
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import {
-  getReturnToUrl,
-  configureAmplify,
-  getCognitoConfig,
-} from "@/lib/cognito";
+// CRITICAL: This import enables the OAuth listener for multi-page apps
+// It must be imported before any auth operations
+import "aws-amplify/auth/enable-oauth-listener";
+
+import { useEffect, useState } from "react";
+import { Hub } from "aws-amplify/utils";
+import { getCurrentUser } from "aws-amplify/auth";
+import { configureAmplify, getReturnToUrl } from "@/lib/cognito";
 
 export default function CallbackPage() {
-  const [status, setStatus] = useState("processing");
-  const [error, setError] = useState(null);
+  // Check for OAuth error in URL params on initial render (not in effect)
+  const urlParams =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
+  const initialError = urlParams?.get("error");
+  const initialErrorDesc = urlParams?.get("error_description");
 
-  // Define handleSuccess before it's used
-  const handleSuccess = useCallback(() => {
-    setStatus("success");
-
-    // Get the stored returnTo URL
-    const returnTo = getReturnToUrl();
-
-    // Redirect after a brief moment to show success state
-    setTimeout(() => {
-      window.location.href = returnTo;
-    }, 500);
-  }, []);
-
-  // Exchange authorization code for tokens (with PKCE)
-  const exchangeCodeForTokens = useCallback(async (code) => {
-    try {
-      const config = getCognitoConfig();
-      const tokenUrl = `https://${config.domain}/oauth2/token`;
-
-      // Get the PKCE code verifier from session storage
-      const codeVerifier = sessionStorage.getItem("pkce_verifier");
-      if (!codeVerifier) {
-        throw new Error(
-          "PKCE verifier not found. Please try signing in again.",
-        );
-      }
-
-      const params = new URLSearchParams({
-        grant_type: "authorization_code",
-        client_id: config.userPoolClientId,
-        code: code,
-        redirect_uri: `${config.appUrl}/auth/callback`,
-        code_verifier: codeVerifier,
-      });
-
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params.toString(),
-      });
-
-      // Clean up PKCE verifier
-      sessionStorage.removeItem("pkce_verifier");
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error_description ||
-            errorData.error ||
-            "Token exchange failed",
-        );
-      }
-
-      const tokens = await response.json();
-
-      // Store tokens in localStorage for Amplify to pick up
-      // Amplify uses a specific key format for token storage
-      const userPoolId = config.userPoolId;
-      const clientId = config.userPoolClientId;
-
-      // Decode the ID token to get the username
-      const idTokenPayload = JSON.parse(atob(tokens.id_token.split(".")[1]));
-      const username = idTokenPayload["cognito:username"] || idTokenPayload.sub;
-
-      // Store in the format Amplify expects
-      const keyPrefix = `CognitoIdentityServiceProvider.${clientId}`;
-      localStorage.setItem(`${keyPrefix}.LastAuthUser`, username);
-      localStorage.setItem(`${keyPrefix}.${username}.idToken`, tokens.id_token);
-      localStorage.setItem(
-        `${keyPrefix}.${username}.accessToken`,
-        tokens.access_token,
-      );
-      if (tokens.refresh_token) {
-        localStorage.setItem(
-          `${keyPrefix}.${username}.refreshToken`,
-          tokens.refresh_token,
-        );
-      }
-
-      // Also store clock drift (Amplify uses this)
-      localStorage.setItem(`${keyPrefix}.${username}.clockDrift`, "0");
-
-      return true;
-    } catch (err) {
-      console.error("[Callback] Token exchange error:", err);
-      throw err;
-    }
-  }, []);
+  const [status, setStatus] = useState(initialError ? "error" : "processing");
+  const [error, setError] = useState(
+    initialError ? initialErrorDesc || initialError : null,
+  );
 
   useEffect(() => {
+    // If there was an initial error, don't set up listeners
+    if (initialError) {
+      return;
+    }
+
     // Ensure Amplify is configured
     configureAmplify();
 
-    // Get the authorization code from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get("code");
-    const errorParam = urlParams.get("error");
-    const errorDesc = urlParams.get("error_description");
+    // Listen for auth events from Amplify
+    const unsubscribe = Hub.listen("auth", async ({ payload }) => {
+      switch (payload.event) {
+        case "signInWithRedirect":
+          // OAuth flow completed successfully
+          try {
+            const user = await getCurrentUser();
+            console.log("[Callback] Sign in successful:", user.username);
+            setStatus("success");
 
-    if (errorParam) {
-      setError(errorDesc || errorParam);
-      setStatus("error");
-      return;
-    }
+            // Get the stored returnTo URL and redirect
+            const returnTo = getReturnToUrl();
+            setTimeout(() => {
+              window.location.href = returnTo;
+            }, 500);
+          } catch (err) {
+            console.error("[Callback] Error getting user after sign in:", err);
+            setError("Failed to complete sign in");
+            setStatus("error");
+          }
+          break;
 
-    if (!code) {
-      setError("No authorization code received");
-      setStatus("error");
-      return;
-    }
+        case "signInWithRedirect_failure":
+          // OAuth flow failed
+          console.error("[Callback] OAuth error:", payload.data);
+          setError(payload.data?.message || "An error occurred during sign in");
+          setStatus("error");
+          break;
 
-    // Exchange code for tokens
-    exchangeCodeForTokens(code)
-      .then(() => {
-        handleSuccess();
-      })
-      .catch((err) => {
-        setError(err.message || "Authentication failed");
-        setStatus("error");
-      });
-  }, [handleSuccess, exchangeCodeForTokens]);
+        case "customOAuthState":
+          // Custom state passed through OAuth flow
+          console.log("[Callback] Custom state:", payload.data);
+          break;
+      }
+    });
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, []);
 
   if (status === "error") {
     return (

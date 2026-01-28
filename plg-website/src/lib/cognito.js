@@ -2,7 +2,7 @@
  * Amazon Cognito Authentication Configuration
  *
  * Centralized Cognito/Amplify Auth setup for PLG.
- * Replaces Auth0 SDK v4 to resolve Amplify SSR compatibility issues.
+ * Uses Amplify Auth's built-in OAuth flow with PKCE.
  *
  * Environment Variables Required:
  * - NEXT_PUBLIC_COGNITO_USER_POOL_ID: Cognito User Pool ID
@@ -10,16 +10,17 @@
  * - NEXT_PUBLIC_COGNITO_DOMAIN: Cognito hosted UI domain (without https://)
  * - NEXT_PUBLIC_APP_URL: Application base URL (e.g., https://staging.hic-ai.com)
  *
+ * @see https://docs.amplify.aws/react/build-a-backend/auth/connect-your-frontend/sign-in/
  * @see docs/20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md
  */
 
 import { Amplify } from "aws-amplify";
 import {
   fetchAuthSession,
-  signIn,
-  signOut,
+  signOut as amplifySignOut,
   getCurrentUser,
   fetchUserAttributes,
+  signInWithRedirect,
 } from "aws-amplify/auth";
 
 // Cognito configuration from environment
@@ -39,7 +40,7 @@ export const isCognitoConfigured = !!(
 );
 
 /**
- * Get Cognito configuration (for callback page token exchange)
+ * Get Cognito configuration (for debugging/info only)
  * @returns {Object} Cognito configuration
  */
 export function getCognitoConfig() {
@@ -157,98 +158,45 @@ export async function getUser() {
 }
 
 /**
- * Generate PKCE code verifier and challenge
- * @returns {Promise<{verifier: string, challenge: string}>}
+ * Redirect to Cognito Hosted UI for login
+ * Uses Amplify's built-in signInWithRedirect which handles PKCE automatically
+ * @param {string} customState - Optional custom state to pass through OAuth flow
  */
-async function generatePKCE() {
-  // Generate random code verifier (43-128 characters)
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  const verifier = btoa(String.fromCharCode(...array))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  // Generate code challenge (SHA-256 hash of verifier)
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = new Uint8Array(hashBuffer);
-  const challenge = btoa(String.fromCharCode(...hashArray))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  return { verifier, challenge };
-}
-
-/**
- * Redirect to Cognito Hosted UI for login (with PKCE)
- * @param {string} returnTo - URL to return to after login
- */
-export async function redirectToLogin(returnTo = "/portal") {
+export async function redirectToLogin(customState) {
   if (!isCognitoConfigured) {
     console.error("[Cognito] Cannot redirect - not configured");
     return;
   }
 
-  // Generate PKCE code verifier and challenge
-  const { verifier, challenge } = await generatePKCE();
-
-  // Store returnTo and PKCE verifier for post-callback
-  if (typeof window !== "undefined") {
-    sessionStorage.setItem("auth_returnTo", returnTo);
-    sessionStorage.setItem("pkce_verifier", verifier);
+  // Store the return URL in sessionStorage for the callback to use
+  if (typeof window !== "undefined" && customState) {
+    sessionStorage.setItem("auth_returnTo", customState);
   }
 
-  // Build Cognito hosted UI URL
-  const loginUrl = new URL(`https://${cognitoConfig.domain}/oauth2/authorize`);
-  loginUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
-  loginUrl.searchParams.set("response_type", "code");
-  loginUrl.searchParams.set("scope", "openid email profile");
-  loginUrl.searchParams.set(
-    "redirect_uri",
-    `${cognitoConfig.appUrl}/auth/callback`,
-  );
-  loginUrl.searchParams.set("code_challenge", challenge);
-  loginUrl.searchParams.set("code_challenge_method", "S256");
-
-  window.location.href = loginUrl.toString();
+  // Use Amplify's signInWithRedirect - redirects to Cognito Hosted UI
+  // Amplify handles PKCE, token exchange, and storage automatically
+  await signInWithRedirect();
 }
 
 /**
- * Redirect to Cognito Hosted UI for Google login (with PKCE)
- * @param {string} returnTo - URL to return to after login
+ * Redirect to Cognito Hosted UI for Google login
+ * Uses Amplify's built-in signInWithRedirect which handles PKCE automatically
+ * @param {string} customState - Optional custom state to pass through OAuth flow
  */
-export async function redirectToGoogleLogin(returnTo = "/portal") {
+export async function redirectToGoogleLogin(customState) {
   if (!isCognitoConfigured) {
     console.error("[Cognito] Cannot redirect - not configured");
     return;
   }
 
-  // Generate PKCE code verifier and challenge
-  const { verifier, challenge } = await generatePKCE();
-
-  // Store returnTo and PKCE verifier for post-callback
-  if (typeof window !== "undefined") {
-    sessionStorage.setItem("auth_returnTo", returnTo);
-    sessionStorage.setItem("pkce_verifier", verifier);
+  // Store the return URL in sessionStorage for the callback to use
+  if (typeof window !== "undefined" && customState) {
+    sessionStorage.setItem("auth_returnTo", customState);
   }
 
-  // Build Cognito hosted UI URL with Google identity provider
-  const loginUrl = new URL(`https://${cognitoConfig.domain}/oauth2/authorize`);
-  loginUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
-  loginUrl.searchParams.set("response_type", "code");
-  loginUrl.searchParams.set("scope", "openid email profile");
-  loginUrl.searchParams.set(
-    "redirect_uri",
-    `${cognitoConfig.appUrl}/auth/callback`,
-  );
-  loginUrl.searchParams.set("identity_provider", "Google");
-  loginUrl.searchParams.set("code_challenge", challenge);
-  loginUrl.searchParams.set("code_challenge_method", "S256");
-
-  window.location.href = loginUrl.toString();
+  // Use Amplify's signInWithRedirect with Google provider
+  // This bypasses Hosted UI and goes directly to Google
+  await signInWithRedirect({ provider: "Google" });
 }
 
 /**
@@ -261,18 +209,14 @@ export async function logout(global = false) {
   }
 
   try {
-    await signOut({ global });
-
-    // Redirect to Cognito logout endpoint to clear hosted UI session
-    const logoutUrl = new URL(`https://${cognitoConfig.domain}/logout`);
-    logoutUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
-    logoutUrl.searchParams.set("logout_uri", cognitoConfig.appUrl);
-
-    window.location.href = logoutUrl.toString();
+    await amplifySignOut({ global });
+    // Amplify handles the redirect to Cognito logout endpoint
   } catch (error) {
     console.error("[Cognito] Error signing out:", error);
     // Redirect to home anyway
-    window.location.href = cognitoConfig.appUrl;
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   }
 }
 

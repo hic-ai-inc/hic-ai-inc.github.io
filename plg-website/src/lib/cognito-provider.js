@@ -89,6 +89,8 @@ export function CognitoProvider({ children }) {
     const unsubscribe = Hub.listen("auth", ({ payload }) => {
       switch (payload.event) {
         case "signedIn":
+        case "signInWithRedirect":
+          // User signed in (either direct or via OAuth redirect)
           checkAuth();
           break;
         case "signedOut":
@@ -99,6 +101,7 @@ export function CognitoProvider({ children }) {
           checkAuth();
           break;
         case "tokenRefresh_failure":
+        case "signInWithRedirect_failure":
           setUser(null);
           setError("Session expired");
           setIsLoading(false);
