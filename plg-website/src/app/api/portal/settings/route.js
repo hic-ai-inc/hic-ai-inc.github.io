@@ -105,7 +105,7 @@ export async function PATCH(request) {
     }
 
     const body = await request.json();
-    const { name, notifications } = body;
+    const { givenName, middleName, familyName, notifications } = body;
 
     // Get existing customer or create one if doesn't exist
     let customer = await getCustomerByAuth0Id(user.sub);
@@ -124,12 +124,34 @@ export async function PATCH(request) {
     // Build update object
     const updates = {};
 
-    // Update name if provided
-    if (name !== undefined) {
-      if (typeof name !== "string" || name.length > 100) {
-        return NextResponse.json({ error: "Invalid name" }, { status: 400 });
+    // Update name fields if provided
+    if (givenName !== undefined) {
+      if (typeof givenName !== "string" || givenName.length > 50) {
+        return NextResponse.json({ error: "Invalid first name" }, { status: 400 });
       }
-      updates.name = name.trim();
+      updates.givenName = givenName.trim();
+    }
+
+    if (middleName !== undefined) {
+      if (typeof middleName !== "string" || middleName.length > 10) {
+        return NextResponse.json({ error: "Invalid middle initial" }, { status: 400 });
+      }
+      updates.middleName = middleName.trim();
+    }
+
+    if (familyName !== undefined) {
+      if (typeof familyName !== "string" || familyName.length > 50) {
+        return NextResponse.json({ error: "Invalid last name" }, { status: 400 });
+      }
+      updates.familyName = familyName.trim();
+    }
+
+    // Construct full name for backward compatibility
+    if (givenName !== undefined || middleName !== undefined || familyName !== undefined) {
+      const gn = updates.givenName ?? customer?.givenName ?? "";
+      const mn = updates.middleName ?? customer?.middleName ?? "";
+      const fn = updates.familyName ?? customer?.familyName ?? "";
+      updates.name = mn ? `${gn} ${mn} ${fn}`.trim() : `${gn} ${fn}`.trim();
     }
 
     // Update notification preferences if provided

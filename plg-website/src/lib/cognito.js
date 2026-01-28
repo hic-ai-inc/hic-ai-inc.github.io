@@ -101,13 +101,24 @@ export async function getSession() {
     const idToken = session.tokens.idToken;
     const payload = idToken?.payload || {};
 
+    // Build full name from given_name and family_name
+    const givenName = payload.given_name || "";
+    const familyName = payload.family_name || "";
+    const middleName = payload.middle_name || "";
+    const fullName = middleName
+      ? `${givenName} ${middleName} ${familyName}`.trim()
+      : `${givenName} ${familyName}`.trim();
+
     // Map Cognito attributes to our session format
     // This maintains compatibility with existing code that used Auth0 session
     return {
       user: {
         sub: payload.sub,
         email: payload.email,
-        name: payload.name || payload["cognito:username"],
+        name: fullName || payload["cognito:username"],
+        givenName,
+        familyName,
+        middleName,
         picture: payload.picture || null,
         email_verified: payload.email_verified,
         // Custom attributes (set via Cognito custom attributes or post-auth Lambda)

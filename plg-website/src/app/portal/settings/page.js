@@ -31,7 +31,9 @@ export default function SettingsPage() {
 
   // Profile state
   const [profile, setProfile] = useState({
-    name: "",
+    givenName: "",
+    middleName: "",
+    familyName: "",
     email: "",
     picture: "",
     accountType: "individual",
@@ -57,7 +59,9 @@ export default function SettingsPage() {
         // Get profile from Cognito user directly (already authenticated)
         if (cognitoUser) {
           setProfile({
-            name: cognitoUser.name || "",
+            givenName: cognitoUser.givenName || "",
+            middleName: cognitoUser.middleName || "",
+            familyName: cognitoUser.familyName || "",
             email: cognitoUser.email || "",
             picture: cognitoUser.picture || "",
             accountType: cognitoUser["https://hic-ai.com/account_type"] || "individual",
@@ -113,7 +117,11 @@ export default function SettingsPage() {
           "Content-Type": "application/json",
           ...(session?.accessToken && { Authorization: `Bearer ${session.accessToken}` }),
         },
-        body: JSON.stringify({ name: profile.name }),
+        body: JSON.stringify({
+          givenName: profile.givenName,
+          middleName: profile.middleName,
+          familyName: profile.familyName,
+        }),
       });
 
       const data = await response.json();
@@ -292,16 +300,39 @@ export default function SettingsPage() {
         <form onSubmit={handleSaveProfile}>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-3 gap-4">
                 <Input
-                  label="Full Name"
-                  name="name"
-                  value={profile.name}
+                  label="First Name"
+                  name="givenName"
+                  value={profile.givenName}
                   onChange={(e) =>
-                    setProfile((prev) => ({ ...prev, name: e.target.value }))
+                    setProfile((prev) => ({ ...prev, givenName: e.target.value }))
                   }
-                  placeholder="Your name"
+                  placeholder="First name"
+                  required
                 />
+                <Input
+                  label="Middle Initial"
+                  name="middleName"
+                  value={profile.middleName}
+                  onChange={(e) =>
+                    setProfile((prev) => ({ ...prev, middleName: e.target.value }))
+                  }
+                  placeholder="M.I. (optional)"
+                  maxLength={5}
+                />
+                <Input
+                  label="Last Name"
+                  name="familyName"
+                  value={profile.familyName}
+                  onChange={(e) =>
+                    setProfile((prev) => ({ ...prev, familyName: e.target.value }))
+                  }
+                  placeholder="Last name"
+                  required
+                />
+              </div>
+              <div>
                 <Input
                   label="Email"
                   name="email"
@@ -310,11 +341,11 @@ export default function SettingsPage() {
                   disabled
                   className="opacity-60"
                 />
+                <p className="text-sm text-slate-grey mt-2">
+                  Email address cannot be changed. Contact support if you need
+                  assistance.
+                </p>
               </div>
-              <p className="text-sm text-slate-grey">
-                Email address cannot be changed. Contact support if you need
-                assistance.
-              </p>
             </div>
           </CardContent>
           <CardFooter>
