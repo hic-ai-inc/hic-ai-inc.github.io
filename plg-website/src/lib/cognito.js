@@ -203,14 +203,19 @@ export async function redirectToGoogleLogin(customState) {
  * Sign out the current user
  * @param {boolean} global - If true, sign out from all devices
  */
-export async function logout(global = false) {
+export async function logout(global = true) {
   if (!isCognitoConfigured) {
     return;
   }
 
   try {
+    // Clear local Amplify session first
     await amplifySignOut({ global });
-    // Amplify handles the redirect to Cognito logout endpoint
+    // Amplify with global=true also invalidates the Cognito session
+    // But if that doesn't redirect, force redirect to home
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.location.href = "/";
+    }
   } catch (error) {
     console.error("[Cognito] Error signing out:", error);
     // Redirect to home anyway

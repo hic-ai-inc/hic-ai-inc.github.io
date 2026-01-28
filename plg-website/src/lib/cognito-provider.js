@@ -121,9 +121,12 @@ export function CognitoProvider({ children }) {
 
   // Logout function
   const logout = useCallback(async () => {
+    // Clear local state immediately so UI updates instantly
+    setUser(null);
     setIsLoading(true);
     await cognitoLogout();
-    // cognitoLogout redirects to Cognito logout endpoint
+    // cognitoLogout clears Amplify session and redirects to home
+    setIsLoading(false);
   }, []);
 
   const value = {

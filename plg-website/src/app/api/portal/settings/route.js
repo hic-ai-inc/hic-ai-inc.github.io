@@ -5,23 +5,67 @@
  * PATCH /api/portal/settings - Update settings
  *
  * Manages user profile and notification preferences.
+ * Accepts Cognito access token via Authorization header.
  */
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getCustomerByAuth0Id, upsertCustomer } from "@/lib/dynamodb";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
+
+// Create Cognito JWT verifier (lazily initialized)
+let jwtVerifier = null;
+function getJwtVerifier() {
+  if (!jwtVerifier && process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID && process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID) {
+    jwtVerifier = CognitoJwtVerifier.create({
+      userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+      tokenUse: "access",
+      clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+    });
+  }
+  return jwtVerifier;
+}
+
+/**
+ * Get user from Authorization header token or fallback to session
+ */
+async function getUserFromRequest(request) {
+  // Try Authorization header first (Cognito access token)
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    const verifier = getJwtVerifier();
+    if (verifier) {
+      try {
+        const payload = await verifier.verify(token);
+        return {
+          sub: payload.sub,
+          email: payload.email || payload.username,
+          name: payload.name || null,
+        };
+      } catch (err) {
+        console.error("[Settings API] Token verification failed:", err.message);
+        // Fall through to session check
+      }
+    }
+  }
+  
+  // Fallback to session (dev mode or legacy)
+  const session = await getSession();
+  return session?.user || null;
+}
 
 /**
  * GET - Retrieve user settings
  */
-export async function GET() {
+export async function GET(request) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    const user = await getUserFromRequest(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByAuth0Id(user.sub);
 
     // Default notification preferences
     const defaultNotifications = {
@@ -33,9 +77,9 @@ export async function GET() {
 
     return NextResponse.json({
       profile: {
-        name: session.user.name || customer?.name || "",
-        email: session.user.email,
-        picture: session.user.picture || null,
+        name: user.name || customer?.name || "",
+        email: user.email,
+        picture: user.picture || null,
         accountType: customer?.accountType || "individual",
         createdAt: customer?.createdAt || null,
       },
@@ -55,8 +99,8 @@ export async function GET() {
  */
 export async function PATCH(request) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    const user = await getUserFromRequest(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -64,7 +108,7 @@ export async function PATCH(request) {
     const { name, notifications } = body;
 
     // Get existing customer
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByAuth0Id(user.sub);
     if (!customer) {
       return NextResponse.json(
         { error: "Customer not found" },

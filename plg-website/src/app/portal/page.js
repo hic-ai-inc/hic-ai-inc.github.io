@@ -52,12 +52,17 @@ export default function PortalDashboardPage() {
   const statusDisplay =
     LICENSE_STATUS_DISPLAY[licenseStatus] || LICENSE_STATUS_DISPLAY.ACTIVE;
 
+  // Get display name - prefer name, fall back to email, never show UUID
+  const displayName = user.name && !user.name.includes("-") 
+    ? user.name.split(" ")[0] 
+    : user.email?.split("@")[0] || "";
+
   return (
     <div className="max-w-6xl">
       {/* Welcome Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-frost-white">
-          Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""}!
+          Welcome back{displayName ? `, ${displayName}` : ""}!
         </h1>
         <p className="text-slate-grey mt-1">
           Manage your Mouse license and account settings

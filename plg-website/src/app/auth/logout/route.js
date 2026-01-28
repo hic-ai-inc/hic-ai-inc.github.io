@@ -25,7 +25,7 @@ export async function GET(request) {
   // This clears the Cognito session and redirects back to our app
   const logoutUrl = new URL(`https://${cognitoConfig.domain}/logout`);
   logoutUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
-  logoutUrl.searchParams.set("logout_uri", cognitoConfig.appUrl);
+  logoutUrl.searchParams.set("redirect_uri", cognitoConfig.appUrl);
 
   // Clear any server-side session cookies if we add them later
   const response = NextResponse.redirect(logoutUrl.toString());

@@ -18,8 +18,11 @@ import {
   Button,
   Input,
 } from "@/components/ui";
+import { useUser } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 
 export default function SettingsPage() {
+  const { user: cognitoUser } = useUser();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -47,41 +50,53 @@ export default function SettingsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  // Fetch settings on mount
+  // Load profile from Cognito user context, fetch preferences from API with auth token
   useEffect(() => {
-    async function fetchSettings() {
+    async function loadSettings() {
       try {
-        const response = await fetch("/api/portal/settings");
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to load settings");
-        }
-
-        setProfile({
-          name: data.profile.name || "",
-          email: data.profile.email || "",
-          picture: data.profile.picture || "",
-          accountType: data.profile.accountType || "individual",
-        });
-
-        if (data.notifications) {
-          setNotifications({
-            productUpdates: data.notifications.productUpdates ?? true,
-            usageAlerts: data.notifications.usageAlerts ?? true,
-            billingReminders: data.notifications.billingReminders ?? true,
-            marketingEmails: data.notifications.marketingEmails ?? false,
+        // Get profile from Cognito user directly (already authenticated)
+        if (cognitoUser) {
+          setProfile({
+            name: cognitoUser.name || "",
+            email: cognitoUser.email || "",
+            picture: cognitoUser.picture || "",
+            accountType: cognitoUser["https://hic-ai.com/account_type"] || "individual",
           });
         }
+
+        // Fetch notification preferences from API with auth token
+        const session = await getSession();
+        if (session?.accessToken) {
+          const response = await fetch("/api/portal/settings", {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.notifications) {
+              setNotifications({
+                productUpdates: data.notifications.productUpdates ?? true,
+                usageAlerts: data.notifications.usageAlerts ?? true,
+                billingReminders: data.notifications.billingReminders ?? true,
+                marketingEmails: data.notifications.marketingEmails ?? false,
+              });
+            }
+          }
+        }
       } catch (err) {
-        setError(err.message);
+        console.error("Settings load error:", err);
+        // Don't show error for preferences fetch failure, profile is still shown
       } finally {
         setLoading(false);
       }
     }
 
-    fetchSettings();
-  }, []);
+    if (cognitoUser) {
+      loadSettings();
+    }
+  }, [cognitoUser]);
 
   // Save profile changes
   const handleSaveProfile = async (e) => {
@@ -91,9 +106,13 @@ export default function SettingsPage() {
     setSuccess(null);
 
     try {
+      const session = await getSession();
       const response = await fetch("/api/portal/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(session?.accessToken && { Authorization: `Bearer ${session.accessToken}` }),
+        },
         body: JSON.stringify({ name: profile.name }),
       });
 
@@ -120,9 +139,13 @@ export default function SettingsPage() {
     setSuccess(null);
 
     try {
+      const session = await getSession();
       const response = await fetch("/api/portal/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(session?.accessToken && { Authorization: `Bearer ${session.accessToken}` }),
+        },
         body: JSON.stringify({ notifications }),
       });
 
@@ -289,8 +312,8 @@ export default function SettingsPage() {
                 />
               </div>
               <p className="text-sm text-slate-grey">
-                Email changes must be done through Auth0. Contact support if
-                needed.
+                Email address cannot be changed. Contact support if you need
+                assistance.
               </p>
             </div>
           </CardContent>

@@ -10,7 +10,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useUser } from "@/lib/cognito-provider";
+import { useAuth } from "@/lib/cognito-provider";
 import {
   PORTAL_NAV,
   PORTAL_NAV_BUSINESS,
@@ -22,7 +22,7 @@ const ADMIN_ONLY_PATHS = ["/portal/billing", "/portal/team"];
 
 export default function PortalSidebar() {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, logout } = useAuth();
 
   const accountType = user?.[`${AUTH0_NAMESPACE}/account_type`] || "individual";
   const orgRole = user?.[`${AUTH0_NAMESPACE}/org_role`] || "member";
@@ -97,13 +97,13 @@ export default function PortalSidebar() {
             <p className="text-xs text-slate-grey truncate">{user?.email}</p>
           </div>
         </div>
-        <a
-          href="/auth/logout"
-          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-grey hover:text-frost-white transition-colors"
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-grey hover:text-frost-white transition-colors w-full text-left"
         >
           <LogoutIcon className="h-4 w-4" />
           Sign Out
-        </a>
+        </button>
       </div>
     </aside>
   );
