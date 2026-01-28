@@ -13,15 +13,17 @@ import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { PRICING, STRIPE_PRICES } from "@/lib/constants";
 
-// Cognito JWT verifier for access tokens
-const verifier = CognitoJwtVerifier.create({
+// Cognito JWT verifier for ID tokens (contains user email)
+// Note: We use ID tokens because they contain the email claim
+const idVerifier = CognitoJwtVerifier.create({
   userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-  tokenUse: "access",
+  tokenUse: "id",
   clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
 });
 
 /**
- * Extract user email from Cognito JWT token
+ * Extract user email from Cognito ID token
+ * ID tokens contain the email claim, unlike access tokens
  */
 async function getUserEmailFromRequest(request) {
   try {
@@ -33,10 +35,10 @@ async function getUserEmailFromRequest(request) {
     }
 
     const token = authHeader.slice(7);
-    const payload = await verifier.verify(token);
+    const payload = await idVerifier.verify(token);
 
-    // Access token has username, need to get email from ID token or request body
-    return payload.username || null;
+    // ID token contains email directly
+    return payload.email || null;
   } catch (error) {
     console.error("[Checkout] JWT verification failed:", error.message);
     return null;
@@ -148,9 +150,28 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("Checkout error:", error);
+
+    // Provide more specific error messages where safe
+    if (error.type === "StripeInvalidRequestError") {
+      // Missing or invalid Stripe configuration
+      console.error("[Checkout] Stripe config error - check price IDs and API key");
+      return NextResponse.json(
+        { error: "Payment system configuration error. Please contact support." },
+        { status: 500 },
+      );
+    }
+
+    if (error.message?.includes("email")) {
+      return NextResponse.json(
+        { error: "Email is required to create checkout session" },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 },
     );
   }
 }
+

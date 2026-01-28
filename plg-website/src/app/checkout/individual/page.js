@@ -13,7 +13,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useUser } from "@/lib/cognito-provider";
+import { useAuth } from "@/lib/cognito-provider";
 import { getSession } from "@/lib/cognito";
 import {
   Card,
@@ -53,7 +53,7 @@ export default function IndividualCheckoutPage() {
 function IndividualCheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoading, login } = useUser();
+  const { user, isLoading, login } = useAuth();
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [promoCode, setPromoCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,11 +69,8 @@ function IndividualCheckoutContent() {
     billingCycle === "annual" ? plan.priceMonthly * 12 - plan.priceAnnual : 0;
 
   const handleSignIn = () => {
-    // Store return URL so we come back here after auth
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("auth_returnTo", window.location.href);
-    }
-    router.push("/auth/login");
+    // login() stores return URL and redirects to Cognito
+    login(window.location.href);
   };
 
   const handleCheckout = async (e) => {
