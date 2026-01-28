@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Card,
   CardHeader,
@@ -127,7 +128,15 @@ function NewUserDashboard({ displayName, user }) {
       <Card className="mb-8 border-cerulean-mist/30 bg-gradient-to-br from-cerulean-mist/5 to-transparent">
         <CardContent className="py-8">
           <div className="text-center max-w-2xl mx-auto">
-            <div className="text-5xl mb-4">🐭</div>
+            <div className="mb-4">
+              <Image
+                src="/images/mouse-logo.png"
+                alt="Mouse"
+                width={64}
+                height={64}
+                className="mx-auto"
+              />
+            </div>
             <h2 className="text-2xl font-bold text-frost-white mb-3">
               Activate Your Mouse License
             </h2>

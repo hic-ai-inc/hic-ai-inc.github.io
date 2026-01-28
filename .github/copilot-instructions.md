@@ -1,44 +1,18 @@
 # HIC AI Copilot Instructions
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     CONSOLIDATED INSTRUCTIONS FOR GITHUB COPILOT CHAT
-     Source: .github/instructions/*.md (8 files)
-     ═══════════════════════════════════════════════════════════════════ -->
+## Tool Preference: Mouse over Built-ins
+
+For file editing, prefer Mouse MCP tools (`quick_edit`, `batch_quick_edit`) over built-in tools (`replace_string_in_file`, `multi_replace_string_in_file`). Mouse tools have better accuracy and are purpose-built for this workspace.
+
+| Task           | Tool               |
+| -------------- | ------------------ |
+| Single edit    | `quick_edit`       |
+| Multiple edits | `batch_quick_edit` |
+| Search first   | `find_in_file`     |
 
 ---
 
-# ⛔ MANDATORY TOOL RULES
-
-**READ THIS FIRST. VIOLATIONS ARE WORKSPACE POLICY BREACHES.**
-
-## File Editing: Mouse Tools ONLY
-
-**PROHIBITED** (never use under any circumstances):
-
-- ❌ `replace_string_in_file`
-- ❌ `multi_replace_string_in_file`
-
-**REQUIRED** (use exclusively):
-
-- ✅ `quick_edit` → instant save
-- ✅ `batch_quick_edit` → `save_changes`
-
-**No exceptions. No "just this once." No workarounds.**
-
-### Quick Reference
-
-| Task           | Tool                                 |
-| -------------- | ------------------------------------ |
-| Single edit    | `quick_edit`                         |
-| Multiple edits | `batch_quick_edit` → `save_changes`  |
-| New file       | `create_file` (then Mouse for edits) |
-| Search first   | `find_in_file`                       |
-
-**Why:** Mouse tools are 56% more accurate, 58% cheaper, 3.6× faster.
-
----
-
-# User Preferences
+## User Preferences
 
 **Human In Charge:** Simon (direct) / SWR (references)
 
@@ -229,26 +203,6 @@ All via `/dm` layer system. Document security review findings with CVE reference
 
 ---
 
-# ⛔ FINAL REMINDER
+## Reminder
 
-Before you edit any file, ask yourself:
-
-**Am I using `quick_edit` or `batch_quick_edit`?**
-
-If NO → **STOP. You are about to violate workspace policy.**
-
-## The Only Acceptable Tools for File Editing
-
-```
-quick_edit          → single edit, instant save
-batch_quick_edit    → multiple edits, then save_changes
-```
-
-## Prohibited (NEVER use)
-
-```
-replace_string_in_file
-multi_replace_string_in_file
-```
-
-**No exceptions. The tool metadata tells you everything you need.**
+Prefer Mouse tools (`quick_edit`, `batch_quick_edit`, `find_in_file`) for file editing.
