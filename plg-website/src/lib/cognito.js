@@ -157,18 +157,48 @@ export async function getUser() {
 }
 
 /**
- * Redirect to Cognito Hosted UI for login
+ * Generate PKCE code verifier and challenge
+ * @returns {Promise<{verifier: string, challenge: string}>}
+ */
+async function generatePKCE() {
+  // Generate random code verifier (43-128 characters)
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  const verifier = btoa(String.fromCharCode(...array))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  // Generate code challenge (SHA-256 hash of verifier)
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = new Uint8Array(hashBuffer);
+  const challenge = btoa(String.fromCharCode(...hashArray))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  return { verifier, challenge };
+}
+
+/**
+ * Redirect to Cognito Hosted UI for login (with PKCE)
  * @param {string} returnTo - URL to return to after login
  */
-export function redirectToLogin(returnTo = "/portal") {
+export async function redirectToLogin(returnTo = "/portal") {
   if (!isCognitoConfigured) {
     console.error("[Cognito] Cannot redirect - not configured");
     return;
   }
 
-  // Store returnTo for post-callback redirect
+  // Generate PKCE code verifier and challenge
+  const { verifier, challenge } = await generatePKCE();
+
+  // Store returnTo and PKCE verifier for post-callback
   if (typeof window !== "undefined") {
     sessionStorage.setItem("auth_returnTo", returnTo);
+    sessionStorage.setItem("pkce_verifier", verifier);
   }
 
   // Build Cognito hosted UI URL
@@ -180,23 +210,29 @@ export function redirectToLogin(returnTo = "/portal") {
     "redirect_uri",
     `${cognitoConfig.appUrl}/auth/callback`,
   );
+  loginUrl.searchParams.set("code_challenge", challenge);
+  loginUrl.searchParams.set("code_challenge_method", "S256");
 
   window.location.href = loginUrl.toString();
 }
 
 /**
- * Redirect to Cognito Hosted UI for Google login
+ * Redirect to Cognito Hosted UI for Google login (with PKCE)
  * @param {string} returnTo - URL to return to after login
  */
-export function redirectToGoogleLogin(returnTo = "/portal") {
+export async function redirectToGoogleLogin(returnTo = "/portal") {
   if (!isCognitoConfigured) {
     console.error("[Cognito] Cannot redirect - not configured");
     return;
   }
 
-  // Store returnTo for post-callback redirect
+  // Generate PKCE code verifier and challenge
+  const { verifier, challenge } = await generatePKCE();
+
+  // Store returnTo and PKCE verifier for post-callback
   if (typeof window !== "undefined") {
     sessionStorage.setItem("auth_returnTo", returnTo);
+    sessionStorage.setItem("pkce_verifier", verifier);
   }
 
   // Build Cognito hosted UI URL with Google identity provider
@@ -209,6 +245,8 @@ export function redirectToGoogleLogin(returnTo = "/portal") {
     `${cognitoConfig.appUrl}/auth/callback`,
   );
   loginUrl.searchParams.set("identity_provider", "Google");
+  loginUrl.searchParams.set("code_challenge", challenge);
+  loginUrl.searchParams.set("code_challenge_method", "S256");
 
   window.location.href = loginUrl.toString();
 }

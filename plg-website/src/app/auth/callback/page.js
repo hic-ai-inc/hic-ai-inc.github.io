@@ -40,17 +40,26 @@ export default function CallbackPage() {
     }, 500);
   }, []);
 
-  // Exchange authorization code for tokens
+  // Exchange authorization code for tokens (with PKCE)
   const exchangeCodeForTokens = useCallback(async (code) => {
     try {
       const config = getCognitoConfig();
       const tokenUrl = `https://${config.domain}/oauth2/token`;
+
+      // Get the PKCE code verifier from session storage
+      const codeVerifier = sessionStorage.getItem("pkce_verifier");
+      if (!codeVerifier) {
+        throw new Error(
+          "PKCE verifier not found. Please try signing in again.",
+        );
+      }
 
       const params = new URLSearchParams({
         grant_type: "authorization_code",
         client_id: config.userPoolClientId,
         code: code,
         redirect_uri: `${config.appUrl}/auth/callback`,
+        code_verifier: codeVerifier,
       });
 
       const response = await fetch(tokenUrl, {
@@ -60,6 +69,9 @@ export default function CallbackPage() {
         },
         body: params.toString(),
       });
+
+      // Clean up PKCE verifier
+      sessionStorage.removeItem("pkce_verifier");
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
