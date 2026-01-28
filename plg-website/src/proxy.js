@@ -22,17 +22,17 @@ export async function proxy(req) {
   const path = req.nextUrl.pathname;
 
   // ===========================================
-  // AUTH0 MIDDLEWARE (must run on ALL requests)
+  // AUTH0 MIDDLEWARE (MUST run first on ALL requests)
   // ===========================================
   // Auth0 SDK v4 handles /auth/* routes via middleware
-  // This MUST be called before any other logic
+  // For all other routes, it returns NextResponse.next() with session cookies
   let auth0, getOrganizationId;
   try {
     const auth0Module = await import("./lib/auth0.js");
     auth0 = auth0Module.getAuth0Client();
     getOrganizationId = auth0Module.getOrganizationId;
   } catch (error) {
-    console.error("[Middleware] Auth0 not configured:", error.message);
+    console.error("[Proxy] Auth0 not configured:", error.message);
     // In development, allow access if Auth0 isn't configured
     if (process.env.NODE_ENV === "development") {
       console.log(`[DEV] Auth0 not configured, allowing access to: ${path}`);
@@ -47,17 +47,21 @@ export async function proxy(req) {
     return NextResponse.next();
   }
 
-  // Let Auth0 handle /auth/* routes (login, logout, callback, etc.)
+  // CRITICAL: Auth0 SDK v4 middleware handles EVERYTHING
+  // - For /auth/* routes: Returns redirect to Auth0 or handles callback
+  // - For other routes: Returns NextResponse.next() with session cookies
   const authRes = await auth0.middleware(req);
 
-  // Auth0 SDK v4: ALWAYS return authRes for /auth/* routes
-  // The middleware handles login, logout, callback, profile, access-token
-  if (path.startsWith("/auth")) {
+  // For /auth/* routes, ALWAYS return the Auth0 response (redirect to Auth0, callback handling, etc.)
+  if (path.startsWith("/auth/")) {
     return authRes;
   }
 
-  // For non-auth routes, only return authRes if it has a response
-  if (authRes) {
+  // For protected routes, check session after Auth0 middleware runs
+  const requiresAuth = path.startsWith("/portal") || path.startsWith("/admin");
+
+  if (!requiresAuth) {
+    // Public routes: Return Auth0 response (includes session cookies)
     return authRes;
   }
 
@@ -74,17 +78,14 @@ export async function proxy(req) {
     }
   }
 
-  // Only apply additional auth checks to protected routes
-  const requiresAuth = path.startsWith("/portal") || path.startsWith("/admin");
-  if (!requiresAuth) {
-    return NextResponse.next();
-  }
-
+  // Protected routes - check session
   const session = await auth0.getSession();
 
   if (!session) {
-    // Redirect to login
-    return NextResponse.redirect(new URL("/auth/login", req.url));
+    // Redirect to login with returnTo
+    const loginUrl = new URL("/auth/login", req.url);
+    loginUrl.searchParams.set("returnTo", path);
+    return NextResponse.redirect(loginUrl);
   }
 
   // Role-based protection for business admin-only routes
