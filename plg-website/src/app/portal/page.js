@@ -7,7 +7,8 @@
  * @see PLG User Journey - Section 2.6
  */
 
-import { getSession } from "@/lib/auth";
+"use client";
+
 import Link from "next/link";
 import {
   Card,
@@ -15,21 +16,32 @@ import {
   CardTitle,
   CardContent,
   Badge,
-  Button,
 } from "@/components/ui";
 import {
   AUTH0_NAMESPACE,
   EXTERNAL_URLS,
   LICENSE_STATUS_DISPLAY,
 } from "@/lib/constants";
+import { useUser } from "@/lib/cognito-provider";
 
-export const metadata = {
-  title: "Dashboard",
-};
+export default function PortalDashboardPage() {
+  const { user, isLoading } = useUser();
 
-export default async function PortalDashboardPage() {
-  const session = await getSession();
-  const user = session.user;
+  if (isLoading || !user) {
+    return (
+      <div className="max-w-6xl">
+        <div className="animate-pulse">
+          <div className="h-8 bg-card-bg rounded w-64 mb-4"></div>
+          <div className="h-4 bg-card-bg rounded w-96 mb-8"></div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="h-40 bg-card-bg rounded-lg"></div>
+            <div className="h-40 bg-card-bg rounded-lg"></div>
+            <div className="h-40 bg-card-bg rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const namespace = AUTH0_NAMESPACE;
   const accountType = user[`${namespace}/account_type`] || "individual";
