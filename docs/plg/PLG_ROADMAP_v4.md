@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.10.0  
+**Document Version:** 4.11.0  
 **Date:** January 28, 2026  
 **Owner:** General Counsel  
-**Status:** 🟢 CHECKOUT FLOW COMPLETE + Secrets Manager integrated
+**Status:** 🟢 COGNITO v2 + Portal Settings API wired to DynamoDB
 
 ---
 
@@ -46,7 +46,7 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | --- | ---------------------------------- | --------------------------- | ---------- | ---------- | ----------------- |
 | 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —                 |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —                 |
-| 3   | Auth (Cognito Migration)           | ✅ **WORKING**              | 0h (done)  | GC + Simon | —                 |
+| 3   | Auth (Cognito Migration)           | ✅ **COMPLETE** (v2 pool)   | 0h (done)  | GC + Simon | —                 |
 | 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —                 |
 | 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —                 |
@@ -54,7 +54,7 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | 0h (done)  | GC         | —                 |
 | 8   | **VS Code Extension (VSIX)**       | 🟡 **IN PROGRESS**          | **60-80h** | GC + Simon | **CRITICAL PATH** |
-| 9   | Back-End E2E Testing               | 🟡 **UNBLOCKED**            | 8-12h      | GC         | **3 (Cognito)**   |
+| 9   | Back-End E2E Testing               | 🟡 **IN PROGRESS**          | 6-10h      | GC         | —                 |
 | 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —                 |
 | 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**          |
 | 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —                 |
@@ -191,9 +191,11 @@ npm run metrics -- --period=7d
 | Task                                 | Status | Notes                                           |
 | ------------------------------------ | ------ | ----------------------------------------------- |
 | **Phase 1: Cognito Resources**       |        |                                                 |
-| Create User Pool (`mouse-plg-staging`)| ✅     | `us-east-1_MDTi26EOf`, email as username        |
-| Create User Pool Client              | ✅     | `5tta8lcn3u3cvc956s8tcc0b7`, public PKCE        |
-| Configure Google social IdP          | ✅     | OAuth App created, IdP configured in Cognito    |
+| Create User Pool v1 (`mouse-plg-staging`)| ❌ REPLACED | `us-east-1_MDTi26EOf` — name not required, deleted |
+| Create User Pool v2 (`mouse-staging-v2`) | ✅     | `us-east-1_CntYimcMm`, required given_name/family_name |
+| Create User Pool Client              | ✅     | `3jobildap1dobb5vfmiul47bvc`, public PKCE        |
+| Configure Cognito Domain             | ✅     | `mouse-staging-v2.auth.us-east-1.amazoncognito.com` |
+| Configure Google social IdP          | ✅     | Attribute mapping: given_name, family_name, email |
 | Configure GitHub OIDC IdP            | ⏸️     | **Deferred** — Cognito requires OIDC well-known |
 | Create Cognito Groups for roles      | ⬜     | `org_<id>_owner`, `org_<id>_admin`, `org_<id>_member` |
 | **Phase 2: Code Migration**          |        |                                                 |
@@ -604,11 +606,68 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 
 ---
 
-## 9. Back-End E2E Testing
+## 9. Back-End E2E Testing & API Wiring
 
-**Status:** ⚠️ Unit tests pass (550), E2E not started  
-**Est. Hours:** 8-12h  
-**Prerequisites:** Items 3, 7, 8 complete8 complete
+**Status:** 🟡 **IN PROGRESS** — Settings API wired, DynamoDB integration active  
+**Est. Hours:** 6-10h remaining  
+**Prerequisites:** Cognito v2 ✅, DynamoDB ✅, Secrets Manager ✅
+
+### 9.0 Immediate Priority: DynamoDB + API Foundation (Jan 28)
+
+> 🎯 **Current Focus:** Complete the secure API foundation so signed-in users can access and modify their own protected resources. This unlocks all downstream features (licensing display, payment data, webhook integration).
+
+#### 9.0.1 Phase 1: Settings API Wire-up ✅ COMPLETE
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Create Cognito User Pool v2 (`mouse-staging-v2`) | ✅ | Required `given_name`/`family_name` at signup |
+| Configure Google IdP with attribute mapping | ✅ | Maps given_name, family_name, email, picture |
+| Update `cognito.js` for name field extraction | ✅ | Builds fullName from given/middle/family |
+| Create `updateCustomerProfile()` in DynamoDB lib | ✅ | Partial update via UpdateCommand |
+| Update Settings API for separate name fields | ✅ | Validates givenName, middleName, familyName |
+| Update Settings page UI (3-column name grid) | ✅ | First Name, Middle Initial, Last Name |
+| Verify JWT auth on protected API routes | ✅ | `getSessionFromRequest()` validates tokens |
+
+#### 9.0.2 Phase 2: Checkout Flow Wire-up 🟡 NEXT
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| `/api/checkout` → redirect to `checkout.stripe.com` | ⬜ | Smart routing based on auth state |
+| Pass `client_reference_id` with Cognito `sub` | ⬜ | Links Stripe customer to DynamoDB record |
+| Create/update customer record pre-checkout | ⬜ | Ensure DynamoDB record exists |
+| Handle checkout success callback | ⬜ | Update subscription status |
+| Handle checkout cancel callback | ⬜ | Track abandoned carts |
+
+#### 9.0.3 Phase 3: Stripe Webhook Integration 🔲 PENDING
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| `checkout.session.completed` → create customer | ⬜ | Or update if exists |
+| `customer.subscription.created` → update status | ⬜ | Set `subscriptionStatus: "active"` |
+| `customer.subscription.updated` → sync changes | ⬜ | Plan changes, seat counts |
+| `customer.subscription.deleted` → mark cancelled | ⬜ | Set `subscriptionStatus: "cancelled"` |
+| `invoice.payment_succeeded` → update billing | ⬜ | Store last payment date |
+| `invoice.payment_failed` → trigger grace period | ⬜ | Set `subscriptionStatus: "past_due"` |
+
+#### 9.0.4 Phase 4: KeyGen Webhook Integration 🔲 PENDING
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| `license.created` → store license key | ⬜ | Link to customer record |
+| `license.validated` → update last validation | ⬜ | Track license health |
+| `license.suspended` → update status | ⬜ | Payment-related suspension |
+| `machine.created` → track device activation | ⬜ | Update device count |
+| `machine.deleted` → update device list | ⬜ | Device deactivation |
+
+#### 9.0.5 Phase 5: Portal Data Display 🔲 PENDING
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Dashboard: Show subscription status | ⬜ | From DynamoDB record |
+| Dashboard: Show license status | ⬜ | From KeyGen via API |
+| License page: Display license key | ⬜ | Mask with reveal toggle |
+| Billing page: Show payment history | ⬜ | From Stripe via API |
+| Devices page: List active machines | ⬜ | From KeyGen via API |
 
 ### 9.1 Test Scenarios
 
@@ -622,9 +681,10 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Activate with expired/revoked key                 | ⬜     | Error handling          |
 | Concurrent session enforcement                    | ⬜     | Heartbeat timeout       |
 | **Portal Flows**                                  |        |                         |
-| Login → View dashboard                            | ⬜     | Auth0 + Portal          |
-| View/copy license key                             | ✅     | Portal license page     |
-| Deactivate device                                 | ✅     | Devices page wired      |
+| Login → View dashboard                            | ✅     | Cognito + Portal        |
+| Update profile (name fields)                      | ✅     | Settings API wired      |
+| View/copy license key                             | 🟡     | UI exists, data TODO    |
+| Deactivate device                                 | 🟡     | UI exists, KeyGen TODO  |
 | Update payment method                             | ✅     | Stripe Portal link      |
 | **Team Admin Flows**                              |        |                         |
 | Invite member → Accept → Login                    | ✅     | Full invite flow        |
@@ -928,6 +988,7 @@ Parallel workstreams (no dependencies):
 
 | Version | Date         | Changes                                                                                                                                                                                                                                           |
 | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.11** | Jan 28, 2026 | **COGNITO v2 + SETTINGS API WIRED.** Created new Cognito User Pool (`mouse-staging-v2`) with required `given_name`/`family_name` at signup. Settings API now persists to DynamoDB with separate name fields. Added Section 9.0 "Immediate Priority" with 5-phase wire-up plan: (1) Settings ✅, (2) Checkout → Stripe, (3) Stripe webhooks, (4) KeyGen webhooks, (5) Portal data display. |
 | **4.10** | Jan 28, 2026 | **SECRETS MANAGER COMPLETE.** Migrated secrets from Amplify env vars to AWS Secrets Manager (3 secrets: `plg/staging/stripe`, `keygen`, `app`). Checkout UI with auth-gating working. Env vars reduced from 24→15. Added backup/restore scripts for Amplify. Webhook→License pipeline still TODO. |
 | **4.9** | Jan 28, 2026 | **COGNITO AUTH LIVE.** Google OAuth + email signup working on staging. Fixed logout flow (`redirect_uri` param, state clearing). Portal using `useUser()`/`useAuth()` hooks. Settings API with JWT verification via `aws-jwt-verify`. |
 | **4.4** | Jan 27, 2026 | **Phase 3-5 COMPLETE.** Added `license_status` tool (16 tests). Implemented tiered nag frequency: 20%/50%/80%/100% with seeded RNG (23 tests). Updated NAG_CONFIG constants. Non-blocking heartbeat failure handling. 119 total licensing tests.  |
