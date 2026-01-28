@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.8.0  
+**Document Version:** 4.9.0  
 **Date:** January 28, 2026  
 **Owner:** General Counsel  
-**Status:** 🟡 IN PROGRESS — Migrating from Auth0 to Cognito
+**Status:** 🟢 COGNITO AUTH LIVE — Testing checkout flow
 
 ---
 
@@ -46,7 +46,7 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | --- | ---------------------------------- | --------------------------- | ---------- | ---------- | ----------------- |
 | 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —                 |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —                 |
-| 3   | Auth (Cognito Migration)           | 🟡 **IN PROGRESS**          | 6-8h       | GC + Simon | —                 |
+| 3   | Auth (Cognito Migration)           | ✅ **WORKING**              | 0h (done)  | GC + Simon | —                 |
 | 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —                 |
 | 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —                 |
@@ -160,7 +160,7 @@ npm run metrics -- --period=7d
 
 ## 3. Auth (Cognito Migration)
 
-**Status:** 🟡 **IN PROGRESS** — Cognito configured, testing Google OAuth flow  
+**Status:** ✅ **WORKING** — Google OAuth + email signup working on staging  
 **Est. Hours:** 6-8h  
 **Documentation:** [Migration Decision Memo](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md), [Original Security Considerations](./20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md)
 
@@ -191,28 +191,28 @@ npm run metrics -- --period=7d
 | Task                                 | Status | Notes                                           |
 | ------------------------------------ | ------ | ----------------------------------------------- |
 | **Phase 1: Cognito Resources**       |        |                                                 |
-| Create User Pool (`hic-plg-users`)   | ✅     | `us-east-1_MDTi26EOf`, email as username        |
-| Create User Pool Client              | ✅     | `5tta8lcn3u3cvc956s8tcc0b7`, public+PKCE        |
+| Create User Pool (`mouse-plg-staging`)| ✅     | `us-east-1_MDTi26EOf`, email as username        |
+| Create User Pool Client              | ✅     | `5tta8lcn3u3cvc956s8tcc0b7`, public PKCE        |
 | Configure Google social IdP          | ✅     | OAuth App created, IdP configured in Cognito    |
 | Configure GitHub OIDC IdP            | ⏸️     | **Deferred** — Cognito requires OIDC well-known |
 | Create Cognito Groups for roles      | ⬜     | `org_<id>_owner`, `org_<id>_admin`, `org_<id>_member` |
 | **Phase 2: Code Migration**          |        |                                                 |
-| Remove `@auth0/nextjs-auth0` package | ⬜     | `npm uninstall @auth0/nextjs-auth0`             |
-| Add `aws-amplify` package            | ⬜     | `npm install aws-amplify`                       |
-| Create `src/lib/cognito.js`          | ✅     | Amplify Auth + PKCE helpers                     |
-| Rewrite `src/lib/auth.js`            | ⬜     | Switch to Amplify Auth                          |
-| Simplify `src/middleware.js`         | ⬜     | Remove Auth0 middleware, use redirect logic     |
+| Remove `@auth0/nextjs-auth0` package | ⬜     | Keep for now, remove post-launch               |
+| Add `aws-amplify` package            | ✅     | Amplify Auth v6 + aws-jwt-verify               |
+| Create `src/lib/cognito.js`          | ✅     | Amplify Auth, PKCE, session helpers            |
+| Rewrite `src/lib/auth.js`            | ⬜     | Keep for compatibility, migrate later          |
+| Simplify `src/middleware.js`         | ✅     | Simplified for Cognito, removed Auth0 dep      |
 | Create `/auth/login/page.js`         | ✅     | Login page with Google button                   |
 | Create `/auth/callback/page.js`      | ✅     | Token exchange with PKCE code_verifier          |
 | Create `/auth/logout/route.js`       | ✅     | Clears tokens + Cognito logout                  |
-| Update portal pages (claim namespace)| ✅     | Client components using useUser() hook          |
+| Update portal pages (claim namespace)| ✅     | Client components using useUser()/useAuth()    |
 | **Phase 3: Environment Variables**   |        |                                                 |
-| Remove `AUTH0_*` from Amplify        | ⬜     | 6 variables to remove                           |
+| Remove `AUTH0_*` from Amplify        | ⬜     | Deferred — keeping for fallback                |
 | Add `COGNITO_*` to Amplify           | ✅     | 4 env vars configured in Amplify console        |
 | **Phase 4: Test & Deploy**           |        |                                                 |
-| Test locally                         | ⬜     | Login flow, protected routes, roles             |
-| Deploy to staging                    | 🔄     | Build running (commit `bbc2f99`)                |
-| E2E test on staging                  | ⬜     | Full auth flow                                  |
+| Test locally                         | ✅     | Login, signup, protected routes working        |
+| Deploy to staging                    | ✅     | Build #14+ deployed, Google OAuth working      |
+| E2E test on staging                  | ✅     | Google OAuth, signup, logout all working       |
 | **Phase 5: Cleanup**                 |        |                                                 |
 | Delete Auth0 application             | ⬜     | Auth0 Dashboard → Applications                  |
 | Delete `src/lib/auth0.js`            | ⬜     | No longer needed                                |
@@ -928,6 +928,7 @@ Parallel workstreams (no dependencies):
 
 | Version | Date         | Changes                                                                                                                                                                                                                                           |
 | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.9** | Jan 28, 2026 | **COGNITO AUTH LIVE.** Google OAuth + email signup working on staging. Fixed logout flow (`redirect_uri` param, state clearing). Portal using `useUser()`/`useAuth()` hooks. Settings API with JWT verification via `aws-jwt-verify`. |
 | **4.4** | Jan 27, 2026 | **Phase 3-5 COMPLETE.** Added `license_status` tool (16 tests). Implemented tiered nag frequency: 20%/50%/80%/100% with seeded RNG (23 tests). Updated NAG_CONFIG constants. Non-blocking heartbeat failure handling. 119 total licensing tests.  |
 | **4.3** | Jan 27, 2026 | **MCP licensing KeyGen integration.** Updated `mouse/src/licensing/` to use KeyGen endpoints (`api.hic-ai.com`). Added http-provider.test.js (48 tests). Clarified dual licensing systems: MCP (tool gating) vs VS Code extension (heartbeat/UI). |
 | **4.2** | Jan 27, 2026 | **Multi-workspace Mouse support.** Updated `mcp/src/utils/dm-base/safe-path.js` with `HIC_ALLOWED_DIRECTORIES` env var. Mouse now works across both `hic` and `hic-ai-inc.github.io` repos in multi-root workspaces.                              |

@@ -211,16 +211,40 @@ export async function logout(global = true) {
   try {
     // Clear local Amplify session first
     await amplifySignOut({ global });
-    // Amplify with global=true also invalidates the Cognito session
-    // But if that doesn't redirect, force redirect to home
-    if (typeof window !== "undefined" && window.location.pathname !== "/") {
-      window.location.href = "/";
+
+    // Clear any localStorage items Amplify might have left
+    if (typeof window !== "undefined") {
+      // Clear Amplify's localStorage keys
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (
+          key &&
+          (key.startsWith("CognitoIdentityServiceProvider") ||
+            key.startsWith("amplify"))
+        ) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+      // Redirect to Cognito logout endpoint to clear hosted UI session cookies
+      // This is necessary because Amplify signOut doesn't clear the Cognito
+      // hosted UI session, which causes auto-login on next visit
+      const logoutUrl = new URL(`https://${cognitoConfig.domain}/logout`);
+      logoutUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
+      logoutUrl.searchParams.set("logout_uri", `${cognitoConfig.appUrl}/`);
+
+      window.location.href = logoutUrl.toString();
     }
   } catch (error) {
     console.error("[Cognito] Error signing out:", error);
-    // Redirect to home anyway
+    // Redirect to Cognito logout anyway to clear hosted UI session
     if (typeof window !== "undefined") {
-      window.location.href = "/";
+      const logoutUrl = new URL(`https://${cognitoConfig.domain}/logout`);
+      logoutUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
+      logoutUrl.searchParams.set("logout_uri", `${cognitoConfig.appUrl}/`);
+      window.location.href = logoutUrl.toString();
     }
   }
 }
