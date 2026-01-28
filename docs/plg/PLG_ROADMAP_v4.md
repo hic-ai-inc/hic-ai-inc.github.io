@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.7.0  
-**Date:** January 27, 2026  
+**Document Version:** 4.8.0  
+**Date:** January 28, 2026  
 **Owner:** General Counsel  
-**Status:** 🟡 BLOCKED — Auth0 Integration Issue on Staging
+**Status:** 🟡 IN PROGRESS — Migrating from Auth0 to Cognito
 
 ---
 
@@ -19,23 +19,24 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 
 ---
 
-## 🚨 CURRENT BLOCKER: Auth0 Authentication on Staging
+## 🔄 DECISION: Migrating from Auth0 to Amazon Cognito
 
-**Issue:** `/auth/login` returns 404 instead of redirecting to Auth0 Universal Login.
+**Issue (Resolved):** Auth0 SDK v4 middleware incompatible with AWS Amplify SSR adapter.
 
-**Impact:** Users cannot sign in to the staging environment. E2E testing blocked.
+**Root Cause (Confirmed Jan 28):** Fundamental version mismatch between Next.js 16 (`proxy.js`), Auth0 SDK v4 (`middleware.js` deprecated), and Amplify SSR adapter (only recognizes `middleware.js`). See [Migration Decision Memo](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md).
 
-**Root Cause:** Under investigation. Auth0 SDK v4 middleware not intercepting `/auth/*` routes despite correct configuration. See [Auth0 Troubleshooting Memo](../20260127_AUTH0_STAGING_TROUBLESHOOTING_MEMO.md) for full details.
+**Decision:** Replace Auth0 with Amazon Cognito. AWS guarantees Cognito-Amplify compatibility.
 
-**Attempted Fixes (11 builds, all unsuccessful):**
+**Attempted Fixes (22 builds over 2 days, all unsuccessful):**
 
 - Migrated from `/api/auth/*` to `/auth/*` route convention (SDK v4)
-- Renamed `middleware.js` → `proxy.js` (Next.js 16 convention)
+- Renamed `middleware.js` → `proxy.js` then back to `middleware.js`
+- Updated Auth0 Dashboard URLs to v4 convention
 - Added 27 environment variables to Amplify
-- Removed SPA rewrite rules from amplify.yml
-- Changed to static import pattern per Auth0 quickstart
+- Various middleware matcher configurations
+- Cache bypass attempts (all showed `x-nextjs-prerender: 1`)
 
-**Next Steps:** Investigate Amplify SSR adapter compatibility with Next.js 16 proxy convention.
+**Next Steps:** Implement Cognito integration (~6-8 hours). See [Migration Plan](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md#migration-plan).
 
 ---
 
@@ -45,7 +46,7 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | --- | ---------------------------------- | --------------------------- | ---------- | ---------- | ----------------- |
 | 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —                 |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —                 |
-| 3   | Auth (Auth0 Integration)           | 🔴 **BLOCKED**              | TBD        | GC + Simon | **Auth0 404**     |
+| 3   | Auth (Cognito Migration)           | 🟡 **IN PROGRESS**          | 6-8h       | GC + Simon | —                 |
 | 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —                 |
 | 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —                 |
@@ -53,12 +54,14 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | 0h (done)  | GC         | —                 |
 | 8   | **VS Code Extension (VSIX)**       | 🟡 **IN PROGRESS**          | **60-80h** | Simon      | **CRITICAL PATH** |
-| 9   | Back-End E2E Testing               | 🔴 **BLOCKED**              | 8-12h      | GC         | **3 (Auth0)**     |
+| 9   | Back-End E2E Testing               | 🟡 **UNBLOCKED**            | 8-12h      | GC         | **3 (Cognito)**   |
 | 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —                 |
-| 11  | Deployment & Launch                | 🔴 **BLOCKED**              | 4-6h       | GC + Simon | **3, 9**          |
+| 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**          |
 | 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —                 |
 
-> 🔴 **BLOCKER (Jan 27, 7:30 PM EST):** Auth0 authentication not working on staging. `/auth/login` returns 404. See [Troubleshooting Memo](../20260127_AUTH0_STAGING_TROUBLESHOOTING_MEMO.md).
+> 🔄 **DECISION (Jan 28, 10:30 AM EST):** Abandoning Auth0 for Amazon Cognito due to unfixable Amplify incompatibility. See [Migration Decision](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md).
+>
+> 🔴 **RESOLVED (Jan 28):** Auth0 authentication blocker resolved via strategic pivot to Cognito. 22 builds attempted over 2 days; root cause identified as fundamental middleware incompatibility.
 >
 > ⚠️ **UPDATE (Jan 27):** Server-side heartbeat and trial token APIs are now complete. Mouse client-side licensing implementation is in progress with 139 passing tests.
 >
@@ -155,69 +158,64 @@ npm run metrics -- --period=7d
 
 ---
 
-## 3. Auth (Auth0 Integration)
+## 3. Auth (Cognito Migration)
 
-**Status:** 🔴 **BLOCKED** — `/auth/login` returns 404 on staging  
-**Est. Hours:** TBD (debugging in progress)  
-**Documentation:** [20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md](./20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md), [Troubleshooting Memo](../20260127_AUTH0_STAGING_TROUBLESHOOTING_MEMO.md)
+**Status:** 🟡 **IN PROGRESS** — Migrating from Auth0 to Amazon Cognito  
+**Est. Hours:** 6-8h  
+**Documentation:** [Migration Decision Memo](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md), [Original Security Considerations](./20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md)
 
-### 3.0 Current Blocker (Jan 27, 2026)
+### 3.0 Migration Decision (Jan 28, 2026)
 
-🔴 **Issue:** Auth0 SDK v4 middleware not intercepting `/auth/*` routes on staging. Users clicking "Sign In" get a 404 instead of redirect to Auth0.
+🔄 **Decision:** Replace Auth0 with Amazon Cognito due to unfixable middleware incompatibility with AWS Amplify.
 
-**What Works:**
+**Root Cause:** Auth0 SDK v4 middleware incompatible with Amplify's SSR adapter. Next.js 16 prefers `proxy.js`, Auth0 SDK deprecates `middleware.js`, Amplify only recognizes `middleware.js`. 22 builds attempted over 2 days; all failed.
 
-- ✅ Protected routes redirect correctly (`/portal` → `/auth/login?returnTo=%2Fportal`)
-- ✅ Auth0 Dashboard fully configured
-- ✅ 27 environment variables set in Amplify
-- ✅ Build succeeds with `ƒ Proxy (Middleware)` output
+**See:** [Full Migration Decision Memo](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md)
 
-**What Doesn't Work:**
+### 3.1 Why Cognito?
 
-- ❌ `/auth/login` returns 404 (cached static page)
-- ❌ Auth0 SDK's `auth0.middleware(request)` not generating redirect
+| Factor | Auth0 | Cognito | Winner |
+|--------|-------|---------|--------|
+| Amplify compatibility | ❌ Broken | ✅ Native | **Cognito** |
+| Free tier | 7,500 MAUs | 50,000 MAUs | **Cognito** |
+| Cost per MAU | ~$0.07 | ~$0.0055 | **Cognito** |
+| Google login | ✅ Native | ✅ Native | Tie |
+| GitHub login | ✅ Native | ⚠️ OIDC setup | Auth0 |
+| Custom branding | ✅ Full CSS | ⚠️ Limited | Auth0 |
+| SCIM provisioning | ✅ Enterprise | ❌ Build ourselves | Auth0 |
 
-**Attempted Fixes (11 builds):**
+**Bottom Line:** Cognito wins on integration stability, which is non-negotiable. The drawbacks are solvable.
 
-1. Migrated routes from `/api/auth/*` to `/auth/*` (SDK v4 convention)
-2. Renamed `middleware.js` → `proxy.js` (Next.js 16 convention)
-3. Changed to standard `Request` type (per SDK docs for Next.js 16)
-4. Removed SPA rewrite rules from `amplify.yml`
-5. Changed to static import pattern (matches Auth0 quickstart)
-
-**See:** [Full Troubleshooting Memo](../20260127_AUTH0_STAGING_TROUBLESHOOTING_MEMO.md)
-
-### 3.1 What's Built
-
-- `src/lib/auth0.js` — Auth0 client wrapper with `auth0` singleton export
-- `src/proxy.js` — Route protection for `/portal/*` and `/admin/*` (Next.js 16 convention)
-- Auth0 tenant: `dev-vby1x2u5b7c882n5.us.auth0.com`
-
-### 3.2 Auth0 Dashboard Configuration ✅
+### 3.2 Migration Checklist
 
 | Task                                 | Status | Notes                                           |
 | ------------------------------------ | ------ | ----------------------------------------------- |
-| **Auth0 Dashboard Configuration**    |        |                                                 |
-| Create Application (Regular Web App) | ✅     | "Mouse" app with logo configured                |
-| Configure callback URLs              | ✅     | localhost + hic-ai.com + staging                |
-| Configure logout URLs                | ✅     | localhost + hic-ai.com + staging                |
-| Configure web origins (CORS)         | ✅     | localhost + hic-ai.com + staging                |
-| Enable Google social connection      | ✅     | Using Auth0 dev keys (swap for prod)            |
-| Enable GitHub social connection      | ✅     | Using Auth0 dev keys (swap for prod)            |
-| Enable refresh token rotation        | ✅     | 30-day absolute, 15-day inactivity, 10s overlap |
-| Enable Organizations (for Teams)     | ⬜     | Required for Business tier `org_roles`          |
-| Create custom namespace claims       | ⬜     | `https://hic-ai.com/org_roles` etc              |
-| **Environment Variables (Amplify)**  |        |                                                 |
-| Set `AUTH0_SECRET`                   | ✅     | Generated and set in Amplify                    |
-| Set `AUTH0_DOMAIN`                   | ✅     | `dev-vby1x2u5b7c882n5.us.auth0.com`             |
-| Set `AUTH0_CLIENT_ID`                | ✅     | `MMdXibUAwtcM7GeI4eUJRytXqFjhLu20`              |
-| Set `AUTH0_CLIENT_SECRET`            | ✅     | Set in Amplify env vars                         |
-| Set `APP_BASE_URL`                   | ✅     | `https://staging.hic-ai.com`                    |
-| **Code Integration**                 |        |                                                 |
-| Auth0 SDK v4 middleware integration  | 🔴     | Returns 404 instead of redirect                 |
-| Wire portal layout to session        | ⬜     | Blocked by auth                                 |
-| Implement role-based nav items       | ✅     | PortalSidebar.js + proxy.js                     |
-| Test login → portal flow             | 🔴     | **BLOCKED**                                     |
+| **Phase 1: Cognito Resources**       |        |                                                 |
+| Create User Pool (`hic-plg-users`)   | ⬜     | Email as username, custom attributes            |
+| Create User Pool Client              | ⬜     | Public client, PKCE, callback URLs              |
+| Configure Google social IdP          | ⬜     | Native Cognito integration                      |
+| Configure GitHub OIDC IdP            | ⬜     | Requires GitHub OAuth App + OIDC setup          |
+| Create Cognito Groups for roles      | ⬜     | `org_<id>_owner`, `org_<id>_admin`, `org_<id>_member` |
+| **Phase 2: Code Migration**          |        |                                                 |
+| Remove `@auth0/nextjs-auth0` package | ⬜     | `npm uninstall @auth0/nextjs-auth0`             |
+| Add `aws-amplify` package            | ⬜     | `npm install aws-amplify`                       |
+| Create `src/lib/cognito.js`          | ⬜     | Amplify Auth configuration                      |
+| Rewrite `src/lib/auth.js`            | ⬜     | Switch to Amplify Auth                          |
+| Simplify `src/middleware.js`         | ⬜     | Remove Auth0 middleware, use redirect logic     |
+| Create `/auth/login/page.js`         | ⬜     | Login page (hosted UI or custom)                |
+| Create `/auth/callback/page.js`      | ⬜     | OAuth callback handler                          |
+| Create `/auth/logout/route.js`       | ⬜     | Logout API route                                |
+| Update portal pages (claim namespace)| ⬜     | Change `https://hic-ai.com/` to Cognito claims  |
+| **Phase 3: Environment Variables**   |        |                                                 |
+| Remove `AUTH0_*` from Amplify        | ⬜     | 6 variables to remove                           |
+| Add `COGNITO_*` to Amplify           | ⬜     | 6 variables to add                              |
+| **Phase 4: Test & Deploy**           |        |                                                 |
+| Test locally                         | ⬜     | Login flow, protected routes, roles             |
+| Deploy to staging                    | ⬜     | Amplify build                                   |
+| E2E test on staging                  | ⬜     | Full auth flow                                  |
+| **Phase 5: Cleanup**                 |        |                                                 |
+| Delete Auth0 application             | ⬜     | Auth0 Dashboard → Applications                  |
+| Delete `src/lib/auth0.js`            | ⬜     | No longer needed                                |
 
 ### 3.3 SSO/SAML (Contact Sales)
 
