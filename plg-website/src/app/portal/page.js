@@ -24,7 +24,8 @@ import {
   EXTERNAL_URLS,
   LICENSE_STATUS_DISPLAY,
 } from "@/lib/constants";
-import { useUser, getSession } from "@/lib/cognito-provider";
+import { useUser } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 
 export default function PortalDashboardPage() {
   const router = useRouter();

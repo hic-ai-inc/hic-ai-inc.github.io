@@ -53,10 +53,7 @@ export async function GET(request) {
     const user = await getUserFromRequest();
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Look up customer by Cognito user ID first
@@ -83,14 +80,23 @@ export async function GET(request) {
 
     // Determine subscription state
     const subscriptionStatus = customer.subscriptionStatus || "none";
-    const hasActiveSubscription = ["active", "trialing"].includes(subscriptionStatus);
-    const hasExpiredSubscription = ["canceled", "past_due", "unpaid"].includes(subscriptionStatus);
+    const hasActiveSubscription = ["active", "trialing"].includes(
+      subscriptionStatus,
+    );
+    const hasExpiredSubscription = ["canceled", "past_due", "unpaid"].includes(
+      subscriptionStatus,
+    );
 
     return NextResponse.json({
-      status: hasActiveSubscription ? "active" : hasExpiredSubscription ? "expired" : "none",
+      status: hasActiveSubscription
+        ? "active"
+        : hasExpiredSubscription
+          ? "expired"
+          : "none",
       subscriptionStatus,
       hasSubscription: hasActiveSubscription,
-      shouldRedirectToCheckout: !hasActiveSubscription && !hasExpiredSubscription,
+      shouldRedirectToCheckout:
+        !hasActiveSubscription && !hasExpiredSubscription,
       accountType: customer.accountType || "individual",
       keygenLicenseId: customer.keygenLicenseId || null,
       stripeCustomerId: customer.stripeCustomerId || null,
@@ -103,7 +109,7 @@ export async function GET(request) {
     console.error("[Portal Status] Error:", error);
     return NextResponse.json(
       { error: "Failed to get portal status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

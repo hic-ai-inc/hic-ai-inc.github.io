@@ -13,10 +13,10 @@
 import { NextResponse } from "next/server";
 import { getLicensesByEmail } from "@/lib/keygen";
 import { getCustomerByEmail } from "@/lib/dynamodb";
-import { getRateLimiter } from "@/lib/rate-limit";
+import { checkRateLimit, RATE_LIMIT_PRESETS } from "@/lib/rate-limit";
 
-// Rate limit: 10 requests per minute per IP
-const rateLimiter = getRateLimiter("licenseCheck");
+// Rate limit preset (uses heartbeat: 10 requests per minute)
+const RATE_LIMIT_KEY_PREFIX = "license-check:";
 
 export async function GET(request) {
   try {
@@ -26,7 +26,7 @@ export async function GET(request) {
     if (!email) {
       return NextResponse.json(
         { error: "Email parameter is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -35,38 +35,48 @@ export async function GET(request) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: "Invalid email format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Rate limiting by IP
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || 
-               request.headers.get("x-real-ip") || 
-               "unknown";
-    
-    const rateLimitResult = rateLimiter.check(ip);
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0] ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+
+    // Rate limiting: 10 requests per minute per IP
+    const rateLimitResult = checkRateLimit(ip, {
+      windowMs: RATE_LIMIT_PRESETS.heartbeat.windowMs,
+      maxRequests: RATE_LIMIT_PRESETS.heartbeat.maxRequests,
+      keyPrefix: RATE_LIMIT_KEY_PREFIX,
+    });
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Try again later." },
-        { 
+        {
           status: 429,
           headers: {
             "X-RateLimit-Limit": String(rateLimitResult.limit),
             "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": String(rateLimitResult.resetAt),
-            "Retry-After": String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)),
-          }
-        }
+            "X-RateLimit-Reset": String(rateLimitResult.resetAt.getTime()),
+            "Retry-After": String(
+              Math.ceil((rateLimitResult.resetAt.getTime() - Date.now()) / 1000),
+            ),
+          },
+        },
       );
     }
 
     // First check our DynamoDB for customer record
     const customer = await getCustomerByEmail(email.toLowerCase());
-    
+
     if (customer && customer.keygenLicenseId) {
       // We have a stored license key - use it
-      const hasActiveSubscription = ["active", "trialing"].includes(customer.subscriptionStatus);
-      
+      const hasActiveSubscription = ["active", "trialing"].includes(
+        customer.subscriptionStatus,
+      );
+
       if (hasActiveSubscription) {
         return NextResponse.json({
           status: "active",
@@ -80,10 +90,10 @@ export async function GET(request) {
 
     // Fall back to KeyGen direct lookup by email metadata
     const licenses = await getLicensesByEmail(email);
-    
+
     // Find the first active license
     const activeLicense = licenses.find(
-      (lic) => lic.status === "ACTIVE" || lic.status === "active"
+      (lic) => lic.status === "ACTIVE" || lic.status === "active",
     );
 
     if (activeLicense) {
@@ -91,7 +101,9 @@ export async function GET(request) {
         status: "active",
         licenseKey: activeLicense.key,
         licenseId: activeLicense.id,
-        plan: activeLicense.policyId?.includes("business") ? "business" : "individual",
+        plan: activeLicense.policyId?.includes("business")
+          ? "business"
+          : "individual",
         expiresAt: activeLicense.expiresAt,
         email: email.toLowerCase(),
       });
@@ -104,7 +116,9 @@ export async function GET(request) {
         status: anyLicense.status.toLowerCase(),
         licenseKey: anyLicense.key,
         licenseId: anyLicense.id,
-        plan: anyLicense.policyId?.includes("business") ? "business" : "individual",
+        plan: anyLicense.policyId?.includes("business")
+          ? "business"
+          : "individual",
         expiresAt: anyLicense.expiresAt,
         email: email.toLowerCase(),
       });
@@ -116,12 +130,11 @@ export async function GET(request) {
       licenseKey: null,
       email: email.toLowerCase(),
     });
-
   } catch (error) {
     console.error("[License Check] Error:", error);
     return NextResponse.json(
       { error: "Failed to check license status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
