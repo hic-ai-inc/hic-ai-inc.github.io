@@ -1,16 +1,20 @@
 /**
  * Business Plan Checkout
  *
- * Checkout flow for Business plan ($35/seat/mo).
- * Supports guest checkout with optional account creation.
+ * Auth-gated checkout flow for Business plan ($35/seat/mo).
+ * Users must sign in to purchase. Free trials are available via
+ * VS Code Marketplace or npx installation.
  *
  * @see PLG User Journey - Section 2.3
  */
 
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useUser } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 import {
   Card,
   CardHeader,
@@ -20,12 +24,37 @@ import {
   Input,
   Badge,
 } from "@/components/ui";
-import { PRICING } from "@/lib/constants";
+import { PRICING, EXTERNAL_URLS } from "@/lib/constants";
 
+// Loading fallback for Suspense
+function CheckoutLoading() {
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="text-center">
+        <div className="animate-pulse">
+          <div className="h-8 bg-card-bg rounded w-64 mx-auto mb-4" />
+          <div className="h-4 bg-card-bg rounded w-48 mx-auto" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Wrapper component with Suspense
 export default function BusinessCheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutLoading />}>
+      <BusinessCheckoutContent />
+    </Suspense>
+  );
+}
+
+// Main checkout content (uses useSearchParams)
+function BusinessCheckoutContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading } = useUser();
   const [billingCycle, setBillingCycle] = useState("monthly");
-  const [email, setEmail] = useState("");
   const [seats, setSeats] = useState(1);
   const [promoCode, setPromoCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,21 +71,42 @@ export default function BusinessCheckoutPage() {
       ? (pricePerSeat * 12 - annualPricePerSeat) * seats
       : 0;
 
+  // Support returnTo for deep-linking from editor extensions
+  const returnTo = searchParams.get("returnTo");
+
+  const handleSignIn = () => {
+    // Store return URL so we come back here after auth
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("auth_returnTo", window.location.href);
+    }
+    router.push("/auth/login");
+  };
+
   const handleCheckout = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
     try {
+      // Get the current session for the auth token
+      const session = await getSession();
+      if (!session?.idToken) {
+        throw new Error("Please sign in to continue");
+      }
+
       const response = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.idToken}`,
+        },
         body: JSON.stringify({
           plan: "business",
           billingCycle,
-          email: user?.email || email,
+          email: user?.email,
           seats,
           promoCode: promoCode || undefined,
+          returnTo: returnTo || undefined,
         }),
       });
 
@@ -77,9 +127,6 @@ export default function BusinessCheckoutPage() {
   return (
     <div className="max-w-4xl mx-auto px-6">
       <div className="text-center mb-8">
-        <Badge variant="info" className="mb-4">
-          14-day free trial
-        </Badge>
         <h1 className="text-4xl font-bold text-frost-white mb-2">
           Mouse Business
         </h1>
@@ -124,14 +171,84 @@ export default function BusinessCheckoutPage() {
           </Card>
         </div>
 
-        {/* Checkout Form */}
+        {/* Checkout Form - Auth Gated */}
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>Complete Your Order</CardTitle>
+              <CardTitle>
+                {user ? "Complete Your Order" : "Sign In to Continue"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleCheckout} className="space-y-6">
+              {!user ? (
+                /* Not signed in - show auth prompt */
+                <div className="space-y-6">
+                  <p className="text-silver">
+                    Create an account or sign in to activate your team license.
+                    After purchase, you&apos;ll have instant access to your license
+                    keys and team management portal.
+                  </p>
+
+                  <div className="space-y-3">
+                    <Button onClick={handleSignIn} className="w-full" size="lg">
+                      Sign In to Continue
+                    </Button>
+                    <Button
+                      onClick={handleSignIn}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Create Account
+                    </Button>
+                  </div>
+
+                  {/* Price preview */}
+                  <div className="border-t border-card-border pt-4">
+                    <div className="flex justify-between text-silver mb-1">
+                      <span>Per seat (monthly)</span>
+                      <span>${plan.pricePerSeat}/mo</span>
+                    </div>
+                    <div className="flex justify-between text-silver">
+                      <span>Per seat (annual)</span>
+                      <span>
+                        ${plan.pricePerSeat * 10}/yr{" "}
+                        <span className="text-success text-sm">(save 17%)</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Off-ramp */}
+                  <div className="border-t border-card-border pt-4">
+                    <p className="text-sm text-slate-grey text-center mb-3">
+                      Not ready to purchase?
+                    </p>
+                    <div className="flex flex-col gap-2 text-center">
+                      <a
+                        href={EXTERNAL_URLS.marketplace}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cerulean-mist hover:underline text-sm"
+                      >
+                        Try free from VS Code Marketplace →
+                      </a>
+                      <Link
+                        href="/docs/installation"
+                        className="text-cerulean-mist hover:underline text-sm"
+                      >
+                        Or install with npx in any editor →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Signed in - show checkout form */
+                <form onSubmit={handleCheckout} className="space-y-6">
+                  {/* Signed in indicator */}
+                  <div className="p-3 bg-success/10 rounded-lg border border-success/30">
+                    <p className="text-sm text-slate-grey">Signed in as</p>
+                    <p className="text-frost-white font-medium">{user.email}</p>
+                  </div>
+
                 {/* Billing Cycle Toggle */}
                 <div>
                   <label className="block text-sm text-slate-grey mb-2">
@@ -183,25 +300,6 @@ export default function BusinessCheckoutPage() {
                   </p>
                 </div>
 
-                {/* Email (if not logged in) */}
-                {!user && !isLoading && (
-                  <Input
-                    label="Email Address"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    required
-                  />
-                )}
-
-                {user && (
-                  <div className="text-sm text-silver">
-                    Checking out as{" "}
-                    <span className="text-frost-white">{user.email}</span>
-                  </div>
-                )}
-
                 {/* Promo Code */}
                 <Input
                   label="Promo Code (optional)"
@@ -240,9 +338,7 @@ export default function BusinessCheckoutPage() {
                       </span>
                     </span>
                   </div>
-                  <p className="text-xs text-slate-grey mt-2">
-                    14-day free trial • Cancel anytime
-                  </p>
+
                 </div>
 
                 {error && (
@@ -254,28 +350,44 @@ export default function BusinessCheckoutPage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isSubmitting || (!user && !email)}
+                  disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Processing..." : "Start Free Trial"}
+                  {isSubmitting ? "Processing..." : "Activate License"}
                 </Button>
 
                 <p className="text-xs text-center text-slate-grey">
                   By continuing, you agree to our{" "}
-                  <a
+                  <Link
                     href="/terms"
                     className="text-cerulean-mist hover:underline"
                   >
                     Terms of Service
-                  </a>{" "}
+                  </Link>{" "}
                   and{" "}
-                  <a
+                  <Link
                     href="/privacy"
                     className="text-cerulean-mist hover:underline"
                   >
                     Privacy Policy
-                  </a>
+                  </Link>
                 </p>
+
+                {/* Off-ramp */}
+                <div className="border-t border-card-border pt-4 text-center">
+                  <p className="text-sm text-slate-grey mb-2">
+                    Want to try before you buy?
+                  </p>
+                  <a
+                    href={EXTERNAL_URLS.marketplace}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cerulean-mist hover:underline text-sm"
+                  >
+                    Get a free 14-day trial from the Marketplace →
+                  </a>
+                </div>
               </form>
+              )}
             </CardContent>
           </Card>
         </div>

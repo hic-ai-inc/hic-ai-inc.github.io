@@ -24,10 +24,10 @@ const tiers = [
     period: "/month",
     annualPrice: "$150/year (save $30)",
     description: "For professional developers",
-    cta: "Start Free Trial",
+    cta: "Activate License",
     ctaLink: "/checkout/individual",
     featured: true,
-    trial: "14-day free trial, no card required",
+    trial: null,
     features: [
       "All Mouse precision editing tools",
       "3 concurrent machines",
@@ -46,10 +46,10 @@ const tiers = [
     period: "/seat/month",
     annualPrice: "$350/seat/year (save $70/seat)",
     description: "For teams and power users",
-    cta: "Start Free Trial",
+    cta: "Activate License",
     ctaLink: "/checkout/business",
     featured: false,
-    trial: "14-day free trial, no card required",
+    trial: null,
     features: [
       "Everything in Individual",
       "5 concurrent machines per seat",
@@ -135,7 +135,7 @@ export default function PricingPage() {
               Simple, Transparent Pricing
             </h1>
             <p className="text-xl text-silver">
-              Start with a free trial. Upgrade when you're ready.
+              Eliminate execution slop with precision editing tools.
             </p>
           </div>
         </section>
@@ -225,6 +225,33 @@ export default function PricingPage() {
                   )}
                 </div>
               ))}
+            </div>
+
+
+            {/* Off-ramp for users not ready to purchase */}
+            <div className="text-center mt-12 p-6 rounded-lg border border-card-border bg-card-bg/50">
+              <p className="text-frost-white font-medium mb-2">
+                Not ready to purchase?
+              </p>
+              <p className="text-silver text-sm mb-4">
+                Try Mouse free for 14 days—no account or credit card required.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <a
+                  href="https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cerulean-mist hover:underline text-sm"
+                >
+                  Install from VS Code Marketplace →
+                </a>
+                <Link
+                  href="/docs/installation"
+                  className="text-cerulean-mist hover:underline text-sm"
+                >
+                  Or install with npx in any editor →
+                </Link>
+              </div>
             </div>
 
             {/* Tax note */}
