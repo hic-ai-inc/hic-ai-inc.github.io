@@ -1,5 +1,5 @@
 /**
- * Next.js Proxy for Route Protection (Next.js 16+)
+ * Next.js Middleware for Route Protection
  *
  * Protects authenticated routes:
  * - /portal/* - Customer portal (requires authentication)
@@ -7,6 +7,9 @@
  * - /admin/*  - Admin routes (requires authentication + org context)
  *
  * Dev Mode: Add ?dev=preview to bypass auth for UI preview (NODE_ENV=development only)
+ *
+ * Note: Using middleware.js (not proxy.js) for AWS Amplify compatibility.
+ * Amplify's SSR bundler only recognizes middleware.js as of Jan 2026.
  *
  * @see Security Considerations for Auth0 Integration - Section 7.1
  */
@@ -19,8 +22,7 @@ const AUTH0_NAMESPACE = "https://hic-ai.com";
 // Routes that require admin or owner role for business accounts
 const ADMIN_ONLY_ROUTES = ["/portal/billing", "/portal/team"];
 
-export async function proxy(request) {
-  // Next.js 16 proxy receives standard Request, not NextRequest
+export async function middleware(request) {
   // Get path from URL
   const url = new URL(request.url);
   const path = url.pathname;

@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.6.0  
+**Document Version:** 4.7.0  
 **Date:** January 27, 2026  
 **Owner:** General Counsel  
-**Status:** 🚀 ACTIVE — SPRINT TO LAUNCH
+**Status:** 🟡 BLOCKED — Auth0 Integration Issue on Staging
 
 ---
 
@@ -19,13 +19,33 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 
 ---
 
+## 🚨 CURRENT BLOCKER: Auth0 Authentication on Staging
+
+**Issue:** `/auth/login` returns 404 instead of redirecting to Auth0 Universal Login.
+
+**Impact:** Users cannot sign in to the staging environment. E2E testing blocked.
+
+**Root Cause:** Under investigation. Auth0 SDK v4 middleware not intercepting `/auth/*` routes despite correct configuration. See [Auth0 Troubleshooting Memo](../20260127_AUTH0_STAGING_TROUBLESHOOTING_MEMO.md) for full details.
+
+**Attempted Fixes (11 builds, all unsuccessful):**
+
+- Migrated from `/api/auth/*` to `/auth/*` route convention (SDK v4)
+- Renamed `middleware.js` → `proxy.js` (Next.js 16 convention)
+- Added 27 environment variables to Amplify
+- Removed SPA rewrite rules from amplify.yml
+- Changed to static import pattern per Auth0 quickstart
+
+**Next Steps:** Investigate Amplify SSR adapter compatibility with Next.js 16 proxy convention.
+
+---
+
 ## Master Checklist — All Workstreams
 
 | #   | Workstream                         | Status                      | Est. Hours | Owner      | Blocks            |
 | --- | ---------------------------------- | --------------------------- | ---------- | ---------- | ----------------- |
 | 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —                 |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —                 |
-| 3   | Auth (Auth0 Integration)           | ✅ **CODE COMPLETE**        | 4-6h       | GC + Simon | Env vars only     |
+| 3   | Auth (Auth0 Integration)           | 🔴 **BLOCKED**              | TBD        | GC + Simon | **Auth0 404**     |
 | 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —                 |
 | 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —                 |
@@ -33,16 +53,18 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | 0h (done)  | GC         | —                 |
 | 8   | **VS Code Extension (VSIX)**       | 🟡 **IN PROGRESS**          | **60-80h** | Simon      | **CRITICAL PATH** |
-| 9   | Back-End E2E Testing               | ⚠️ Unit tests pass (580)    | 8-12h      | GC         | 3, 7, 8           |
+| 9   | Back-End E2E Testing               | 🔴 **BLOCKED**              | 8-12h      | GC         | **3 (Auth0)**     |
 | 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —                 |
-| 11  | Deployment & Launch                | 🟡 **STAGING DEPLOYED**     | 4-6h       | GC + Simon | 7-10              |
+| 11  | Deployment & Launch                | 🔴 **BLOCKED**              | 4-6h       | GC + Simon | **3, 9**          |
 | 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —                 |
 
+> 🔴 **BLOCKER (Jan 27, 7:30 PM EST):** Auth0 authentication not working on staging. `/auth/login` returns 404. See [Troubleshooting Memo](../20260127_AUTH0_STAGING_TROUBLESHOOTING_MEMO.md).
+>
 > ⚠️ **UPDATE (Jan 27):** Server-side heartbeat and trial token APIs are now complete. Mouse client-side licensing implementation is in progress with 139 passing tests.
 >
 > 🚀 **MILESTONE (Jan 27, 4:13 PM EST):** AWS Infrastructure deployed to staging! DynamoDB table `hic-plg-staging` live, SES domain VERIFIED.
 >
-> 🚀 **MILESTONE (Jan 27, 5:54 PM EST):** PLG Website deployed to staging via AWS Amplify (Build #10)! All 24 environment variables configured. Custom domain `staging.hic-ai.com` pending DNS propagation.
+> 🚀 **MILESTONE (Jan 27, 5:54 PM EST):** PLG Website deployed to staging via AWS Amplify (Build #10)! Custom domain `staging.hic-ai.com` AVAILABLE.
 
 ---
 
@@ -135,15 +157,40 @@ npm run metrics -- --period=7d
 
 ## 3. Auth (Auth0 Integration)
 
-**Status:** ✅ Dashboard configured — Ready for E2E testing  
-**Est. Hours:** 8-12h  
-**Documentation:** [20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md](./20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md)
+**Status:** 🔴 **BLOCKED** — `/auth/login` returns 404 on staging  
+**Est. Hours:** TBD (debugging in progress)  
+**Documentation:** [20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md](./20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md), [Troubleshooting Memo](../20260127_AUTH0_STAGING_TROUBLESHOOTING_MEMO.md)
+
+### 3.0 Current Blocker (Jan 27, 2026)
+
+🔴 **Issue:** Auth0 SDK v4 middleware not intercepting `/auth/*` routes on staging. Users clicking "Sign In" get a 404 instead of redirect to Auth0.
+
+**What Works:**
+
+- ✅ Protected routes redirect correctly (`/portal` → `/auth/login?returnTo=%2Fportal`)
+- ✅ Auth0 Dashboard fully configured
+- ✅ 27 environment variables set in Amplify
+- ✅ Build succeeds with `ƒ Proxy (Middleware)` output
+
+**What Doesn't Work:**
+
+- ❌ `/auth/login` returns 404 (cached static page)
+- ❌ Auth0 SDK's `auth0.middleware(request)` not generating redirect
+
+**Attempted Fixes (11 builds):**
+
+1. Migrated routes from `/api/auth/*` to `/auth/*` (SDK v4 convention)
+2. Renamed `middleware.js` → `proxy.js` (Next.js 16 convention)
+3. Changed to standard `Request` type (per SDK docs for Next.js 16)
+4. Removed SPA rewrite rules from `amplify.yml`
+5. Changed to static import pattern (matches Auth0 quickstart)
+
+**See:** [Full Troubleshooting Memo](../20260127_AUTH0_STAGING_TROUBLESHOOTING_MEMO.md)
 
 ### 3.1 What's Built
 
-- `src/lib/auth.js` — Role-based auth helpers (`requireAuth`, `requireAdmin`, `requireBillingContact`)
-- `src/middleware.js` — Route protection for `/portal/*` and `/admin/*`
-- `/api/auth/[auth0]/route.js` — Auth0 login/logout routes
+- `src/lib/auth0.js` — Auth0 client wrapper with `auth0` singleton export
+- `src/proxy.js` — Route protection for `/portal/*` and `/admin/*` (Next.js 16 convention)
 - Auth0 tenant: `dev-vby1x2u5b7c882n5.us.auth0.com`
 
 ### 3.2 Auth0 Dashboard Configuration ✅
@@ -160,17 +207,17 @@ npm run metrics -- --period=7d
 | Enable refresh token rotation        | ✅     | 30-day absolute, 15-day inactivity, 10s overlap |
 | Enable Organizations (for Teams)     | ⬜     | Required for Business tier `org_roles`          |
 | Create custom namespace claims       | ⬜     | `https://hic-ai.com/org_roles` etc              |
-| **Environment Variables**            |        |                                                 |
+| **Environment Variables (Amplify)**  |        |                                                 |
 | Set `AUTH0_SECRET`                   | ✅     | Generated and set in Amplify                    |
-| Set `AUTH0_BASE_URL`                 | ✅     | `https://staging.hic-ai.com` (staging)          |
-| Set `AUTH0_ISSUER_BASE_URL`          | ✅     | `https://dev-vby1x2u5b7c882n5.us.auth0.com`     |
+| Set `AUTH0_DOMAIN`                   | ✅     | `dev-vby1x2u5b7c882n5.us.auth0.com`             |
 | Set `AUTH0_CLIENT_ID`                | ✅     | `MMdXibUAwtcM7GeI4eUJRytXqFjhLu20`              |
 | Set `AUTH0_CLIENT_SECRET`            | ✅     | Set in Amplify env vars                         |
+| Set `APP_BASE_URL`                   | ✅     | `https://staging.hic-ai.com`                    |
 | **Code Integration**                 |        |                                                 |
-| Add Auth0 login/logout routes        | ✅     | `/api/auth/[auth0]/route.js`                    |
-| Wire portal layout to session        | ⬜     | Show user info in nav                           |
-| Implement role-based nav items       | ✅     | PortalSidebar.js + middleware.js                |
-| Test login → portal flow             | ⬜     | E2E verification                                |
+| Auth0 SDK v4 middleware integration  | 🔴     | Returns 404 instead of redirect                 |
+| Wire portal layout to session        | ⬜     | Blocked by auth                                 |
+| Implement role-based nav items       | ✅     | PortalSidebar.js + proxy.js                     |
+| Test login → portal flow             | 🔴     | **BLOCKED**                                     |
 
 ### 3.3 SSO/SAML (Contact Sales)
 
