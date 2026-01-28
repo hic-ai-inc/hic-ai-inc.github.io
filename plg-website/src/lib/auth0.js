@@ -13,8 +13,14 @@ import { Auth0Client } from "@auth0/nextjs-auth0/server";
 /**
  * Auth0 client instance - exported directly per Auth0 SDK v4 conventions
  * The SDK reads env vars at construction time (AUTH0_DOMAIN, AUTH0_CLIENT_ID, etc.)
+ *
+ * Configuration:
+ * - signInReturnToPath: Redirect to /portal after successful login (not homepage)
+ * - Users land in their dashboard where they can manage subscriptions
  */
-export const auth0 = new Auth0Client();
+export const auth0 = new Auth0Client({
+  signInReturnToPath: "/portal",
+});
 
 /**
  * Get the current Auth0 client (for backwards compatibility)
