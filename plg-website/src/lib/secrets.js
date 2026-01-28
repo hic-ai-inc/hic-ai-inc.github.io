@@ -35,6 +35,7 @@ const ENVIRONMENT = process.env.NEXT_PUBLIC_APP_URL?.includes("staging")
 const SECRET_PATHS = {
   stripe: `plg/${ENVIRONMENT}/stripe`,
   keygen: `plg/${ENVIRONMENT}/keygen`,
+  app: `plg/${ENVIRONMENT}/app`,
 };
 
 // Cache TTL: 5 minutes (secrets rarely change, but we want eventual consistency)
@@ -197,6 +198,36 @@ export async function getKeygenSecrets() {
     return {
       KEYGEN_PRODUCT_TOKEN: process.env.KEYGEN_PRODUCT_TOKEN,
     };
+  }
+}
+
+/**
+ * Get application secrets (trial token signing, etc.)
+ *
+ * Falls back to environment variables for local development.
+ *
+ * @returns {Promise<{TRIAL_TOKEN_SECRET: string}>}
+ */
+export async function getAppSecrets() {
+  // Local development fallback
+  if (process.env.NODE_ENV === "development") {
+    return {
+      TRIAL_TOKEN_SECRET:
+        process.env.TRIAL_TOKEN_SECRET ||
+        "dev-trial-secret-for-local-development-only",
+    };
+  }
+
+  // Production/staging: fetch from Secrets Manager
+  try {
+    const secrets = await getSecret(SECRET_PATHS.app);
+    return {
+      TRIAL_TOKEN_SECRET: secrets.TRIAL_TOKEN_SECRET,
+    };
+  } catch (error) {
+    // Emergency fallback - log error but don't expose in production
+    console.error("CRITICAL: Unable to fetch app secrets from Secrets Manager");
+    throw new Error("Application secrets unavailable");
   }
 }
 

@@ -12,10 +12,13 @@
 
 // HIC DM Layer imports - centralized dependency management
 import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
+import { getKeygenSecrets } from "./secrets.js";
 
 const KEYGEN_ACCOUNT_ID = process.env.KEYGEN_ACCOUNT_ID;
-const KEYGEN_PRODUCT_TOKEN = process.env.KEYGEN_PRODUCT_TOKEN;
 const KEYGEN_API_URL = `https://api.keygen.sh/v1/accounts/${KEYGEN_ACCOUNT_ID}`;
+
+// Cached token from Secrets Manager
+let cachedProductToken = null;
 
 // Policy IDs (configured in Keygen dashboard)
 export const KEYGEN_POLICIES = {
@@ -59,12 +62,18 @@ async function keygenRequest(endpoint, options = {}) {
   const log = new HicLog("plg-keygen");
   const url = `${KEYGEN_API_URL}${endpoint}`;
 
+  // Fetch product token from Secrets Manager (cached after first call)
+  if (!cachedProductToken) {
+    const secrets = await getKeygenSecrets();
+    cachedProductToken = secrets.KEYGEN_PRODUCT_TOKEN;
+  }
+
   log.logAWSCall("Keygen", endpoint.split("/")[1] || "request", { endpoint });
 
   const response = await fetch(url, {
     ...options,
     headers: {
-      Authorization: `Bearer ${KEYGEN_PRODUCT_TOKEN}`,
+      Authorization: `Bearer ${cachedProductToken}`,
       "Content-Type": "application/vnd.api+json",
       Accept: "application/vnd.api+json",
       ...options.headers,

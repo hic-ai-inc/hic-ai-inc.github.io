@@ -23,15 +23,14 @@ import {
   getRateLimitHeaders,
   RATE_LIMIT_PRESETS,
 } from "@/lib/rate-limit";
+import { getAppSecrets } from "@/lib/secrets";
 
 // Trial configuration
 const TRIAL_DURATION_DAYS = 14;
 const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
-// HMAC secret for signing trial tokens
-// In production, this should be in environment variables or AWS Secrets Manager
-const TRIAL_SECRET =
-  process.env.TRIAL_TOKEN_SECRET || "dev-trial-secret-change-in-production";
+// HMAC secret fetched from AWS Secrets Manager at runtime
+let cachedTrialSecret = null;
 
 /**
  * Validate fingerprint format
@@ -57,12 +56,26 @@ function validateFingerprint(fingerprint) {
 }
 
 /**
+ * Get the trial token secret (cached after first fetch)
+ */
+async function getTrialSecret() {
+  if (!cachedTrialSecret) {
+    const secrets = await getAppSecrets();
+    cachedTrialSecret = secrets.TRIAL_TOKEN_SECRET;
+  }
+  return cachedTrialSecret;
+}
+
+/**
  * Generate HMAC-SHA256 signed trial token
  *
  * Token format: base64url(payload).base64url(signature)
  * Payload contains: type, fingerprint, issuedAt, expiresAt
+ *
+ * @param {string} fingerprint - Machine fingerprint
+ * @param {string} secret - HMAC signing secret
  */
-function generateTrialToken(fingerprint) {
+function generateTrialToken(fingerprint, secret) {
   const issuedAt = Date.now();
   const expiresAt = issuedAt + TRIAL_DURATION_MS;
 
@@ -77,7 +90,7 @@ function generateTrialToken(fingerprint) {
   const payloadB64 = Buffer.from(payloadStr).toString("base64url");
 
   // HMAC-SHA256 signature
-  const hmac = crypto.createHmac("sha256", TRIAL_SECRET);
+  const hmac = crypto.createHmac("sha256", secret);
   hmac.update(payloadStr);
   const signature = hmac.digest("base64url");
 
@@ -212,8 +225,12 @@ export async function POST(request) {
       );
     }
 
-    // Generate new trial token
-    const { token, expiresAt, issuedAt } = generateTrialToken(fingerprint);
+    // Generate new trial token (secret fetched from AWS Secrets Manager)
+    const trialSecret = await getTrialSecret();
+    const { token, expiresAt, issuedAt } = generateTrialToken(
+      fingerprint,
+      trialSecret,
+    );
 
     // Store in database
     await createTrial({
