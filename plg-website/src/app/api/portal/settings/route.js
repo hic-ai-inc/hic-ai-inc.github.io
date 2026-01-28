@@ -10,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getCustomerByAuth0Id, upsertCustomer } from "@/lib/dynamodb";
+import { getCustomerByAuth0Id, upsertCustomer, updateCustomerProfile } from "@/lib/dynamodb";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 
 // Create Cognito JWT verifier (lazily initialized)
@@ -162,17 +162,9 @@ export async function PATCH(request) {
       };
     }
 
-    // Apply updates
+    // Apply updates using UpdateCommand (preserves existing fields)
     if (Object.keys(updates).length > 0) {
-      await upsertCustomer({
-        auth0Id: user.sub,
-        email: customer.email || user.email,
-        stripeCustomerId: customer.stripeCustomerId,
-        keygenLicenseId: customer.keygenLicenseId,
-        accountType: customer.accountType || "individual",
-        subscriptionStatus: customer.subscriptionStatus || "none",
-        metadata: updates,
-      });
+      await updateCustomerProfile(user.sub, updates);
     }
 
     return NextResponse.json({

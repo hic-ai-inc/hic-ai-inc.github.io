@@ -163,7 +163,7 @@ export async function updateCustomerSubscription(auth0Id, updates) {
     new UpdateCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `USER#${userId}`,
+        PK: `USER#${auth0Id}`,
         SK: "PROFILE",
       },
       UpdateExpression: `SET ${updateExpressions.join(", ")}`,
@@ -171,6 +171,54 @@ export async function updateCustomerSubscription(auth0Id, updates) {
       ExpressionAttributeNames: expressionNames,
     }),
   );
+}
+
+/**
+ * Update customer profile fields (name, notification preferences, etc.)
+ * Uses UpdateCommand to only modify specified fields without overwriting others.
+ * 
+ * @param {string} userId - The user's sub claim from the identity provider
+ * @param {Object} updates - Fields to update (e.g., { name, notificationPreferences })
+ * @returns {Promise<Object>} Updated attributes
+ */
+export async function updateCustomerProfile(userId, updates) {
+  const logger = createLogger("updateCustomerProfile");
+  const updateExpressions = [];
+  const expressionValues = {};
+  const expressionNames = {};
+
+  // Build update expression from provided fields
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value !== undefined) {
+      updateExpressions.push(`#${key} = :${key}`);
+      expressionValues[`:${key}`] = value;
+      expressionNames[`#${key}`] = key;
+    }
+  });
+
+  // Always update timestamp
+  updateExpressions.push("#updatedAt = :updatedAt");
+  expressionValues[":updatedAt"] = new Date().toISOString();
+  expressionNames["#updatedAt"] = "updatedAt";
+
+  logger.info("Updating customer profile", { userId, fields: Object.keys(updates) });
+
+  const result = await dynamodb.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: "PROFILE",
+      },
+      UpdateExpression: `SET ${updateExpressions.join(", ")}`,
+      ExpressionAttributeValues: expressionValues,
+      ExpressionAttributeNames: expressionNames,
+      ReturnValues: "ALL_NEW",
+    }),
+  );
+
+  logger.info("Customer profile updated", { userId });
+  return result.Attributes;
 }
 
 // ===========================================
