@@ -6,7 +6,8 @@
  * @see PLG User Journey - Section 2.6
  */
 
-import { getSession } from "@/lib/auth";
+"use client";
+
 import {
   Card,
   CardHeader,
@@ -16,17 +17,26 @@ import {
   Button,
 } from "@/components/ui";
 import { AUTH0_NAMESPACE, LICENSE_STATUS_DISPLAY } from "@/lib/constants";
+import { useUser } from "@/lib/cognito-provider";
 import CopyLicenseButton from "./CopyLicenseButton";
 
-export const metadata = {
-  title: "License",
-};
+export default function LicensePage() {
+  const { user, isLoading } = useUser();
 
-export default async function LicensePage() {
-  const session = await getSession();
-  const user = session.user;
+  if (isLoading || !user) {
+    return (
+      <div className="max-w-4xl">
+        <div className="animate-pulse">
+          <div className="h-8 bg-card-bg rounded w-48 mb-4"></div>
+          <div className="h-4 bg-card-bg rounded w-80 mb-8"></div>
+          <div className="h-48 bg-card-bg rounded-lg mb-6"></div>
+          <div className="h-48 bg-card-bg rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
+
   const namespace = AUTH0_NAMESPACE;
-
   const licenseKey = user[`${namespace}/license_key`] || "XXXX-XXXX-XXXX-XXXX";
   const licenseStatus = user[`${namespace}/license_status`] || "ACTIVE";
   const accountType = user[`${namespace}/account_type`] || "individual";
@@ -35,7 +45,6 @@ export default async function LicensePage() {
   const statusDisplay =
     LICENSE_STATUS_DISPLAY[licenseStatus] || LICENSE_STATUS_DISPLAY.ACTIVE;
 
-  return (
     <div className="max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-frost-white">License</h1>

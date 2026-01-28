@@ -7,25 +7,42 @@
  * @see PLG Pricing v4 - Business tier includes team management
  */
 
-import { getSession } from "@/lib/auth";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AUTH0_NAMESPACE } from "@/lib/constants";
+import { useUser } from "@/lib/cognito-provider";
 import TeamManagement from "./TeamManagement";
 
-export const metadata = {
-  title: "Team",
-};
-
-export default async function TeamPage() {
-  const session = await getSession();
-  const user = session.user;
+export default function TeamPage() {
+  const { user, isLoading } = useUser();
+  const router = useRouter();
   const namespace = AUTH0_NAMESPACE;
 
-  const accountType = user[`${namespace}/account_type`];
+  const accountType = user?.[`${namespace}/account_type`];
 
-  // Redirect non-business users (per v4 pricing: only business has team features)
+  useEffect(() => {
+    // Redirect non-business users (per v4 pricing: only business has team features)
+    if (!isLoading && user && accountType !== "business") {
+      router.push("/portal");
+    }
+  }, [isLoading, user, accountType, router]);
+
+  if (isLoading || !user) {
+    return (
+      <div className="max-w-5xl">
+        <div className="animate-pulse">
+          <div className="h-8 bg-card-bg rounded w-48 mb-4"></div>
+          <div className="h-64 bg-card-bg rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render for non-business (redirect will happen)
   if (accountType !== "business") {
-    redirect("/portal");
+    return null;
   }
 
   return (
@@ -34,3 +51,4 @@ export default async function TeamPage() {
     </div>
   );
 }
+
