@@ -185,10 +185,13 @@ export const EXTERNAL_URLS = {
 };
 
 // ===========================================
-// AUTH0 NAMESPACE
+// IDENTITY NAMESPACE (for custom claims in JWT tokens)
 // ===========================================
+// Used in both Auth0 and Cognito for custom user attributes
 
-export const AUTH0_NAMESPACE = "https://hic-ai.com";
+export const AUTH_NAMESPACE = "https://hic-ai.com";
+export const AUTH0_NAMESPACE = AUTH_NAMESPACE; // Backward compatibility alias
+export const COGNITO_NAMESPACE = AUTH_NAMESPACE; // For new Cognito code
 
 // ===========================================
 // APP METADATA

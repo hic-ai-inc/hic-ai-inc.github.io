@@ -10,7 +10,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useUser } from "@auth0/nextjs-auth0/client";
+import { useUser } from "@/lib/cognito-provider";
 import {
   PORTAL_NAV,
   PORTAL_NAV_BUSINESS,

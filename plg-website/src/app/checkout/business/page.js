@@ -10,7 +10,7 @@
 "use client";
 
 import { useState } from "react";
-import { useUser } from "@auth0/nextjs-auth0/client";
+import { useUser } from "@/lib/cognito-provider";
 import {
   Card,
   CardHeader,

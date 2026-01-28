@@ -6,20 +6,16 @@
  * - Role-based access control
  * - Permission enforcement
  *
- * Dev Mode: Returns mock session when Auth0 is not configured (development only)
+ * Dev Mode: Returns mock session when Cognito is not configured (development only)
  *
- * @see Security Considerations for Auth0 Integration - Section 6.3
+ * @see docs/20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md
  */
 
-import { Auth0Client } from "@auth0/nextjs-auth0/server";
+import {
+  getSession as getCognitoSession,
+  isCognitoConfigured,
+} from "./cognito.js";
 // Note: next/headers is dynamically imported to support testing outside Next.js runtime
-
-// Check if Auth0 is configured
-const isAuth0Configured = !!(
-  process.env.AUTH0_SECRET &&
-  process.env.AUTH0_CLIENT_ID &&
-  process.env.AUTH0_CLIENT_SECRET
-);
 
 // Dev role configurations for testing all 5 user journeys
 // Use URL param ?role=individual|business_solo|business_member|business_admin|business_owner
@@ -66,7 +62,7 @@ function getDevMockSession(role = "business_owner") {
 
   return {
     user: {
-      sub: `auth0|dev-preview-${role}`,
+      sub: `cognito|dev-preview-${role}`,
       email: `${role.replace("_", "-")}@example.com`,
       name: config.name,
       picture: null,
@@ -79,20 +75,14 @@ function getDevMockSession(role = "business_owner") {
   };
 }
 
-// Auth0 v4 client instance (only create if configured)
-let auth0 = null;
-if (isAuth0Configured) {
-  auth0 = new Auth0Client();
-}
-
 /**
  * Get current session
- * Returns mock session in development when Auth0 is not configured
+ * Returns mock session in development when Cognito is not configured
  * Dev mode: Use ?role=individual|business_solo|business_member|business_admin|business_owner
  */
 export const getSession = async () => {
-  // In development without Auth0 configured, return mock session
-  if (process.env.NODE_ENV === "development" && !isAuth0Configured) {
+  // In development without Cognito configured, return mock session
+  if (process.env.NODE_ENV === "development" && !isCognitoConfigured) {
     // Read role from URL via referer header (works for server components)
     let role = "business_owner";
     try {
@@ -109,22 +99,22 @@ export const getSession = async () => {
       // Ignore header parsing errors (also handles missing next/headers in test env)
     }
     console.log(
-      `[DEV] Auth0 not configured, using mock session for role: ${role}`,
+      `[DEV] Cognito not configured, using mock session for role: ${role}`,
     );
     return getDevMockSession(role);
   }
 
-  if (!auth0) {
-    console.warn("[Auth] Auth0 not configured");
+  if (!isCognitoConfigured) {
+    console.warn("[Auth] Cognito not configured");
     return null;
   }
 
   try {
-    return await auth0.getSession();
+    return await getCognitoSession();
   } catch (error) {
     // In development, return mock on error
     if (process.env.NODE_ENV === "development") {
-      console.log("[DEV] Auth0 error, returning mock session:", error.message);
+      console.log("[DEV] Cognito error, returning mock session:", error.message);
       return getDevMockSession("business_owner");
     }
     throw error;
@@ -202,7 +192,7 @@ export async function requireMember() {
 
 /**
  * Get user's customer ID from session
- * @param {Object} session - Auth0 session
+ * @param {Object} session - Cognito session
  * @returns {string|null} Customer ID
  */
 export function getCustomerId(session) {
@@ -211,7 +201,7 @@ export function getCustomerId(session) {
 
 /**
  * Get user's organization ID from session
- * @param {Object} session - Auth0 session
+ * @param {Object} session - Cognito session
  * @returns {string|null} Organization ID
  */
 export function getOrgId(session) {
@@ -220,7 +210,7 @@ export function getOrgId(session) {
 
 /**
  * Get user's account type from session
- * @param {Object} session - Auth0 session
+ * @param {Object} session - Cognito session
  * @returns {string|null} Account type (individual, enterprise, oss)
  */
 export function getAccountType(session) {
@@ -229,7 +219,7 @@ export function getAccountType(session) {
 
 /**
  * Check if user is a billing contact
- * @param {Object} session - Auth0 session
+ * @param {Object} session - Cognito session
  * @returns {boolean}
  */
 export function isBillingContact(session) {
@@ -239,7 +229,7 @@ export function isBillingContact(session) {
 
 /**
  * Check if user is an admin (billing contact or admin)
- * @param {Object} session - Auth0 session
+ * @param {Object} session - Cognito session
  * @returns {boolean}
  */
 export function isAdmin(session) {

@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useUser } from "@auth0/nextjs-auth0/client";
+import { useUser } from "@/lib/cognito-provider";
 import { NAV_LINKS, EXTERNAL_URLS } from "@/lib/constants";
 import Button from "@/components/ui/Button";
 

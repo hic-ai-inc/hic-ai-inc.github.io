@@ -42,20 +42,24 @@ const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || "hic-plg-production";
 // ===========================================
 
 /**
- * Get customer by Auth0 user ID
+ * Get customer by identity provider user ID (Auth0 or Cognito sub)
+ * @param {string} userId - The user's sub claim from the identity provider
  */
-export async function getCustomerByAuth0Id(auth0Id) {
+export async function getCustomerByUserId(userId) {
   const result = await dynamodb.send(
     new GetCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `USER#${auth0Id}`,
+        PK: `USER#${userId}`,
         SK: "PROFILE",
       },
     }),
   );
   return result.Item;
 }
+
+// Backward compatibility alias (deprecated, use getCustomerByUserId)
+export const getCustomerByAuth0Id = getCustomerByUserId;
 
 /**
  * Get customer by Stripe customer ID
@@ -122,7 +126,7 @@ export async function upsertCustomer({
   };
 
   // Check if exists to preserve createdAt
-  const existing = await getCustomerByAuth0Id(auth0Id);
+  const existing = await getCustomerByUserId(auth0Id);
   if (!existing) {
     item.createdAt = now;
   }
@@ -159,7 +163,7 @@ export async function updateCustomerSubscription(auth0Id, updates) {
     new UpdateCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `USER#${auth0Id}`,
+        PK: `USER#${userId}`,
         SK: "PROFILE",
       },
       UpdateExpression: `SET ${updateExpressions.join(", ")}`,
