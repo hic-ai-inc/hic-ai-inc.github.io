@@ -231,10 +231,11 @@ export async function logout(global = true) {
       // Redirect to Cognito logout endpoint to clear hosted UI session cookies
       // This is necessary because Amplify signOut doesn't clear the Cognito
       // hosted UI session, which causes auto-login on next visit
-      // NOTE: Cognito hosted UI uses logout_uri (not redirect_uri)
+      // Use RP-initiated logout with redirect_uri and response_type
       const logoutUrl = new URL(`https://${cognitoConfig.domain}/logout`);
       logoutUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
-      logoutUrl.searchParams.set("logout_uri", `${cognitoConfig.appUrl}/`);
+      logoutUrl.searchParams.set("redirect_uri", `${cognitoConfig.appUrl}/`);
+      logoutUrl.searchParams.set("response_type", "code");
 
       window.location.href = logoutUrl.toString();
     }
@@ -244,7 +245,8 @@ export async function logout(global = true) {
     if (typeof window !== "undefined") {
       const logoutUrl = new URL(`https://${cognitoConfig.domain}/logout`);
       logoutUrl.searchParams.set("client_id", cognitoConfig.userPoolClientId);
-      logoutUrl.searchParams.set("logout_uri", `${cognitoConfig.appUrl}/`);
+      logoutUrl.searchParams.set("redirect_uri", `${cognitoConfig.appUrl}/`);
+      logoutUrl.searchParams.set("response_type", "code");
       window.location.href = logoutUrl.toString();
     }
   }

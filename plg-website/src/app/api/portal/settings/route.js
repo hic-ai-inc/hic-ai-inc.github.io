@@ -107,13 +107,18 @@ export async function PATCH(request) {
     const body = await request.json();
     const { name, notifications } = body;
 
-    // Get existing customer
-    const customer = await getCustomerByAuth0Id(user.sub);
+    // Get existing customer or create one if doesn't exist
+    let customer = await getCustomerByAuth0Id(user.sub);
+    
+    // If customer doesn't exist, create a new record
+    // This happens for new users who haven't purchased yet
     if (!customer) {
-      return NextResponse.json(
-        { error: "Customer not found" },
-        { status: 404 },
-      );
+      customer = await upsertCustomer({
+        auth0Id: user.sub,
+        email: user.email,
+        accountType: "individual",
+        subscriptionStatus: "none",
+      });
     }
 
     // Build update object
@@ -160,12 +165,12 @@ export async function PATCH(request) {
     // Apply updates
     if (Object.keys(updates).length > 0) {
       await upsertCustomer({
-        auth0Id: session.user.sub,
-        email: customer.email,
+        auth0Id: user.sub,
+        email: customer.email || user.email,
         stripeCustomerId: customer.stripeCustomerId,
         keygenLicenseId: customer.keygenLicenseId,
-        accountType: customer.accountType,
-        subscriptionStatus: customer.subscriptionStatus,
+        accountType: customer.accountType || "individual",
+        subscriptionStatus: customer.subscriptionStatus || "none",
         metadata: updates,
       });
     }
