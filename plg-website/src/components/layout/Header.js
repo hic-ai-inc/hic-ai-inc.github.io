@@ -8,12 +8,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useUser } from "@/lib/cognito-provider";
+import { useAuth } from "@/lib/cognito-provider";
 import { NAV_LINKS, EXTERNAL_URLS } from "@/lib/constants";
 import Button from "@/components/ui/Button";
 
 export default function Header() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading, logout } = useAuth();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-midnight-navy/80 backdrop-blur-md border-b border-card-border">
@@ -63,9 +63,17 @@ export default function Header() {
           {/* Auth Buttons - Show default (logged out) state immediately, no loading flicker */}
           <div className="flex items-center gap-4">
             {!isLoading && user ? (
-              <Button href="/portal" variant="primary" size="sm">
-                Portal
-              </Button>
+              <>
+                <Button href="/portal" variant="primary" size="sm">
+                  Portal
+                </Button>
+                <button
+                  onClick={logout}
+                  className="text-silver hover:text-frost-white transition-colors text-sm font-medium"
+                >
+                  Sign Out
+                </button>
+              </>
             ) : (
               <>
                 <Link

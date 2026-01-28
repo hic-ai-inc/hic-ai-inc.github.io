@@ -24,7 +24,7 @@ set -e
 # ============================================
 AWS_REGION="us-east-1"
 USER_POOL_ID="${COGNITO_USER_POOL_ID:-us-east-1_MDTi26EOf}"
-CLIENT_ID="${COGNITO_CLIENT_ID:-4a9etnr30ovab9k3np3u0mb4b2}"
+CLIENT_ID="${COGNITO_CLIENT_ID:-5tta8lcn3u3cvc956s8tcc0b7}"
 COGNITO_DOMAIN="${COGNITO_DOMAIN:-mouse-staging.auth.us-east-1.amazoncognito.com}"
 APP_URL="${APP_URL:-https://staging.hic-ai.com}"
 

@@ -593,25 +593,25 @@ export default function FeaturesPage() {
                 </h3>
                 <div className="space-y-4 text-sm">
                   <div>
-                    <p className="text-electric-cyan font-medium mb-1">
+                    <p className="text-cerulean-mist font-medium mb-1">
                       Anthropic
                     </p>
                     <p className="text-silver">All Claude models (4.0+)</p>
                   </div>
                   <div>
-                    <p className="text-electric-cyan font-medium mb-1">
+                    <p className="text-cerulean-mist font-medium mb-1">
                       Google
                     </p>
                     <p className="text-silver">All Gemini models (2.5+)</p>
                   </div>
                   <div>
-                    <p className="text-electric-cyan font-medium mb-1">
+                    <p className="text-cerulean-mist font-medium mb-1">
                       OpenAI
                     </p>
                     <p className="text-silver">All GPT models (4o+)</p>
                   </div>
                   <div>
-                    <p className="text-electric-cyan font-medium mb-1">Other</p>
+                    <p className="text-cerulean-mist font-medium mb-1">Other</p>
                     <p className="text-silver">Raptor mini</p>
                   </div>
                 </div>

@@ -157,6 +157,7 @@ export function useUser() {
   return {
     user: context.user,
     isLoading: context.isLoading,
+    isAuthenticated: context.isAuthenticated,
     error: context.error,
   };
 }

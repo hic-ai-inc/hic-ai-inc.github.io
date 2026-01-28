@@ -2,14 +2,14 @@
 # Generated: Wed, Jan 28, 2026 10:12:25 AM
 
 USER_POOL_ID=us-east-1_MDTi26EOf
-CLIENT_ID=4a9etnr30ovab9k3np3u0mb4b2
-CLIENT_SECRET=ithompigbhb6mg5bc80t0i0khgoo8nlt6kppfj3mpse75k3n486
+CLIENT_ID=5tta8lcn3u3cvc956s8tcc0b7
+# No client secret - this is a public PKCE client
 COGNITO_DOMAIN=mouse-staging.auth.us-east-1.amazoncognito.com
 APP_URL=https://staging.hic-ai.com
 AWS_REGION=us-east-1
 
 # For .env.local:
 NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_MDTi26EOf
-NEXT_PUBLIC_COGNITO_CLIENT_ID=4a9etnr30ovab9k3np3u0mb4b2
+NEXT_PUBLIC_COGNITO_CLIENT_ID=5tta8lcn3u3cvc956s8tcc0b7
 NEXT_PUBLIC_COGNITO_DOMAIN=mouse-staging.auth.us-east-1.amazoncognito.com
 NEXT_PUBLIC_APP_URL=https://staging.hic-ai.com

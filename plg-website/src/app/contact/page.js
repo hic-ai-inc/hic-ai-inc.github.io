@@ -163,7 +163,7 @@ export default function ContactPage() {
               aria-label="Contact summary"
               className="bg-slate-grey/10 rounded-lg p-6 text-left border border-slate-grey/30"
             >
-              <h2 className="text-lg font-semibold text-electric-cyan mb-3">
+              <h2 className="text-lg font-semibold text-cerulean-mist mb-3">
                 Quick Contact Reference
               </h2>
               <ul className="space-y-2 text-silver-mist text-sm">
@@ -171,7 +171,7 @@ export default function ContactPage() {
                   <strong className="text-frost-white">Sales:</strong>{" "}
                   <a
                     href="mailto:sales@hic-ai.com"
-                    className="text-electric-cyan hover:underline"
+                    className="text-cerulean-mist hover:underline"
                   >
                     sales@hic-ai.com
                   </a>{" "}
@@ -181,7 +181,7 @@ export default function ContactPage() {
                   <strong className="text-frost-white">Billing:</strong>{" "}
                   <a
                     href="mailto:billing@hic-ai.com"
-                    className="text-electric-cyan hover:underline"
+                    className="text-cerulean-mist hover:underline"
                   >
                     billing@hic-ai.com
                   </a>{" "}
@@ -191,7 +191,7 @@ export default function ContactPage() {
                   <strong className="text-frost-white">General:</strong>{" "}
                   <a
                     href="mailto:info@hic-ai.com"
-                    className="text-electric-cyan hover:underline"
+                    className="text-cerulean-mist hover:underline"
                   >
                     info@hic-ai.com
                   </a>{" "}
@@ -201,7 +201,7 @@ export default function ContactPage() {
                   <strong className="text-frost-white">Legal:</strong>{" "}
                   <a
                     href="mailto:legal@hic-ai.com"
-                    className="text-electric-cyan hover:underline"
+                    className="text-cerulean-mist hover:underline"
                   >
                     legal@hic-ai.com
                   </a>{" "}
@@ -211,7 +211,7 @@ export default function ContactPage() {
                   <strong className="text-frost-white">Privacy:</strong>{" "}
                   <a
                     href="mailto:privacy@hic-ai.com"
-                    className="text-electric-cyan hover:underline"
+                    className="text-cerulean-mist hover:underline"
                   >
                     privacy@hic-ai.com
                   </a>{" "}
@@ -260,7 +260,7 @@ export default function ContactPage() {
                       </h3>
                       <a
                         href={`mailto:${channel.email}`}
-                        className="text-electric-cyan hover:underline font-mono text-sm"
+                        className="text-cerulean-mist hover:underline font-mono text-sm"
                       >
                         {channel.email}
                       </a>
@@ -277,7 +277,7 @@ export default function ContactPage() {
                         <ul className="text-xs text-silver-mist/80 space-y-1">
                           {channel.bestFor.map((item, idx) => (
                             <li key={idx} className="flex items-center gap-2">
-                              <span className="text-electric-cyan">•</span>
+                              <span className="text-cerulean-mist">•</span>
                               {item}
                             </li>
                           ))}
@@ -336,7 +336,7 @@ export default function ContactPage() {
                           href={channel.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-electric-cyan hover:underline text-sm font-medium"
+                          className="inline-flex items-center gap-2 text-cerulean-mist hover:underline text-sm font-medium"
                         >
                           {channel.cta}
                           <span aria-hidden="true">→</span>
@@ -360,7 +360,7 @@ export default function ContactPage() {
           className="px-6 py-16 border-b border-slate-grey/20"
         >
           <div className="max-w-4xl mx-auto">
-            <div className="bg-gradient-to-r from-electric-cyan/10 to-electric-cyan/5 rounded-lg p-8 border border-electric-cyan/30">
+            <div className="bg-gradient-to-r from-cerulean-mist/10 to-cerulean-mist/5 rounded-lg p-8 border border-cerulean-mist/30">
               <h2
                 id="business-support-heading"
                 className="text-2xl font-bold text-frost-white mb-4"
@@ -372,7 +372,7 @@ export default function ContactPage() {
                 with 24-hour response times. After signing up for a{" "}
                 <Link
                   href="/checkout/business"
-                  className="text-electric-cyan hover:underline"
+                  className="text-cerulean-mist hover:underline"
                 >
                   Business plan
                 </Link>
@@ -383,7 +383,7 @@ export default function ContactPage() {
                 dedicated support?{" "}
                 <a
                   href="mailto:sales@hic-ai.com"
-                  className="text-electric-cyan hover:underline"
+                  className="text-cerulean-mist hover:underline"
                 >
                   Contact our sales team
                 </a>{" "}
@@ -424,7 +424,7 @@ export default function ContactPage() {
                   <dd>
                     <a
                       href="https://hic-ai.com"
-                      className="text-electric-cyan hover:underline"
+                      className="text-cerulean-mist hover:underline"
                     >
                       hic-ai.com
                     </a>
@@ -450,13 +450,13 @@ export default function ContactPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/pricing"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg bg-electric-cyan text-deep-space hover:bg-electric-cyan/90 transition-colors"
+                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg bg-cerulean-mist text-deep-space hover:bg-cerulean-mist/90 transition-colors"
               >
                 View Pricing
               </Link>
               <Link
                 href="/docs/quickstart"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg border border-electric-cyan text-electric-cyan hover:bg-electric-cyan/10 transition-colors"
+                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg border border-cerulean-mist text-cerulean-mist hover:bg-cerulean-mist/10 transition-colors"
               >
                 Read the Docs
               </Link>

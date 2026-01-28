@@ -30,7 +30,7 @@ export default function PortalLayout({ children }) {
     return (
       <div className="flex min-h-screen bg-midnight-navy items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric-cyan mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cerulean-mist mx-auto"></div>
           <p className="mt-4 text-slate-grey">Loading...</p>
         </div>
       </div>

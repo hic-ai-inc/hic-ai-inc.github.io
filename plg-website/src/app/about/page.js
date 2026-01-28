@@ -102,10 +102,10 @@ export default function AboutPage() {
           className="px-6 py-20 border-b border-slate-grey/20"
         >
           <div className="max-w-4xl mx-auto animate-fade-in-up animate-delay-4">
-            <div className="bg-gradient-to-br from-electric-cyan/10 via-deep-space to-electric-cyan/5 rounded-2xl p-10 border border-electric-cyan/20">
+            <div className="bg-gradient-to-br from-cerulean-mist/10 via-deep-space to-cerulean-mist/5 rounded-2xl p-10 border border-cerulean-mist/20">
               <h2
                 id="vision-heading"
-                className="text-4xl font-bold text-electric-cyan mb-8 text-center"
+                className="text-4xl font-bold text-cerulean-mist mb-8 text-center"
               >
                 Our Vision
               </h2>
@@ -149,17 +149,17 @@ export default function AboutPage() {
 
             <div className="space-y-8">
               {/* Current: Mouse */}
-              <div className="relative pl-8 border-l-2 border-electric-cyan">
-                <div className="absolute -left-2 top-0 w-4 h-4 rounded-full bg-electric-cyan"></div>
+              <div className="relative pl-8 border-l-2 border-cerulean-mist">
+                <div className="absolute -left-2 top-0 w-4 h-4 rounded-full bg-cerulean-mist"></div>
                 <h3 className="text-xl font-semibold text-frost-white mb-2">
-                  Now: <span className="text-electric-cyan">Mouse v1.0</span>
+                  Now: <span className="text-cerulean-mist">Mouse v1.0</span>
                 </h3>
                 <p className="text-slate-grey mb-3">
                   Precision file editing for AI coding agents. Coordinate-based
                   addressing, atomic batching, full rollback, columnar
                   operations.
                 </p>
-                <p className="text-sm text-electric-cyan">
+                <p className="text-sm text-cerulean-mist">
                   Available now across VS Code, Cursor, Kiro, and 9+ extensions
                 </p>
               </div>
@@ -222,19 +222,19 @@ export default function AboutPage() {
                 </h3>
                 <ul className="space-y-3 text-sm">
                   <li className="flex items-start gap-3">
-                    <span className="text-electric-cyan mt-0.5">✓</span>
+                    <span className="text-cerulean-mist mt-0.5">✓</span>
                     <span className="text-slate-grey">
                       Trust AI agents with larger, more complex edits
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="text-electric-cyan mt-0.5">✓</span>
+                    <span className="text-cerulean-mist mt-0.5">✓</span>
                     <span className="text-slate-grey">
                       Review changes before they&apos;re committed
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="text-electric-cyan mt-0.5">✓</span>
+                    <span className="text-cerulean-mist mt-0.5">✓</span>
                     <span className="text-slate-grey">
                       Reduce costs with{" "}
                       <span className="text-cerulean-mist">60-90%</span> fewer
@@ -242,7 +242,7 @@ export default function AboutPage() {
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="text-electric-cyan mt-0.5">✓</span>
+                    <span className="text-cerulean-mist mt-0.5">✓</span>
                     <span className="text-slate-grey">
                       Keep working when premium credits run out
                     </span>
@@ -255,25 +255,25 @@ export default function AboutPage() {
                 </h3>
                 <ul className="space-y-3 text-sm">
                   <li className="flex items-start gap-3">
-                    <span className="text-electric-cyan mt-0.5">✓</span>
+                    <span className="text-cerulean-mist mt-0.5">✓</span>
                     <span className="text-slate-grey">
                       Precise coordinate-based operations
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="text-electric-cyan mt-0.5">✓</span>
+                    <span className="text-cerulean-mist mt-0.5">✓</span>
                     <span className="text-slate-grey">
                       Atomic batching with automatic rollback
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="text-electric-cyan mt-0.5">✓</span>
+                    <span className="text-cerulean-mist mt-0.5">✓</span>
                     <span className="text-slate-grey">
                       No content echo required—just coordinates
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="text-electric-cyan mt-0.5">✓</span>
+                    <span className="text-cerulean-mist mt-0.5">✓</span>
                     <span className="text-slate-grey">
                       Consistent API across all supported models
                     </span>
@@ -299,13 +299,13 @@ export default function AboutPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/pricing"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg bg-electric-cyan text-deep-space hover:bg-electric-cyan/90 transition-colors"
+                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg bg-cerulean-mist text-deep-space hover:bg-cerulean-mist/90 transition-colors"
               >
                 View Pricing
               </Link>
               <Link
                 href="/docs/quickstart"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg border border-electric-cyan text-electric-cyan hover:bg-electric-cyan/10 transition-colors"
+                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg border border-cerulean-mist text-cerulean-mist hover:bg-cerulean-mist/10 transition-colors"
               >
                 Read the Docs
               </Link>
