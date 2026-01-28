@@ -45,6 +45,7 @@ export default function LicensePage() {
   const statusDisplay =
     LICENSE_STATUS_DISPLAY[licenseStatus] || LICENSE_STATUS_DISPLAY.ACTIVE;
 
+  return (
     <div className="max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-frost-white">License</h1>
