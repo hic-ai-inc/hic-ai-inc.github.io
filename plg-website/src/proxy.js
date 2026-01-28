@@ -18,7 +18,7 @@ const AUTH0_NAMESPACE = "https://hic-ai.com";
 // Routes that require admin or owner role for business accounts
 const ADMIN_ONLY_ROUTES = ["/portal/billing", "/portal/team"];
 
-export async function middleware(req) {
+export async function proxy(req) {
   const path = req.nextUrl.pathname;
 
   // ===========================================
