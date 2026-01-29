@@ -123,9 +123,9 @@ describe("lib/index.js", () => {
       expect(typeof lib.EXTERNAL_URLS).toBe("object");
     });
 
-    it("should export AUTH0_NAMESPACE", () => {
-      expect(lib.AUTH0_NAMESPACE).toBeDefined();
-      expect(typeof lib.AUTH0_NAMESPACE).toBe("string");
+    it("should export AUTH_NAMESPACE", () => {
+      expect(lib.AUTH_NAMESPACE).toBeDefined();
+      expect(typeof lib.AUTH_NAMESPACE).toBe("string");
     });
 
     it("should export APP_NAME", () => {

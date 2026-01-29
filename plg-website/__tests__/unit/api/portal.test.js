@@ -14,7 +14,7 @@ import assert from "node:assert";
 import { PRICING } from "../../../src/lib/constants.js";
 
 // Constants used in the routes
-const AUTH0_NAMESPACE = "https://hic-ai.com";
+const AUTH_NAMESPACE = "https://hic-ai.com";
 
 // Helper to create mock Auth0 session
 function createMockSession(userOverrides = {}) {
@@ -47,9 +47,9 @@ describe("portal/license API logic", () => {
   }
 
   function getPlanName(accountType) {
-    if (accountType === "enterprise") return "Enterprise";
+    if (accountType === "business") return "Business";
     if (accountType === "individual") return "Individual";
-    return "Open Source";
+    return "Unknown"; // v4.2: No OSS or enterprise tiers
   }
 
   function maskLicenseKey(licenseKey) {
@@ -123,17 +123,15 @@ describe("portal/license API logic", () => {
   });
 
   describe("plan name resolution", () => {
-    it("should return Enterprise for enterprise", () => {
-      assert.strictEqual(getPlanName("enterprise"), "Enterprise");
+    it("should return Business for business", () => {
+      assert.strictEqual(getPlanName("business"), "Business");
     });
 
     it("should return Individual for individual", () => {
       assert.strictEqual(getPlanName("individual"), "Individual");
     });
 
-    it("should return Open Source for oss", () => {
-      assert.strictEqual(getPlanName("oss"), "Open Source");
-    });
+    // v4.2: OSS tier removed
   });
 
   describe("license key masking", () => {
@@ -600,31 +598,6 @@ describe("portal/stripe-session API logic", () => {
     it("should accept valid customer ID", () => {
       const result = validateCustomerId("cus_123");
       assert.strictEqual(result.valid, true);
-    });
-  });
-});
-
-describe("oss-application API logic", () => {
-  function getOssDeferredResponse() {
-    return {
-      error: "OSS tier not available",
-      code: "OSS_TIER_DEFERRED",
-      message:
-        "The Open Source tier is not currently available. Please consider our Individual plan at $10/month.",
-      pricing_url: "https://hic-ai.com/pricing",
-      status: 410,
-    };
-  }
-
-  describe("OSS tier deferred", () => {
-    it("should return 410 Gone with correct response", () => {
-      const response = getOssDeferredResponse();
-
-      assert.strictEqual(response.error, "OSS tier not available");
-      assert.strictEqual(response.code, "OSS_TIER_DEFERRED");
-      assert.strictEqual(response.status, 410);
-      assert.ok(response.message.includes("not currently available"));
-      assert.ok(response.pricing_url.includes("/pricing"));
     });
   });
 });

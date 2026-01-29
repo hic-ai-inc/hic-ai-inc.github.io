@@ -21,7 +21,7 @@ import {
 } from "../../../../dm/facade/test-helpers/index.js";
 
 import {
-  getCustomerByAuth0Id,
+  getCustomerByUserId,
   getCustomerByStripeId,
   getCustomerByEmail,
   upsertCustomer,
@@ -61,16 +61,16 @@ describe("dynamodb.js", () => {
   // CUSTOMER OPERATIONS
   // ===========================================
 
-  describe("getCustomerByAuth0Id", () => {
+  describe("getCustomerByUserId", () => {
     it("should query with USER#auth0Id partition key", async () => {
       mockSend.mockResolvedValue({
-        Item: { auth0Id: "auth0|123", email: "test@example.com" },
+        Item: { userId: "auth0|123", email: "test@example.com" },
       });
 
-      const result = await getCustomerByAuth0Id("auth0|123");
+      const result = await getCustomerByUserId("auth0|123");
 
       expect(result).toEqual({
-        auth0Id: "auth0|123",
+        userId: "auth0|123",
         email: "test@example.com",
       });
       expect(mockSend.callCount).toBe(1);
@@ -83,7 +83,7 @@ describe("dynamodb.js", () => {
     it("should return undefined when customer not found", async () => {
       mockSend.mockResolvedValue({ Item: undefined });
 
-      const result = await getCustomerByAuth0Id("nonexistent");
+      const result = await getCustomerByUserId("nonexistent");
 
       expect(result).toBe(undefined);
     });
@@ -138,40 +138,40 @@ describe("dynamodb.js", () => {
 
   describe("upsertCustomer", () => {
     it("should create new customer with createdAt timestamp", async () => {
-      // First call: getCustomerByAuth0Id returns undefined (new customer)
+      // First call: getCustomerByUserId returns undefined (new customer)
       // Second call: PutCommand
       mockSend
         .mockResolvedValueOnce({ Item: undefined }) // Customer doesn't exist
         .mockResolvedValueOnce({}); // PutCommand success
 
       const result = await upsertCustomer({
-        auth0Id: "auth0|new",
+        userId: "auth0|new",
         email: "New@Example.com",
         stripeCustomerId: "cus_new",
         accountType: "individual",
         subscriptionStatus: "active",
       });
 
-      expect(result.auth0Id).toBe("auth0|new");
+      expect(result.userId).toBe("auth0|new");
       expect(result.email).toBe("new@example.com"); // Lowercased
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
     });
 
     it("should update existing customer without overwriting createdAt", async () => {
-      // First call: getCustomerByAuth0Id returns existing customer
+      // First call: getCustomerByUserId returns existing customer
       // Second call: PutCommand
       mockSend
         .mockResolvedValueOnce({
           Item: {
-            auth0Id: "auth0|existing",
+            userId: "auth0|existing",
             createdAt: "2025-01-01T00:00:00Z",
           },
         })
         .mockResolvedValueOnce({});
 
       const result = await upsertCustomer({
-        auth0Id: "auth0|existing",
+        userId: "auth0|existing",
         email: "existing@example.com",
         accountType: "individual",
       });
@@ -185,7 +185,7 @@ describe("dynamodb.js", () => {
       mockSend.mockResolvedValue({});
 
       const result = await upsertCustomer({
-        auth0Id: "auth0|123",
+        userId: "auth0|123",
         email: "test@example.com",
         stripeCustomerId: "cus_stripe123",
       });
@@ -198,7 +198,7 @@ describe("dynamodb.js", () => {
       mockSend.mockResolvedValue({});
 
       const result = await upsertCustomer({
-        auth0Id: "auth0|123",
+        userId: "auth0|123",
         email: "test@example.com",
       });
 
@@ -317,7 +317,7 @@ describe("dynamodb.js", () => {
 
       const result = await createLicense({
         keygenLicenseId: "lic_new",
-        auth0Id: "auth0|123",
+        userId: "auth0|123",
         licenseKey: "MOUSE-ABC-123",
         policyId: "pol_individual",
         status: "active",
@@ -339,7 +339,7 @@ describe("dynamodb.js", () => {
 
       const result = await createLicense({
         keygenLicenseId: "lic_new",
-        auth0Id: "auth0|123",
+        userId: "auth0|123",
         licenseKey: "MOUSE-ABC-123",
         policyId: "pol_individual",
         status: "active",
@@ -347,6 +347,7 @@ describe("dynamodb.js", () => {
       });
 
       expect(result.GSI1PK).toBe("USER#auth0|123");
+      expect(result.userId).toBe("auth0|123");
       expect(result.GSI1SK).toBe("LICENSE#lic_new");
     });
   });

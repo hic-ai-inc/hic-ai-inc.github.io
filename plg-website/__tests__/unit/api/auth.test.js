@@ -159,7 +159,7 @@ describe("Auth0 Session Helpers", () => {
   });
 
   describe("user profile extraction", () => {
-    const AUTH0_NAMESPACE = "https://hic-ai.com";
+    const AUTH_NAMESPACE = "https://hic-ai.com";
 
     it("should extract standard claims", () => {
       const user = {
@@ -178,14 +178,14 @@ describe("Auth0 Session Helpers", () => {
     it("should extract custom namespace claims", () => {
       const user = {
         sub: "auth0|123",
-        [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
-        [`${AUTH0_NAMESPACE}/org_id`]: "org_abc123",
-        [`${AUTH0_NAMESPACE}/org_roles`]: ["org_admin", "org_member"],
+        [`${AUTH_NAMESPACE}/account_type`]: "enterprise",
+        [`${AUTH_NAMESPACE}/org_id`]: "org_abc123",
+        [`${AUTH_NAMESPACE}/org_roles`]: ["org_admin", "org_member"],
       };
 
-      assert.strictEqual(user[`${AUTH0_NAMESPACE}/account_type`], "enterprise");
-      assert.strictEqual(user[`${AUTH0_NAMESPACE}/org_id`], "org_abc123");
-      assert.deepStrictEqual(user[`${AUTH0_NAMESPACE}/org_roles`], [
+      assert.strictEqual(user[`${AUTH_NAMESPACE}/account_type`], "enterprise");
+      assert.strictEqual(user[`${AUTH_NAMESPACE}/org_id`], "org_abc123");
+      assert.deepStrictEqual(user[`${AUTH_NAMESPACE}/org_roles`], [
         "org_admin",
         "org_member",
       ]);
@@ -198,8 +198,8 @@ describe("Auth0 Session Helpers", () => {
       };
 
       const accountType =
-        user[`${AUTH0_NAMESPACE}/account_type`] || "individual";
-      const orgId = user[`${AUTH0_NAMESPACE}/org_id`] || null;
+        user[`${AUTH_NAMESPACE}/account_type`] || "individual";
+      const orgId = user[`${AUTH_NAMESPACE}/org_id`] || null;
 
       assert.strictEqual(accountType, "individual");
       assert.strictEqual(orgId, null);

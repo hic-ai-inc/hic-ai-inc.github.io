@@ -10,7 +10,7 @@
 
 import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert";
-import { AUTH0_NAMESPACE } from "../../../src/lib/constants.js";
+import { AUTH_NAMESPACE } from "../../../src/lib/constants.js";
 
 // Helper to create mock Auth0 session for team scenarios
 function createMockSession(overrides = {}) {
@@ -19,9 +19,9 @@ function createMockSession(overrides = {}) {
       sub: "auth0|owner123",
       email: "owner@company.com",
       email_verified: true,
-      [`${AUTH0_NAMESPACE}/account_type`]: "team",
-      [`${AUTH0_NAMESPACE}/org_id`]: "org_test123",
-      [`${AUTH0_NAMESPACE}/org_role`]: "owner",
+      [`${AUTH_NAMESPACE}/account_type`]: "team",
+      [`${AUTH_NAMESPACE}/org_id`]: "org_test123",
+      [`${AUTH_NAMESPACE}/org_role`]: "owner",
       ...overrides,
     },
   };
@@ -64,8 +64,8 @@ describe("Team API Logic", () => {
       }
 
       const user = session.user;
-      const accountType = user[`${AUTH0_NAMESPACE}/account_type`];
-      const orgId = user[`${AUTH0_NAMESPACE}/org_id`];
+      const accountType = user[`${AUTH_NAMESPACE}/account_type`];
+      const orgId = user[`${AUTH_NAMESPACE}/org_id`];
 
       if (accountType !== "team" && accountType !== "enterprise") {
         return {
@@ -87,7 +87,7 @@ describe("Team API Logic", () => {
     }
 
     function checkAdminRole(session) {
-      const userRole = session.user[`${AUTH0_NAMESPACE}/org_role`];
+      const userRole = session.user[`${AUTH_NAMESPACE}/org_role`];
       if (userRole !== "owner" && userRole !== "admin") {
         return {
           authorized: false,
@@ -106,7 +106,7 @@ describe("Team API Logic", () => {
 
     it("should reject individual account type", () => {
       const session = createMockSession({
-        [`${AUTH0_NAMESPACE}/account_type`]: "individual",
+        [`${AUTH_NAMESPACE}/account_type`]: "individual",
       });
       const result = checkTeamAuth(session);
       assert.strictEqual(result.authorized, false);
@@ -116,7 +116,7 @@ describe("Team API Logic", () => {
 
     it("should allow team account type", () => {
       const session = createMockSession({
-        [`${AUTH0_NAMESPACE}/account_type`]: "team",
+        [`${AUTH_NAMESPACE}/account_type`]: "team",
       });
       const result = checkTeamAuth(session);
       assert.strictEqual(result.authorized, true);
@@ -125,7 +125,7 @@ describe("Team API Logic", () => {
 
     it("should allow enterprise account type", () => {
       const session = createMockSession({
-        [`${AUTH0_NAMESPACE}/account_type`]: "enterprise",
+        [`${AUTH_NAMESPACE}/account_type`]: "enterprise",
       });
       const result = checkTeamAuth(session);
       assert.strictEqual(result.authorized, true);
@@ -134,7 +134,7 @@ describe("Team API Logic", () => {
 
     it("should reject missing org_id", () => {
       const session = createMockSession({
-        [`${AUTH0_NAMESPACE}/org_id`]: undefined,
+        [`${AUTH_NAMESPACE}/org_id`]: undefined,
       });
       const result = checkTeamAuth(session);
       assert.strictEqual(result.authorized, false);
@@ -144,7 +144,7 @@ describe("Team API Logic", () => {
 
     it("should reject non-admin role for mutations", () => {
       const session = createMockSession({
-        [`${AUTH0_NAMESPACE}/org_role`]: "member",
+        [`${AUTH_NAMESPACE}/org_role`]: "member",
       });
       const result = checkAdminRole(session);
       assert.strictEqual(result.authorized, false);
@@ -153,7 +153,7 @@ describe("Team API Logic", () => {
 
     it("should allow owner role", () => {
       const session = createMockSession({
-        [`${AUTH0_NAMESPACE}/org_role`]: "owner",
+        [`${AUTH_NAMESPACE}/org_role`]: "owner",
       });
       const result = checkAdminRole(session);
       assert.strictEqual(result.authorized, true);
@@ -162,7 +162,7 @@ describe("Team API Logic", () => {
 
     it("should allow admin role", () => {
       const session = createMockSession({
-        [`${AUTH0_NAMESPACE}/org_role`]: "admin",
+        [`${AUTH_NAMESPACE}/org_role`]: "admin",
       });
       const result = checkAdminRole(session);
       assert.strictEqual(result.authorized, true);

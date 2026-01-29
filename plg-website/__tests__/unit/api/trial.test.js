@@ -358,9 +358,9 @@ describe("Trial API - token verification", () => {
       const fingerprint = generateValidFingerprint();
       const { token } = generateTrialToken(fingerprint);
 
-      // Tamper with signature
+      // Tamper with signature by appending to ensure it's changed
       const [payload, signature] = token.split(".");
-      const tamperedToken = `${payload}.${signature.replace("a", "b")}`;
+      const tamperedToken = `${payload}.${signature}X`;
 
       const result = verifyTrialToken(tamperedToken, fingerprint);
       expect(result.valid).toBe(false);

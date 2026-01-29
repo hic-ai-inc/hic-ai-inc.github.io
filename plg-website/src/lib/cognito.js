@@ -309,7 +309,7 @@ export function getSubscriptionStatus(session) {
 /**
  * Get user's plan type from session
  * @param {Object} session - Cognito session
- * @returns {string|null} Plan type (oss, individual, enterprise)
+ * @returns {string|null} Plan type (individual, business)
  */
 export function getPlanType(session) {
   return session?.user?.[`${NAMESPACE}/plan_type`] || null;

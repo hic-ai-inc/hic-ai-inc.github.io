@@ -211,7 +211,7 @@ export function getOrgId(session) {
 /**
  * Get user's account type from session
  * @param {Object} session - Cognito session
- * @returns {string|null} Account type (individual, enterprise, oss)
+ * @returns {string|null} Account type (individual, business)
  */
 export function getAccountType(session) {
   return session?.user?.[`${NAMESPACE}/account_type`] || null;

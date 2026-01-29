@@ -435,16 +435,7 @@ describe("middleware route protection logic", () => {
         );
       });
 
-      it("should not redirect oss account from /portal/team", () => {
-        const session = createMockSession({
-          email: "oss-maintainer@example.com",
-          [`${AUTH_NAMESPACE}/account_type`]: "oss",
-          [`${AUTH_NAMESPACE}/org_role`]: "member",
-        });
-        expect(shouldRedirectMemberToPortal("/portal/team", session)).toBe(
-          false,
-        );
-      });
+      // v4.2: OSS tier removed - no need to test OSS account types
 
       it("should default account_type to individual when missing", () => {
         const session = createMockSession({

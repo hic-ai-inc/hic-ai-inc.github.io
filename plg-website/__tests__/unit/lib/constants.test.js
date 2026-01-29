@@ -31,7 +31,7 @@ import {
   PORTAL_NAV,
   PORTAL_NAV_BUSINESS,
   EXTERNAL_URLS,
-  AUTH0_NAMESPACE,
+  AUTH_NAMESPACE,
   APP_NAME,
   APP_DESCRIPTION,
   COMPANY_NAME,
@@ -311,8 +311,8 @@ describe("constants.js", () => {
   });
 
   describe("App Metadata", () => {
-    it("should have AUTH0_NAMESPACE defined", () => {
-      expect(AUTH0_NAMESPACE).toBe("https://hic-ai.com");
+    it("should have AUTH_NAMESPACE defined", () => {
+      expect(AUTH_NAMESPACE).toBe("https://hic-ai.com");
     });
 
     it("should have APP_NAME as Mouse", () => {

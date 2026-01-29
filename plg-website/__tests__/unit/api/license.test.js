@@ -12,7 +12,7 @@ import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert";
 
 // Auth0 namespace for custom claims
-const AUTH0_NAMESPACE = "https://hic-ai.com";
+const AUTH_NAMESPACE = "https://hic-ai.com";
 
 // Helper to create mock Auth0 session
 function createMockSession(userOverrides = {}) {

@@ -46,8 +46,8 @@ describe("stripe.js", () => {
   });
 
   describe("getStripeClient", () => {
-    it("should return the injected mock client during tests", () => {
-      const client = getStripeClient();
+    it("should return the injected mock client during tests", async () => {
+      const client = await getStripeClient();
       expect(client).toBe(stripeMock);
     });
   });
@@ -351,7 +351,7 @@ describe("stripe.js", () => {
   });
 
   describe("verifyWebhookSignature", () => {
-    it("should verify and return event when signature is valid", () => {
+    it("should verify and return event when signature is valid", async () => {
       const mockEvent = {
         id: "evt_test_123",
         type: "checkout.session.completed",
@@ -359,7 +359,7 @@ describe("stripe.js", () => {
       };
       stripeMock.webhooks.constructEvent.mockReturnValue(mockEvent);
 
-      const result = verifyWebhookSignature(
+      const result = await verifyWebhookSignature(
         '{"id":"evt_test_123"}',
         "whsec_signature_123",
       );
@@ -368,24 +368,24 @@ describe("stripe.js", () => {
       expect(result.type).toBe("checkout.session.completed");
     });
 
-    it("should pass payload and signature to Stripe", () => {
+    it("should pass payload and signature to Stripe", async () => {
       stripeMock.webhooks.constructEvent.mockReturnValue({ id: "evt_123" });
 
-      verifyWebhookSignature("raw_payload_body", "stripe_signature_header");
+      await verifyWebhookSignature("raw_payload_body", "stripe_signature_header");
 
       const callArgs = stripeMock.webhooks.constructEvent.calls[0];
       expect(callArgs[0]).toBe("raw_payload_body");
       expect(callArgs[1]).toBe("stripe_signature_header");
     });
 
-    it("should throw error when signature is invalid", () => {
+    it("should throw error when signature is invalid", async () => {
       stripeMock.webhooks.constructEvent.mockImplementation(() => {
         throw new Error("Webhook signature verification failed");
       });
 
       let error;
       try {
-        verifyWebhookSignature("payload", "invalid_signature");
+        await verifyWebhookSignature("payload", "invalid_signature");
       } catch (e) {
         error = e;
       }

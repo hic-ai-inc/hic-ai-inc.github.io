@@ -21,8 +21,8 @@ const KEYGEN_API_URL = `https://api.keygen.sh/v1/accounts/${KEYGEN_ACCOUNT_ID}`;
 let cachedProductToken = null;
 
 // Policy IDs (configured in Keygen dashboard)
+// v4.2: Individual + Business tiers only
 export const KEYGEN_POLICIES = {
-  oss: process.env.KEYGEN_POLICY_ID_OSS,
   individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
   business: process.env.KEYGEN_POLICY_ID_BUSINESS,
 };

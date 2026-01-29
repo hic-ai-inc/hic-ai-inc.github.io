@@ -21,7 +21,7 @@ const docsContent = {
 
 - VS Code 1.85+ or Cursor IDE
 - Node.js 18+ (for local MCP server)
-- Active license key (Individual, Enterprise, or OSS)
+- Active license key (Individual or Business)
 
 ## Installation Methods
 
@@ -142,9 +142,8 @@ Mouse validates your license:
 
 | Plan | Devices |
 |------|---------|
-| OSS | 2 |
 | Individual | 3 |
-| Enterprise | 10 per seat |
+| Business | 5 per seat |
 
 ## Troubleshooting
 

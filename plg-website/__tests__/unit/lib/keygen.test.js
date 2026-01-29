@@ -59,8 +59,8 @@ describe("keygen.js", () => {
       expect(KEYGEN_POLICIES).toHaveProperty("individual");
     });
 
-    it("should have enterprise policy from env", () => {
-      expect(KEYGEN_POLICIES).toHaveProperty("enterprise");
+    it("should have business policy from env", () => {
+      expect(KEYGEN_POLICIES).toHaveProperty("business");
     });
   });
 

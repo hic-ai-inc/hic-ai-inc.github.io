@@ -319,9 +319,7 @@ describe("checkout verify API logic", () => {
       assert.strictEqual(getPlanName("enterprise"), "Enterprise");
     });
 
-    it("should return Open Source for oss plan", () => {
-      assert.strictEqual(getPlanName("oss"), "Open Source");
-    });
+    // v4.2: OSS tier removed
   });
 
   describe("verification data extraction", () => {
