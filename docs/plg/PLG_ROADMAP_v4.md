@@ -336,18 +336,53 @@ Comprehensive error codes added to isolate checkout failures:
 
 **Root cause confirmed:** Amplify Gen 1 WEB_COMPUTE does NOT pass environment variables to SSR Lambda at runtime—only during build. The env var exists (`sk_test_51SsU8DA4W8n...`) but isn't reaching `process.env` in the Lambda.
 
-**Solution:** Implement Gen 2 native secrets with `secret()` function.
+### 3b.7 Solution: SSM Parameter Store (Implemented Jan 29)
 
-### 3b.7 Remaining Work — Gen 2 Secrets Implementation
+Instead of Amplify's `secret()` function (which requires custom Lambda functions), we use **SSM Parameter Store** which is accessible from SSR at runtime with proper IAM permissions.
+
+**Implementation:**
+1. Created `manage-ssm-secrets.sh` script to manage SSM secrets
+2. Updated `secrets.js` to fetch from SSM at `/plg/secrets/<app-id>/` path
+3. Copied secrets from Secrets Manager to SSM Parameter Store
+
+**Script usage:**
+```bash
+# List all secrets
+./scripts/manage-ssm-secrets.sh list
+
+# Copy from existing Secrets Manager
+./scripts/manage-ssm-secrets.sh copy-from-secrets-manager
+
+# Set individual secret
+./scripts/manage-ssm-secrets.sh set STRIPE_SECRET_KEY sk_test_xxx
+```
+
+**Secret priority order in `secrets.js`:**
+1. Local development: `process.env` (from `.env.local`)
+2. SSM Parameter Store: `/plg/secrets/d2yhz9h4xdd5rb/<key>`
+3. AWS Secrets Manager: `plg/staging/stripe` (fallback)
+4. Environment variables: `process.env` (emergency fallback)
+
+### 3b.8 SSM Secrets Checklist
 
 | Task | Status | Notes |
 |------|--------|-------|
-| **Phase 1: Define Secrets in Backend** | | |
-| Update `amplify/backend.js` with `defineSecret()` | ⬜ | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
-| Grant SSR function access to secrets | ⬜ | Via `backend.addOutput()` |
-| **Phase 2: Store Secret Values** | | |
-| Run `ampx sandbox secret set STRIPE_SECRET_KEY` | ⬜ | For local development |
-| Add secrets via Amplify Console (Hosting > Secrets) | ⬜ | For deployed branches |
+| Create `manage-ssm-secrets.sh` | ✅ | With MSYS path conversion fix |
+| Update `secrets.js` SSM paths | ✅ | `/plg/secrets/<app-id>/<key>` |
+| Copy `STRIPE_SECRET_KEY` to SSM | ✅ | Via `copy-from-secrets-manager` |
+| Copy `STRIPE_WEBHOOK_SECRET` to SSM | ✅ | Via `copy-from-secrets-manager` |
+| Deploy and test | 🟡 | Build triggered, awaiting test |
+
+### 3b.9 Future: Full Gen 2 Secrets (Deferred)
+
+For production, consider migrating to Amplify Gen 2's native `secret()` function:
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Update `amplify/backend.js` with `defineSecret()` | ⬜ DEFERRED | Post-MVP |
+| Grant SSR function access to secrets | ⬜ DEFERRED | Via `backend.addOutput()` |
+| Run `ampx sandbox secret set` | ⬜ DEFERRED | For local development |
+| Add secrets via Amplify Console | ⬜ DEFERRED | For deployed branches |
 | **Phase 3: Update Code to Use Secrets** | | |
 | Update `secrets.js` to use `env.STRIPE_SECRET_KEY` | ⬜ | Gen 2 injects via `env` |
 | Test locally with `ampx sandbox` | ⬜ | Verify secret injection |
