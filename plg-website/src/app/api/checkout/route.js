@@ -157,11 +157,8 @@ export async function POST(request) {
       },
     };
 
-    if (plan === "individual" && !promoCode) {
-      checkoutParams.subscription_data = {
-        trial_period_days: PRICING.individual.trialDays,
-      };
-    }
+    // NOTE: No trial period in Stripe - trials happen via VS Code Marketplace
+    // Users try free via Marketplace, then purchase here to activate paid license
     console.log("[Checkout] Step 5 OK: Checkout params built");
 
     // Step 6: Initialize Stripe client (this fetches secrets)

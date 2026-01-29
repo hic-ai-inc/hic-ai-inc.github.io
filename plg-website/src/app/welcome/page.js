@@ -31,7 +31,12 @@ export default async function WelcomePage({ searchParams }) {
     redirect("/pricing");
   }
 
-  // If authenticated, redirect to portal
+  // If authenticated with session_id, complete the license provisioning
+  if (session && sessionId) {
+    redirect(`/welcome/complete?session_id=${sessionId}`);
+  }
+
+  // If authenticated without session_id (direct visit), go to portal
   if (session) {
     redirect("/portal");
   }

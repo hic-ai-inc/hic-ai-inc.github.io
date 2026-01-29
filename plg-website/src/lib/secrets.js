@@ -260,33 +260,53 @@ export async function getStripeSecrets() {
 /**
  * Get Keygen secrets (product token)
  *
- * Falls back to environment variables for local development.
+ * Priority order:
+ * 1. Local development: process.env (from .env.local)
+ * 2. SSM Parameter Store: /plg/secrets/<app-id>/KEYGEN_PRODUCT_TOKEN
+ * 3. AWS Secrets Manager: plg/staging/keygen (fallback)
+ * 4. Environment variables (emergency fallback)
  *
  * @returns {Promise<{KEYGEN_PRODUCT_TOKEN: string}>}
  */
 export async function getKeygenSecrets() {
-  // Local development fallback
+  console.log("[Secrets] getKeygenSecrets called, NODE_ENV:", process.env.NODE_ENV);
+
+  // Local development: use .env.local
   if (process.env.NODE_ENV === "development") {
+    console.log("[Secrets] Development mode - using process.env for Keygen");
     return {
       KEYGEN_PRODUCT_TOKEN: process.env.KEYGEN_PRODUCT_TOKEN,
     };
   }
 
-  // Production/staging: fetch from Secrets Manager
+  // Production/staging: Try SSM Parameter Store first
+  console.log("[Secrets] Production mode - trying SSM for Keygen...");
+  const ssmToken = await getSSMParameter(SSM_SECRET_PATHS.KEYGEN_PRODUCT_TOKEN);
+
+  if (ssmToken) {
+    console.log("[Secrets] SSM Keygen token found");
+    return {
+      KEYGEN_PRODUCT_TOKEN: ssmToken,
+    };
+  }
+
+  // Fallback to Secrets Manager
+  console.log("[Secrets] SSM not available, trying Secrets Manager for Keygen...");
   try {
     const secrets = await getSecret(SECRET_PATHS.keygen);
+    console.log("[Secrets] Secrets Manager success for Keygen");
     return {
       KEYGEN_PRODUCT_TOKEN: secrets.KEYGEN_PRODUCT_TOKEN,
     };
   } catch (error) {
-    // Emergency fallback to env vars
-    console.warn(
-      "Secrets Manager unavailable, falling back to environment variables",
-    );
-    return {
-      KEYGEN_PRODUCT_TOKEN: process.env.KEYGEN_PRODUCT_TOKEN,
-    };
+    console.warn("[Secrets] Secrets Manager unavailable for Keygen:", error.message);
   }
+
+  // Emergency fallback to env vars
+  console.warn("[Secrets] All Keygen secret sources failed, falling back to process.env");
+  return {
+    KEYGEN_PRODUCT_TOKEN: process.env.KEYGEN_PRODUCT_TOKEN,
+  };
 }
 
 /**
