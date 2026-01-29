@@ -18,7 +18,7 @@
 export const environments = {
   local: {
     name: "local",
-    apiBase: "http://localhost:3000/api",
+    apiBase: "http://localhost:3000",
     stripeMode: "test",
     allowMutations: true,
     timeout: 5000,
@@ -26,7 +26,7 @@ export const environments = {
   },
   staging: {
     name: "staging",
-    apiBase: "https://staging.hic-ai.com/api",
+    apiBase: "https://staging.hic-ai.com",
     stripeMode: "test",
     allowMutations: true,
     timeout: 10000,
@@ -34,7 +34,7 @@ export const environments = {
   },
   production: {
     name: "production",
-    apiBase: "https://hic-ai.com/api",
+    apiBase: "https://hic-ai.com",
     stripeMode: "live",
     allowMutations: false, // READ-ONLY!
     timeout: 10000,
@@ -71,6 +71,21 @@ export function getEnvironment() {
  */
 export function canMutate() {
   return getEnvironment().allowMutations;
+}
+
+/**
+ * Skip test if mutations are not allowed in current environment
+ * Use at the beginning of tests that write/modify data
+ * @param {string} [reason] - Reason for requiring mutations
+ * @throws {Error} In production with descriptive skip message
+ */
+export function requireMutations(reason = "test requires mutations") {
+  if (!canMutate()) {
+    const env = getEnvironment();
+    throw new Error(
+      `SKIPPED: ${reason} - mutations not allowed in ${env.name} environment`,
+    );
+  }
 }
 
 /**
@@ -116,18 +131,38 @@ export const testConfig = {
 
 /**
  * Environment variables required for each environment
+ * Supports both local naming (E2E_*) and CI/CD naming (STRIPE_TEST_*, KEYGEN_TEST_*)
  */
 export const requiredEnvVars = {
   local: [],
   staging: [
-    "E2E_STRIPE_TEST_KEY",
-    "E2E_KEYGEN_TEST_KEY",
+    // Accept either naming convention
+    // E2E_STRIPE_TEST_KEY or STRIPE_TEST_SECRET_KEY
+    // E2E_KEYGEN_TEST_KEY or KEYGEN_TEST_API_KEY
     // Cognito vars optional for unauthenticated endpoints
   ],
   production: [
     // Production is read-only, minimal requirements
   ],
 };
+
+/**
+ * Get Stripe test key (supports multiple env var names)
+ */
+export function getStripeTestKey() {
+  return process.env.E2E_STRIPE_TEST_KEY || 
+         process.env.STRIPE_TEST_SECRET_KEY || 
+         null;
+}
+
+/**
+ * Get KeyGen test key (supports multiple env var names)
+ */
+export function getKeygenTestKey() {
+  return process.env.E2E_KEYGEN_TEST_KEY || 
+         process.env.KEYGEN_TEST_API_KEY || 
+         null;
+}
 
 /**
  * Validate that required environment variables are set
@@ -225,6 +260,7 @@ export default {
   environments,
   getEnvironment,
   canMutate,
+  requireMutations,
   getApiBase,
   testConfig,
   validateEnvironment,

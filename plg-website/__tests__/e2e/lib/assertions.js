@@ -219,13 +219,23 @@ export function expectLicenseActivation(data) {
 
 /**
  * Assert trial init response shape
- * @param {Object} data
+ * Accepts either E2EResponse or plain data object
+ * @param {Object} data - E2EResponse or plain object
  */
 export function expectTrialInit(data) {
-  expectFields(data, ["trialToken", "expiresAt", "daysRemaining"]);
-  expect(typeof data.trialToken).toBe("string");
-  expect(typeof data.daysRemaining).toBe("number");
-  expectIsoDate(data.expiresAt);
+  // Handle E2EResponse objects (get the json/data property)
+  const json = data.json || data.data || data;
+
+  // Validate top-level response structure
+  expectFields(json, ["valid", "trial"]);
+  expect(json.valid).toBe(true);
+
+  // Validate trial object structure
+  const { trial } = json;
+  expectFields(trial, ["trialStartDate", "trialEndDate", "daysRemaining"]);
+  expect(typeof trial.daysRemaining).toBe("number");
+  expectIsoDate(trial.trialStartDate, "trial start date");
+  expectIsoDate(trial.trialEndDate, "trial end date");
 }
 
 /**
@@ -236,6 +246,37 @@ export function expectHeartbeat(data) {
   expectFields(data, ["valid", "nextHeartbeat"]);
   expect(typeof data.valid).toBe("boolean");
   expect(typeof data.nextHeartbeat).toBe("number");
+}
+
+/**
+ * Assert days remaining is within expected range
+ * @param {number} daysRemaining - Actual days remaining
+ * @param {Object} options - Validation options
+ * @param {number} [options.min] - Minimum expected days
+ * @param {number} [options.max] - Maximum expected days
+ * @param {number} [options.exact] - Exact expected days (overrides min/max)
+ */
+export function expectDaysRemaining(daysRemaining, options = {}) {
+  expect(typeof daysRemaining).toBe("number");
+
+  if (options.exact !== undefined) {
+    expect(daysRemaining).toBe(options.exact);
+    return;
+  }
+
+  if (options.min !== undefined) {
+    if (daysRemaining < options.min) {
+      log.error(`Days remaining ${daysRemaining} is below minimum ${options.min}`);
+    }
+    expect(daysRemaining).toBeGreaterThanOrEqual(options.min);
+  }
+
+  if (options.max !== undefined) {
+    if (daysRemaining > options.max) {
+      log.error(`Days remaining ${daysRemaining} is above maximum ${options.max}`);
+    }
+    expect(daysRemaining).toBeLessThanOrEqual(options.max);
+  }
 }
 
 // ============================================================================
@@ -295,6 +336,24 @@ export function expectNonEmpty(arr) {
 }
 
 /**
+ * Assert value is a valid URL
+ * @param {string} url
+ * @param {string} [label] - Description of the URL for error messages
+ */
+export function expectUrl(url, label = "URL") {
+  expect(typeof url).toBe("string");
+  
+  try {
+    new URL(url);
+  } catch (e) {
+    log.error(`Invalid ${label}:`, { url, error: e.message });
+    throw new Error(`Expected valid ${label}, got: ${url}`);
+  }
+  
+  expect(url).toMatch(/^https?:\/\//);
+}
+
+/**
  * Assert array contains item matching predicate
  * @param {Array} arr
  * @param {Function} predicate
@@ -329,11 +388,13 @@ export default {
   expectShape,
   expectIsoDate,
   expectUuid,
+  expectUrl,
   expectLicenseKey,
   expectLicenseValidation,
   expectLicenseActivation,
   expectTrialInit,
   expectHeartbeat,
+  expectDaysRemaining,
   expectWithinTime,
   expectCompletesWithin,
   expectLength,

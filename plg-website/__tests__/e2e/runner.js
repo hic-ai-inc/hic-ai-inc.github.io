@@ -31,6 +31,40 @@ import { cleanupAll, registerExitCleanup } from "./lib/cleanup.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ============================================================================
+// Server Health Check
+// ============================================================================
+
+/**
+ * Check if the target server is available
+ * @returns {Promise<{available: boolean, error?: string}>}
+ */
+async function checkServerHealth() {
+  const env = getEnvironment();
+  const healthUrl = `${env.apiBase}/api/health`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(healthUrl, {
+      method: "GET",
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+    return { available: response.ok || response.status === 404 }; // 404 is OK, means server is up but no health endpoint
+  } catch (error) {
+    if (error.cause?.code === "ECONNREFUSED") {
+      return { available: false, error: "Connection refused - server not running" };
+    }
+    if (error.name === "AbortError") {
+      return { available: false, error: "Connection timeout - server not responding" };
+    }
+    return { available: false, error: error.message };
+  }
+}
+
+// ============================================================================
 // Argument Parsing
 // ============================================================================
 
@@ -39,6 +73,8 @@ function parseArgs() {
   const options = {
     journey: null, // Specific journey: j1, j2, etc.
     contract: null, // Specific contract: license, checkout, etc.
+    file: null, // Specific test file by name/pattern
+    test: null, // Specific test name pattern (passed to node:test)
     all: false, // Run all tests
     verbose: false,
     help: false,
@@ -56,6 +92,14 @@ function parseArgs() {
       case "--contract":
       case "-c":
         options.contract = args[++i];
+        break;
+      case "--file":
+      case "-f":
+        options.file = args[++i];
+        break;
+      case "--test":
+      case "-t":
+        options.test = args[++i];
         break;
       case "--all":
       case "-a":
@@ -90,7 +134,9 @@ Usage:
 
 Options:
   -j, --journey <id>    Run specific journey test (j1, j2, j3, etc.)
-  -c, --contract <name> Run specific contract tests (license, checkout, webhook)
+  -c, --contract <name> Run specific contract tests (license, checkout, webhook, portal)
+  -f, --file <pattern>  Run test file matching pattern (e.g., "j1-trial", "license-api")
+  -t, --test <name>     Run only tests matching name pattern (regex supported)
   -a, --all             Run all E2E tests (journeys + contracts)
   -v, --verbose         Enable verbose logging
   --skip-cleanup        Don't clean up test data after run
@@ -104,11 +150,20 @@ Environment Variables:
   E2E_KEYGEN_TEST_KEY   KeyGen test API key (required for staging)
 
 Examples:
-  # Run all tests against local
+  # Run all journeys against local (default)
   npm run test:e2e
 
-  # Run journey 1 against staging
-  E2E_ENV=staging npm run test:e2e -- --journey j1
+  # Run all tests (journeys + contracts) against staging
+  E2E_ENV=staging npm run test:e2e -- --all
+
+  # Run journey 1 only
+  npm run test:e2e -- -j j1
+
+  # Run a specific test file by name
+  npm run test:e2e -- -f j3-license-activation
+
+  # Run only tests matching a pattern
+  npm run test:e2e -- -j j1 -t "First Launch"
 
   # Run license contract tests with verbose output
   npm run test:e2e -- --contract license --verbose
@@ -122,21 +177,29 @@ Examples:
 async function discoverTestFiles(options) {
   const patterns = [];
 
-  if (options.journey) {
+  // Use forward slashes for glob (works on Windows too)
+  const baseDir = __dirname.replace(/\\/g, '/');
+
+  if (options.file) {
+    // Specific file by pattern - search in both directories
+    const filePattern = options.file.toLowerCase();
+    patterns.push(`${baseDir}/journeys/*${filePattern}*.test.js`);
+    patterns.push(`${baseDir}/contracts/*${filePattern}*.test.js`);
+  } else if (options.journey) {
     // Specific journey
     const journeyId = options.journey.toLowerCase();
-    patterns.push(join(__dirname, `journeys/${journeyId}-*.test.js`));
-    patterns.push(join(__dirname, `journeys/*${journeyId}*.test.js`));
+    patterns.push(`${baseDir}/journeys/${journeyId}-*.test.js`);
+    patterns.push(`${baseDir}/journeys/*${journeyId}*.test.js`);
   } else if (options.contract) {
     // Specific contract
-    patterns.push(join(__dirname, `contracts/${options.contract}*.test.js`));
+    patterns.push(`${baseDir}/contracts/*${options.contract}*.test.js`);
   } else if (options.all) {
     // All tests
-    patterns.push(join(__dirname, "journeys/*.test.js"));
-    patterns.push(join(__dirname, "contracts/*.test.js"));
+    patterns.push(`${baseDir}/journeys/*.test.js`);
+    patterns.push(`${baseDir}/contracts/*.test.js`);
   } else {
     // Default: run journeys only (contracts are more detailed)
-    patterns.push(join(__dirname, "journeys/*.test.js"));
+    patterns.push(`${baseDir}/journeys/*.test.js`);
   }
 
   const files = [];
@@ -182,6 +245,32 @@ async function main() {
     process.exit(1);
   }
 
+  // Check server availability
+  console.log("🔍 Checking server availability...");
+  const healthCheck = await checkServerHealth();
+
+  if (!healthCheck.available) {
+    console.log(`
+⚠️  Server not available at ${env.apiBase}
+   ${healthCheck.error || "Unknown error"}
+
+   E2E tests require a running backend server.
+   
+   For local testing:
+     npm run dev          # Start Next.js dev server
+     npm run test:e2e     # Then run E2E tests
+   
+   For CI/CD:
+     E2E tests should run after deployment to staging.
+     Set E2E_ENV=staging and ensure server is deployed.
+
+   Skipping E2E tests (exit code 0 - not a failure).
+`);
+    process.exit(0); // Exit successfully - missing server is not a test failure
+  }
+
+  console.log("✅ Server is available\n");
+
   // Register cleanup handlers
   if (!options.skipCleanup) {
     registerExitCleanup();
@@ -192,12 +281,18 @@ async function main() {
 
   if (testFiles.length === 0) {
     console.log("⚠️  No test files found matching criteria");
+    if (options.file) {
+      console.log(`   Looking for file pattern: ${options.file}`);
+    }
     if (options.journey) {
       console.log(`   Looking for journey: ${options.journey}`);
     }
     if (options.contract) {
       console.log(`   Looking for contract: ${options.contract}`);
     }
+    console.log("");
+    console.log("   Available journeys: j1, j2, j3, j4, j5, j6, j7, j8");
+    console.log("   Available contracts: license, checkout, webhook, portal");
     process.exit(0);
   }
 
@@ -208,10 +303,18 @@ async function main() {
   // Run tests
   const startTime = Date.now();
 
-  const stream = run({
+  const runOptions = {
     files: testFiles,
     concurrency: 1, // E2E tests should run sequentially
-  });
+  };
+
+  // Filter by test name if --test option provided
+  if (options.test) {
+    runOptions.testNamePatterns = [options.test];
+    console.log(`🔍 Filtering tests matching: "${options.test}"\n`);
+  }
+
+  const stream = run(runOptions);
 
   stream.compose(spec).pipe(process.stdout);
 

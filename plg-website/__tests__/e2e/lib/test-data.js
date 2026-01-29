@@ -215,6 +215,20 @@ export function getStripeTestCard(type = "success") {
   return cards[type] || cards.success;
 }
 
+/**
+ * Stripe test card numbers for different scenarios
+ * @see https://stripe.com/docs/testing#cards
+ */
+export const STRIPE_TEST_CARDS = {
+  success: { number: "4242424242424242", cvc: "123", exp_month: 12, exp_year: 2030 },
+  decline: { number: "4000000000000002", cvc: "123", exp_month: 12, exp_year: 2030 },
+  expired: { number: "4000000000000069", cvc: "123", exp_month: 12, exp_year: 2030 },
+  insufficient: { number: "4000000000009995", cvc: "123", exp_month: 12, exp_year: 2030 },
+  fraudulent: { number: "4100000000000019", cvc: "123", exp_month: 12, exp_year: 2030 },
+  cvc_check_fail: { number: "4000000000000101", cvc: "123", exp_month: 12, exp_year: 2030 },
+  attached_to_customer: { number: "4242424242424242", cvc: "123", exp_month: 12, exp_year: 2030 },
+};
+
 // ============================================================================
 // Webhook Simulation Data
 // ============================================================================
@@ -334,6 +348,7 @@ export default {
   generateHeartbeatData,
   generateCheckoutData,
   getStripeTestCard,
+  STRIPE_TEST_CARDS,
   generateStripeWebhookEvent,
   generateKeygenWebhookEvent,
   generateMultipleDevices,

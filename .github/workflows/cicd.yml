@@ -124,18 +124,52 @@ jobs:
             popd >/dev/null
           done
 
-  # Stage 2: System Integration (Development environment) - DISABLED for now
-  system-integration:
-    name: System Integration Tests
+  # Stage 2: E2E Integration Tests (Against staging infrastructure)
+  e2e-tests:
+    name: E2E Integration Tests
     runs-on: ubuntu-latest
     needs: code-quality
-    if: false # Enable after AWS OIDC role wired up
+    # Run E2E tests on pushes to development/main and on PRs
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     permissions:
       id-token: write
       contents: read
+
     steps:
-      - name: Placeholder
-        run: echo "System integration tests disabled until AWS configuration is complete"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_STAGING }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dm dependencies
+        run: |
+          cd dm
+          npm ci
+
+      - name: Install plg-website dependencies
+        run: |
+          cd plg-website
+          npm ci
+
+      - name: Run E2E tests against staging
+        env:
+          E2E_ENV: staging
+          E2E_STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+          E2E_KEYGEN_TEST_KEY: ${{ secrets.KEYGEN_TEST_API_KEY }}
+        run: |
+          cd plg-website
+          npm run test:e2e
 
   # Stage 3: Production Readiness (Main branch) - DISABLED for now
   production-readiness:
@@ -153,15 +187,39 @@ jobs:
   notify:
     name: Pipeline Results
     runs-on: ubuntu-latest
-    needs: [code-quality, system-integration, production-readiness]
+    needs: [code-quality, e2e-tests, production-readiness]
     if: always()
     steps:
       - name: Report results
         run: |
+          echo "=== Pipeline Results ==="
+          echo ""
+          
+          # Code Quality
           if [ "${{ needs.code-quality.result }}" = "success" ]; then
             echo "✅ Code quality tests passed"
-            echo "Systems tested: ${{ needs.code-quality.outputs.systems }}"
+            echo "   Systems tested: ${{ needs.code-quality.outputs.systems }}"
           else
             echo "❌ Code quality tests failed"
+          fi
+          
+          # E2E Tests
+          if [ "${{ needs.e2e-tests.result }}" = "success" ]; then
+            echo "✅ E2E integration tests passed"
+          elif [ "${{ needs.e2e-tests.result }}" = "skipped" ]; then
+            echo "⏭️  E2E tests skipped (server not available or job skipped)"
+          else
+            echo "❌ E2E integration tests failed"
+          fi
+          
+          echo ""
+          
+          # Fail if code quality failed
+          if [ "${{ needs.code-quality.result }}" != "success" ]; then
+            exit 1
+          fi
+          
+          # Fail if E2E tests failed (but not if skipped)
+          if [ "${{ needs.e2e-tests.result }}" = "failure" ]; then
             exit 1
           fi

@@ -254,6 +254,14 @@ export class E2EResponse {
   }
 
   /**
+   * Alias for data (for compatibility with tests using response.json)
+   * @returns {Object|string|null}
+   */
+  get json() {
+    return this.data;
+  }
+
+  /**
    * Check if response has specific status
    * @param {number} expectedStatus
    * @returns {boolean}
