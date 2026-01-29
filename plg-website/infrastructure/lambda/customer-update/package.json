@@ -1,0 +1,6 @@
+{
+  "name": "plg-customer-update",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PLG Customer Update Lambda - processes customer update queue messages"
+}

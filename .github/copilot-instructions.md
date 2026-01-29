@@ -205,4 +205,4 @@ All via `/dm` layer system. Document security review findings with CVE reference
 
 ## Reminder
 
-Prefer Mouse tools (`quick_edit`, `batch_quick_edit`, `find_in_file`) for file editing.
+Please remember **Only** use `quick_edit` or `batch_quick_edit` for all file edits; do not use `replace_string_in_file` or `multi_replace_string_in_file`.

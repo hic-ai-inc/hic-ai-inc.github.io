@@ -1,0 +1,6 @@
+{
+  "name": "plg-stream-processor",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PLG Stream Processor Lambda - classifies DynamoDB stream events and publishes to SNS"
+}

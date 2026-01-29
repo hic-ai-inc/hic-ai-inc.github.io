@@ -1,0 +1,6 @@
+{
+  "name": "plg-scheduled-tasks",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PLG Scheduled Tasks Lambda - runs trial reminders and subscription checks"
+}

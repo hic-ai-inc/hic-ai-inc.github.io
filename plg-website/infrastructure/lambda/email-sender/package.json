@@ -1,0 +1,6 @@
+{
+  "name": "plg-email-sender",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PLG Email Sender Lambda - sends transactional emails via SES"
+}
