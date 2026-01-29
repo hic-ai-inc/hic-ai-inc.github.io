@@ -35,7 +35,12 @@ export const dynamodb = DynamoDBDocumentClient.from(client, {
   },
 });
 
-const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || "hic-plg-production";
+// Get table name from environment - MUST be explicitly set in production
+// Fallback to staging to avoid accidentally writing to production
+const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || "hic-plg-staging";
+
+// Log table name on first import for debugging
+console.log(`[DynamoDB] Using table: ${TABLE_NAME} (env: ${process.env.DYNAMODB_TABLE_NAME || "not set"})`);
 
 // ===========================================
 // CUSTOMER OPERATIONS
