@@ -73,5 +73,13 @@ export async function GET() {
     diagnostics.checks.getStripeSecrets = `❌ ${secretsErr.message}`;
   }
 
+  // Check 5: Direct process.env fallback test
+  diagnostics.checks.directEnvFallback = {
+    STRIPE_SECRET_KEY_exists: !!process.env.STRIPE_SECRET_KEY,
+    STRIPE_SECRET_KEY_length: process.env.STRIPE_SECRET_KEY?.length || 0,
+    STRIPE_SECRET_KEY_prefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7) || "(empty)",
+    STRIPE_WEBHOOK_SECRET_exists: !!process.env.STRIPE_WEBHOOK_SECRET,
+  };
+
   return NextResponse.json(diagnostics, { status: 200 });
 }
