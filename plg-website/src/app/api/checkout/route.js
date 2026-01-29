@@ -150,6 +150,9 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("Checkout error:", error);
+    console.error("[Checkout] Error name:", error.name);
+    console.error("[Checkout] Error message:", error.message);
+    console.error("[Checkout] Error stack:", error.stack);
 
     // Provide more specific error messages where safe
     if (error.type === "StripeInvalidRequestError") {
@@ -165,6 +168,24 @@ export async function POST(request) {
       return NextResponse.json(
         { error: "Email is required to create checkout session" },
         { status: 400 },
+      );
+    }
+
+    // Secrets Manager access error
+    if (error.name === "AccessDeniedException" || error.message?.includes("Secrets Manager")) {
+      console.error("[Checkout] Secrets Manager access denied - check IAM permissions");
+      return NextResponse.json(
+        { error: "Configuration error. Please contact support." },
+        { status: 500 },
+      );
+    }
+
+    // Credential/SDK configuration errors
+    if (error.name === "CredentialsProviderError" || error.message?.includes("credentials")) {
+      console.error("[Checkout] AWS credentials not configured properly");
+      return NextResponse.json(
+        { error: "Configuration error. Please contact support." },
+        { status: 500 },
       );
     }
 
