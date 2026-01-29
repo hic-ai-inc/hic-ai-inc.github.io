@@ -10,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getCustomerByAuth0Id, upsertCustomer, updateCustomerProfile } from "@/lib/dynamodb";
+import { getCustomerByUserId, upsertCustomer, updateCustomerProfile } from "@/lib/dynamodb";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 
 // Create Cognito JWT verifier (lazily initialized)
@@ -65,7 +65,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const customer = await getCustomerByAuth0Id(user.sub);
+    const customer = await getCustomerByUserId(user.sub);
 
     // Default notification preferences
     const defaultNotifications = {
@@ -108,13 +108,13 @@ export async function PATCH(request) {
     const { givenName, middleName, familyName, notifications } = body;
 
     // Get existing customer or create one if doesn't exist
-    let customer = await getCustomerByAuth0Id(user.sub);
+    let customer = await getCustomerByUserId(user.sub);
     
     // If customer doesn't exist, create a new record
     // This happens for new users who haven't purchased yet
     if (!customer) {
       customer = await upsertCustomer({
-        auth0Id: user.sub,
+        userId: user.sub,
         email: user.email,
         accountType: "individual",
         subscriptionStatus: "none",

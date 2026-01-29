@@ -162,7 +162,7 @@ async function handleCheckoutCompleted(session) {
     const tempUserId = `email:${customer_email.toLowerCase()}`;
     
     await upsertCustomer({
-      auth0Id: tempUserId,  // Will be updated when they sign in with Cognito
+      userId: tempUserId,  // Will be updated when they sign in with Cognito
       email: customer_email,
       stripeCustomerId: customer,
       keygenLicenseId: licenseId,
@@ -182,7 +182,7 @@ async function handleCheckoutCompleted(session) {
     console.log(`Welcome email sent to ${customer_email}`);
   } else {
     // Existing customer - update their subscription info
-    await updateCustomerSubscription(existingCustomer.auth0Id, {
+    await updateCustomerSubscription(existingCustomer.userId, {
       subscriptionStatus: "active",
       stripeSubscriptionId: subscription,
       keygenLicenseId: licenseId || existingCustomer.keygenLicenseId,
@@ -190,7 +190,7 @@ async function handleCheckoutCompleted(session) {
       accountType: plan,
       seats,
     });
-    console.log(`Updated existing customer ${existingCustomer.auth0Id}`);
+    console.log(`Updated existing customer ${existingCustomer.userId}`);
   }
 
   console.log(
@@ -237,7 +237,7 @@ async function handleSubscriptionUpdated(subscription) {
   const newStatus = statusMap[status] || status;
 
   // Update customer subscription status
-  await updateCustomerSubscription(dbCustomer.auth0Id, {
+  await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: newStatus,
     cancelAtPeriodEnd: cancel_at_period_end,
   });
@@ -299,7 +299,7 @@ async function handleSubscriptionDeleted(subscription) {
   }
 
   // Update customer status
-  await updateCustomerSubscription(dbCustomer.auth0Id, {
+  await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "canceled",
   });
 
@@ -313,7 +313,7 @@ async function handleSubscriptionDeleted(subscription) {
     }
   }
 
-  console.log(`Subscription canceled for customer ${dbCustomer.auth0Id}`);
+  console.log(`Subscription canceled for customer ${dbCustomer.userId}`);
 }
 
 /**
@@ -344,7 +344,7 @@ async function handlePaymentSucceeded(invoice) {
 
   // If was past_due, restore to active and send reactivation email (A.2)
   if (dbCustomer.subscriptionStatus === "past_due") {
-    await updateCustomerSubscription(dbCustomer.auth0Id, {
+    await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "active",
     });
 
@@ -368,7 +368,7 @@ async function handlePaymentSucceeded(invoice) {
     }
   }
 
-  console.log(`Payment succeeded for customer ${dbCustomer.auth0Id}`);
+  console.log(`Payment succeeded for customer ${dbCustomer.userId}`);
 }
 
 /**
@@ -388,7 +388,7 @@ async function handlePaymentFailed(invoice) {
   }
 
   // Update customer status
-  await updateCustomerSubscription(dbCustomer.auth0Id, {
+  await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "past_due",
     paymentFailedCount: attempt_count,
   });
@@ -410,7 +410,7 @@ async function handlePaymentFailed(invoice) {
   if (attempt_count >= 3) {
     console.log("Max payment attempts reached, suspending license");
 
-    await updateCustomerSubscription(dbCustomer.auth0Id, {
+    await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "suspended",
     });
 
@@ -459,14 +459,14 @@ async function handleDisputeCreated(dispute) {
   }
 
   // Update customer status to disputed
-  await updateCustomerSubscription(dbCustomer.auth0Id, {
+  await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "disputed",
   });
 
   // Alert support team
   await sendDisputeAlert(dbCustomer.email || "unknown", amount, reason, disputeId);
 
-  console.log(`License suspended for disputed customer ${dbCustomer.auth0Id}`);
+  console.log(`License suspended for disputed customer ${dbCustomer.userId}`);
 }
 
 /**
@@ -507,19 +507,19 @@ async function handleDisputeClosed(dispute) {
       }
     }
 
-    await updateCustomerSubscription(dbCustomer.auth0Id, {
+    await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "active",
     });
 
-    console.log(`Dispute ${status}: License reinstated for ${dbCustomer.auth0Id}`);
+    console.log(`Dispute ${status}: License reinstated for ${dbCustomer.userId}`);
   } else {
     // Lost dispute - keep suspended, mark as fraud
-    await updateCustomerSubscription(dbCustomer.auth0Id, {
+    await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "suspended",
       fraudulent: true,
     });
 
-    console.log(`Dispute lost: License remains suspended for ${dbCustomer.auth0Id}`);
+    console.log(`Dispute lost: License remains suspended for ${dbCustomer.userId}`);
   }
 }
 

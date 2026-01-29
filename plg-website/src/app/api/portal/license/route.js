@@ -8,7 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getCustomerByAuth0Id, getLicense } from "@/lib/dynamodb";
+import { getCustomerByUserId, getLicense } from "@/lib/dynamodb";
 import { getLicense as getKeygenLicense } from "@/lib/keygen";
 
 export async function GET() {
@@ -19,7 +19,7 @@ export async function GET() {
     }
 
     // Get customer
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByUserId(session.user.sub);
     if (!customer || !customer.keygenLicenseId) {
       return NextResponse.json({
         license: null,

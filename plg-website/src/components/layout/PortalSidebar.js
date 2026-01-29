@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/cognito-provider";
 import {
   PORTAL_NAV,
   PORTAL_NAV_BUSINESS,
-  AUTH0_NAMESPACE,
+  AUTH_NAMESPACE,
 } from "@/lib/constants";
 
 // Nav items restricted to admin/owner only (business accounts)
@@ -24,8 +24,8 @@ export default function PortalSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  const accountType = user?.[`${AUTH0_NAMESPACE}/account_type`] || "individual";
-  const orgRole = user?.[`${AUTH0_NAMESPACE}/org_role`] || "member";
+  const accountType = user?.[`${AUTH_NAMESPACE}/account_type`] || "individual";
+  const orgRole = user?.[`${AUTH_NAMESPACE}/org_role`] || "member";
 
   // Select base nav items based on account type
   let navItems =

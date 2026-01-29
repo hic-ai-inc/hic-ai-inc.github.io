@@ -10,7 +10,7 @@ import { getSession } from "@/lib/auth";
 import {
   getInviteByToken,
   acceptOrgInvite,
-  getCustomerByAuth0Id,
+  getCustomerByUserId,
 } from "@/lib/dynamodb";
 
 /**
@@ -129,7 +129,7 @@ export async function POST(request, { params }) {
     }
 
     // Check if user is already in an organization
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByUserId(session.user.sub);
     if (customer?.orgId) {
       return NextResponse.json(
         {

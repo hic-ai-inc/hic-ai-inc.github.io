@@ -1,8 +1,8 @@
 /**
  * Welcome Complete Page
  *
- * Final step after Auth0 authentication. Links Stripe purchase
- * to Auth0 account and provisions Keygen license.
+ * Final step after Cognito authentication. Links Stripe purchase
+ * to user account and provisions Keygen license.
  *
  * @see User Journey and Guest Checkout v2
  */
@@ -82,7 +82,7 @@ export default async function WelcomeCompletePage({ searchParams }) {
       name: session.user.name || session.user.email,
       email: session.user.email,
       metadata: {
-        auth0Id: session.user.sub,
+        userId: session.user.sub,
         stripeCustomerId: checkoutSession.customer?.id,
         stripeSubscriptionId: checkoutSession.subscription?.id,
       },
@@ -90,7 +90,7 @@ export default async function WelcomeCompletePage({ searchParams }) {
 
     // Store customer in DynamoDB
     await upsertCustomer({
-      auth0Id: session.user.sub,
+      userId: session.user.sub,
       email: session.user.email,
       stripeCustomerId: checkoutSession.customer?.id,
       keygenLicenseId: license.id,
@@ -106,7 +106,7 @@ export default async function WelcomeCompletePage({ searchParams }) {
     // Store license record
     await createLicense({
       keygenLicenseId: license.id,
-      auth0Id: session.user.sub,
+      userId: session.user.sub,
       licenseKey: license.key,
       policyId: planType,
       status: "active",

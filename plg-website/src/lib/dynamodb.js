@@ -42,7 +42,7 @@ const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || "hic-plg-production";
 // ===========================================
 
 /**
- * Get customer by identity provider user ID (Auth0 or Cognito sub)
+ * Get customer by identity provider user ID (Cognito sub)
  * @param {string} userId - The user's sub claim from the identity provider
  */
 export async function getCustomerByUserId(userId) {
@@ -58,6 +58,7 @@ export async function getCustomerByUserId(userId) {
   return result.Item;
 }
 
+// Backward compatibility alias (deprecated, use getCustomerByUserId)
 // Backward compatibility alias (deprecated, use getCustomerByUserId)
 export const getCustomerByAuth0Id = getCustomerByUserId;
 
@@ -99,7 +100,7 @@ export async function getCustomerByEmail(email) {
  * Create or update customer record
  */
 export async function upsertCustomer({
-  auth0Id,
+  userId,
   email,
   stripeCustomerId,
   keygenLicenseId,
@@ -109,13 +110,13 @@ export async function upsertCustomer({
 }) {
   const now = new Date().toISOString();
   const item = {
-    PK: `USER#${auth0Id}`,
+    PK: `USER#${userId}`,
     SK: "PROFILE",
     GSI1PK: stripeCustomerId ? `STRIPE#${stripeCustomerId}` : undefined,
     GSI1SK: stripeCustomerId ? "CUSTOMER" : undefined,
     GSI2PK: `EMAIL#${email.toLowerCase()}`,
     GSI2SK: "USER",
-    auth0Id,
+    userId,
     email: email.toLowerCase(),
     stripeCustomerId,
     keygenLicenseId,
@@ -126,7 +127,7 @@ export async function upsertCustomer({
   };
 
   // Check if exists to preserve createdAt
-  const existing = await getCustomerByUserId(auth0Id);
+  const existing = await getCustomerByUserId(userId);
   if (!existing) {
     item.createdAt = now;
   }
@@ -144,7 +145,7 @@ export async function upsertCustomer({
 /**
  * Update customer subscription status
  */
-export async function updateCustomerSubscription(auth0Id, updates) {
+export async function updateCustomerSubscription(userId, updates) {
   const updateExpressions = [];
   const expressionValues = {};
   const expressionNames = {};
@@ -163,7 +164,7 @@ export async function updateCustomerSubscription(auth0Id, updates) {
     new UpdateCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `USER#${auth0Id}`,
+        PK: `USER#${userId}`,
         SK: "PROFILE",
       },
       UpdateExpression: `SET ${updateExpressions.join(", ")}`,
@@ -268,13 +269,13 @@ export async function getLicense(keygenLicenseId) {
 /**
  * Get all licenses for a customer
  */
-export async function getCustomerLicenses(auth0Id) {
+export async function getCustomerLicenses(userId) {
   const result = await dynamodb.send(
     new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
       ExpressionAttributeValues: {
-        ":pk": `USER#${auth0Id}`,
+        ":pk": `USER#${userId}`,
         ":sk": "LICENSE#",
       },
     }),
@@ -287,7 +288,7 @@ export async function getCustomerLicenses(auth0Id) {
  */
 export async function createLicense({
   keygenLicenseId,
-  auth0Id,
+  userId,
   licenseKey,
   policyId,
   status,
@@ -301,10 +302,10 @@ export async function createLicense({
   const licenseItem = {
     PK: `LICENSE#${keygenLicenseId}`,
     SK: "DETAILS",
-    GSI1PK: `USER#${auth0Id}`,
+    GSI1PK: `USER#${userId}`,
     GSI1SK: `LICENSE#${keygenLicenseId}`,
     keygenLicenseId,
-    auth0Id,
+    userId,
     licenseKey,
     policyId,
     status,
@@ -318,7 +319,7 @@ export async function createLicense({
 
   // User-license link record
   const userLicenseItem = {
-    PK: `USER#${auth0Id}`,
+    PK: `USER#${userId}`,
     SK: `LICENSE#${keygenLicenseId}`,
     keygenLicenseId,
     status,
@@ -930,7 +931,7 @@ export async function getInviteByToken(token) {
 /**
  * Accept an organization invite
  * @param {string} token - Invite token
- * @param {string} userId - Auth0 user ID of accepting user
+ * @param {string} userId - User ID (Cognito sub) of accepting user
  * @param {string} userName - Name of accepting user
  * @returns {Promise<Object>} Result with org membership
  */

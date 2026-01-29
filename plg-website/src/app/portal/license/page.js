@@ -16,7 +16,7 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { AUTH0_NAMESPACE, LICENSE_STATUS_DISPLAY } from "@/lib/constants";
+import { AUTH_NAMESPACE, LICENSE_STATUS_DISPLAY } from "@/lib/constants";
 import { useUser } from "@/lib/cognito-provider";
 import CopyLicenseButton from "./CopyLicenseButton";
 
@@ -36,7 +36,7 @@ export default function LicensePage() {
     );
   }
 
-  const namespace = AUTH0_NAMESPACE;
+  const namespace = AUTH_NAMESPACE;
   const licenseKey = user[`${namespace}/license_key`] || "XXXX-XXXX-XXXX-XXXX";
   const licenseStatus = user[`${namespace}/license_status`] || "ACTIVE";
   const accountType = user[`${namespace}/account_type`] || "individual";

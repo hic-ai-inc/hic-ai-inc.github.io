@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
-import { getCustomerByAuth0Id } from "@/lib/dynamodb";
+import { getCustomerByUserId } from "@/lib/dynamodb";
 
 export async function GET(request) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request) {
     }
 
     // Get customer to find Stripe customer ID
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByUserId(session.user.sub);
     if (!customer?.stripeCustomerId) {
       return NextResponse.json({ invoices: [] });
     }

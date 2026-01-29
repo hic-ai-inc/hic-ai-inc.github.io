@@ -11,14 +11,14 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AUTH0_NAMESPACE } from "@/lib/constants";
+import { AUTH_NAMESPACE } from "@/lib/constants";
 import { useUser } from "@/lib/cognito-provider";
 import TeamManagement from "./TeamManagement";
 
 export default function TeamPage() {
   const { user, isLoading } = useUser();
   const router = useRouter();
-  const namespace = AUTH0_NAMESPACE;
+  const namespace = AUTH_NAMESPACE;
 
   const accountType = user?.[`${namespace}/account_type`];
 

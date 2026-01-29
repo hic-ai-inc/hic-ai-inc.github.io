@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import {
-  getCustomerByAuth0Id,
+  getCustomerByUserId,
   getCustomerLicenses,
   getLicenseDevices,
 } from "@/lib/dynamodb";
@@ -33,7 +33,7 @@ export async function POST() {
       subscription: null,
     };
 
-    // User profile from Auth0 session
+    // User profile from Cognito session
     exportData.user = {
       id: session.user.sub,
       email: session.user.email,
@@ -43,7 +43,7 @@ export async function POST() {
     };
 
     // Customer data from DynamoDB
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByUserId(session.user.sub);
     if (customer) {
       exportData.customer = {
         accountType: customer.accountType,

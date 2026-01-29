@@ -99,7 +99,7 @@ export {
 } from "./metrics.js";
 
 // ============================================
-// THIRD-PARTY SDK MOCKS (Stripe, Auth0, Keygen)
+// THIRD-PARTY SDK MOCKS (Stripe, Keygen)
 // ============================================
 
 // Stripe (payment processing)
@@ -110,15 +110,6 @@ export {
   createMockSubscription,
   createMockCustomer,
 } from "./stripe.js";
-
-// Auth0 (authentication)
-export {
-  createAuth0Mock,
-  createMockSession,
-  createMockAuth0User,
-  createMockIndividualUser,
-  createMockEnterpriseUser,
-} from "./auth0.js";
 
 // Keygen (license management)
 export {

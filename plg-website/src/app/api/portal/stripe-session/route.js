@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
-import { AUTH0_NAMESPACE } from "@/lib/constants";
+import { AUTH_NAMESPACE } from "@/lib/constants";
 
 export async function POST() {
   try {
@@ -22,7 +22,7 @@ export async function POST() {
       );
     }
 
-    const customerId = session.user[`${AUTH0_NAMESPACE}/customer_id`];
+    const customerId = session.user[`${AUTH_NAMESPACE}/customer_id`];
 
     if (!customerId) {
       return NextResponse.json(

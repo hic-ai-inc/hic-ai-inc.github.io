@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { AUTH0_NAMESPACE } from "@/lib/constants";
+import { AUTH_NAMESPACE } from "@/lib/constants";
 import {
   getOrgMembers,
   getOrgInvites,
@@ -19,7 +19,7 @@ import {
   updateOrgMemberStatus,
   updateOrgMemberRole,
   removeOrgMember,
-  getCustomerByAuth0Id,
+  getCustomerByUserId,
   resendOrgInvite,
 } from "@/lib/dynamodb";
 import { sendEnterpriseInviteEmail } from "@/lib/ses";
@@ -38,8 +38,8 @@ export async function GET() {
     }
 
     const user = session.user;
-    const accountType = user[`${AUTH0_NAMESPACE}/account_type`];
-    const orgId = user[`${AUTH0_NAMESPACE}/org_id`];
+    const accountType = user[`${AUTH_NAMESPACE}/account_type`];
+    const orgId = user[`${AUTH_NAMESPACE}/org_id`];
 
     // Check for business account
     if (accountType !== "business") {
@@ -116,9 +116,9 @@ export async function POST(request) {
     }
 
     const user = session.user;
-    const accountType = user[`${AUTH0_NAMESPACE}/account_type`];
-    const orgId = user[`${AUTH0_NAMESPACE}/org_id`];
-    const userRole = user[`${AUTH0_NAMESPACE}/org_role`];
+    const accountType = user[`${AUTH_NAMESPACE}/account_type`];
+    const orgId = user[`${AUTH_NAMESPACE}/org_id`];
+    const userRole = user[`${AUTH_NAMESPACE}/org_role`];
 
     // Check for business account
     if (accountType !== "business") {
@@ -200,7 +200,7 @@ export async function POST(request) {
         // Send invite email
         try {
           // Get inviter info for the email
-          const inviter = await getCustomerByAuth0Id(user.sub);
+          const inviter = await getCustomerByUserId(user.sub);
           const inviterName =
             inviter?.name || user.name || user.email || "Your team";
           const organizationName =
@@ -372,7 +372,7 @@ export async function POST(request) {
 
         // Resend the email
         try {
-          const inviter = await getCustomerByAuth0Id(user.sub);
+          const inviter = await getCustomerByUserId(user.sub);
           const inviterName =
             inviter?.name || user.name || user.email || "Your team";
           const organizationName =
@@ -430,9 +430,9 @@ export async function DELETE(request) {
     }
 
     const user = session.user;
-    const accountType = user[`${AUTH0_NAMESPACE}/account_type`];
-    const orgId = user[`${AUTH0_NAMESPACE}/org_id`];
-    const userRole = user[`${AUTH0_NAMESPACE}/org_role`];
+    const accountType = user[`${AUTH_NAMESPACE}/account_type`];
+    const orgId = user[`${AUTH_NAMESPACE}/org_id`];
+    const userRole = user[`${AUTH_NAMESPACE}/org_role`];
 
     // Check for business account
     if (accountType !== "business") {

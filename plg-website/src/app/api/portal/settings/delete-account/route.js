@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getCustomerByAuth0Id, upsertCustomer } from "@/lib/dynamodb";
+import { getCustomerByUserId, upsertCustomer } from "@/lib/dynamodb";
 import { stripe } from "@/lib/stripe";
 
 export async function POST(request) {
@@ -30,7 +30,7 @@ export async function POST(request) {
       );
     }
 
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByUserId(session.user.sub);
     if (!customer) {
       return NextResponse.json(
         { error: "Customer not found" },
@@ -87,7 +87,7 @@ export async function POST(request) {
 
     // Soft-delete: Mark account for deletion
     await upsertCustomer({
-      auth0UserId: session.user.sub,
+      cognitoUserId: session.user.sub,
       email: session.user.email,
       name: customer.name,
       accountStatus: "pending_deletion",
@@ -99,7 +99,7 @@ export async function POST(request) {
 
     // TODO: In production, queue a job to:
     // 1. Deactivate all devices in KeyGen
-    // 2. Delete user from Auth0
+    // 2. Delete user from Cognito
     // 3. Hard-delete from DynamoDB after grace period
     // 4. Send confirmation email
 
@@ -128,7 +128,7 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByUserId(session.user.sub);
     if (!customer) {
       return NextResponse.json(
         { error: "Customer not found" },
@@ -145,7 +145,7 @@ export async function DELETE(request) {
 
     // Cancel the deletion
     await upsertCustomer({
-      auth0UserId: session.user.sub,
+      cognitoUserId: session.user.sub,
       email: session.user.email,
       name: customer.name,
       accountStatus: "active",

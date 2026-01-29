@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import {
-  getCustomerByAuth0Id,
+  getCustomerByUserId,
   getCustomerLicenses,
   getLicenseDevices,
 } from "@/lib/dynamodb";
@@ -55,7 +55,7 @@ export async function GET() {
     // In development with mock user, return mock data
     if (
       process.env.NODE_ENV === "development" &&
-      session.user.sub === "auth0|dev-preview-user"
+      session.user.sub === "dev-preview-user"
     ) {
       return NextResponse.json({
         devices: MOCK_DEVICES,
@@ -65,7 +65,7 @@ export async function GET() {
     }
 
     // Get customer and licenses
-    const customer = await getCustomerByAuth0Id(session.user.sub);
+    const customer = await getCustomerByUserId(session.user.sub);
     if (!customer) {
       return NextResponse.json({ devices: [], maxDevices: 0 });
     }
@@ -142,7 +142,7 @@ export async function DELETE(request) {
     // In development with mock user, simulate success
     if (
       process.env.NODE_ENV === "development" &&
-      session.user.sub === "auth0|dev-preview-user"
+      session.user.sub === "dev-preview-user"
     ) {
       return NextResponse.json({ success: true });
     }
