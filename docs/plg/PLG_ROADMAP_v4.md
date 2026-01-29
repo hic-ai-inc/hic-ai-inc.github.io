@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.14.0  
+**Document Version:** 4.15.0  
 **Date:** January 29, 2026  
 **Owner:** General Counsel  
-**Status:** 🟢 AUTH COMPLETE (Individual) — Focus: E2E Individual Path (Checkout Debugging)
+**Status:** 🟢 CHECKOUT WORKING (All Plans) — Focus: E2E Payment Completion + Licensing Integration
 
 ---
 
@@ -279,14 +279,14 @@ Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2
 | **Phase 3: Add Secrets to Amplify Env Vars** | | |
 | Add `STRIPE_SECRET_KEY` to env vars | ✅ | Added via AWS CLI |
 | Add `STRIPE_WEBHOOK_SECRET` to env vars | ✅ | Added via AWS CLI |
-| Verify `secrets.js` fallback works | 🟡 | Testing with diagnostic error codes |
+| Verify `secrets.js` fallback works | ✅ | SSM Parameter Store working with Compute role |
 | **Phase 4: Deploy & Test** | | |
 | Connect feature branch to Amplify | ✅ | Branch auto-detected and built |
 | Merge to development | ✅ | Fast-forward merge completed |
 | Deploy to staging.hic-ai.com | ✅ | Build triggered |
 | **Phase 5: Verify E2E** | | |
 | Test login/logout | ✅ | Google OAuth working |
-| Test checkout flow | 🟡 | Debugging with error codes |
+| Test checkout flow | ✅ | All 4 routes working (Individual/Business × Monthly/Annual) |
 | Add diagnostic error codes | ✅ | `[AUTH-xxx]`, `[SEC-xxx]`, `[STRIPE-xxx]` |
 
 ### 3b.4 Key Configuration Values
@@ -371,9 +371,27 @@ Instead of Amplify's `secret()` function (which requires custom Lambda functions
 | Update `secrets.js` SSM paths | ✅ | `/plg/secrets/<app-id>/<key>` |
 | Copy `STRIPE_SECRET_KEY` to SSM | ✅ | Via `copy-from-secrets-manager` |
 | Copy `STRIPE_WEBHOOK_SECRET` to SSM | ✅ | Via `copy-from-secrets-manager` |
-| Deploy and test | 🟡 | Build triggered, awaiting test |
+| Add IAM policy for SSM access | ✅ | `SSMParameterAccess` policy |
+| Create Amplify Compute role | ✅ | `plg-amplify-compute-role-staging` |
+| Configure Compute role in Console | ✅ | Set via Amplify Console → IAM roles |
+| Deploy and test | ✅ | **All 4 checkout paths working!** |
 
-### 3b.9 Future: Full Gen 2 Secrets (Deferred)
+### 3b.10 IAM Configuration Summary (Jan 29)
+
+**The Fix:** Amplify SSR requires a **Compute role** (separate from Service role) for runtime AWS API access.
+
+| Role | ARN | Purpose |
+|------|-----|---------|
+| Service Role | `arn:aws:iam::496998973008:role/plg-amplify-role-staging` | Build-time operations |
+| Compute Role | `arn:aws:iam::496998973008:role/plg-amplify-compute-role-staging` | **SSR runtime AWS access** |
+
+**Compute Role Policies:**
+- `SSMParameterAccess` — Read `/plg/secrets/*` parameters
+- `DynamoDBAccess` — CRUD on `hic-plg-staging` table
+- `SESAccess` — Send emails via SES
+- `SecretsManagerAccess` — Fallback to Secrets Manager
+
+### 3b.11 Future: Full Gen 2 Secrets (Deferred)
 
 For production, consider migrating to Amplify Gen 2's native `secret()` function:
 
@@ -388,7 +406,7 @@ For production, consider migrating to Amplify Gen 2's native `secret()` function
 | Test locally with `ampx sandbox` | ⬜ | Verify secret injection |
 | **Phase 4: Deploy and Verify** | | |
 | Push to development | ⬜ | Triggers rebuild |
-| Test checkout on staging | ⬜ | **Critical** |
+| Test checkout on staging | ✅ | **WORKING** — All 4 checkout paths redirect to Stripe |
 | Remove diagnostic logging | ⬜ | After confirmed working |
 
 ---
