@@ -325,13 +325,36 @@ Comprehensive error codes added to isolate checkout failures:
 | `[STRIPE-001]` | Backend | Invalid price ID |
 | `[STRIPE-004]` | Backend | Stripe authentication failed |
 
-### 3b.6 Remaining Work
+### 3b.6 Diagnosis Complete (Jan 29, 2:30 PM EST)
+
+**Error received:** `[SEC-999] Stripe init failed: Neither apiKey nor config.authenticator provided`
+
+**What this confirms:**
+- ✅ Frontend auth working (no AUTH-xxx errors)
+- ✅ API request/response working (no NET-xxx, SRV-xxx errors)  
+- ❌ `STRIPE_SECRET_KEY` is `undefined` at SSR runtime
+
+**Root cause confirmed:** Amplify Gen 1 WEB_COMPUTE does NOT pass environment variables to SSR Lambda at runtime—only during build. The env var exists (`sk_test_51SsU8DA4W8n...`) but isn't reaching `process.env` in the Lambda.
+
+**Solution:** Implement Gen 2 native secrets with `secret()` function.
+
+### 3b.7 Remaining Work — Gen 2 Secrets Implementation
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Verify checkout with error codes | 🟡 | Awaiting build completion |
-| Confirm Stripe session creation | ⬜ | Test after build |
-| Remove diagnostic logging (post-debug) | ⬜ | After issue resolved |
+| **Phase 1: Define Secrets in Backend** | | |
+| Update `amplify/backend.js` with `defineSecret()` | ⬜ | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| Grant SSR function access to secrets | ⬜ | Via `backend.addOutput()` |
+| **Phase 2: Store Secret Values** | | |
+| Run `ampx sandbox secret set STRIPE_SECRET_KEY` | ⬜ | For local development |
+| Add secrets via Amplify Console (Hosting > Secrets) | ⬜ | For deployed branches |
+| **Phase 3: Update Code to Use Secrets** | | |
+| Update `secrets.js` to use `env.STRIPE_SECRET_KEY` | ⬜ | Gen 2 injects via `env` |
+| Test locally with `ampx sandbox` | ⬜ | Verify secret injection |
+| **Phase 4: Deploy and Verify** | | |
+| Push to development | ⬜ | Triggers rebuild |
+| Test checkout on staging | ⬜ | **Critical** |
+| Remove diagnostic logging | ⬜ | After confirmed working |
 
 ---
 

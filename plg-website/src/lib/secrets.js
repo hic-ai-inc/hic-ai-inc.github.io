@@ -17,6 +17,10 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
+import {
+  SSMClient,
+  GetParameterCommand,
+} from "@aws-sdk/client-ssm";
 
 // ═══════════════════════════════════════════════════════════════════
 // Configuration
@@ -31,11 +35,20 @@ const ENVIRONMENT = process.env.NEXT_PUBLIC_APP_URL?.includes("staging")
     ? "production"
     : "staging";
 
-// Secret paths by category
+// Secret paths by category (AWS Secrets Manager)
 const SECRET_PATHS = {
   stripe: `plg/${ENVIRONMENT}/stripe`,
   keygen: `plg/${ENVIRONMENT}/keygen`,
   app: `plg/${ENVIRONMENT}/app`,
+};
+
+// SSM Parameter Store paths for runtime secrets
+// Uses /plg/secrets/<app-id>/<secret-key> format (managed by manage-ssm-secrets.sh)
+const AMPLIFY_APP_ID = process.env.AWS_APP_ID || "d2yhz9h4xdd5rb";
+const SSM_SECRET_PATHS = {
+  STRIPE_SECRET_KEY: `/plg/secrets/${AMPLIFY_APP_ID}/STRIPE_SECRET_KEY`,
+  STRIPE_WEBHOOK_SECRET: `/plg/secrets/${AMPLIFY_APP_ID}/STRIPE_WEBHOOK_SECRET`,
+  KEYGEN_PRODUCT_TOKEN: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_PRODUCT_TOKEN`,
 };
 
 // Cache TTL: 5 minutes (secrets rarely change, but we want eventual consistency)
@@ -46,12 +59,20 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 // ═══════════════════════════════════════════════════════════════════
 
 let secretsClient = null;
+let ssmClient = null;
 
 function getSecretsClient() {
   if (!secretsClient) {
     secretsClient = new SecretsManagerClient({ region: REGION });
   }
   return secretsClient;
+}
+
+function getSSMClient() {
+  if (!ssmClient) {
+    ssmClient = new SSMClient({ region: REGION });
+  }
+  return ssmClient;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -91,6 +112,50 @@ function setCachedSecret(secretName, value) {
 // ═══════════════════════════════════════════════════════════════════
 // Core Secret Fetching
 // ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Fetch a single secret from SSM Parameter Store (Amplify Gen 2 format)
+ *
+ * @param {string} parameterName - The full SSM parameter path (e.g., '/amplify/shared/app-id/SECRET_KEY')
+ * @returns {Promise<string|null>} The secret value, or null if not found
+ */
+async function getSSMParameter(parameterName) {
+  // Check cache first (using same cache as Secrets Manager)
+  const cacheKey = `ssm:${parameterName}`;
+  const cached = getCachedSecret(cacheKey);
+  if (cached) {
+    return cached.value;
+  }
+
+  const client = getSSMClient();
+  const command = new GetParameterCommand({
+    Name: parameterName,
+    WithDecryption: true, // Gen 2 secrets are encrypted
+  });
+
+  try {
+    const response = await client.send(command);
+    const value = response.Parameter?.Value;
+
+    if (value) {
+      // Cache the result
+      setCachedSecret(cacheKey, { value });
+      console.log(`[Secrets] SSM parameter ${parameterName}: found`);
+      return value;
+    }
+
+    console.log(`[Secrets] SSM parameter ${parameterName}: empty`);
+    return null;
+  } catch (error) {
+    // ParameterNotFound is expected if secret hasn't been set
+    if (error.name === "ParameterNotFound") {
+      console.log(`[Secrets] SSM parameter ${parameterName}: not found`);
+      return null;
+    }
+    console.error(`[Secrets] SSM error for ${parameterName}:`, error.name, error.message);
+    return null;
+  }
+}
 
 /**
  * Fetch a secret from AWS Secrets Manager
@@ -137,36 +202,59 @@ export async function getSecret(secretName) {
 /**
  * Get Stripe secrets (API key and webhook secret)
  *
- * Falls back to environment variables for local development.
+ * Priority order:
+ * 1. Local development: process.env (from .env.local)
+ * 2. Amplify Gen 2 SSM Parameter Store (/amplify/shared/app-id/SECRET)
+ * 3. AWS Secrets Manager (plg/staging/stripe or plg/production/stripe)
+ * 4. Emergency fallback: process.env
  *
  * @returns {Promise<{STRIPE_SECRET_KEY: string, STRIPE_WEBHOOK_SECRET: string}>}
  */
 export async function getStripeSecrets() {
-  // Local development fallback
+  console.log("[Secrets] getStripeSecrets called, NODE_ENV:", process.env.NODE_ENV);
+
+  // Local development: use .env.local
   if (process.env.NODE_ENV === "development") {
+    console.log("[Secrets] Development mode - using process.env");
     return {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     };
   }
 
-  // Production/staging: fetch from Secrets Manager
+  // Production/staging: Try Gen 2 SSM Parameter Store first
+  console.log("[Secrets] Production mode - trying SSM Parameter Store (Gen 2)...");
+  const ssmSecretKey = await getSSMParameter(SSM_SECRET_PATHS.STRIPE_SECRET_KEY);
+  const ssmWebhookSecret = await getSSMParameter(SSM_SECRET_PATHS.STRIPE_WEBHOOK_SECRET);
+
+  if (ssmSecretKey && ssmWebhookSecret) {
+    console.log("[Secrets] SSM secrets found - using Gen 2 secrets");
+    return {
+      STRIPE_SECRET_KEY: ssmSecretKey,
+      STRIPE_WEBHOOK_SECRET: ssmWebhookSecret,
+    };
+  }
+
+  // Fallback to Secrets Manager (original approach)
+  console.log("[Secrets] SSM not available, trying Secrets Manager...");
   try {
     const secrets = await getSecret(SECRET_PATHS.stripe);
+    console.log("[Secrets] Secrets Manager success");
     return {
       STRIPE_SECRET_KEY: secrets.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: secrets.STRIPE_WEBHOOK_SECRET,
     };
   } catch (error) {
-    // Emergency fallback to env vars (should not happen in production)
-    console.warn(
-      "Secrets Manager unavailable, falling back to environment variables",
-    );
-    return {
-      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    };
+    console.warn("[Secrets] Secrets Manager unavailable:", error.message);
   }
+
+  // Emergency fallback to env vars (shouldn't reach here in production)
+  console.warn("[Secrets] All secret sources failed, falling back to process.env");
+  console.warn("[Secrets] STRIPE_SECRET_KEY in env:", !!process.env.STRIPE_SECRET_KEY);
+  return {
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+  };
 }
 
 /**
