@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.11.0  
-**Date:** January 28, 2026  
+**Document Version:** 4.12.0  
+**Date:** January 29, 2026  
 **Owner:** General Counsel  
-**Status:** 🟢 COGNITO v2 + Portal Settings API wired to DynamoDB
+**Status:** 🟢 AUTH COMPLETE (Individual) — Focus: E2E Individual Path
 
 ---
 
@@ -160,9 +160,11 @@ npm run metrics -- --period=7d
 
 ## 3. Auth (Cognito Migration)
 
-**Status:** ✅ **WORKING** — Google OAuth + email signup working on staging  
-**Est. Hours:** 6-8h  
+**Status:** ✅ **COMPLETE (Individual)** — Login, signup, logout all working on staging  
+**Est. Hours:** 0h (Individual done) | 4-6h (Business RBAC deferred)  
 **Documentation:** [Migration Decision Memo](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md), [Original Security Considerations](./20260122_SECURITY_CONSIDERATIONS_FOR_AUTH0_INTEGRATION.md)
+
+> 🎯 **Individual Path Complete:** Auth is fully functional for Individual users. Business/Team RBAC (Owner/Admin/Member roles, Cognito Groups) will be implemented after Individual E2E is stood up with payments + licensing.
 
 ### 3.0 Migration Decision (Jan 28, 2026)
 
@@ -197,7 +199,7 @@ npm run metrics -- --period=7d
 | Configure Cognito Domain             | ✅     | `mouse-staging-v2.auth.us-east-1.amazoncognito.com` |
 | Configure Google social IdP          | ✅     | Attribute mapping: given_name, family_name, email |
 | Configure GitHub OIDC IdP            | ⏸️     | **Deferred** — Cognito requires OIDC well-known |
-| Create Cognito Groups for roles      | ⬜     | `org_<id>_owner`, `org_<id>_admin`, `org_<id>_member` |
+| Create Cognito Groups for roles      | ⏸️ DEFERRED | Business RBAC — after Individual E2E complete |
 | **Phase 2: Code Migration**          |        |                                                 |
 | Remove `@auth0/nextjs-auth0` package | ⬜     | Keep for now, remove post-launch               |
 | Add `aws-amplify` package            | ✅     | Amplify Auth v6 + aws-jwt-verify               |
@@ -206,7 +208,7 @@ npm run metrics -- --period=7d
 | Simplify `src/middleware.js`         | ✅     | Simplified for Cognito, removed Auth0 dep      |
 | Create `/auth/login/page.js`         | ✅     | Login page with Google button                   |
 | Create `/auth/callback/page.js`      | ✅     | Token exchange with PKCE code_verifier          |
-| Create `/auth/logout/route.js`       | ✅     | Clears tokens + Cognito logout                  |
+| Create `/auth/logout/route.js`       | ✅     | Fixed: uses `logout_uri` per AWS SDK standard   |
 | Update portal pages (claim namespace)| ✅     | Client components using useUser()/useAuth()    |
 | **Phase 3: Environment Variables**   |        |                                                 |
 | Remove `AUTH0_*` from Amplify        | ⬜     | Deferred — keeping for fallback                |
@@ -988,6 +990,7 @@ Parallel workstreams (no dependencies):
 
 | Version | Date         | Changes                                                                                                                                                                                                                                           |
 | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.12** | Jan 29, 2026 | **AUTH COMPLETE (Individual).** Fixed logout bug: changed `redirect_uri` → `logout_uri` per AWS Amplify SDK. Google OAuth + email signup + logout all working. RBAC for Business (Owner/Admin/Member) deferred until Individual E2E complete. Next focus: Checkout → Stripe → KeyGen pipeline. |
 | **4.11** | Jan 28, 2026 | **COGNITO v2 + SETTINGS API WIRED.** Created new Cognito User Pool (`mouse-staging-v2`) with required `given_name`/`family_name` at signup. Settings API now persists to DynamoDB with separate name fields. Added Section 9.0 "Immediate Priority" with 5-phase wire-up plan: (1) Settings ✅, (2) Checkout → Stripe, (3) Stripe webhooks, (4) KeyGen webhooks, (5) Portal data display. |
 | **4.10** | Jan 28, 2026 | **SECRETS MANAGER COMPLETE.** Migrated secrets from Amplify env vars to AWS Secrets Manager (3 secrets: `plg/staging/stripe`, `keygen`, `app`). Checkout UI with auth-gating working. Env vars reduced from 24→15. Added backup/restore scripts for Amplify. Webhook→License pipeline still TODO. |
 | **4.9** | Jan 28, 2026 | **COGNITO AUTH LIVE.** Google OAuth + email signup working on staging. Fixed logout flow (`redirect_uri` param, state clearing). Portal using `useUser()`/`useAuth()` hooks. Settings API with JWT verification via `aws-jwt-verify`. |
