@@ -146,7 +146,7 @@ export async function POST(request) {
           quantity,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/welcome?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/welcome/complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?cancelled=true`,
       customer_email: customerEmail,
       allow_promotion_codes: !promoCode,

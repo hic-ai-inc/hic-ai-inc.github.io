@@ -1,42 +1,31 @@
 /**
- * Welcome Page
+ * Welcome Page - Redirect Handler
  *
- * Post-checkout landing page for account setup.
- * Handles both authenticated users and guest checkout scenarios.
+ * This route exists for backwards compatibility only.
+ * The normal flow goes directly to /welcome/complete after Stripe checkout.
  *
- * Auth routing is handled client-side by WelcomeRouter because
- * Amplify auth is only configured in browser context (SSR limitation).
+ * If someone lands here with a session_id (old links), redirect to /complete.
+ * Otherwise, redirect to /pricing.
  *
  * @see PLG User Journey - Section 2.4
  */
 
-import { Suspense } from "react";
-import WelcomeRouter from "./WelcomeRouter";
-import WelcomeContent from "./WelcomeContent";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Welcome to Mouse",
   description: "Set up your Mouse account and get started",
 };
 
-// Server-side loading fallback
-function WelcomeLoading() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-void-black">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cerulean-mist mx-auto mb-4"></div>
-        <p className="text-silver">Loading...</p>
-      </div>
-    </div>
-  );
-}
+export default async function WelcomePage({ searchParams }) {
+  const params = await searchParams;
+  const sessionId = params?.session_id;
 
-export default function WelcomePage() {
-  return (
-    <Suspense fallback={<WelcomeLoading />}>
-      <WelcomeRouter>
-        <WelcomeContent />
-      </WelcomeRouter>
-    </Suspense>
-  );
+  // If we have a session_id, this is from an old link - redirect to complete
+  if (sessionId) {
+    redirect(`/welcome/complete?session_id=${sessionId}`);
+  }
+
+  // No session_id - redirect to pricing
+  redirect("/pricing");
 }
