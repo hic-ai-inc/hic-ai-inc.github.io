@@ -79,36 +79,66 @@ function IndividualCheckoutContent() {
     setError(null);
 
     try {
-      // Get the current session for the auth token
-      const session = await getSession();
-      if (!session?.idToken) {
-        throw new Error("Please sign in to continue");
+      // Step 1: Get OAuth session
+      let session;
+      try {
+        session = await getSession();
+      } catch (sessionErr) {
+        throw new Error(`[AUTH-001] Failed to retrieve OAuth session: ${sessionErr.message}`);
       }
 
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.idToken}`,
-        },
-        body: JSON.stringify({
-          plan: "individual",
-          billingCycle,
-          email: user?.email,
-          promoCode: promoCode || undefined,
-          returnTo: returnTo || undefined,
-        }),
-      });
+      if (!session) {
+        throw new Error("[AUTH-002] No OAuth session found. Please sign in again.");
+      }
 
-      const data = await response.json();
+      if (!session.idToken) {
+        throw new Error("[AUTH-003] OAuth session missing ID token. Please sign in again.");
+      }
 
+      // Step 2: Make checkout API request
+      let response;
+      try {
+        response = await fetch("/api/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.idToken}`,
+          },
+          body: JSON.stringify({
+            plan: "individual",
+            billingCycle,
+            email: user?.email,
+            promoCode: promoCode || undefined,
+            returnTo: returnTo || undefined,
+          }),
+        });
+      } catch (fetchErr) {
+        throw new Error(`[NET-001] Network error calling checkout API: ${fetchErr.message}`);
+      }
+
+      // Step 3: Parse response
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        throw new Error(`[API-001] Failed to parse API response (status ${response.status}): ${parseErr.message}`);
+      }
+
+      // Step 4: Check for API errors
       if (!response.ok) {
-        throw new Error(data.error || "Checkout failed");
+        // Pass through the detailed error from the API
+        throw new Error(data.error || `[API-002] Checkout API error (status ${response.status})`);
       }
 
-      // Redirect to Stripe Checkout
+      // Step 5: Validate response data
+      if (!data.url) {
+        throw new Error("[API-003] Checkout API returned no redirect URL");
+      }
+
+      // Step 6: Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (err) {
+      console.error("[Checkout] Error:", err.message);
       setError(err.message);
       setIsSubmitting(false);
     }
