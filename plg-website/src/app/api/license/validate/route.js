@@ -181,7 +181,7 @@ export async function POST(request) {
 
     // Mode 1: Fingerprint-only = trial flow
     if (!licenseKey) {
-      return handleTrialValidation(fingerprint);
+      return await handleTrialValidation(fingerprint);
     }
 
     // Mode 2: License key provided = validate with Keygen

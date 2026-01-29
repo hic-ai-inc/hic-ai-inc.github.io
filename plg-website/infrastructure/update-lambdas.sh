@@ -1,0 +1,284 @@
+#!/bin/bash
+# ═══════════════════════════════════════════════════════════════════════════════
+# HIC PLG Lambda Function Update Script
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Usage:
+#   ./update-lambdas.sh [environment] [options]
+#
+# Examples:
+#   ./update-lambdas.sh staging                    # Update all staging Lambdas
+#   ./update-lambdas.sh staging --function stream-processor  # Update one function
+#   ./update-lambdas.sh staging --dry-run          # Preview without deploying
+#   ./update-lambdas.sh prod                       # Update all production Lambdas
+#
+# Options:
+#   --function, -f   Update specific function only (stream-processor, customer-update, etc.)
+#   --dry-run        Package but don't deploy
+#   --help           Show this help message
+#
+# Prerequisites:
+#   - AWS CLI configured with appropriate credentials
+#   - zip command available
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+set -euo pipefail
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Configuration
+# ───────────────────────────────────────────────────────────────────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LAMBDA_DIR="${SCRIPT_DIR}/lambda"
+BUILD_DIR="${SCRIPT_DIR}/.lambda-build"
+
+# Default values
+ENVIRONMENT="${1:-staging}"
+DRY_RUN=false
+SPECIFIC_FUNCTION=""
+REGION="${AWS_REGION:-us-east-1}"
+
+# Lambda function definitions (directory name -> Lambda function name pattern)
+declare -A LAMBDA_FUNCTIONS=(
+    ["stream-processor"]="plg-stream-processor"
+    ["customer-update"]="plg-customer-update"
+    ["email-sender"]="plg-email-sender"
+    ["scheduled-tasks"]="plg-scheduled-tasks"
+)
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Helper Functions
+# ───────────────────────────────────────────────────────────────────────────────
+
+print_header() {
+    echo ""
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
+}
+
+print_step() {
+    echo -e "${YELLOW}▸${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+show_help() {
+    head -25 "$0" | tail -20
+    exit 0
+}
+
+cleanup() {
+    if [[ -d "$BUILD_DIR" ]]; then
+        rm -rf "$BUILD_DIR"
+    fi
+}
+
+trap cleanup EXIT
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Parse Arguments
+# ───────────────────────────────────────────────────────────────────────────────
+
+shift || true  # Remove first positional arg (environment)
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --function|-f)
+            SPECIFIC_FUNCTION="$2"
+            shift 2
+            ;;
+        --help|-h)
+            show_help
+            ;;
+        --region)
+            REGION="$2"
+            shift 2
+            ;;
+        *)
+            # Check if it's the environment (first positional)
+            if [[ "$1" =~ ^(dev|staging|prod)$ ]]; then
+                ENVIRONMENT="$1"
+            else
+                print_error "Unknown option: $1"
+                show_help
+            fi
+            shift
+            ;;
+    esac
+done
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Validate Environment
+# ───────────────────────────────────────────────────────────────────────────────
+
+if [[ ! "$ENVIRONMENT" =~ ^(dev|staging|prod)$ ]]; then
+    print_error "Environment must be 'dev', 'staging', or 'prod'"
+    exit 1
+fi
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Display Configuration
+# ───────────────────────────────────────────────────────────────────────────────
+
+print_header "🚀 HIC PLG Lambda Update"
+
+echo ""
+echo "  Environment:     ${ENVIRONMENT}"
+echo "  Region:          ${REGION}"
+echo "  Lambda Dir:      ${LAMBDA_DIR}"
+echo "  Dry Run:         ${DRY_RUN}"
+if [[ -n "$SPECIFIC_FUNCTION" ]]; then
+    echo "  Function:        ${SPECIFIC_FUNCTION}"
+fi
+echo ""
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Verify AWS Credentials
+# ───────────────────────────────────────────────────────────────────────────────
+
+print_step "Validating AWS credentials..."
+AWS_ACCOUNT=$(aws sts get-caller-identity --query "Account" --output text 2>/dev/null || true)
+if [[ -z "$AWS_ACCOUNT" ]]; then
+    print_error "AWS credentials not configured or invalid"
+    exit 1
+fi
+print_success "AWS Account: ${AWS_ACCOUNT}"
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Create Build Directory
+# ───────────────────────────────────────────────────────────────────────────────
+
+print_step "Creating build directory..."
+mkdir -p "$BUILD_DIR"
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Package and Deploy Functions
+# ───────────────────────────────────────────────────────────────────────────────
+
+update_lambda() {
+    local dir_name="$1"
+    local base_name="${LAMBDA_FUNCTIONS[$dir_name]}"
+    local function_name="${base_name}-${ENVIRONMENT}"
+    local source_dir="${LAMBDA_DIR}/${dir_name}"
+    local zip_file="${BUILD_DIR}/${dir_name}.zip"
+
+    if [[ ! -d "$source_dir" ]]; then
+        print_warning "Source directory not found: ${source_dir}"
+        return 1
+    fi
+
+    print_step "Packaging ${dir_name}..."
+    
+    # Create zip from the function directory
+    (cd "$source_dir" && zip -r "$zip_file" . -x "*.test.js" -x "__tests__/*" -x "node_modules/*" > /dev/null)
+    
+    local zip_size=$(du -h "$zip_file" | cut -f1)
+    echo "    📦 Created ${zip_file} (${zip_size})"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        print_warning "DRY RUN: Would update ${function_name}"
+        return 0
+    fi
+
+    print_step "Deploying ${function_name}..."
+    
+    # Check if function exists
+    if ! aws lambda get-function --function-name "$function_name" --region "$REGION" > /dev/null 2>&1; then
+        print_warning "Function ${function_name} does not exist, skipping"
+        return 1
+    fi
+
+    # Update function code
+    aws lambda update-function-code \
+        --function-name "$function_name" \
+        --zip-file "fileb://${zip_file}" \
+        --region "$REGION" \
+        --output text \
+        --query "LastModified" > /dev/null
+
+    print_success "Updated ${function_name}"
+    
+    # Wait for update to complete
+    print_step "Waiting for update to complete..."
+    aws lambda wait function-updated \
+        --function-name "$function_name" \
+        --region "$REGION"
+    
+    print_success "${function_name} is ready"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Main Execution
+# ───────────────────────────────────────────────────────────────────────────────
+
+UPDATED=0
+FAILED=0
+
+if [[ -n "$SPECIFIC_FUNCTION" ]]; then
+    # Update specific function
+    if [[ -z "${LAMBDA_FUNCTIONS[$SPECIFIC_FUNCTION]:-}" ]]; then
+        print_error "Unknown function: ${SPECIFIC_FUNCTION}"
+        echo "Available functions: ${!LAMBDA_FUNCTIONS[*]}"
+        exit 1
+    fi
+    
+    if update_lambda "$SPECIFIC_FUNCTION"; then
+        ((UPDATED++))
+    else
+        ((FAILED++))
+    fi
+else
+    # Update all functions
+    for dir_name in "${!LAMBDA_FUNCTIONS[@]}"; do
+        echo ""
+        if update_lambda "$dir_name"; then
+            ((UPDATED++))
+        else
+            ((FAILED++))
+        fi
+    done
+fi
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Summary
+# ───────────────────────────────────────────────────────────────────────────────
+
+echo ""
+print_header "📊 Update Summary"
+echo ""
+echo "  ✅ Updated:  ${UPDATED}"
+echo "  ❌ Failed:   ${FAILED}"
+echo ""
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    print_warning "This was a DRY RUN - no changes were made"
+fi
+
+if [[ $FAILED -gt 0 ]]; then
+    exit 1
+fi
+
+print_success "Lambda update complete!"
