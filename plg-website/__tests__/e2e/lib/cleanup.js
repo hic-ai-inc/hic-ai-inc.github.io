@@ -318,12 +318,18 @@ export function createTestScope() {
   const scopedResources = {
     trials: [],
     devices: [],
+    licenses: [],
   };
 
   return {
     trackTrial(fingerprint) {
       scopedResources.trials.push(fingerprint);
       trackTrial(fingerprint);
+    },
+
+    trackLicense(licenseKey, keygenId) {
+      scopedResources.licenses.push({ licenseKey, keygenId });
+      trackLicense(licenseKey, keygenId);
     },
 
     trackDevice(licenseKey, machineId) {

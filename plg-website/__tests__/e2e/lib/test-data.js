@@ -163,16 +163,19 @@ export function generateDeviceData() {
 
 /**
  * Generate heartbeat request data
- * @param {string} licenseKey
- * @param {Object} device - Device data from generateDeviceData
+ * @param {Object} [options] - Optional overrides
+ * @param {string} [options.licenseKey] - License key (optional for trial heartbeats)
+ * @param {string} [options.fingerprint] - Device fingerprint
+ * @param {string} [options.machineId] - Machine identifier
+ * @param {string} [options.sessionId] - Session identifier
  * @returns {Object}
  */
-export function generateHeartbeatData(licenseKey, device) {
+export function generateHeartbeatData(options = {}) {
   return {
-    licenseKey,
-    machineId: device.machineId,
-    sessionId: generateSessionId(),
-    fingerprint: device.fingerprint,
+    fingerprint: options.fingerprint || generateFingerprint(),
+    machineId: options.machineId || generateMachineId(),
+    sessionId: options.sessionId || generateSessionId(),
+    ...(options.licenseKey && { licenseKey: options.licenseKey }),
   };
 }
 
