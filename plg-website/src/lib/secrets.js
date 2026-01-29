@@ -138,8 +138,8 @@ async function getSSMParameter(parameterName) {
     const value = response.Parameter?.Value;
 
     if (value) {
-      // Cache the result
-      setCachedSecret(cacheKey, { value });
+      // Cache the result (store string directly, not wrapped in object)
+      setCachedSecret(cacheKey, value);
       console.log(`[Secrets] SSM parameter ${parameterName}: found`);
       return value;
     }
