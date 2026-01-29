@@ -22,13 +22,10 @@ import {
   updateLicenseStatus,
 } from "@/lib/dynamodb";
 import { suspendLicense, reinstateLicense, createLicense, KEYGEN_POLICIES } from "@/lib/keygen";
-import {
-  sendWelcomeEmail,
-  sendPaymentFailedEmail,
-  sendReactivationEmail,
-  sendCancellationEmail,
-  sendDisputeAlert,
-} from "@/lib/ses";
+// NOTE: Most emails are now sent via event-driven architecture:
+// DynamoDB write (with eventType) → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
+// Only sendDisputeAlert is called directly (urgent security notification)
+import { sendDisputeAlert } from "@/lib/ses";
 
 export async function POST(request) {
   const body = await request.text();
@@ -173,13 +170,17 @@ async function handleCheckoutCompleted(session) {
         stripeSubscriptionId: subscription,
         seats,
         createdFromCheckout: session.id,
+        // Event-driven email fields
+        eventType: "CUSTOMER_CREATED",
+        sessionId: session.id,
       },
     });
     console.log(`New customer record created for ${customer_email}`);
 
-    // Send welcome email
-    await sendWelcomeEmail(customer_email, session.id);
-    console.log(`Welcome email sent to ${customer_email}`);
+    // Welcome email is sent via event-driven pipeline:
+    // upsertCustomer() with eventType: "CUSTOMER_CREATED" triggers
+    // DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
+    console.log(`Customer created - welcome email will be sent via event pipeline`);
   } else {
     // Existing customer - update their subscription info
     await updateCustomerSubscription(existingCustomer.userId, {
@@ -237,10 +238,26 @@ async function handleSubscriptionUpdated(subscription) {
   const newStatus = statusMap[status] || status;
 
   // Update customer subscription status
-  await updateCustomerSubscription(dbCustomer.userId, {
+  // If cancelling, include eventType to trigger email via event pipeline
+  const subscriptionUpdate = {
     subscriptionStatus: newStatus,
     cancelAtPeriodEnd: cancel_at_period_end,
-  });
+  };
+
+  if (cancel_at_period_end) {
+    const cancelAt = subscription.cancel_at
+      ? new Date(subscription.cancel_at * 1000).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "the end of your billing period";
+    subscriptionUpdate.eventType = "SUBSCRIPTION_CANCELLED";
+    subscriptionUpdate.email = dbCustomer.email;
+    subscriptionUpdate.accessUntil = cancelAt;
+  }
+
+  await updateCustomerSubscription(dbCustomer.userId, subscriptionUpdate);
 
   // Update license status in DynamoDB
   if (dbCustomer.keygenLicenseId) {
@@ -265,21 +282,10 @@ async function handleSubscriptionUpdated(subscription) {
     }
   }
 
-  // Send cancellation confirmation email when user cancels (A.9.1)
-  if (cancel_at_period_end && dbCustomer.email) {
-    const cancelAt = subscription.cancel_at
-      ? new Date(subscription.cancel_at * 1000).toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "the end of your billing period";
-    try {
-      await sendCancellationEmail(dbCustomer.email, cancelAt);
-      console.log(`Cancellation confirmation sent to ${dbCustomer.email}`);
-    } catch (e) {
-      console.error("Failed to send cancellation email:", e);
-    }
+  // Cancellation email is sent via event-driven pipeline
+  // updateCustomerSubscription() with eventType triggers the email
+  if (cancel_at_period_end) {
+    console.log(`Cancellation recorded - email will be sent via event pipeline`);
   }
 }
 
@@ -346,6 +352,8 @@ async function handlePaymentSucceeded(invoice) {
   if (dbCustomer.subscriptionStatus === "past_due") {
     await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "active",
+      eventType: "SUBSCRIPTION_REACTIVATED",
+      email: dbCustomer.email,
     });
 
     // Reinstate Keygen license
@@ -357,15 +365,9 @@ async function handlePaymentSucceeded(invoice) {
       }
     }
 
-    // Send reactivation confirmation email
-    if (dbCustomer.email) {
-      try {
-        await sendReactivationEmail(dbCustomer.email);
-        console.log(`Reactivation email sent to ${dbCustomer.email}`);
-      } catch (e) {
-        console.error("Failed to send reactivation email:", e);
-      }
-    }
+    // Reactivation email is sent via event-driven pipeline
+    // updateCustomerSubscription() with eventType triggers the email
+    console.log(`Reactivation recorded - email will be sent via event pipeline`);
   }
 
   console.log(`Payment succeeded for customer ${dbCustomer.userId}`);
@@ -387,10 +389,19 @@ async function handlePaymentFailed(invoice) {
     return;
   }
 
-  // Update customer status
+  // Calculate retry date for email
+  const retryDate = next_payment_attempt
+    ? new Date(next_payment_attempt * 1000).toLocaleDateString()
+    : null;
+
+  // Update customer status with eventType to trigger payment failed email
   await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "past_due",
     paymentFailedCount: attempt_count,
+    eventType: "PAYMENT_FAILED",
+    email: customer_email,
+    attemptCount: attempt_count,
+    retryDate,
   });
 
   // Update license status
@@ -398,13 +409,9 @@ async function handlePaymentFailed(invoice) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, "past_due");
   }
 
-  // Calculate retry date
-  const retryDate = next_payment_attempt
-    ? new Date(next_payment_attempt * 1000).toLocaleDateString()
-    : null;
-
-  // Send payment failure email
-  await sendPaymentFailedEmail(customer_email, attempt_count, retryDate);
+  // Payment failed email is sent via event-driven pipeline
+  // updateCustomerSubscription() with eventType: "PAYMENT_FAILED" triggers the email
+  console.log(`Payment failure recorded - email will be sent via event pipeline`);
 
   // After 3 attempts, suspend license
   if (attempt_count >= 3) {

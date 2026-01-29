@@ -285,6 +285,11 @@ export async function getCustomerLicenses(userId) {
 
 /**
  * Store license record
+ *
+ * Event-Driven Architecture:
+ *   This write triggers DynamoDB Stream → StreamProcessor → SNS → EmailSender
+ *   The eventType field signals what email template to use.
+ *   Required fields for email: email, licenseKey, planName
  */
 export async function createLicense({
   keygenLicenseId,
@@ -294,11 +299,14 @@ export async function createLicense({
   status,
   expiresAt,
   maxDevices,
+  email,
+  planName,
   metadata = {},
 }) {
   const now = new Date().toISOString();
 
   // License detail record
+  // eventType triggers the email-sender Lambda via DynamoDB Streams
   const licenseItem = {
     PK: `LICENSE#${keygenLicenseId}`,
     SK: "DETAILS",
@@ -312,6 +320,10 @@ export async function createLicense({
     expiresAt,
     maxDevices,
     activatedDevices: 0,
+    // Event-driven email fields
+    eventType: "LICENSE_CREATED",
+    email,
+    planName,
     ...metadata,
     createdAt: now,
     updatedAt: now,

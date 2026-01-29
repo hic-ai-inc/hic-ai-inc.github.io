@@ -17,7 +17,8 @@ import {
   removeDeviceActivation,
   getLicense,
 } from "@/lib/dynamodb";
-import { sendPaymentFailedEmail, sendLicenseRevokedEmail } from "@/lib/ses";
+// NOTE: Emails are sent via event-driven architecture:
+// updateLicenseStatus() with eventType → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
 import crypto from "crypto";
 
 // Ed25519 public key from KeyGen webhook configuration
@@ -256,21 +257,20 @@ async function handleLicenseRevoked(data) {
   const licenseId = data.id;
   console.log("License revoked:", licenseId);
 
+  // Get license first to include email in update (for event-driven email)
+  const license = await getLicense(licenseId);
+
+  // Update with eventType to trigger email via DynamoDB Streams pipeline
   await updateLicenseStatus(licenseId, "revoked", {
     revokedAt: new Date().toISOString(),
+    eventType: "LICENSE_REVOKED",
+    email: license?.email,
+    organizationName: license?.organizationName,
   });
 
-  // Send revocation notification to user (A.7)
-  const license = await getLicense(licenseId);
-  if (license?.email) {
-    const orgName = license.organizationName || null;
-    try {
-      await sendLicenseRevokedEmail(license.email, orgName);
-      console.log(`Revocation notification sent to ${license.email}`);
-    } catch (e) {
-      console.error("Failed to send revocation email:", e);
-    }
-  }
+  // Revocation email is sent via event-driven pipeline:
+  // updateLicenseStatus() → DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
+  console.log(`License ${licenseId} revoked - email will be sent via event pipeline`);
 }
 
 async function handleMachineDeleted(data) {

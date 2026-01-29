@@ -21,7 +21,9 @@ import {
   createLicense,
   getCustomerByEmail,
 } from "@/lib/dynamodb";
-import { sendLicenseEmail } from "@/lib/ses";
+// NOTE: Email is sent via event-driven architecture:
+// DynamoDB write → DynamoDB Streams → StreamProcessor Lambda → SNS → EmailSender Lambda → SES
+// Do NOT call sendLicenseEmail() directly here.
 
 export async function POST(request) {
   try {
@@ -104,19 +106,23 @@ export async function POST(request) {
     });
 
     // Store license record
+    // This DynamoDB write triggers:
+    // DynamoDB Streams → StreamProcessor → SNS (plg-license-events) → EmailSender → SES
     await createLicense({
       keygenLicenseId: license.id,
       userId: session.user.sub,
+      email: session.user.email, // Required for email notification
       licenseKey: license.key,
       policyId: planType,
+      planName, // Human-readable plan name for email template
       status: "active",
       expiresAt: license.expiresAt,
       maxDevices:
         planType === "enterprise" ? 10 : planType === "individual" ? 3 : 2,
     });
 
-    // Send license email
-    await sendLicenseEmail(session.user.email, license.key, planName);
+    // Email is sent asynchronously via event-driven pipeline
+    // (see StreamProcessor Lambda → SNS → EmailSender Lambda)
 
     return NextResponse.json({
       success: true,
