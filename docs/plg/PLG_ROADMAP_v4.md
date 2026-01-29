@@ -260,6 +260,8 @@ Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2
 | Infrastructure as code | amplify.yml only | Full CDK in `amplify/` folder |
 | Local development | Limited | `ampx sandbox` environment |
 
+> **Note:** Gen 2 recommends TypeScript but does not require it. Per HIC platform standards, we use **ES6 JavaScript modules** (ESM) for the `amplify/` backend. Files use `.js` extension with `{"type": "module"}` in `amplify/package.json`.
+
 ### 3b.3 Migration Checklist
 
 | Task | Status | Notes |
@@ -267,10 +269,10 @@ Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2
 | **Phase 1: Initialize Gen 2 Backend** | | |
 | Run `npm create amplify@latest` | ⬜ | Creates `amplify/` folder |
 | Install backend dependencies | ⬜ | `@aws-amplify/backend`, `@aws-amplify/backend-cli` |
-| Create `amplify/backend.ts` | ⬜ | Entry point for backend |
+| Create `amplify/backend.js` | ⬜ | Entry point (ES6 module, not .ts) |
 | Create `amplify/package.json` with ESM | ⬜ | `{"type": "module"}` |
 | **Phase 2: Reference Existing Cognito** | | |
-| Create `amplify/auth/resource.ts` | ⬜ | Use `referenceAuth()` |
+| Create `amplify/auth/resource.js` | ⬜ | Use `referenceAuth()` (ES6, not .ts) |
 | Configure user pool ID | ⬜ | `us-east-1_CntYimcMm` |
 | Configure client ID | ⬜ | `3jobildap1dobb5vfmiul47bvc` |
 | Test auth still works | ⬜ | Login, logout, protected routes |
