@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.12.0  
+**Document Version:** 4.13.0  
 **Date:** January 29, 2026  
 **Owner:** General Counsel  
-**Status:** 🟢 AUTH COMPLETE (Individual) — Focus: E2E Individual Path
+**Status:** 🟢 AUTH COMPLETE (Individual) — Focus: E2E Individual Path (Amplify Gen 2 Migration)
 
 ---
 
@@ -47,6 +47,7 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —                 |
 | 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —                 |
 | 3   | Auth (Cognito Migration)           | ✅ **COMPLETE** (v2 pool)   | 0h (done)  | GC + Simon | —                 |
+| 3b  | **Amplify Gen 2 Migration**        | 🟡 **IN PROGRESS**          | **2-3h**   | GC + Simon | **3** (Auth)      |
 | 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —                 |
 | 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
 | 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —                 |
@@ -59,6 +60,8 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 | 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**          |
 | 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —                 |
 
+> 🔄 **DECISION (Jan 29, 12:30 PM EST):** Migrating from Amplify Gen 1 to Gen 2 for proper IAM runtime credentials. Required for Stripe checkout (Secrets Manager access).
+>
 > 🔄 **DECISION (Jan 28, 10:30 AM EST):** Abandoning Auth0 for Amazon Cognito due to unfixable Amplify incompatibility. See [Migration Decision](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md).
 >
 > 🔴 **RESOLVED (Jan 28):** Auth0 authentication blocker resolved via strategic pivot to Cognito. 22 builds attempted over 2 days; root cause identified as fundamental middleware incompatibility.
@@ -225,6 +228,94 @@ npm run metrics -- --period=7d
 
 Enterprise SSO (SAML, Okta, Azure AD) is available for Business customers via Contact Sales.  
 Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2_FINAL_FEATURE_MATRIX.md#saml-implementation-details).
+
+---
+
+## 3b. Amplify Gen 2 Migration
+
+**Status:** 🟡 **IN PROGRESS**  
+**Est. Hours:** 2-3h  
+**Blocks:** Stripe checkout (secrets access)  
+**Branch:** `feature/amplify-gen2-migration`
+
+### 3b.1 Problem Statement
+
+**Issue:** Amplify Gen 1 (WEB_COMPUTE platform) doesn't pass IAM credentials to SSR Lambda functions at runtime.  
+**Impact:** Checkout API cannot access AWS Secrets Manager where `STRIPE_SECRET_KEY` is stored.  
+**Root Cause:** Gen 1 IAM service role only applies during build phase, not runtime.
+
+**Attempted Solutions (rejected):**
+- Build-time secrets injection → Secrets in build artifacts (security risk)
+- Plaintext env vars → User rejected ("No, we can't do that!")
+- Stripe Payment Links → Can't prefill customer email (UX requirement)
+
+**Decision:** Migrate to Amplify Gen 2 for proper IAM runtime integration.
+
+### 3b.2 What Gen 2 Provides
+
+| Capability | Gen 1 | Gen 2 |
+|------------|-------|-------|
+| IAM for SSR at runtime | ❌ Build-time only | ✅ Full runtime access |
+| Secrets management | Manual Secrets Manager | Native `secret()` function |
+| Infrastructure as code | amplify.yml only | Full CDK in `amplify/` folder |
+| Local development | Limited | `ampx sandbox` environment |
+
+### 3b.3 Migration Checklist
+
+| Task | Status | Notes |
+|------|--------|-------|
+| **Phase 1: Initialize Gen 2 Backend** | | |
+| Run `npm create amplify@latest` | ⬜ | Creates `amplify/` folder |
+| Install backend dependencies | ⬜ | `@aws-amplify/backend`, `@aws-amplify/backend-cli` |
+| Create `amplify/backend.ts` | ⬜ | Entry point for backend |
+| Create `amplify/package.json` with ESM | ⬜ | `{"type": "module"}` |
+| **Phase 2: Reference Existing Cognito** | | |
+| Create `amplify/auth/resource.ts` | ⬜ | Use `referenceAuth()` |
+| Configure user pool ID | ⬜ | `us-east-1_CntYimcMm` |
+| Configure client ID | ⬜ | `3jobildap1dobb5vfmiul47bvc` |
+| Test auth still works | ⬜ | Login, logout, protected routes |
+| **Phase 3: Migrate Secrets** | | |
+| Add secrets via Amplify Console | ⬜ | Hosting > Secrets > Manage secrets |
+| Add `STRIPE_SECRET_KEY` | ⬜ | From AWS Secrets Manager |
+| Add `STRIPE_WEBHOOK_SECRET` | ⬜ | From AWS Secrets Manager |
+| Update `src/lib/secrets.js` | ⬜ | Use SSM Parameter Store access |
+| **Phase 4: Deploy Gen 2 App** | | |
+| Delete/archive Gen 1 Amplify app | ⬜ | App ID: `d2yhz9h4xdd5rb` |
+| Create new Amplify app (Gen 2) | ⬜ | Auto-detects `amplify/` folder |
+| Connect `development` branch | ⬜ | Same repo, new app |
+| Configure custom domain | ⬜ | `staging.hic-ai.com` |
+| **Phase 5: Verify E2E** | | |
+| Test login/logout | ⬜ | Google OAuth |
+| Test checkout flow | ⬜ | **Critical** - Stripe session creation |
+| Test Settings page | ⬜ | DynamoDB access |
+| Verify webhook endpoints | ⬜ | Stripe + KeyGen |
+
+### 3b.4 Key Configuration Values
+
+```
+# Existing Cognito (keep)
+User Pool ID: us-east-1_CntYimcMm
+Client ID: 3jobildap1dobb5vfmiul47bvc
+Domain: mouse-staging-v2.auth.us-east-1.amazoncognito.com
+
+# Gen 1 App (to be archived)
+Amplify App ID: d2yhz9h4xdd5rb
+IAM Role: arn:aws:iam::496998973008:role/plg-amplify-role-staging
+
+# Secrets (to migrate to Gen 2 SSM format)
+Secrets Manager: plg/staging/stripe
+  - STRIPE_SECRET_KEY
+  - STRIPE_WEBHOOK_SECRET
+```
+
+### 3b.5 Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Cognito integration breaks | Low | High | Using `referenceAuth()` - minimal code change |
+| Secrets access fails | Low | High | Test in sandbox before deploy |
+| Domain/DNS issues | Low | Medium | Can revert to Gen 1 app if needed |
+| Build time increases | Medium | Low | Acceptable tradeoff for security |
 
 ---
 
