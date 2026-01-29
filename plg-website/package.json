@@ -26,7 +26,7 @@
     "@aws-sdk/lib-dynamodb": "^3.974.0",
     "@aws-sdk/util-dynamodb": "^3.974.0",
     "@stripe/stripe-js": "^8.6.3",
-    "aws-amplify": "^6.13.0",
+    "aws-amplify": "^6.16.0",
     "aws-jwt-verify": "^5.1.1",
     "next": "16.1.4",
     "react": "19.2.3",
@@ -34,12 +34,19 @@
     "stripe": "^20.2.0"
   },
   "devDependencies": {
+    "@aws-amplify/backend": "^1.20.0",
+    "@aws-amplify/backend-cli": "^1.8.2",
     "@tailwindcss/postcss": "^4",
+    "aws-cdk-lib": "^2.234.1",
     "babel-plugin-react-compiler": "1.0.0",
+    "constructs": "^10.4.5",
+    "esbuild": "^0.27.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
     "glob": "^13.0.0",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
     "yaml": "^2.8.2"
   }
 }
