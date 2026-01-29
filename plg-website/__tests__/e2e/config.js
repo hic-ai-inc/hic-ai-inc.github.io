@@ -103,6 +103,11 @@ export function getApiBase() {
 export const testConfig = {
   // Timing
   defaultTimeout: 10000,
+  timeout: {
+    fast: 2000,    // Fast operations like validation
+    normal: 5000,  // Standard operations
+    slow: 10000,   // Slow operations like webhooks
+  },
   heartbeatInterval: 600, // Expected heartbeat interval in seconds
   pollInterval: 500, // Polling interval for async operations
 

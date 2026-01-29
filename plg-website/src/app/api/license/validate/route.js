@@ -167,7 +167,17 @@ async function handleTrialValidation(fingerprint) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    // Parse JSON body with explicit error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: "Invalid JSON", detail: parseError.message },
+        { status: 400 },
+      );
+    }
+
     const { licenseKey, fingerprint, machineId } = body;
 
     // Fingerprint is REQUIRED - it's the primary device identifier
