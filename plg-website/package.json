@@ -14,7 +14,7 @@
     "test:api": "node --loader ../dm/facade/utils/test-loader.js --test __tests__/unit/api/**/*.test.js",
     "test:middleware": "node --loader ../dm/facade/utils/test-loader.js --test __tests__/unit/middleware/*.test.js",
     "test:metrics": "node __tests__/unit/scripts/plg-metrics.test.js",
-    "test:coverage": "node --loader ../dm/facade/utils/test-loader.js --test --experimental-test-coverage __tests__/**/*.test.js",
+    "test:coverage": "node --loader ../dm/facade/utils/test-loader.js test-runner.js --coverage",
     "test:debug": "bash scripts/debug-tests.sh"
   },
   "dependencies": {

@@ -32,6 +32,7 @@ function parseArgs() {
     directory: null,
     verbose: false,
     help: false,
+    coverage: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -56,6 +57,10 @@ function parseArgs() {
       case "-v":
         options.verbose = true;
         break;
+      case "--coverage":
+      case "-c":
+        options.coverage = true;
+        break;
       case "--help":
       case "-h":
         options.help = true;
@@ -77,6 +82,7 @@ Usage:
 Options:
   -f, --file <path>     Run a specific test file
   -p, --pattern <str>   Run tests matching pattern in filename
+  -c, --coverage        Enable code coverage reporting
   -v, --verbose         Show verbose output
   -h, --help            Show this help message
 
@@ -137,7 +143,7 @@ async function runTests() {
     process.exit(1);
   }
 
-  console.log(`\n🧪 Running ${testFiles.length} test file(s)...\n`);
+  console.log(`\n🧪 Running ${testFiles.length} test file(s)...${options.coverage ? " (with coverage)" : ""}\n`);
 
   // Track test results
   let totalTests = 0;
@@ -147,10 +153,17 @@ async function runTests() {
   const startTime = Date.now();
 
   // Use node:test's run() API for proper test execution and counting
-  const stream = run({
+  const runOptions = {
     files: testFiles,
     concurrency: 1, // Run sequentially to avoid output interleaving
-  });
+  };
+  
+  // Enable coverage if requested
+  if (options.coverage) {
+    runOptions.coverage = true;
+  }
+  
+  const stream = run(runOptions);
 
   // Pipe to spec reporter for nice output
   stream.compose(spec).pipe(process.stdout);
