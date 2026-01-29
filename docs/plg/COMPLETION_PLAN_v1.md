@@ -21,15 +21,15 @@ PLG is **85-90% complete**. Two main workstreams remain:
 
 ### Remaining Tasks
 
-| #   | Task                                | Est.   | Priority | Notes                              |
-| --- | ----------------------------------- | ------ | -------- | ---------------------------------- |
-| 1.1 | Implement `Activate License` command | 2h     | HIGH     | Enter license key → call activate API |
-| 1.2 | Wire live API endpoints             | 2-3h   | HIGH     | api.hic-ai.com/license/* routes    |
-| 1.3 | Create VS Code Publisher account    | 1h     | HIGH     | marketplace.visualstudio.com       |
-| 1.4 | Generate Personal Access Token      | 30min  | HIGH     | For vsce publish                   |
-| 1.5 | Test sideload (final validation)    | 1h     | HIGH     | Verify license flow end-to-end     |
-| 1.6 | Publish pre-release                 | 1h     | HIGH     | vsce publish --pre-release         |
-| 1.7 | Marketing page update               | 1-2h   | MEDIUM   | Add extension installation link    |
+| #   | Task                                 | Est.  | Priority | Notes                                 |
+| --- | ------------------------------------ | ----- | -------- | ------------------------------------- |
+| 1.1 | Implement `Activate License` command | 2h    | HIGH     | Enter license key → call activate API |
+| 1.2 | Wire live API endpoints              | 2-3h  | HIGH     | api.hic-ai.com/license/\* routes      |
+| 1.3 | Create VS Code Publisher account     | 1h    | HIGH     | marketplace.visualstudio.com          |
+| 1.4 | Generate Personal Access Token       | 30min | HIGH     | For vsce publish                      |
+| 1.5 | Test sideload (final validation)     | 1h    | HIGH     | Verify license flow end-to-end        |
+| 1.6 | Publish pre-release                  | 1h    | HIGH     | vsce publish --pre-release            |
+| 1.7 | Marketing page update                | 1-2h  | MEDIUM   | Add extension installation link       |
 
 **Subtotal:** 8-12h
 
@@ -52,14 +52,14 @@ PLG is **85-90% complete**. Two main workstreams remain:
 
 ### Remaining Tasks
 
-| #   | Task                                    | Est.   | Priority | Notes                                |
-| --- | --------------------------------------- | ------ | -------- | ------------------------------------ |
-| 2.1 | Create `/api/webhooks/stripe` route     | 2-3h   | HIGH     | Forward to plg-stream-processor      |
-| 2.2 | Create `/api/webhooks/keygen` route     | 2h     | HIGH     | KeyGen license event webhooks        |
-| 2.3 | Portal: Display license data            | 3-4h   | MEDIUM   | Show active licenses, usage, status  |
-| 2.4 | Portal: Subscription management UI      | 2-3h   | MEDIUM   | Cancel/update subscription buttons   |
-| 2.5 | E2E testing: Trial → Purchase flow      | 2-3h   | HIGH     | Full customer journey validation     |
-| 2.6 | E2E testing: Concurrent session limits  | 1-2h   | MEDIUM   | Multiple machine enforcement         |
+| #   | Task                                   | Est. | Priority | Notes                               |
+| --- | -------------------------------------- | ---- | -------- | ----------------------------------- |
+| 2.1 | Create `/api/webhooks/stripe` route    | 2-3h | HIGH     | Forward to plg-stream-processor     |
+| 2.2 | Create `/api/webhooks/keygen` route    | 2h   | HIGH     | KeyGen license event webhooks       |
+| 2.3 | Portal: Display license data           | 3-4h | MEDIUM   | Show active licenses, usage, status |
+| 2.4 | Portal: Subscription management UI     | 2-3h | MEDIUM   | Cancel/update subscription buttons  |
+| 2.5 | E2E testing: Trial → Purchase flow     | 2-3h | HIGH     | Full customer journey validation    |
+| 2.6 | E2E testing: Concurrent session limits | 1-2h | MEDIUM   | Multiple machine enforcement        |
 
 **Subtotal:** 12-18h (can be parallelized)
 
@@ -107,11 +107,11 @@ PLG is **85-90% complete**. Two main workstreams remain:
 
 ## Risk Register
 
-| Risk                           | Impact | Mitigation                           |
-| ------------------------------ | ------ | ------------------------------------ |
-| VS Code Publisher approval delay | MEDIUM | Submit early, have sideload fallback |
-| API rate limits during testing | LOW    | Use test mode, mock endpoints        |
-| KeyGen integration gaps        | MEDIUM | Test validation/activation flow early |
+| Risk                             | Impact | Mitigation                            |
+| -------------------------------- | ------ | ------------------------------------- |
+| VS Code Publisher approval delay | MEDIUM | Submit early, have sideload fallback  |
+| API rate limits during testing   | LOW    | Use test mode, mock endpoints         |
+| KeyGen integration gaps          | MEDIUM | Test validation/activation flow early |
 
 ---
 
@@ -128,10 +128,12 @@ PLG is **85-90% complete**. Two main workstreams remain:
 ## Files Modified This Session
 
 ### hic-ai-inc.github.io
+
 - `docs/plg/PLG_ROADMAP_v4.md` - Updated VS Code Extension status (60-80h → 8-12h)
 - `docs/plg/COMPLETION_PLAN_v1.md` - This file (new)
 
 ### hic (mouse-vscode) - Discovered
+
 - `mouse-vscode/src/extension.js` - Main entry point
 - `mouse-vscode/src/StatusBarManager.js` - Status bar UI
 - `mouse-vscode/src/licensing/config.js` - API URLs, trial config
@@ -156,15 +158,17 @@ The PLG Roadmap v4 significantly understated the VS Code Extension progress. The
 - Built VSIX v0.9.9
 
 **Bottom line:** We're much closer to launch than the roadmap indicated. The remaining work is primarily:
+
 1. A few hours of command wiring
 2. Setting up publisher credentials
 3. Actually publishing
 
 The Lambda handlers we deployed today complete the back-end event processing. Next session should focus on:
+
 1. Creating the VS Code Publisher account
 2. Implementing the `Activate License` command
 3. Publishing to marketplace
 
 ---
 
-*Document generated: 2026-01-29T18:40 UTC*
+_Document generated: 2026-01-29T18:40 UTC_
