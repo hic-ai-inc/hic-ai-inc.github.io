@@ -26,6 +26,7 @@ import {
   expectStatus,
   expectSuccess,
   expectError,
+  expectBadRequest,
   expectTrialInit,
   expectFields,
   expectIsoDate,
@@ -262,8 +263,7 @@ describe("Journey 1: Trial Start Flow", () => {
         // fingerprint missing
       });
 
-      expectStatus(response, 400);
-      expectError(response);
+      expectBadRequest(response);
     });
 
     test("should reject invalid fingerprint format", async () => {
@@ -284,8 +284,7 @@ describe("Journey 1: Trial Start Flow", () => {
     test("should handle empty request body", async () => {
       const response = await client.post("/api/license/validate", {});
 
-      expectStatus(response, 400);
-      expectError(response);
+      expectBadRequest(response);
     });
 
     test("should handle malformed JSON gracefully", async () => {
