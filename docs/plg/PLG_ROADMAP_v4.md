@@ -204,7 +204,7 @@ npm run metrics -- --period=7d
 | Configure GitHub OIDC IdP            | ⏸️     | **Deferred** — Cognito requires OIDC well-known |
 | Create Cognito Groups for roles      | ⏸️ DEFERRED | Business RBAC — after Individual E2E complete |
 | **Phase 2: Code Migration**          |        |                                                 |
-| Remove `@auth0/nextjs-auth0` package | ⬜     | Keep for now, remove post-launch               |
+| Remove `@auth0/nextjs-auth0` package | ✅     | Removed — Cognito migration complete           |
 | Add `aws-amplify` package            | ✅     | Amplify Auth v6 + aws-jwt-verify               |
 | Create `src/lib/cognito.js`          | ✅     | Amplify Auth, PKCE, session helpers            |
 | Rewrite `src/lib/auth.js`            | ⬜     | Keep for compatibility, migrate later          |
@@ -214,15 +214,15 @@ npm run metrics -- --period=7d
 | Create `/auth/logout/route.js`       | ✅     | Fixed: uses `logout_uri` per AWS SDK standard   |
 | Update portal pages (claim namespace)| ✅     | Client components using useUser()/useAuth()    |
 | **Phase 3: Environment Variables**   |        |                                                 |
-| Remove `AUTH0_*` from Amplify        | ⬜     | Deferred — keeping for fallback                |
+| Remove `AUTH0_*` from Amplify        | ⬜     | Deferred — env vars remain for reference       |
 | Add `COGNITO_*` to Amplify           | ✅     | 4 env vars configured in Amplify console        |
 | **Phase 4: Test & Deploy**           |        |                                                 |
 | Test locally                         | ✅     | Login, signup, protected routes working        |
 | Deploy to staging                    | ✅     | Build #14+ deployed, Google OAuth working      |
 | E2E test on staging                  | ✅     | Google OAuth, signup, logout all working       |
 | **Phase 5: Cleanup**                 |        |                                                 |
-| Delete Auth0 application             | ⬜     | Auth0 Dashboard → Applications                  |
-| Delete `src/lib/auth0.js`            | ⬜     | No longer needed                                |
+| Delete Auth0 application             | ⬜     | Auth0 Dashboard → Applications (defer post-launch) |
+| Delete `src/lib/auth0.js`            | ✅     | Deleted Jan 29 — full legacy code cleanup done |
 
 ### 3.3 SSO/SAML (Contact Sales)
 
