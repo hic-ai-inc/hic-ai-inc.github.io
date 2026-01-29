@@ -182,21 +182,41 @@ export function generateHeartbeatData(licenseKey, device) {
 
 /**
  * Generate checkout request data
+ * Matches the actual /api/checkout endpoint expectations
  * @param {Object} options
+ * @param {string} [options.plan] - 'individual' or 'business'
+ * @param {string} [options.billingCycle] - 'monthly' or 'annual'
+ * @param {number} [options.seats] - Number of seats (business only)
+ * @param {string} [options.email] - Customer email
+ * @param {string} [options.promoCode] - Optional promo code
+ * @param {string} [options.fingerprint] - Optional fingerprint for trial conversion
  * @returns {Object}
  */
 export function generateCheckoutData(options = {}) {
-  return {
+  const plan = options.plan || options.licenseType || "individual";
+  
+  const data = {
+    plan,
+    billingCycle: options.billingCycle || "monthly",
     email: options.email || generateEmail("checkout"),
-    priceId: options.priceId || "price_test_individual_monthly",
-    successUrl: options.successUrl || "https://test.hic-ai.com/success",
-    cancelUrl: options.cancelUrl || "https://test.hic-ai.com/cancel",
-    metadata: {
-      source: "e2e-test",
-      testId: generateId("checkout"),
-      ...options.metadata,
-    },
   };
+  
+  // Add seats for business plan
+  if (plan === "business") {
+    data.seats = options.seats || 3; // Minimum for business
+  }
+  
+  // Add promo code if provided
+  if (options.promoCode) {
+    data.promoCode = options.promoCode;
+  }
+  
+  // Add fingerprint for trial conversion tracking
+  if (options.fingerprint) {
+    data.fingerprint = options.fingerprint;
+  }
+  
+  return data;
 }
 
 /**

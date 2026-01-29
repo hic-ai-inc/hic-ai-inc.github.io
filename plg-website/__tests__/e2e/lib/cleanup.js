@@ -285,14 +285,21 @@ export function resetTracking() {
 
 /**
  * Register cleanup to run on process exit
+ * 
+ * Note: We don't register beforeExit because async handlers can cause hangs.
+ * The runner explicitly calls cleanupAll() after tests complete.
+ * These handlers are only for unexpected terminations (Ctrl+C).
  */
 export function registerExitCleanup() {
+  let cleanupDone = false;
+  
   const cleanup = async () => {
+    if (cleanupDone) return;
+    cleanupDone = true;
     log.info("Running exit cleanup...");
     await cleanupAll();
   };
 
-  process.on("beforeExit", cleanup);
   process.on("SIGINT", async () => {
     await cleanup();
     process.exit(0);
