@@ -52,23 +52,12 @@ export default function SettingsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  // Load profile from Cognito user context, fetch preferences from API with auth token
+  // Load profile from API (DynamoDB) and Cognito, fetch preferences from API with auth token
   useEffect(() => {
     async function loadSettings() {
       try {
-        // Get profile from Cognito user directly (already authenticated)
-        if (cognitoUser) {
-          setProfile({
-            givenName: cognitoUser.givenName || "",
-            middleName: cognitoUser.middleName || "",
-            familyName: cognitoUser.familyName || "",
-            email: cognitoUser.email || "",
-            picture: cognitoUser.picture || "",
-            accountType: cognitoUser["https://hic-ai.com/account_type"] || "individual",
-          });
-        }
-
-        // Fetch notification preferences from API with auth token
+        // Fetch profile and preferences from API with auth token
+        // This gets data from DynamoDB which includes name for email signups
         const session = await getSession();
         if (session?.idToken) {
           const response = await fetch("/api/portal/settings", {
@@ -79,12 +68,36 @@ export default function SettingsPage() {
           
           if (response.ok) {
             const data = await response.json();
+            
+            // Merge profile: prefer DynamoDB data, fall back to Cognito
+            // For email signups, Cognito doesn't have given_name/family_name
+            setProfile({
+              givenName: data.profile?.givenName || cognitoUser?.givenName || "",
+              middleName: data.profile?.middleName || cognitoUser?.middleName || "",
+              familyName: data.profile?.familyName || cognitoUser?.familyName || "",
+              email: cognitoUser?.email || data.profile?.email || "",
+              picture: cognitoUser?.picture || data.profile?.picture || "",
+              accountType: data.profile?.accountType || cognitoUser?.["https://hic-ai.com/account_type"] || "individual",
+            });
+            
             if (data.notifications) {
               setNotifications({
                 productUpdates: data.notifications.productUpdates ?? true,
                 usageAlerts: data.notifications.usageAlerts ?? true,
                 billingReminders: data.notifications.billingReminders ?? true,
                 marketingEmails: data.notifications.marketingEmails ?? false,
+              });
+            }
+          } else {
+            // Fallback to Cognito user only if API fails
+            if (cognitoUser) {
+              setProfile({
+                givenName: cognitoUser.givenName || "",
+                middleName: cognitoUser.middleName || "",
+                familyName: cognitoUser.familyName || "",
+                email: cognitoUser.email || "",
+                picture: cognitoUser.picture || "",
+                accountType: cognitoUser["https://hic-ai.com/account_type"] || "individual",
               });
             }
           }

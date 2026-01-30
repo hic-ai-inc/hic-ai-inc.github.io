@@ -76,6 +76,10 @@ export async function GET(request) {
 
     return NextResponse.json({
       profile: {
+        // Return individual name fields from DynamoDB (for email signups)
+        givenName: customer?.givenName || "",
+        middleName: customer?.middleName || "",
+        familyName: customer?.familyName || "",
         name: user.name || customer?.name || "",
         email: user.email,
         picture: user.picture || null,

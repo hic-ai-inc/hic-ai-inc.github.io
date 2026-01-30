@@ -85,9 +85,11 @@ export default function PortalDashboardPage() {
   const subscriptionStatus = portalStatus?.subscriptionStatus || "none";
   const accountType = portalStatus?.accountType || "individual";
 
-  // Get display name - prefer name, fall back to email
+  // Get display name - prefer name from Cognito (Google signups have it), 
+  // but for email signups fall back to email username
+  // The "-" check handles Cognito's auto-generated usernames like "abc123-def456"
   const displayName =
-    user.name && !user.name.includes("-")
+    user.name && !user.name.includes("-") && !user.name.includes("@")
       ? user.name.split(" ")[0]
       : user.email?.split("@")[0] || "";
 

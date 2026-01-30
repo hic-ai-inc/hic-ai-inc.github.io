@@ -137,11 +137,13 @@ export async function POST(request) {
         const planName = planType === "business" ? "Business" : "Individual";
         
         // Create DynamoDB license record to trigger LICENSE_CREATED email
+        // Use full license key from customer record (webhook stores it as keygenLicenseKey)
+        const fullKeyForRecord = existingCustomer.keygenLicenseKey;
         await createLicense({
           keygenLicenseId: existingCustomer.keygenLicenseId,
           userId: user.sub,
           email: user.email,
-          licenseKey: existingCustomer.keygenLicenseKey || existingCustomer.metadata?.licenseKeyPreview || "See email",
+          licenseKey: fullKeyForRecord || "License key will be sent by email",
           policyId: planType,
           planName,
           status: "active",
@@ -151,14 +153,16 @@ export async function POST(request) {
         console.log("[ProvisionLicense] DynamoDB license record created - license email will be sent");
       }
       
+      // Get the full license key for display
+      // Priority: license record has full key > customer record has full key > check email fallback
+      const fullLicenseKey = existingLicenseRecord?.licenseKey || existingCustomer.keygenLicenseKey;
+      
       // If this is from the same Stripe checkout, it's a refresh - just return the info
       // If it's a different Stripe checkout, they already have a license (shouldn't happen due to checkout guard)
       return NextResponse.json({
         success: true,
         alreadyProvisioned: true,
-        licenseKey:
-          existingCustomer.metadata?.licenseKeyPreview || existingCustomer.keygenLicenseKey?.slice(0, 8) + "..." ||
-          "Check your email for your license key",
+        licenseKey: fullLicenseKey || "Check your email for your license key",
         planName: existingCustomer.accountType === "business" ? "Business" : "Individual",
         userName: user.firstName,
       });
