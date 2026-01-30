@@ -59,6 +59,11 @@ function verifySignature(payload, signatureHeader, request) {
 
     const { algorithm, signature, headers } = parts;
 
+    if (!algorithm || !signature || !headers) {
+      console.error("Missing required signature parts:", { algorithm: !!algorithm, signature: !!signature, headers: !!headers });
+      return false;
+    }
+
     if (algorithm !== "ed25519") {
       console.error(`Unexpected algorithm: ${algorithm}`);
       return false;
@@ -134,8 +139,15 @@ export async function POST(request) {
     switch (meta.event) {
       // License Events
       case "license.created":
-        // License created - usually handled in checkout flow
-        console.log("License created:", data.id);
+        // License created - handled in checkout flow
+        // Webhook just acknowledges; actual customer record is created by Stripe webhook
+        console.log("Keygen license.created acknowledged:", data.id);
+        break;
+
+      case "license.deleted":
+        // License deleted - cleanup any orphaned records
+        console.log("Keygen license.deleted acknowledged:", data.id);
+        // Note: Actual deletion is handled by admin scripts or Stripe cancellation flow
         break;
 
       case "license.expired":
