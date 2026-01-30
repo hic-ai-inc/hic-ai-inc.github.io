@@ -21,7 +21,7 @@ import {
   getLicense,
   updateLicenseStatus,
 } from "@/lib/dynamodb";
-import { suspendLicense, reinstateLicense, createLicense, KEYGEN_POLICIES } from "@/lib/keygen";
+import { suspendLicense, reinstateLicense, createLicense, getPolicyId } from "@/lib/keygen";
 // NOTE: Most emails are now sent via event-driven architecture:
 // DynamoDB write (with eventType) → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
 // Only sendDisputeAlert is called directly (urgent security notification)
@@ -118,10 +118,9 @@ async function handleCheckoutCompleted(session) {
   const plan = metadata?.plan || metadata?.planType || "individual";
   const seats = parseInt(metadata?.seats || "1", 10);
 
-  // Determine the KeyGen policy based on plan
-  const policyId = plan === "business" 
-    ? KEYGEN_POLICIES.business
-    : KEYGEN_POLICIES.individual;
+  // Determine the KeyGen policy based on plan (fetched from SSM at runtime)
+  const planType = plan === "business" ? "business" : "individual";
+  const policyId = await getPolicyId(planType);
 
   // Check if this customer already exists
   const existingCustomer = await getCustomerByStripeId(customer);
