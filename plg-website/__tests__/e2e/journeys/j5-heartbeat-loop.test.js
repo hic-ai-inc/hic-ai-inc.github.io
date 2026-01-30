@@ -506,7 +506,7 @@ describe("Journey 5: Heartbeat Loop", () => {
 
       // May succeed or fail depending on license validity
       if (response.status === 200) {
-        expectHeartbeat(response);
+        expectHeartbeat(response.json);
         log.info("Licensed heartbeat accepted");
       } else if ([400, 404].includes(response.status)) {
         log.info("Licensed heartbeat rejected (invalid license - expected)");

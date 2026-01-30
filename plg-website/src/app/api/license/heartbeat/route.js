@@ -126,6 +126,7 @@ export async function POST(request) {
         reason: "Trial heartbeat recorded",
         concurrentMachines: 1,
         maxMachines: 1,
+        nextHeartbeat: 900,
       });
     }
 
@@ -179,6 +180,7 @@ export async function POST(request) {
         reason: "Heartbeat successful",
         concurrentMachines: 1,
         maxMachines: null, // Unknown
+        nextHeartbeat: 900,
       });
     }
 
@@ -227,6 +229,7 @@ export async function POST(request) {
         reason: "Heartbeat successful",
         concurrentMachines,
         maxMachines,
+        nextHeartbeat: 900,
       },
       { headers: rateLimitHeaders },
     );

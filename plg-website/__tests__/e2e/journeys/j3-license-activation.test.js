@@ -233,7 +233,7 @@ describe("Journey 3: License Activation Flow", () => {
 
       // Heartbeat should work for trial or licensed devices
       if (response.status === 200) {
-        expectHeartbeat(response);
+        expectHeartbeat(response.json);
         log.info("Heartbeat accepted");
       } else if (response.status === 404) {
         // Device not found - expected in E2E
@@ -273,7 +273,7 @@ describe("Journey 3: License Activation Flow", () => {
       );
 
       if (response.status === 200) {
-        expectHeartbeat(response);
+        expectHeartbeat(response.json);
         // Next heartbeat should include last-seen update
         log.info("Heartbeat timestamp updated");
       }

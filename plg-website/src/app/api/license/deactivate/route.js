@@ -72,3 +72,13 @@ export async function DELETE(request) {
     );
   }
 }
+
+
+/**
+ * POST handler - alias for DELETE
+ * Provided for compatibility with clients that can't easily use DELETE with body
+ */
+export async function POST(request) {
+  return DELETE(request);
+}
+

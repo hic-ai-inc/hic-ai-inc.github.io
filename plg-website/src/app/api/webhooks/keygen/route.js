@@ -168,12 +168,14 @@ export async function POST(request) {
         break;
 
       case "machine.heartbeat.ping":
-        // Device heartbeat - could update last seen in DynamoDB
+        // Device heartbeat received - Keygen tracks this internally
+        // DynamoDB lastSeen is updated via our heartbeat API endpoint
         break;
 
       case "machine.heartbeat.dead":
-        // Device failed heartbeat - could mark as inactive
-        console.log("Machine heartbeat dead:", data.id);
+        // Device missed heartbeat deadline - Keygen will auto-deactivate
+        // (DEACTIVATE_DEAD strategy) and send machine.deleted webhook
+        console.log("Machine heartbeat dead:", data.id, "- will be auto-deactivated");
         break;
 
       // Policy Events

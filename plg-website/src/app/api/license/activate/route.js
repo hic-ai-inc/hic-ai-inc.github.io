@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { validateLicense, activateDevice, getLicense } from "@/lib/keygen";
+import { validateLicense, activateDevice, getLicense, getLicenseMachines } from "@/lib/keygen";
 import {
   addDeviceActivation,
   getLicense as getDynamoLicense,
@@ -108,8 +108,21 @@ export async function POST(request) {
       platform: machine.platform,
     });
 
+    // Get current device count after activation
+    let deviceCount = 1;
+    try {
+      const machines = await getLicenseMachines(license.id);
+      deviceCount = machines.length;
+    } catch (err) {
+      console.error("Failed to get machine count:", err);
+    }
+
     return NextResponse.json({
       success: true,
+      activated: true,
+      activationId: machine.id,
+      deviceCount,
+      maxDevices: license.maxMachines,
       machine: {
         id: machine.id,
         name: machine.name,

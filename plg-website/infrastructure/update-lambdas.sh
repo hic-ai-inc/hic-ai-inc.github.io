@@ -211,10 +211,17 @@ update_lambda() {
         return 1
     fi
 
+    # Convert path to Windows format for AWS CLI fileb:// protocol (Git Bash compatibility)
+    local zip_file_win="$zip_file"
+    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+        # Convert /c/path to C:/path for Windows
+        zip_file_win=$(cygpath -w "$zip_file" 2>/dev/null || echo "$zip_file" | sed 's|^/\([a-zA-Z]\)/|\1:/|')
+    fi
+
     # Update function code
     aws lambda update-function-code \
         --function-name "$function_name" \
-        --zip-file "fileb://${zip_file}" \
+        --zip-file "fileb://${zip_file_win}" \
         --region "$REGION" \
         --output text \
         --query "LastModified" > /dev/null
@@ -246,18 +253,18 @@ if [[ -n "$SPECIFIC_FUNCTION" ]]; then
     fi
     
     if update_lambda "$SPECIFIC_FUNCTION"; then
-        ((UPDATED++))
+        ((++UPDATED)) || true  # pre-increment to avoid exit code 1 when 0
     else
-        ((FAILED++))
+        ((++FAILED)) || true
     fi
 else
     # Update all functions
     for dir_name in "${!LAMBDA_FUNCTIONS[@]}"; do
         echo ""
         if update_lambda "$dir_name"; then
-            ((UPDATED++))
+            ((++UPDATED)) || true  # pre-increment to avoid exit code 1 when 0
         else
-            ((FAILED++))
+            ((++FAILED)) || true
         fi
     done
 fi
