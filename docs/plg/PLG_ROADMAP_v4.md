@@ -1,9 +1,9 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.16.0  
+**Document Version:** 4.17.0  
 **Date:** January 29, 2026  
 **Owner:** General Counsel  
-**Status:** 🟢 CHECKOUT WORKING (All Plans) — Focus: E2E Payment Completion + Licensing Integration
+**Status:** 🟢 TEST ENDPOINT READY — Focus: Validate Full Payment→License→Email Pipeline
 
 ---
 
@@ -73,6 +73,10 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 > 🚀 **MILESTONE (Jan 27, 5:54 PM EST):** PLG Website deployed to staging via AWS Amplify (Build #10)! Custom domain `staging.hic-ai.com` AVAILABLE.
 
 > 🚀 **MILESTONE (Jan 29, 6:20 PM EST):** All 4 PLG Lambda functions deployed to staging! `customer-update`, `scheduled-tasks`, `email-sender`, `stream-processor` — 696 tests passing (28 new Lambda unit tests).
+>
+> 🔧 **BUGFIX (Jan 29, 10:00 PM EST):** Fixed Stripe client import bug in 5 API routes — `getStripeClient()` was imported incorrectly, causing 100% post-payment failures. Also fixed stream-processor to classify `LICENSE#` records by PK prefix (was only checking SK).
+>
+> 🚀 **MILESTONE (Jan 29, 11:00 PM EST):** Test license provisioning endpoint created (`/api/admin/provision-test-license`) — enables E2E testing of full payment→license→email pipeline without real Stripe payment. Creates real Keygen licenses, writes DynamoDB records, triggers email via Streams.
 
 ---
 
@@ -892,6 +896,117 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 | Local       | Development    | localhost:3000     |
 | Staging     | Pre-production | staging.hic-ai.com |
 | Production  | Live           | hic-ai.com         |
+
+### 9.3 Test License Provisioning Endpoint (NEW — Jan 29, 2026)
+
+**Purpose:** Enable E2E testing of the full payment→license→email pipeline without requiring real Stripe payments.
+
+**Endpoint:** `POST /api/admin/provision-test-license`
+
+**Security:**
+- Staging-only (returns 403 in production)
+- Requires `x-admin-key` header (from Secrets Manager `plg/staging/app`)
+- All records marked with `testMode: true` for identification
+
+**What It Does:**
+1. Creates a **real Keygen license** (not mocked)
+2. Writes customer record to DynamoDB (for Admin Portal)
+3. Writes license record to DynamoDB with `eventType: LICENSE_CREATED`
+4. DynamoDB Streams → stream-processor → SNS → email-sender → SES
+5. Returns full license key for VS Code extension testing
+
+**Usage:**
+```bash
+curl -X POST https://staging.mouse.hic-ai.com/api/admin/provision-test-license \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: <TEST_ADMIN_KEY from Secrets Manager>" \
+  -d '{"email": "test@example.com", "planType": "individual"}'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "license": {
+    "id": "keygen-license-id",
+    "key": "XXXX-XXXX-XXXX-XXXX",
+    "planType": "individual",
+    "expiresAt": "2027-01-29T..."
+  },
+  "customer": {
+    "userId": "test-user-xxx",
+    "email": "test@example.com"
+  }
+}
+```
+
+### 9.4 Clear Path Forward: Individual Flow Completion (Jan 30+)
+
+> 🎯 **Strategy:** Complete the Individual path end-to-end before tackling Business/RBAC. The Business path is largely the same (Owner ≈ Individual), with Admin/Member having fewer pages.
+
+#### Phase A: Validate Test Endpoint (Next Session)
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Call test endpoint with real email | ⬜ | Verify real Keygen license created |
+| Verify DynamoDB records created | ⬜ | LICENSE# and USER# records |
+| Verify stream-processor logs LICENSE event | ⬜ | CloudWatch logs |
+| Verify email-sender Lambda triggers | ⬜ | CloudWatch logs |
+| **Verify email arrives with license key** | ⬜ | **Critical validation** |
+| Test license key in VS Code extension | ⬜ | Activate and remove trial |
+
+#### Phase B: Admin Portal Wire-up
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Dashboard: Display subscription status | ⬜ | From DynamoDB customer record |
+| Dashboard: Display license key (masked) | ⬜ | From DynamoDB license record |
+| Billing: Show Stripe payment history | ⬜ | Stripe API or portal link |
+| Billing: Update payment method | ⬜ | Stripe Customer Portal |
+| Devices: List active machines | ⬜ | From KeyGen API |
+| Devices: Deactivate device | ⬜ | KeyGen machine delete |
+
+#### Phase C: Subscription Lifecycle Testing
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Test subscription renewal (mock) | ⬜ | Stripe test clock or webhook |
+| Test payment failure → grace period | ⬜ | `invoice.payment_failed` webhook |
+| Test grace period expiry → suspension | ⬜ | scheduled-tasks Lambda |
+| Test payment method update → reactivation | ⬜ | Stripe Customer Portal |
+| Test subscription cancellation | ⬜ | Cancel at period end |
+| Test resubscription after cancellation | ⬜ | New checkout flow |
+
+#### Phase D: Email Pipeline Verification
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| License delivery email | ⬜ | LICENSE_CREATED event |
+| Payment received confirmation | ⬜ | CUSTOMER_CREATED event |
+| Payment failed notice | ⬜ | PAYMENT_FAILED event |
+| Subscription renewal reminder | ⬜ | TRIAL_ENDING or scheduled |
+| Cancellation confirmation | ⬜ | SUBSCRIPTION_CANCELLED event |
+
+#### Phase E: VS Code Extension Finalization
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Activate License command | ⬜ | Enter key, validate with Keygen |
+| Trial nag banner removal | ⬜ | After valid license activation |
+| Heartbeat loop | ✅ | Already implemented |
+| Concurrent session enforcement | ⬜ | Test with multiple machines |
+| VSIX marketplace publish | ⬜ | After all validations pass |
+
+#### Phase F: Business/RBAC (After Individual Complete)
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Cognito Groups for roles | ⬜ | Owner, Admin, Member |
+| Owner account = Individual + Team page | ⬜ | Nearly identical |
+| Admin account = Owner - Billing | ⬜ | Subset of pages |
+| Member account = Dashboard + Devices only | ⬜ | Minimal pages |
+| Team seat management | ⬜ | Already built in TeamManagement.js |
+| Invite flow (already complete) | ✅ | Working |
 
 ---
 
