@@ -16,6 +16,7 @@ import { headers } from "next/headers";
 import { getStripeClient, getWebhookSecret } from "@/lib/stripe";
 import {
   getCustomerByStripeId,
+  getCustomerByEmail,
   upsertCustomer,
   updateCustomerSubscription,
   getLicense,
@@ -122,8 +123,16 @@ async function handleCheckoutCompleted(session) {
   const planType = plan === "business" ? "business" : "individual";
   const policyId = await getPolicyId(planType);
 
-  // Check if this customer already exists
-  const existingCustomer = await getCustomerByStripeId(customer);
+  // Check if this customer already exists (by Stripe ID or email)
+  const existingByStripeId = await getCustomerByStripeId(customer);
+  const existingByEmail = await getCustomerByEmail(customer_email);
+  const existingCustomer = existingByStripeId || existingByEmail;
+
+  // If user already has a license, don't create a duplicate
+  if (existingCustomer?.keygenLicenseId) {
+    console.log(`Customer ${customer_email} already has license ${existingCustomer.keygenLicenseId}, skipping creation`);
+    return; // Webhook processed successfully, no action needed
+  }
 
   let licenseKey = null;
   let licenseId = null;

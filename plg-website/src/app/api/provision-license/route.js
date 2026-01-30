@@ -99,17 +99,27 @@ export async function POST(request) {
       );
     }
 
-    // Check if this session was already processed (idempotency)
+    // Check if this user already has a license (prevent duplicates)
     const existingCustomer = await getCustomerByEmail(user.email);
-    if (existingCustomer?.stripeCustomerId === checkoutSession.customer?.id) {
-      // Already processed, return existing license info
+    if (existingCustomer?.keygenLicenseId) {
+      // User already has a license - return it instead of creating a duplicate
+      console.log("[ProvisionLicense] User already has license:", {
+        email: user.email,
+        existingLicenseId: existingCustomer.keygenLicenseId,
+        existingStripeId: existingCustomer.stripeCustomerId,
+        newStripeId: checkoutSession.customer?.id,
+      });
+      
+      // If this is from the same Stripe checkout, it's a refresh - just return the info
+      // If it's a different Stripe checkout, they already have a license (shouldn't happen due to checkout guard)
       return NextResponse.json({
         success: true,
         alreadyProvisioned: true,
         licenseKey:
-          existingCustomer.licenseKeyPreview ||
+          existingCustomer.metadata?.licenseKeyPreview ||
           "Check your email for your license key",
-        planName: existingCustomer.accountType,
+        planName: existingCustomer.accountType === "business" ? "Business" : "Individual",
+        userName: user.firstName,
       });
     }
 

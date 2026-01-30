@@ -12,6 +12,7 @@ import { headers } from "next/headers";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { PRICING, STRIPE_PRICES } from "@/lib/constants";
+import { getCustomerByEmail } from "@/lib/dynamodb";
 
 // Cognito JWT verifier for ID tokens (contains user email)
 // Note: We use ID tokens because they contain the email claim
@@ -135,6 +136,24 @@ export async function POST(request) {
       );
     }
     console.log("[Checkout] Step 4 OK: Customer email available");
+
+    // Step 4b: Check for existing active license (prevent duplicates)
+    const existingCustomer = await getCustomerByEmail(customerEmail);
+    if (existingCustomer?.keygenLicenseId && existingCustomer?.subscriptionStatus === "active") {
+      console.log("[Checkout] Step 4b BLOCK: User already has active license", {
+        email: customerEmail,
+        licenseId: existingCustomer.keygenLicenseId,
+      });
+      return NextResponse.json(
+        { 
+          error: "You already have an active license. Visit your portal to manage your subscription.",
+          existingLicense: true,
+          portalUrl: "/portal/license"
+        },
+        { status: 409 }, // Conflict
+      );
+    }
+    console.log("[Checkout] Step 4b OK: No existing active license");
 
     // Step 5: Build checkout params
     const checkoutParams = {

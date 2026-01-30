@@ -94,22 +94,27 @@ export async function POST(request) {
     // Check for existing customer by email to avoid duplicates
     const existingCustomer = await getCustomerByEmail(email);
     
-    // Use existing IDs if customer exists, otherwise generate new ones
-    const testUserId = existingCustomer?.userId || `test-user-${crypto.randomBytes(8).toString("hex")}`;
-    const testStripeCustomerId = existingCustomer?.stripeCustomerId || `cus_test_${crypto.randomBytes(12).toString("hex")}`;
-    const testStripeSubscriptionId = existingCustomer?.stripeSubscriptionId || `sub_test_${crypto.randomBytes(12).toString("hex")}`;
-
-    if (existingCustomer) {
-      console.log(`[TestLicense] Found existing customer for ${email}: ${existingCustomer.userId}`);
+    // If user already has a license, return it instead of creating a new one
+    if (existingCustomer?.keygenLicenseId) {
+      console.log(`[TestLicense] User ${email} already has license: ${existingCustomer.keygenLicenseId}`);
+      return NextResponse.json({
+        success: true,
+        alreadyExists: true,
+        message: "User already has a license",
+        licenseId: existingCustomer.keygenLicenseId,
+        licenseKeyPreview: existingCustomer.metadata?.licenseKeyPreview || "Already provisioned",
+        planName: existingCustomer.accountType === "business" ? "Business" : "Individual",
+        userId: existingCustomer.userId,
+      });
     }
+    
+    // Generate new IDs for new customer
+    const testUserId = `test-user-${crypto.randomBytes(8).toString("hex")}`;
+    const testStripeCustomerId = `cus_test_${crypto.randomBytes(12).toString("hex")}`;
+    const testStripeSubscriptionId = `sub_test_${crypto.randomBytes(12).toString("hex")}`;
 
-    // Human-readable plan name
-    const planName =
-      planType === "individual"
-        ? "Individual"
-        : planType === "enterprise"
-          ? "Enterprise"
-          : "Open Source";
+    // Human-readable plan name (only individual and business exist)
+    const planName = planType === "business" ? "Business" : "Individual";
 
     console.log(
       `[TestLicense] Creating test license for ${email} (${planType})`,
