@@ -22,6 +22,7 @@ import {
   createLicense,
   getCustomerByEmail,
   getLicense,
+  migrateCustomerUserId,
 } from "@/lib/dynamodb";
 // NOTE: Email is sent via event-driven architecture:
 // DynamoDB write → DynamoDB Streams → StreamProcessor Lambda → SNS → EmailSender Lambda → SES
@@ -101,15 +102,31 @@ export async function POST(request) {
     }
 
     // Check if this user already has a license (prevent duplicates)
-    const existingCustomer = await getCustomerByEmail(user.email);
+    let existingCustomer = await getCustomerByEmail(user.email);
     if (existingCustomer?.keygenLicenseId) {
       // User already has a license - return it instead of creating a duplicate
       console.log("[ProvisionLicense] User already has license:", {
         email: user.email,
         existingLicenseId: existingCustomer.keygenLicenseId,
         existingStripeId: existingCustomer.stripeCustomerId,
-        newStripeId: checkoutSession.customer?.id,
+        existingUserId: existingCustomer.userId,
+        cognitoUserId: user.sub,
       });
+
+      // If the existing customer was created by webhook with temp userId (email:xxx),
+      // migrate it to the real Cognito userId so dashboard lookups work
+      if (existingCustomer.userId && existingCustomer.userId !== user.sub) {
+        if (existingCustomer.userId.startsWith("email:")) {
+          console.log("[ProvisionLicense] Migrating customer userId from temp to Cognito");
+          try {
+            existingCustomer = await migrateCustomerUserId(existingCustomer.userId, user.sub);
+            console.log("[ProvisionLicense] Customer userId migrated successfully");
+          } catch (migrateError) {
+            console.error("[ProvisionLicense] Failed to migrate userId:", migrateError);
+            // Continue anyway - they still have a valid license
+          }
+        }
+      }
 
       // Check if DynamoDB license record exists (needed for license email)
       // The webhook may have created the Keygen license but not the DynamoDB license record
@@ -140,7 +157,7 @@ export async function POST(request) {
         success: true,
         alreadyProvisioned: true,
         licenseKey:
-          existingCustomer.metadata?.licenseKeyPreview ||
+          existingCustomer.metadata?.licenseKeyPreview || existingCustomer.keygenLicenseKey?.slice(0, 8) + "..." ||
           "Check your email for your license key",
         planName: existingCustomer.accountType === "business" ? "Business" : "Individual",
         userName: user.firstName,

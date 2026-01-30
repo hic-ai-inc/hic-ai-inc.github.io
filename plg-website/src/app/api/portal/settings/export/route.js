@@ -4,10 +4,12 @@
  * POST /api/portal/settings/export - Export all user data
  *
  * Returns a JSON file with all user data (GDPR compliant data portability).
+ * Requires Authorization header with Cognito ID token.
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   getCustomerByUserId,
   getCustomerLicenses,
@@ -15,12 +17,46 @@ import {
 } from "@/lib/dynamodb";
 import { getStripeClient } from "@/lib/stripe";
 
+// Cognito JWT verifier for ID tokens
+const idVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "id",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Verify Cognito ID token from Authorization header
+ */
+async function verifyAuthToken() {
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return await idVerifier.verify(token);
+  } catch (error) {
+    console.error("[Export] JWT verification failed:", error.message);
+    return null;
+  }
+}
+
 export async function POST() {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const user = {
+      sub: tokenPayload.sub,
+      email: tokenPayload.email,
+      name: tokenPayload.name || tokenPayload.given_name || null,
+      emailVerified: tokenPayload.email_verified || false,
+    };
 
     const exportData = {
       exportedAt: new Date().toISOString(),
@@ -33,17 +69,16 @@ export async function POST() {
       subscription: null,
     };
 
-    // User profile from Cognito session
+    // User profile from verified token
     exportData.user = {
-      id: session.user.sub,
-      email: session.user.email,
-      name: session.user.name || null,
-      picture: session.user.picture || null,
-      emailVerified: session.user.email_verified || false,
+      id: user.sub,
+      email: user.email,
+      name: user.name,
+      emailVerified: user.emailVerified,
     };
 
     // Customer data from DynamoDB
-    const customer = await getCustomerByUserId(session.user.sub);
+    const customer = await getCustomerByUserId(user.sub);
     if (customer) {
       exportData.customer = {
         accountType: customer.accountType,
@@ -54,7 +89,7 @@ export async function POST() {
       };
 
       // Licenses
-      const licenses = await getCustomerLicenses(session.user.sub);
+      const licenses = await getCustomerLicenses(user.sub);
       exportData.licenses = licenses.map((license) => ({
         id: license.keygenLicenseId,
         status: license.status,

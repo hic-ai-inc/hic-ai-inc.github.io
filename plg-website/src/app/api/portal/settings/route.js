@@ -9,17 +9,16 @@
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import { getCustomerByUserId, upsertCustomer, updateCustomerProfile } from "@/lib/dynamodb";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 
-// Create Cognito JWT verifier (lazily initialized)
+// Create Cognito JWT verifier for ID tokens (contains user info like email)
 let jwtVerifier = null;
 function getJwtVerifier() {
   if (!jwtVerifier && process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID && process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID) {
     jwtVerifier = CognitoJwtVerifier.create({
       userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-      tokenUse: "access",
+      tokenUse: "id",
       clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
     });
   }
@@ -27,32 +26,32 @@ function getJwtVerifier() {
 }
 
 /**
- * Get user from Authorization header token or fallback to session
+ * Get user from Authorization header (ID token)
  */
 async function getUserFromRequest(request) {
-  // Try Authorization header first (Cognito access token)
   const authHeader = request.headers.get("Authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.substring(7);
-    const verifier = getJwtVerifier();
-    if (verifier) {
-      try {
-        const payload = await verifier.verify(token);
-        return {
-          sub: payload.sub,
-          email: payload.email || payload.username,
-          name: payload.name || null,
-        };
-      } catch (err) {
-        console.error("[Settings API] Token verification failed:", err.message);
-        // Fall through to session check
-      }
-    }
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
   }
-  
-  // Fallback to session (dev mode or legacy)
-  const session = await getSession();
-  return session?.user || null;
+
+  const token = authHeader.substring(7);
+  const verifier = getJwtVerifier();
+  if (!verifier) {
+    console.error("[Settings API] JWT verifier not initialized");
+    return null;
+  }
+
+  try {
+    const payload = await verifier.verify(token);
+    return {
+      sub: payload.sub,
+      email: payload.email,
+      name: payload.name || payload.given_name || null,
+    };
+  } catch (err) {
+    console.error("[Settings API] Token verification failed:", err.message);
+    return null;
+  }
 }
 
 /**

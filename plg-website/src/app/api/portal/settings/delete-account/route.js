@@ -5,19 +5,53 @@
  *
  * Implements soft-delete with grace period for account recovery.
  * Hard deletion happens after 30 days via scheduled job.
+ * Requires Authorization header with Cognito ID token.
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { getCustomerByUserId, upsertCustomer } from "@/lib/dynamodb";
 import { getStripeClient } from "@/lib/stripe";
 
+// Cognito JWT verifier for ID tokens
+const idVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "id",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Verify Cognito ID token from Authorization header
+ */
+async function verifyAuthToken() {
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return await idVerifier.verify(token);
+  } catch (error) {
+    console.error("[DeleteAccount] JWT verification failed:", error.message);
+    return null;
+  }
+}
+
 export async function POST(request) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const user = {
+      sub: tokenPayload.sub,
+      email: tokenPayload.email,
+    };
 
     const body = await request.json();
     const { confirmation, reason } = body;
@@ -30,7 +64,7 @@ export async function POST(request) {
       );
     }
 
-    const customer = await getCustomerByUserId(session.user.sub);
+    const customer = await getCustomerByUserId(user.sub);
     if (!customer) {
       return NextResponse.json(
         { error: "Customer not found" },
@@ -88,8 +122,8 @@ export async function POST(request) {
 
     // Soft-delete: Mark account for deletion
     await upsertCustomer({
-      cognitoUserId: session.user.sub,
-      email: session.user.email,
+      userId: user.sub,
+      email: user.email,
       name: customer.name,
       accountStatus: "pending_deletion",
       deletionRequestedAt: new Date().toISOString(),
@@ -124,12 +158,17 @@ export async function POST(request) {
  */
 export async function DELETE(request) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const customer = await getCustomerByUserId(session.user.sub);
+    const user = {
+      sub: tokenPayload.sub,
+      email: tokenPayload.email,
+    };
+
+    const customer = await getCustomerByUserId(user.sub);
     if (!customer) {
       return NextResponse.json(
         { error: "Customer not found" },
@@ -146,8 +185,8 @@ export async function DELETE(request) {
 
     // Cancel the deletion
     await upsertCustomer({
-      cognitoUserId: session.user.sub,
-      email: session.user.email,
+      userId: user.sub,
+      email: user.email,
       name: customer.name,
       accountStatus: "active",
       deletionRequestedAt: null,

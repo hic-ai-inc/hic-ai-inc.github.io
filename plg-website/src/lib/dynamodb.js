@@ -191,6 +191,82 @@ export async function updateCustomerSubscription(userId, updates) {
  * Update customer profile fields (name, notification preferences, etc.)
  * Uses UpdateCommand to only modify specified fields without overwriting others.
  * 
+
+/**
+ * Migrate customer record from temporary userId to real Cognito userId.
+ * 
+ * When a webhook creates a customer before the user signs in with Cognito,
+ * it uses a temporary ID like `email:xxx@xxx.com`. When the user later
+ * signs in and completes provisioning, we need to migrate the record to
+ * use their real Cognito sub as the userId.
+ * 
+ * This creates a new record with the real userId and deletes the old one.
+ * 
+ * @param {string} oldUserId - The temporary userId (e.g., "email:user@example.com")
+ * @param {string} newUserId - The real Cognito sub
+ * @returns {Promise<Object>} The migrated customer record
+ */
+export async function migrateCustomerUserId(oldUserId, newUserId) {
+  const logger = createLogger("migrateCustomerUserId");
+  
+  // Get the existing customer record
+  const existing = await getCustomerByUserId(oldUserId);
+  if (!existing) {
+    logger.error("Original customer record not found", { oldUserId });
+    throw new Error(`Customer not found with userId: ${oldUserId}`);
+  }
+
+  logger.info("Migrating customer userId", { oldUserId, newUserId, email: existing.email });
+
+  // Create new record with updated userId
+  const now = new Date().toISOString();
+  const newItem = {
+    PK: `USER#${newUserId}`,
+    SK: "PROFILE",
+    GSI1PK: existing.stripeCustomerId ? `STRIPE#${existing.stripeCustomerId}` : undefined,
+    GSI1SK: existing.stripeCustomerId ? "CUSTOMER" : undefined,
+    GSI2PK: `EMAIL#${existing.email.toLowerCase()}`,
+    GSI2SK: "USER",
+    userId: newUserId,
+    email: existing.email.toLowerCase(),
+    stripeCustomerId: existing.stripeCustomerId,
+    keygenLicenseId: existing.keygenLicenseId,
+    keygenLicenseKey: existing.keygenLicenseKey,
+    accountType: existing.accountType,
+    subscriptionStatus: existing.subscriptionStatus,
+    name: existing.name,
+    createdAt: existing.createdAt,
+    updatedAt: now,
+    migratedFrom: oldUserId,
+    migratedAt: now,
+    // Preserve any metadata
+    ...(existing.notificationPreferences && { notificationPreferences: existing.notificationPreferences }),
+  };
+
+  // Write new record
+  await dynamodb.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: newItem,
+    }),
+  );
+
+  // Delete old record
+  await dynamodb.send(
+    new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `USER#${oldUserId}`,
+        SK: "PROFILE",
+      },
+    }),
+  );
+
+  logger.info("Customer userId migrated successfully", { oldUserId, newUserId });
+  return newItem;
+}
+
+
  * @param {string} userId - The user's sub claim from the identity provider
  * @param {Object} updates - Fields to update (e.g., { name, notificationPreferences })
  * @returns {Promise<Object>} Updated attributes

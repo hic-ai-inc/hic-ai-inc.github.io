@@ -70,10 +70,10 @@ export default function SettingsPage() {
 
         // Fetch notification preferences from API with auth token
         const session = await getSession();
-        if (session?.accessToken) {
+        if (session?.idToken) {
           const response = await fetch("/api/portal/settings", {
             headers: {
-              Authorization: `Bearer ${session.accessToken}`,
+              Authorization: `Bearer ${session.idToken}`,
             },
           });
           
@@ -115,7 +115,7 @@ export default function SettingsPage() {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json",
-          ...(session?.accessToken && { Authorization: `Bearer ${session.accessToken}` }),
+          ...(session?.idToken && { Authorization: `Bearer ${session.idToken}` }),
         },
         body: JSON.stringify({
           givenName: profile.givenName,
@@ -152,7 +152,7 @@ export default function SettingsPage() {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json",
-          ...(session?.accessToken && { Authorization: `Bearer ${session.accessToken}` }),
+          ...(session?.idToken && { Authorization: `Bearer ${session.idToken}` }),
         },
         body: JSON.stringify({ notifications }),
       });
@@ -178,8 +178,12 @@ export default function SettingsPage() {
     setError(null);
 
     try {
+      const session = await getSession();
       const response = await fetch("/api/portal/settings/export", {
         method: "POST",
+        headers: {
+          ...(session?.idToken && { Authorization: `Bearer ${session.idToken}` }),
+        },
       });
 
       if (!response.ok) {
@@ -226,9 +230,13 @@ export default function SettingsPage() {
     setError(null);
 
     try {
+      const session = await getSession();
       const response = await fetch("/api/portal/settings/delete-account", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.idToken && { Authorization: `Bearer ${session.idToken}` }),
+        },
         body: JSON.stringify({
           confirmation: deleteConfirmation,
           reason: "User requested deletion",
