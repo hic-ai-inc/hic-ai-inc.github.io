@@ -213,7 +213,6 @@ function WelcomeCompleteContent() {
 
               <h1 className="text-3xl font-bold mb-2">
                 Welcome to Mouse{state.userName ? `, ${state.userName}` : ""}!
-                🎉
               </h1>
               <p className="text-frost-white/70 text-lg mb-8">
                 Your {state.planName} subscription is active.
