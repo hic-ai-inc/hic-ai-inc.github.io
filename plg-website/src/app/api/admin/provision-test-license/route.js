@@ -83,7 +83,7 @@ export async function POST(request) {
     }
 
     // Validate plan type
-    const validPlans = ["individual", "enterprise", "open_source"];
+    const validPlans = ["individual", "business"];
     if (!validPlans.includes(planType)) {
       return NextResponse.json(
         { error: `Invalid planType. Must be one of: ${validPlans.join(", ")}` },
@@ -224,7 +224,7 @@ export async function GET() {
     body: {
       email: "Required. Email address for license delivery",
       planType:
-        "Optional. One of: individual (default), enterprise, open_source",
+        "Optional. One of: individual (default), business",
       userName: "Optional. Display name for the user",
     },
     example: {
