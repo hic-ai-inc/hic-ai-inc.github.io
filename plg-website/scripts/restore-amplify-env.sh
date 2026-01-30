@@ -16,11 +16,15 @@
 
 set -e
 
+# Prevent Git Bash from mangling file:// paths on Windows
+export MSYS_NO_PATHCONV=1
+
 # ───────────────────────────────────────────────────────────────────
 # Configuration
 # ───────────────────────────────────────────────────────────────────
 
 BACKUP_FILE="${1:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ───────────────────────────────────────────────────────────────────
 # Functions
@@ -87,9 +91,13 @@ if ! aws amplify get-branch --app-id "${APP_ID}" --branch-name "${BRANCH}" > /de
     exit 1
 fi
 
-# Extract environment variables JSON
-ENV_VARS_FILE=$(mktemp)
-jq '.environmentVariables' "${BACKUP_FILE}" > "${ENV_VARS_FILE}"
+# Convert backup file to absolute path before pushd
+BACKUP_FILE_ABS="$(cd "$(dirname "${BACKUP_FILE}")" && pwd)/$(basename "${BACKUP_FILE}")"
+
+# Extract environment variables JSON (use relative path for Windows Git Bash compatibility)
+ENV_VARS_FILE=".env-restore-temp.json"
+pushd "${SCRIPT_DIR}" > /dev/null
+jq '.environmentVariables' "${BACKUP_FILE_ABS}" > "${ENV_VARS_FILE}"
 
 # Confirmation prompt
 echo ""
@@ -108,17 +116,27 @@ if [ "${CONFIRM}" != "yes" ]; then
     exit 0
 fi
 
-# Perform the restore
-log_info "Restoring environment variables..."
-RESULT=$(aws amplify update-branch \
+# Perform the restore to BOTH levels
+log_info "Restoring to BRANCH level..."
+BRANCH_RESULT=$(aws amplify update-branch \
     --app-id "${APP_ID}" \
     --branch-name "${BRANCH}" \
     --environment-variables "file://${ENV_VARS_FILE}" \
     --query "branch.environmentVariables" \
     --output json)
 
+log_info "Restoring to APP level..."
+APP_RESULT=$(aws amplify update-app \
+    --app-id "${APP_ID}" \
+    --environment-variables "file://${ENV_VARS_FILE}" \
+    --query "app.environmentVariables" \
+    --output json)
+
+RESULT="${BRANCH_RESULT}"
+
 # Cleanup
 rm -f "${ENV_VARS_FILE}"
+popd > /dev/null
 
 # Verify
 RESTORED_COUNT=$(echo "${RESULT}" | jq 'keys | length')

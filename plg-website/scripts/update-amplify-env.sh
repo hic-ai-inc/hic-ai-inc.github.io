@@ -21,6 +21,9 @@
 
 set -e
 
+# Prevent Git Bash from mangling file:// paths on Windows
+export MSYS_NO_PATHCONV=1
+
 # ───────────────────────────────────────────────────────────────────
 # Configuration
 # ───────────────────────────────────────────────────────────────────
@@ -165,7 +168,9 @@ echo ""
 # IMPORTANT: Amplify has two places for env vars. We update BOTH to prevent confusion.
 log_info "Step 4/5: Applying merged variables to BRANCH level..."
 
-MERGED_FILE=$(mktemp)
+# Use relative path from script dir (absolute paths break with file:// on Windows Git Bash)
+MERGED_FILE=".env-temp.json"
+pushd "${SCRIPT_DIR}" > /dev/null
 echo "${MERGED_VARS}" > "${MERGED_FILE}"
 
 BRANCH_RESULT=$(aws amplify update-branch \
@@ -188,6 +193,7 @@ APP_RESULT=$(aws amplify update-app \
     --output json)
 
 rm -f "${MERGED_FILE}"
+popd > /dev/null
 
 APP_COUNT=$(echo "${APP_RESULT}" | jq 'keys | length')
 log_success "App-level updated: ${APP_COUNT} variables"
