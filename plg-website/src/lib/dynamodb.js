@@ -86,6 +86,7 @@ export async function getCustomerByStripeId(stripeCustomerId) {
 
 /**
  * Get customer by email (for guest checkout linking)
+ * If multiple records exist, prioritize the one with a keygenLicenseId
  */
 export async function getCustomerByEmail(email) {
   const result = await dynamodb.send(
@@ -98,7 +99,14 @@ export async function getCustomerByEmail(email) {
       },
     }),
   );
-  return result.Items?.[0];
+  
+  if (!result.Items || result.Items.length === 0) {
+    return null;
+  }
+  
+  // If multiple records, prefer one with a license
+  const withLicense = result.Items.find(item => item.keygenLicenseId);
+  return withLicense || result.Items[0];
 }
 
 /**

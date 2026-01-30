@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getStripeClient } from "@/lib/stripe";
-import { getCustomerByUserId } from "@/lib/dynamodb";
+import { getCustomerByEmail } from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
 
 export async function GET() {
@@ -19,8 +19,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get customer to find Stripe customer ID
-    const customer = await getCustomerByUserId(session.user.sub);
+    // Get customer by email (more reliable than userId across auth systems)
+    const customer = await getCustomerByEmail(session.user.email);
     if (!customer?.stripeCustomerId) {
       return NextResponse.json({
         subscription: null,

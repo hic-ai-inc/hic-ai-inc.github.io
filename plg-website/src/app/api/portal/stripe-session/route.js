@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getStripeClient } from "@/lib/stripe";
-import { getCustomerByUserId } from "@/lib/dynamodb";
+import { getCustomerByEmail } from "@/lib/dynamodb";
 
 export async function POST() {
   try {
@@ -23,8 +23,8 @@ export async function POST() {
       );
     }
 
-    // Get customer from DynamoDB to find Stripe customer ID
-    const customer = await getCustomerByUserId(session.user.sub);
+    // Get customer by email (more reliable than userId across auth systems)
+    const customer = await getCustomerByEmail(session.user.email);
 
     if (!customer?.stripeCustomerId) {
       return NextResponse.json(

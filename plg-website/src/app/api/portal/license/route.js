@@ -8,7 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getCustomerByUserId, getLicense } from "@/lib/dynamodb";
+import { getCustomerByEmail, getLicense } from "@/lib/dynamodb";
 import { getLicense as getKeygenLicense } from "@/lib/keygen";
 
 export async function GET() {
@@ -18,8 +18,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get customer
-    const customer = await getCustomerByUserId(session.user.sub);
+    // Get customer by email (more reliable than userId across auth systems)
+    const customer = await getCustomerByEmail(session.user.email);
     if (!customer || !customer.keygenLicenseId) {
       return NextResponse.json({
         license: null,

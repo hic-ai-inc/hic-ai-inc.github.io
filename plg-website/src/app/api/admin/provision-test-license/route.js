@@ -20,7 +20,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { createLicenseForPlan } from "@/lib/keygen";
-import { upsertCustomer, createLicense } from "@/lib/dynamodb";
+import { upsertCustomer, createLicense, getCustomerByEmail } from "@/lib/dynamodb";
 import { getAppSecrets } from "@/lib/secrets";
 import crypto from "crypto";
 
@@ -91,10 +91,17 @@ export async function POST(request) {
       );
     }
 
-    // Generate synthetic IDs for test records
-    const testUserId = `test-user-${crypto.randomBytes(8).toString("hex")}`;
-    const testStripeCustomerId = `cus_test_${crypto.randomBytes(12).toString("hex")}`;
-    const testStripeSubscriptionId = `sub_test_${crypto.randomBytes(12).toString("hex")}`;
+    // Check for existing customer by email to avoid duplicates
+    const existingCustomer = await getCustomerByEmail(email);
+    
+    // Use existing IDs if customer exists, otherwise generate new ones
+    const testUserId = existingCustomer?.userId || `test-user-${crypto.randomBytes(8).toString("hex")}`;
+    const testStripeCustomerId = existingCustomer?.stripeCustomerId || `cus_test_${crypto.randomBytes(12).toString("hex")}`;
+    const testStripeSubscriptionId = existingCustomer?.stripeSubscriptionId || `sub_test_${crypto.randomBytes(12).toString("hex")}`;
+
+    if (existingCustomer) {
+      console.log(`[TestLicense] Found existing customer for ${email}: ${existingCustomer.userId}`);
+    }
 
     // Human-readable plan name
     const planName =
