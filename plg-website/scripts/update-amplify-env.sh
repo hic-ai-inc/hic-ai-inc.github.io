@@ -161,26 +161,41 @@ echo "${NEW_VARS}" | jq -r 'keys[]' | while read -r key; do
 done
 echo ""
 
-# Step 4: Apply merged variables
-log_info "Step 4/4: Applying merged variables..."
+# Step 4: Apply merged variables to BOTH app-level AND branch-level
+# IMPORTANT: Amplify has two places for env vars. We update BOTH to prevent confusion.
+log_info "Step 4/5: Applying merged variables to BRANCH level..."
 
 MERGED_FILE=$(mktemp)
 echo "${MERGED_VARS}" > "${MERGED_FILE}"
 
-RESULT=$(aws amplify update-branch \
+BRANCH_RESULT=$(aws amplify update-branch \
     --app-id "${APP_ID}" \
     --branch-name "${BRANCH}" \
     --environment-variables "file://${MERGED_FILE}" \
     --query "branch.environmentVariables" \
     --output json)
 
+BRANCH_COUNT=$(echo "${BRANCH_RESULT}" | jq 'keys | length')
+log_success "Branch-level updated: ${BRANCH_COUNT} variables"
+
+# Step 5: Apply to APP level (ensures both levels are in sync)
+log_info "Step 5/5: Applying merged variables to APP level..."
+
+APP_RESULT=$(aws amplify update-app \
+    --app-id "${APP_ID}" \
+    --environment-variables "file://${MERGED_FILE}" \
+    --query "app.environmentVariables" \
+    --output json)
+
 rm -f "${MERGED_FILE}"
 
-FINAL_COUNT=$(echo "${RESULT}" | jq 'keys | length')
+APP_COUNT=$(echo "${APP_RESULT}" | jq 'keys | length')
+log_success "App-level updated: ${APP_COUNT} variables"
 
 log_success "Update complete!"
 log_info "Previous count: ${CURRENT_COUNT}"
-log_info "Final count: ${FINAL_COUNT}"
+log_info "Branch-level: ${BRANCH_COUNT} variables"
+log_info "App-level: ${APP_COUNT} variables"
 
 echo ""
 log_info "NOTE: You may need to trigger a new deployment for changes to take effect."

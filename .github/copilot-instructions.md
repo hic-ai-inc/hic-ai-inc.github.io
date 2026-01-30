@@ -71,6 +71,18 @@ Local relay exposes tools to AI agents in VS Code:
 
 Feature branches (`feature/*`) → `development` → `main` after tests pass.
 
+## Amplify Environment Variables — CRITICAL
+
+**NEVER write raw AWS CLI commands for Amplify env vars. ALWAYS use existing scripts:**
+
+| Task | Script |
+|------|--------|
+| View/backup vars | `./scripts/backup-amplify-env.sh development` |
+| Add/update vars | `./scripts/update-amplify-env.sh KEY=value` |
+| Restore vars | `./scripts/restore-amplify-env.sh <backup-file>` |
+
+**Why:** Amplify has TWO levels of env vars (app-level AND branch-level). Our scripts update BOTH. Raw CLI commands like `aws amplify get-app --query 'app.environmentVariables'` only show app-level, missing branch-level vars where the real config lives.
+
 ---
 
 # HIC Coding Standards

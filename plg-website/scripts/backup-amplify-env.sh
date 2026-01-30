@@ -69,16 +69,34 @@ if ! aws amplify get-branch --app-id "${APP_ID}" --branch-name "${BRANCH}" > /de
     exit 1
 fi
 
-# Fetch environment variables
+# Fetch environment variables from BOTH levels
 log_info "Fetching environment variables..."
-ENV_VARS=$(aws amplify get-branch \
+
+# Get branch-level variables (primary source)
+BRANCH_VARS=$(aws amplify get-branch \
     --app-id "${APP_ID}" \
     --branch-name "${BRANCH}" \
     --query "branch.environmentVariables" \
     --output json)
 
+# Get app-level variables (should be identical)
+APP_VARS=$(aws amplify get-app \
+    --app-id "${APP_ID}" \
+    --query "app.environmentVariables" \
+    --output json)
+
+# Use branch-level as primary (merged/complete set)
+ENV_VARS="${BRANCH_VARS}"
+
 # Count variables
 VAR_COUNT=$(echo "${ENV_VARS}" | jq 'keys | length')
+APP_VAR_COUNT=$(echo "${APP_VARS}" | jq 'keys | length')
+
+# Warn if app-level and branch-level are out of sync
+if [ "${VAR_COUNT}" -ne "${APP_VAR_COUNT}" ]; then
+    log_warn "⚠️  App-level (${APP_VAR_COUNT}) and branch-level (${VAR_COUNT}) variables are OUT OF SYNC!"
+    log_warn "   Run update-amplify-env.sh to resync both levels."
+fi
 
 if [ "${VAR_COUNT}" -eq 0 ]; then
     log_error "No environment variables found!"
