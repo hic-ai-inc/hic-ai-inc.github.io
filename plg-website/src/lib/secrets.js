@@ -126,7 +126,7 @@ async function getSSMParameter(parameterName) {
   const cacheKey = `ssm:${parameterName}`;
   const cached = getCachedSecret(cacheKey);
   if (cached) {
-    return cached.value;
+    return cached;  // getCachedSecret already returns the value, not {value: ...}
   }
 
   const client = getSSMClient();
