@@ -24,10 +24,11 @@ import { upsertCustomer, createLicense } from "@/lib/dynamodb";
 import { getAppSecrets } from "@/lib/secrets";
 import crypto from "crypto";
 
-// Only allow in staging
+// Only allow in staging (check multiple env var patterns)
 const IS_STAGING =
   process.env.ENVIRONMENT === "staging" ||
   process.env.NEXT_PUBLIC_APP_ENV === "staging" ||
+  process.env.NEXT_PUBLIC_APP_URL?.includes("staging") ||
   process.env.NODE_ENV === "development";
 
 /**
