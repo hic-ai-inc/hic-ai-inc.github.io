@@ -110,7 +110,9 @@ async function findTestFiles(options) {
   }
 
   // Determine the search root
-  let searchRoot = TESTS_ROOT;
+  // Default to __tests__/unit to avoid running E2E tests (which require live servers)
+  // Use --directory __tests__ or specific path to include other test directories
+  let searchRoot = join(TESTS_ROOT, "unit");
   if (options.directory) {
     searchRoot = resolve(options.directory);
   }
