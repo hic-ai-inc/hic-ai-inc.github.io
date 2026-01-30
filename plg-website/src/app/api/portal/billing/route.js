@@ -4,23 +4,53 @@
  * GET /api/portal/billing
  *
  * Fetches subscription and payment method information from Stripe.
+ * Requires Authorization header with Cognito ID token.
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { getCustomerByEmail } from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
 
+// Cognito JWT verifier for ID tokens
+const idVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "id",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Verify Cognito ID token from Authorization header
+ */
+async function verifyAuthToken() {
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return await idVerifier.verify(token);
+  } catch (error) {
+    console.error("[Billing] JWT verification failed:", error.message);
+    return null;
+  }
+}
+
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get customer by email (more reliable than userId across auth systems)
-    const customer = await getCustomerByEmail(session.user.email);
+    // Get customer by email from verified token
+    const customer = await getCustomerByEmail(tokenPayload.email);
     if (!customer?.stripeCustomerId) {
       return NextResponse.json({
         subscription: null,

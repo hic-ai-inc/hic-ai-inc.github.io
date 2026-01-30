@@ -19,8 +19,11 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
+import { useUser } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 
 export default function BillingPage() {
+  const { user, isLoading: userLoading } = useUser();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [billing, setBilling] = useState(null);
@@ -38,17 +41,31 @@ export default function BillingPage() {
       // Auto-dismiss after 5 seconds
       setTimeout(() => setSuccessMessage(null), 5000);
     }
-    fetchBillingData();
-  }, [searchParams, router]);
+    
+    if (user && !userLoading) {
+      fetchBillingData();
+    }
+  }, [searchParams, router, user, userLoading]);
 
   async function fetchBillingData() {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch billing info with credentials for cookie-based auth
+      // Get session for Authorization header
+      const session = await getSession();
+      if (!session?.idToken) {
+        setError("Not authenticated");
+        setLoading(false);
+        return;
+      }
+
+      // Fetch billing info with Authorization header
       const billingRes = await fetch("/api/portal/billing", {
         credentials: "include",
+        headers: {
+          Authorization: `Bearer ${session.idToken}`,
+        },
       });
 
       if (!billingRes.ok) {
@@ -68,8 +85,34 @@ export default function BillingPage() {
 
   async function handleManageSubscription() {
     setRedirecting(true);
-    // The form will POST to /api/portal/stripe-session which redirects to Stripe
-    document.getElementById("stripe-portal-form").submit();
+    try {
+      const session = await getSession();
+      if (!session?.idToken) {
+        setError("Not authenticated");
+        setRedirecting(false);
+        return;
+      }
+
+      const res = await fetch("/api/portal/stripe-session", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${session.idToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to open billing portal");
+      }
+
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch (err) {
+      console.error("[Billing] Portal session error:", err);
+      setError(err.message);
+      setRedirecting(false);
+    }
   }
 
   if (loading) {
@@ -146,13 +189,7 @@ export default function BillingPage() {
         </p>
       </div>
 
-      {/* Hidden form for Stripe Portal redirect */}
-      <form
-        id="stripe-portal-form"
-        action="/api/portal/stripe-session"
-        method="POST"
-        className="hidden"
-      />
+      {/* Stripe Portal redirect via fetch with JWT auth */}
 
       {/* Current Plan */}
       <Card className="mb-6">

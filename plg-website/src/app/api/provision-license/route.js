@@ -21,6 +21,7 @@ import {
   upsertCustomer,
   createLicense,
   getCustomerByEmail,
+  getLicense,
 } from "@/lib/dynamodb";
 // NOTE: Email is sent via event-driven architecture:
 // DynamoDB write → DynamoDB Streams → StreamProcessor Lambda → SNS → EmailSender Lambda → SES
@@ -109,6 +110,29 @@ export async function POST(request) {
         existingStripeId: existingCustomer.stripeCustomerId,
         newStripeId: checkoutSession.customer?.id,
       });
+
+      // Check if DynamoDB license record exists (needed for license email)
+      // The webhook may have created the Keygen license but not the DynamoDB license record
+      const existingLicenseRecord = await getLicense(existingCustomer.keygenLicenseId);
+      if (!existingLicenseRecord) {
+        console.log("[ProvisionLicense] Creating DynamoDB license record for email trigger");
+        const planType = existingCustomer.accountType || checkoutSession.metadata?.planType || "individual";
+        const planName = planType === "business" ? "Business" : "Individual";
+        
+        // Create DynamoDB license record to trigger LICENSE_CREATED email
+        await createLicense({
+          keygenLicenseId: existingCustomer.keygenLicenseId,
+          userId: user.sub,
+          email: user.email,
+          licenseKey: existingCustomer.keygenLicenseKey || existingCustomer.metadata?.licenseKeyPreview || "See email",
+          policyId: planType,
+          planName,
+          status: "active",
+          expiresAt: null, // Subscription-based, no fixed expiry
+          maxDevices: planType === "business" ? 10 : 3,
+        });
+        console.log("[ProvisionLicense] DynamoDB license record created - license email will be sent");
+      }
       
       // If this is from the same Stripe checkout, it's a refresh - just return the info
       // If it's a different Stripe checkout, they already have a license (shouldn't happen due to checkout guard)
