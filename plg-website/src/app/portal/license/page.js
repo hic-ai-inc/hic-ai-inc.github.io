@@ -43,13 +43,15 @@ export default function LicensePage() {
         }
 
         const res = await fetch("/api/portal/license", {
+          credentials: "include",
           headers: {
             Authorization: `Bearer ${session.idToken}`,
           },
         });
 
         if (!res.ok) {
-          throw new Error("Failed to fetch license");
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to fetch license");
         }
 
         const data = await res.json();

@@ -34,16 +34,20 @@ export default function BillingPage() {
       setLoading(true);
       setError(null);
 
-      // Fetch billing info
-      const billingRes = await fetch("/api/portal/billing");
+      // Fetch billing info with credentials for cookie-based auth
+      const billingRes = await fetch("/api/portal/billing", {
+        credentials: "include",
+      });
 
       if (!billingRes.ok) {
-        throw new Error("Failed to fetch billing information");
+        const errorData = await billingRes.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to fetch billing information");
       }
 
       const billingData = await billingRes.json();
       setBilling(billingData);
     } catch (err) {
+      console.error("[Billing] Fetch error:", err);
       setError(err.message);
     } finally {
       setLoading(false);

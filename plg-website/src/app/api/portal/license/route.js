@@ -38,13 +38,9 @@ export async function GET() {
       console.error("Failed to fetch from Keygen:", e);
     }
 
-    // Determine plan name
+    // Determine plan name (only Individual and Business exist)
     const planName =
-      customer.accountType === "business"
-        ? "Business"
-        : customer.accountType === "individual"
-          ? "Individual"
-          : "Open Source";
+      customer.accountType === "business" ? "Business" : "Individual";
 
     // Mask license key for display
     const maskedKey = localLicense?.licenseKey
@@ -54,7 +50,7 @@ export async function GET() {
     return NextResponse.json({
       license: {
         id: customer.keygenLicenseId,
-        key: localLicense?.licenseKey, // Full key for authenticated user
+        licenseKey: localLicense?.licenseKey, // Full key for authenticated user
         maskedKey,
         status: keygenLicense?.status || localLicense?.status || "unknown",
         planType: customer.accountType,

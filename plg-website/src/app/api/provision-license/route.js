@@ -66,10 +66,16 @@ export async function POST(request) {
     }
 
     // Build user object from token payload
+    // For Google login, name is in given_name/family_name; for email login, use cognito:username
+    const firstName = tokenPayload.given_name || 
+      tokenPayload.name?.split(' ')[0] || 
+      tokenPayload.email?.split('@')[0] || 
+      'there';
     const user = {
       sub: tokenPayload.sub,
       email: tokenPayload.email,
-      name: tokenPayload.name || tokenPayload["cognito:username"],
+      name: tokenPayload.name || tokenPayload.given_name || tokenPayload["cognito:username"],
+      firstName,
     };
 
     const { sessionId } = await request.json();
@@ -107,14 +113,9 @@ export async function POST(request) {
       });
     }
 
-    // Determine plan type from metadata
+    // Determine plan type from metadata (only individual and business exist)
     const planType = checkoutSession.metadata?.planType || "individual";
-    const planName =
-      planType === "individual"
-        ? "Individual"
-        : planType === "enterprise"
-          ? "Enterprise"
-          : "Open Source";
+    const planName = planType === "business" ? "Business" : "Individual";
 
     // Create Keygen license
     const license = await createLicenseForPlan(planType, {
@@ -165,7 +166,7 @@ export async function POST(request) {
       success: true,
       licenseKey: license.key,
       planName,
-      userName: user.name || user.email.split("@")[0],
+      userName: user.firstName,
     });
   } catch (error) {
     console.error("[API] Provision license error:", error);
