@@ -13,7 +13,7 @@ import {
   getCustomerLicenses,
   getLicenseDevices,
 } from "@/lib/dynamodb";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 
 export async function POST() {
   try {
@@ -87,6 +87,7 @@ export async function POST() {
       // Stripe data (invoices, subscription)
       if (customer.stripeCustomerId) {
         try {
+          const stripe = await getStripeClient();
           // Invoices
           const invoices = await stripe.invoices.list({
             customer: customer.stripeCustomerId,

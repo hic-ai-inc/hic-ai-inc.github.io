@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getCustomerByUserId, upsertCustomer } from "@/lib/dynamodb";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 
 export async function POST(request) {
   try {
@@ -63,6 +63,7 @@ export async function POST(request) {
     // Cancel any active Stripe subscription
     if (customer.stripeCustomerId) {
       try {
+        const stripe = await getStripeClient();
         const subscriptions = await stripe.subscriptions.list({
           customer: customer.stripeCustomerId,
           status: "active",

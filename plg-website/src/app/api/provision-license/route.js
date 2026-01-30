@@ -15,7 +15,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 import { createLicenseForPlan } from "@/lib/keygen";
 import {
   upsertCustomer,
@@ -81,7 +81,8 @@ export async function POST(request) {
     }
 
     // Retrieve Stripe checkout session
-    const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+    const stripeClient = await getStripeClient();
+    const checkoutSession = await stripeClient.checkout.sessions.retrieve(sessionId, {
       expand: ["subscription", "customer"],
     });
 

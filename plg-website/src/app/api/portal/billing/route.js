@@ -8,7 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 import { getCustomerByUserId } from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
 
@@ -28,6 +28,9 @@ export async function GET() {
         message: "No billing information found",
       });
     }
+
+    // Get Stripe client
+    const stripe = await getStripeClient();
 
     // Fetch Stripe customer with default payment method
     const stripeCustomer = await stripe.customers.retrieve(

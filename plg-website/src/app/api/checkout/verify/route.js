@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 
 export async function GET(request) {
   try {
@@ -22,6 +22,7 @@ export async function GET(request) {
     }
 
     // Retrieve the checkout session
+    const stripe = await getStripeClient();
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ["subscription", "line_items"],
     });
