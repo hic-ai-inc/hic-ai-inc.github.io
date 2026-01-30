@@ -474,11 +474,12 @@ describe("Journey 5: Heartbeat Loop", () => {
     });
 
     test("should require fingerprint in heartbeat", async () => {
+      // Fingerprint is strictly required for concurrent session tracking
       const response = await client.post("/api/license/heartbeat", {
         machineId: deviceData.machineId,
         sessionId: generateSessionId(),
         timestamp: new Date().toISOString(),
-        // fingerprint missing
+        // fingerprint missing - should fail
       });
 
       expectStatus(response, 400);

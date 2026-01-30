@@ -91,10 +91,11 @@ export async function POST(request) {
     const body = await request.json();
     const { machineId, sessionId, licenseKey, fingerprint } = body;
 
-    // Validate required fields - need either machineId or fingerprint
-    if (!machineId && !fingerprint) {
+    // Validate required fields - fingerprint is always required
+    // Each container/device must have a unique fingerprint for concurrent session tracking
+    if (!fingerprint) {
       return NextResponse.json(
-        { error: "Machine ID or fingerprint is required" },
+        { error: "Device fingerprint is required" },
         { status: 400 },
       );
     }
@@ -105,11 +106,9 @@ export async function POST(request) {
     // Trial users send heartbeats before purchasing. We record their device
     // so it can be linked to their account when they purchase a license.
     if (!licenseKey) {
-      const deviceId = fingerprint || machineId;
-      
-      // Record trial device heartbeat in DynamoDB
+      // Record trial device heartbeat in DynamoDB using fingerprint as unique key
       try {
-        await recordTrialHeartbeat(deviceId, {
+        await recordTrialHeartbeat(fingerprint, {
           fingerprint,
           machineId,
           sessionId,

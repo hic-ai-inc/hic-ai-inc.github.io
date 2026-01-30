@@ -167,58 +167,106 @@ describe("heartbeat API - license key format validation", () => {
 // ===========================================
 
 describe("heartbeat API - input validation", () => {
-  function validateInput(body) {
-    const { machineId, sessionId, licenseKey } = body || {};
+  /**
+   * Input validation rules:
+   * 1. fingerprint is ALWAYS required (device identification for concurrent sessions)
+   * 2. For trial users: fingerprint only is sufficient
+   * 3. For licensed users: fingerprint + sessionId + licenseKey required
+   * 
+   * This ensures each container/device has a unique fingerprint for device limit enforcement.
+   * Example: User runs 100 containers with same license - each needs unique fingerprint.
+   */
+  function validateHeartbeatInput(body) {
+    const { fingerprint, sessionId, licenseKey } = body || {};
 
-    if (!machineId) {
-      return { valid: false, error: "Machine ID is required", status: 400 };
+    // Fingerprint is ALWAYS required for device tracking
+    if (!fingerprint) {
+      return { valid: false, error: "Device fingerprint is required", status: 400 };
     }
 
+    // Trial heartbeat - fingerprint only is sufficient
+    if (!licenseKey) {
+      return { valid: true, type: "trial" };
+    }
+
+    // Licensed heartbeat - need sessionId too
     if (!sessionId) {
       return { valid: false, error: "Session ID is required", status: 400 };
     }
 
-    if (!licenseKey) {
-      return { valid: false, error: "License key is required", status: 400 };
-    }
-
-    return { valid: true };
+    return { valid: true, type: "licensed" };
   }
 
-  test("should reject missing machineId", () => {
-    const result = validateInput({
-      sessionId: "sess_123",
-      licenseKey: generateValidLicenseKey(),
+  describe("fingerprint requirement (all heartbeats)", () => {
+    test("should reject missing fingerprint for trial heartbeat", () => {
+      const result = validateHeartbeatInput({
+        // No fingerprint - should fail
+      });
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("Device fingerprint is required");
     });
-    expect(result.valid).toBe(false);
-    expect(result.error).toBe("Machine ID is required");
+
+    test("should reject missing fingerprint for licensed heartbeat", () => {
+      const result = validateHeartbeatInput({
+        sessionId: "sess_123",
+        licenseKey: generateValidLicenseKey(),
+        // No fingerprint - should fail
+      });
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("Device fingerprint is required");
+    });
+
+    test("should reject missing fingerprint even with machineId", () => {
+      // machineId alone is NOT sufficient - fingerprint is required
+      const result = validateHeartbeatInput({
+        machineId: "mach_123",
+        sessionId: "sess_123",
+        licenseKey: generateValidLicenseKey(),
+      });
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("Device fingerprint is required");
+    });
   });
 
-  test("should reject missing sessionId", () => {
-    const result = validateInput({
-      machineId: "mach_123",
-      licenseKey: generateValidLicenseKey(),
+  describe("trial heartbeat (no license key)", () => {
+    test("should accept fingerprint-only for trial users", () => {
+      const result = validateHeartbeatInput({
+        fingerprint: "fp_test_device_123",
+      });
+      expect(result.valid).toBe(true);
+      expect(result.type).toBe("trial");
     });
-    expect(result.valid).toBe(false);
-    expect(result.error).toBe("Session ID is required");
+
+    test("should accept trial heartbeat with optional machineId", () => {
+      const result = validateHeartbeatInput({
+        fingerprint: "fp_test_device_123",
+        machineId: "mach_optional",
+      });
+      expect(result.valid).toBe(true);
+      expect(result.type).toBe("trial");
+    });
   });
 
-  test("should reject missing licenseKey", () => {
-    const result = validateInput({
-      machineId: "mach_123",
-      sessionId: "sess_123",
+  describe("licensed heartbeat (with license key)", () => {
+    test("should reject licensed heartbeat without sessionId", () => {
+      const result = validateHeartbeatInput({
+        fingerprint: "fp_test_device_123",
+        licenseKey: generateValidLicenseKey(),
+        // sessionId missing
+      });
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("Session ID is required");
     });
-    expect(result.valid).toBe(false);
-    expect(result.error).toBe("License key is required");
-  });
 
-  test("should accept valid input", () => {
-    const result = validateInput({
-      machineId: "mach_123",
-      sessionId: "sess_123",
-      licenseKey: generateValidLicenseKey(),
+    test("should accept licensed heartbeat with all required fields", () => {
+      const result = validateHeartbeatInput({
+        fingerprint: "fp_test_device_123",
+        sessionId: "sess_123",
+        licenseKey: generateValidLicenseKey(),
+      });
+      expect(result.valid).toBe(true);
+      expect(result.type).toBe("licensed");
     });
-    expect(result.valid).toBe(true);
   });
 });
 
