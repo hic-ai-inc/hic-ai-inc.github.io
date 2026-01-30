@@ -1,7 +1,7 @@
 # PLG Roadmap v4 — Final Sprint to Launch
 
-**Document Version:** 4.17.0  
-**Date:** January 29, 2026  
+**Document Version:** 4.18.0  
+**Date:** January 30, 2026  
 **Owner:** General Counsel  
 **Status:** 🟢 TEST ENDPOINT READY — Focus: Validate Full Payment→License→Email Pipeline
 
@@ -77,6 +77,8 @@ This document consolidates ALL remaining work items to ship Mouse with full PLG 
 > 🔧 **BUGFIX (Jan 29, 10:00 PM EST):** Fixed Stripe client import bug in 5 API routes — `getStripeClient()` was imported incorrectly, causing 100% post-payment failures. Also fixed stream-processor to classify `LICENSE#` records by PK prefix (was only checking SK).
 >
 > 🚀 **MILESTONE (Jan 29, 11:00 PM EST):** Test license provisioning endpoint created (`/api/admin/provision-test-license`) — enables E2E testing of full payment→license→email pipeline without real Stripe payment. Creates real Keygen licenses, writes DynamoDB records, triggers email via Streams.
+>
+> ⚠️ **MoR UPDATE (Jan 30):** Lemon Squeezy declined our Merchant of Record application — reason: "no website or social media presence." **Action:** Get website deployed to production, then re-apply. Once approved, swap Stripe → Lemon Squeezy post-launch (LS handles global tax collection/remittance, eliminating our tax compliance burden for international sales).
 
 ---
 
