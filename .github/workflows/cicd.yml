@@ -191,11 +191,15 @@ jobs:
     if: always()
     steps:
       - name: Report results
+        env:
+          # Determine target branch for merge policy decisions
+          TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
         run: |
           echo "=== Pipeline Results ==="
+          echo "Target branch: $TARGET_BRANCH"
           echo ""
           
-          # Code Quality
+          # Code Quality (Unit Tests)
           if [ "${{ needs.code-quality.result }}" = "success" ]; then
             echo "✅ Code quality tests passed"
             echo "   Systems tested: ${{ needs.code-quality.outputs.systems }}"
@@ -209,17 +213,46 @@ jobs:
           elif [ "${{ needs.e2e-tests.result }}" = "skipped" ]; then
             echo "⏭️  E2E tests skipped (server not available or job skipped)"
           else
-            echo "❌ E2E integration tests failed"
+            echo "⚠️  E2E integration tests failed"
           fi
           
           echo ""
           
-          # Fail if code quality failed
+          # =================================================================
+          # MERGE POLICY
+          # =================================================================
+          # Unit tests (code-quality) MUST pass for ANY merge
+          # E2E tests MUST pass for merges to main (production)
+          # E2E tests MAY fail for merges to development (staging)
+          #
+          # Rationale: E2E tests run against deployed infrastructure.
+          # To deploy new code to staging, we first need to merge to
+          # development. This creates a chicken-and-egg problem that
+          # this policy resolves by allowing development merges when
+          # only E2E tests fail.
+          # =================================================================
+          
+          # ALWAYS fail if unit tests failed - no exceptions
           if [ "${{ needs.code-quality.result }}" != "success" ]; then
+            echo "❌ BLOCKED: Unit tests must pass for all merges"
             exit 1
           fi
           
-          # Fail if E2E tests failed (but not if skipped)
-          if [ "${{ needs.e2e-tests.result }}" = "failure" ]; then
-            exit 1
+          # For merges to main: E2E tests MUST pass
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            if [ "${{ needs.e2e-tests.result }}" = "failure" ]; then
+              echo "❌ BLOCKED: E2E tests must pass for merges to main"
+              exit 1
+            fi
           fi
+          
+          # For merges to development: E2E failures are warnings, not blockers
+          if [ "$TARGET_BRANCH" = "development" ]; then
+            if [ "${{ needs.e2e-tests.result }}" = "failure" ]; then
+              echo "⚠️  WARNING: E2E tests failed, but development merge is allowed"
+              echo "   Deploy to staging, then verify E2E tests pass before merging to main"
+            fi
+          fi
+          
+          echo ""
+          echo "✅ Pipeline complete - merge allowed"

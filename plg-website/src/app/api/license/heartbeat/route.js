@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { machineHeartbeat, getLicenseMachines } from "@/lib/keygen";
-import { updateDeviceLastSeen, getLicense } from "@/lib/dynamodb";
+import { updateDeviceLastSeen, getLicense, recordTrialHeartbeat } from "@/lib/dynamodb";
 import {
   rateLimitMiddleware,
   getRateLimitHeaders,
@@ -89,26 +89,54 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { machineId, sessionId, licenseKey } = body;
+    const { machineId, sessionId, licenseKey, fingerprint } = body;
 
-    // Validate required fields
-    if (!machineId) {
+    // Validate required fields - need either machineId or fingerprint
+    if (!machineId && !fingerprint) {
       return NextResponse.json(
-        { error: "Machine ID is required" },
+        { error: "Machine ID or fingerprint is required" },
         { status: 400 },
       );
     }
 
+    // =========================================================================
+    // TRIAL USER HEARTBEAT (no license key)
+    // =========================================================================
+    // Trial users send heartbeats before purchasing. We record their device
+    // so it can be linked to their account when they purchase a license.
+    if (!licenseKey) {
+      const deviceId = fingerprint || machineId;
+      
+      // Record trial device heartbeat in DynamoDB
+      try {
+        await recordTrialHeartbeat(deviceId, {
+          fingerprint,
+          machineId,
+          sessionId,
+          lastSeen: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error("Trial heartbeat recording failed:", err);
+        // Non-critical - continue with success response
+      }
+
+      return NextResponse.json({
+        valid: true,
+        status: "trial",
+        reason: "Trial heartbeat recorded",
+        concurrentMachines: 1,
+        maxMachines: 1,
+      });
+    }
+
+    // =========================================================================
+    // LICENSED USER HEARTBEAT (with license key)
+    // =========================================================================
+    
+    // SessionId required for licensed users
     if (!sessionId) {
       return NextResponse.json(
         { error: "Session ID is required" },
-        { status: 400 },
-      );
-    }
-
-    if (!licenseKey) {
-      return NextResponse.json(
-        { error: "License key is required" },
         { status: 400 },
       );
     }

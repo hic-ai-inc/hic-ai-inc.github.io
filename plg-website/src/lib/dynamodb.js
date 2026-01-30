@@ -604,6 +604,51 @@ export async function createTrial({
   }
 }
 
+/**
+ * Record a heartbeat from a trial device
+ * Updates lastSeenAt, or creates record if device hasn't initialized trial yet.
+ * This allows us to track devices before they purchase, for later linking.
+ * 
+ * @param {string} deviceId - Device identifier (fingerprint or machineId)
+ * @param {Object} metadata - Additional device metadata
+ * @param {string} [metadata.fingerprint] - Machine fingerprint
+ * @param {string} [metadata.machineId] - Machine ID
+ * @param {string} [metadata.sessionId] - Session ID
+ * @param {string} [metadata.lastSeen] - ISO timestamp
+ * @returns {Promise<void>}
+ */
+export async function recordTrialHeartbeat(deviceId, metadata = {}) {
+  const logger = createLogger("recordTrialHeartbeat");
+  try {
+    await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `TRIAL#${deviceId}`,
+          SK: "HEARTBEAT",
+        },
+        UpdateExpression:
+          "SET lastSeenAt = :now, fingerprint = :fp, machineId = :mid, sessionId = :sid, updatedAt = :now",
+        ExpressionAttributeValues: {
+          ":now": metadata.lastSeen || new Date().toISOString(),
+          ":fp": metadata.fingerprint || null,
+          ":mid": metadata.machineId || null,
+          ":sid": metadata.sessionId || null,
+        },
+      }),
+    );
+    logger.info("Trial heartbeat recorded", {
+      deviceId: deviceId.substring(0, 8) + "...",
+    });
+  } catch (error) {
+    logger.error("Failed to record trial heartbeat", {
+      deviceId: deviceId.substring(0, 8) + "...",
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
 // ===========================================
 // ENTERPRISE ORGANIZATION OPERATIONS
 // Per Addendum A.5/A.7

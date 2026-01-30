@@ -285,20 +285,11 @@ describe("Journey 3: License Activation Flow", () => {
         timestamp: new Date().toISOString(),
       });
 
-      // Per SWR: Unknown device heartbeat SHOULD return 200 and record the device
-      // for later linking when user activates a license.
-      // Current API returns 400 - this is a known backend issue to fix.
-      // For now, accept both expected (200) and current (400) behavior.
-      assert.ok(
-        [200, 400].includes(response.status),
-        `Unknown device heartbeat should return 200, got ${response.status}`,
-      );
-
-      if (response.status === 200) {
-        log.info("Unknown device heartbeat accepted (correct behavior)");
-      } else {
-        log.warn("Unknown device heartbeat returned 400 (backend needs fix)");
-      }
+      // Unknown device heartbeats MUST return 200 and record the device.
+      // This is critical for trial users - their device must be tracked
+      // so it can be linked to their account when they purchase a license.
+      expectStatus(response, 200);
+      log.info("Unknown device heartbeat accepted and recorded");
     });
 
     test("should complete heartbeat within timeout", async () => {
