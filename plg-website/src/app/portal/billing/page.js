@@ -10,6 +10,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Card,
   CardHeader,
@@ -20,14 +21,25 @@ import {
 } from "@/components/ui";
 
 export default function BillingPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [billing, setBilling] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [redirecting, setRedirecting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   useEffect(() => {
+    // Check if returning from Stripe Portal with success indicator
+    if (searchParams.get("updated") === "true") {
+      setSuccessMessage("Your billing information has been updated successfully.");
+      // Clear the URL param without triggering a full reload
+      router.replace("/portal/billing", { scroll: false });
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
     fetchBillingData();
-  }, []);
+  }, [searchParams, router]);
 
   async function fetchBillingData() {
     try {
@@ -107,6 +119,26 @@ export default function BillingPage() {
 
   return (
     <div className="max-w-4xl">
+      {/* Success notification banner */}
+      {successMessage && (
+        <div className="mb-6 p-4 bg-green-900/30 border border-green-500/50 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-green-300">{successMessage}</p>
+          </div>
+          <button 
+            onClick={() => setSuccessMessage(null)}
+            className="text-green-400 hover:text-green-300"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-frost-white">Billing</h1>
         <p className="text-slate-grey mt-1">

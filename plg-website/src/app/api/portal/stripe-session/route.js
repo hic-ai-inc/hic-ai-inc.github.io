@@ -36,10 +36,10 @@ export async function POST() {
     // Get Stripe client (handles secrets properly)
     const stripe = await getStripeClient();
 
-    // Create portal session
+    // Create portal session with success indicator in return URL
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customer.stripeCustomerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/billing`,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/billing?updated=true`,
     });
 
     // Redirect to Stripe Customer Portal
