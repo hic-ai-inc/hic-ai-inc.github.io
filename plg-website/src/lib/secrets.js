@@ -310,11 +310,11 @@ export async function getKeygenSecrets() {
 }
 
 /**
- * Get application secrets (trial token signing, etc.)
+ * Get application secrets (trial token signing, admin keys, etc.)
  *
  * Falls back to environment variables for local development.
  *
- * @returns {Promise<{TRIAL_TOKEN_SECRET: string}>}
+ * @returns {Promise<{TRIAL_TOKEN_SECRET: string, TEST_ADMIN_KEY?: string}>}
  */
 export async function getAppSecrets() {
   // Local development fallback
@@ -323,6 +323,7 @@ export async function getAppSecrets() {
       TRIAL_TOKEN_SECRET:
         process.env.TRIAL_TOKEN_SECRET ||
         "dev-trial-secret-for-local-development-only",
+      TEST_ADMIN_KEY: process.env.TEST_ADMIN_KEY || "dev-admin-key",
     };
   }
 
@@ -331,6 +332,7 @@ export async function getAppSecrets() {
     const secrets = await getSecret(SECRET_PATHS.app);
     return {
       TRIAL_TOKEN_SECRET: secrets.TRIAL_TOKEN_SECRET,
+      TEST_ADMIN_KEY: secrets.TEST_ADMIN_KEY, // Only set in staging
     };
   } catch (error) {
     // Emergency fallback - log error but don't expose in production
