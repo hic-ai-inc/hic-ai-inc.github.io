@@ -26,6 +26,7 @@ import {
   expectStatus,
   expectSuccess,
   expectError,
+  expectBadRequest,
   expectLicenseKey,
   expectLicenseValidation,
   expectHeartbeat,
@@ -340,8 +341,8 @@ describe("Journey 3: License Activation Flow", () => {
         fingerprint: deviceData.fingerprint,
       });
 
-      // Returns 405 Method Not Allowed when license key is missing
-      expectStatus(response, 405);
+      // Returns 400 Bad Request when required fields are missing
+      expectBadRequest(response, "required");
     });
   });
 

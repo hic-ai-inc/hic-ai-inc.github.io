@@ -7,13 +7,14 @@
  * 3. Store customer/license in DynamoDB
  * 4. Send license email
  *
- * Requires authenticated user (Cognito token).
+ * Requires authenticated user (Cognito ID token via Authorization header).
  *
  * @see PLG User Journey - License Provisioning
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { stripe } from "@/lib/stripe";
 import { createLicenseForPlan } from "@/lib/keygen";
 import {
@@ -25,16 +26,51 @@ import {
 // DynamoDB write → DynamoDB Streams → StreamProcessor Lambda → SNS → EmailSender Lambda → SES
 // Do NOT call sendLicenseEmail() directly here.
 
+// Cognito JWT verifier for ID tokens (contains user info)
+const idVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "id",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Verify Cognito ID token from Authorization header
+ * Returns decoded token payload with user info
+ */
+async function verifyAuthToken(request) {
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return await idVerifier.verify(token);
+  } catch (error) {
+    console.error("[ProvisionLicense] JWT verification failed:", error.message);
+    return null;
+  }
+}
+
 export async function POST(request) {
   try {
-    // Get authenticated user from request
-    const session = await getSession();
-    if (!session?.user) {
+    // Get authenticated user from Authorization header
+    const tokenPayload = await verifyAuthToken(request);
+    if (!tokenPayload) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 },
       );
     }
+
+    // Build user object from token payload
+    const user = {
+      sub: tokenPayload.sub,
+      email: tokenPayload.email,
+      name: tokenPayload.name || tokenPayload["cognito:username"],
+    };
 
     const { sessionId } = await request.json();
     if (!sessionId) {
@@ -57,7 +93,7 @@ export async function POST(request) {
     }
 
     // Check if this session was already processed (idempotency)
-    const existingCustomer = await getCustomerByEmail(session.user.email);
+    const existingCustomer = await getCustomerByEmail(user.email);
     if (existingCustomer?.stripeCustomerId === checkoutSession.customer?.id) {
       // Already processed, return existing license info
       return NextResponse.json({
@@ -81,10 +117,10 @@ export async function POST(request) {
 
     // Create Keygen license
     const license = await createLicenseForPlan(planType, {
-      name: session.user.name || session.user.email,
-      email: session.user.email,
+      name: user.name || user.email,
+      email: user.email,
       metadata: {
-        userId: session.user.sub,
+        userId: user.sub,
         stripeCustomerId: checkoutSession.customer?.id,
         stripeSubscriptionId: checkoutSession.subscription?.id,
       },
@@ -92,14 +128,14 @@ export async function POST(request) {
 
     // Store customer in DynamoDB
     await upsertCustomer({
-      userId: session.user.sub,
-      email: session.user.email,
+      userId: user.sub,
+      email: user.email,
       stripeCustomerId: checkoutSession.customer?.id,
       keygenLicenseId: license.id,
       accountType: planType,
       subscriptionStatus: "active",
       metadata: {
-        name: session.user.name,
+        name: user.name,
         stripeSubscriptionId: checkoutSession.subscription?.id,
         licenseKeyPreview: `${license.key.slice(0, 8)}...${license.key.slice(-4)}`,
       },
@@ -110,8 +146,8 @@ export async function POST(request) {
     // DynamoDB Streams → StreamProcessor → SNS (plg-license-events) → EmailSender → SES
     await createLicense({
       keygenLicenseId: license.id,
-      userId: session.user.sub,
-      email: session.user.email, // Required for email notification
+      userId: user.sub,
+      email: user.email, // Required for email notification
       licenseKey: license.key,
       policyId: planType,
       planName, // Human-readable plan name for email template
@@ -128,7 +164,7 @@ export async function POST(request) {
       success: true,
       licenseKey: license.key,
       planName,
-      userName: session.user.name || session.user.email.split("@")[0],
+      userName: user.name || user.email.split("@")[0],
     });
   } catch (error) {
     console.error("[API] Provision license error:", error);

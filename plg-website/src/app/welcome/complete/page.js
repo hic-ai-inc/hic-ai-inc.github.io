@@ -47,13 +47,13 @@ function WelcomeCompleteContent() {
         return;
       }
 
-      // Verify user is authenticated
+      // Verify user is authenticated with valid token
       const session = await getSession();
-      if (!session?.user) {
+      if (!session?.user || !session?.idToken) {
         // This should never happen - user must be logged in to reach checkout
         // But if it does, redirect to login
         console.error(
-          "[WelcomeComplete] User not authenticated - this should not happen",
+          "[WelcomeComplete] User not authenticated or missing ID token",
         );
         router.replace(
           `/auth/login?returnTo=/welcome/complete&session_id=${sessionId}`,
@@ -66,7 +66,10 @@ function WelcomeCompleteContent() {
       try {
         const response = await fetch("/api/provision-license", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.idToken}`,
+          },
           body: JSON.stringify({ sessionId }),
         });
 
