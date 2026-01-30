@@ -40,10 +40,12 @@
   "devDependencies": {
     "@aws-amplify/backend": "^1.20.0",
     "@aws-amplify/backend-cli": "^1.8.2",
+    "@aws-sdk/client-cognito-identity-provider": "^3.980.0",
     "@tailwindcss/postcss": "^4",
     "aws-cdk-lib": "^2.234.1",
     "babel-plugin-react-compiler": "1.0.0",
     "constructs": "^10.4.5",
+    "dotenv": "^17.2.3",
     "esbuild": "^0.27.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
