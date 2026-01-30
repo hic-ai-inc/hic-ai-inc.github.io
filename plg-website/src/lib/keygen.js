@@ -22,9 +22,18 @@ let cachedProductToken = null;
 
 // Policy IDs (configured in Keygen dashboard)
 // v4.2: Individual + Business tiers only
+// NOTE: Read at runtime (not module load) since Amplify may not have env vars at build time
+export function getKeygenPolicies() {
+  return {
+    individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
+    business: process.env.KEYGEN_POLICY_ID_BUSINESS,
+  };
+}
+
+// Legacy export for backwards compatibility
 export const KEYGEN_POLICIES = {
-  individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
-  business: process.env.KEYGEN_POLICY_ID_BUSINESS,
+  get individual() { return process.env.KEYGEN_POLICY_ID_INDIVIDUAL; },
+  get business() { return process.env.KEYGEN_POLICY_ID_BUSINESS; },
 };
 
 /**
