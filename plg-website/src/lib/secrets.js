@@ -334,10 +334,14 @@ export async function getKeygenPolicyIds() {
 
   // Production/staging: Fetch from SSM Parameter Store
   console.log("[Secrets] Production mode - fetching Keygen policy IDs from SSM...");
+  console.log("[Secrets] SSM paths:", JSON.stringify(SSM_SECRET_PATHS));
+  
   const [individualId, businessId] = await Promise.all([
     getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_INDIVIDUAL),
     getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_BUSINESS),
   ]);
+
+  console.log("[Secrets] SSM results - individual:", individualId ? "found" : "NULL", "business:", businessId ? "found" : "NULL");
 
   if (individualId && businessId) {
     console.log("[Secrets] SSM Keygen policy IDs found");
@@ -349,6 +353,7 @@ export async function getKeygenPolicyIds() {
 
   // Fallback to env vars (shouldn't reach here in production)
   console.warn("[Secrets] SSM policy IDs not found, falling back to process.env");
+  console.warn("[Secrets] process.env values - individual:", process.env.KEYGEN_POLICY_ID_INDIVIDUAL || "UNDEFINED", "business:", process.env.KEYGEN_POLICY_ID_BUSINESS || "UNDEFINED");
   return {
     individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
     business: process.env.KEYGEN_POLICY_ID_BUSINESS,
