@@ -61,9 +61,10 @@ function classifyEvent(record) {
     return "CUSTOMER";
   }
 
-  // Direct entity classification by SK prefix
+  // Direct entity classification by PK or SK prefix
   if (sk.startsWith("SUB#") || sk.startsWith("INV#")) return "PAYMENT";
   if (
+    pk.startsWith("LICENSE#") ||
     sk.startsWith("LICENSE#") ||
     sk.startsWith("DEVICE#") ||
     sk.startsWith("MACHINE#")
