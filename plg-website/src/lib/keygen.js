@@ -20,17 +20,58 @@ const KEYGEN_API_URL = `https://api.keygen.sh/v1/accounts/${KEYGEN_ACCOUNT_ID}`;
 // Cached token from Secrets Manager
 let cachedProductToken = null;
 
-// Policy IDs (configured in Keygen dashboard)
-// v4.2: Individual + Business tiers only
-// NOTE: Read at runtime (not module load) since Amplify may not have env vars at build time
-export function getKeygenPolicies() {
-  return {
-    individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
-    business: process.env.KEYGEN_POLICY_ID_BUSINESS,
+// ===========================================
+// ENVIRONMENT VARIABLE GUARD
+// ===========================================
+
+/**
+ * Required environment variables for Keygen integration
+ */
+const REQUIRED_ENV_VARS = [
+  'KEYGEN_ACCOUNT_ID',
+  'KEYGEN_POLICY_ID_INDIVIDUAL',
+  'KEYGEN_POLICY_ID_BUSINESS',
+];
+
+/**
+ * Verify required environment variables are available.
+ * Call this at the start of any function that needs env vars.
+ * Returns object with status and missing vars for diagnostics.
+ */
+function checkKeygenEnvVars() {
+  const missing = REQUIRED_ENV_VARS.filter(name => !process.env[name]);
+  const status = {
+    ok: missing.length === 0,
+    missing,
+    available: REQUIRED_ENV_VARS.filter(name => process.env[name]),
+    debug: {
+      KEYGEN_ACCOUNT_ID: process.env.KEYGEN_ACCOUNT_ID ? 'SET' : 'UNSET',
+      KEYGEN_POLICY_ID_INDIVIDUAL: process.env.KEYGEN_POLICY_ID_INDIVIDUAL ? 'SET' : 'UNSET',
+      KEYGEN_POLICY_ID_BUSINESS: process.env.KEYGEN_POLICY_ID_BUSINESS ? 'SET' : 'UNSET',
+      NODE_ENV: process.env.NODE_ENV,
+      // Check if we're in a Lambda/serverless context
+      AWS_LAMBDA_FUNCTION_NAME: process.env.AWS_LAMBDA_FUNCTION_NAME ? 'SET' : 'UNSET',
+      AWS_EXECUTION_ENV: process.env.AWS_EXECUTION_ENV || 'UNSET',
+    },
   };
+  return status;
 }
 
-// Legacy export for backwards compatibility
+/**
+ * Throws if required env vars are missing, with detailed diagnostics
+ */
+function requireKeygenEnvVars() {
+  const status = checkKeygenEnvVars();
+  if (!status.ok) {
+    const msg = `Keygen env vars not configured. Missing: ${status.missing.join(', ')}. Debug: ${JSON.stringify(status.debug)}`;
+    console.error('[Keygen] Environment check failed:', status);
+    throw new Error(msg);
+  }
+  return status;
+}
+
+// Policy IDs (configured in Keygen dashboard)
+// v4.2: Individual + Business tiers only
 export const KEYGEN_POLICIES = {
   get individual() { return process.env.KEYGEN_POLICY_ID_INDIVIDUAL; },
   get business() { return process.env.KEYGEN_POLICY_ID_BUSINESS; },
@@ -388,9 +429,19 @@ export async function checkoutLicense(licenseId, ttl = 86400) {
  * Get policy ID for plan type
  */
 export function getPolicyId(planType) {
+  // First, verify env vars are accessible
+  const envStatus = checkKeygenEnvVars();
+  
   const policyId = KEYGEN_POLICIES[planType];
   if (!policyId) {
-    throw new Error(`Unknown plan type: ${planType}`);
+    const error = {
+      message: `Unknown plan type: ${planType}`,
+      planType,
+      policyId,
+      envStatus,
+    };
+    console.error("[Keygen] Policy lookup failed:", error);
+    throw new Error(`Unknown plan type: ${planType}. EnvVars: ${JSON.stringify(envStatus.debug)}`);
   }
   return policyId;
 }
