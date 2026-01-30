@@ -14,7 +14,9 @@
 import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
 import { getKeygenSecrets, getKeygenPolicyIds } from "./secrets.js";
 
-const KEYGEN_ACCOUNT_ID = process.env.KEYGEN_ACCOUNT_ID;
+// Account ID is hardcoded - it's not a secret, just a public identifier
+// (Gen 2 env vars aren't available at SSR runtime)
+const KEYGEN_ACCOUNT_ID = "868fccd3-676d-4b9d-90ab-c86ae54419f6";
 const KEYGEN_API_URL = `https://api.keygen.sh/v1/accounts/${KEYGEN_ACCOUNT_ID}`;
 
 // Cached token from Secrets Manager
