@@ -2,12 +2,15 @@
  * License Management Page
  *
  * Display and manage license key.
+ * Fetches license data from /api/portal/license API.
  *
  * @see PLG User Journey - Section 2.6
  */
 
 "use client";
 
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Card,
   CardHeader,
@@ -16,14 +19,55 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { AUTH_NAMESPACE, LICENSE_STATUS_DISPLAY } from "@/lib/constants";
+import { LICENSE_STATUS_DISPLAY } from "@/lib/constants";
 import { useUser } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 import CopyLicenseButton from "./CopyLicenseButton";
 
 export default function LicensePage() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading: userLoading } = useUser();
+  const [license, setLicense] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (isLoading || !user) {
+  useEffect(() => {
+    async function fetchLicense() {
+      if (!user) return;
+
+      try {
+        const session = await getSession();
+        if (!session?.idToken) {
+          setError("Not authenticated");
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch("/api/portal/license", {
+          headers: {
+            Authorization: `Bearer ${session.idToken}`,
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch license");
+        }
+
+        const data = await res.json();
+        setLicense(data.license);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (user && !userLoading) {
+      fetchLicense();
+    }
+  }, [user, userLoading]);
+
+  // Loading state
+  if (userLoading || loading) {
     return (
       <div className="max-w-4xl">
         <div className="animate-pulse">
@@ -36,11 +80,35 @@ export default function LicensePage() {
     );
   }
 
-  const namespace = AUTH_NAMESPACE;
-  const licenseKey = user[`${namespace}/license_key`] || "XXXX-XXXX-XXXX-XXXX";
-  const licenseStatus = user[`${namespace}/license_status`] || "ACTIVE";
-  const accountType = user[`${namespace}/account_type`] || "individual";
-  const expiresAt = user[`${namespace}/license_expires`];
+  // No license - show purchase CTA
+  if (!license) {
+    return (
+      <div className="max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-frost-white">License</h1>
+          <p className="text-slate-grey mt-1">
+            Your Mouse license key and activation status
+          </p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-silver mb-4">
+              {error || "You don't have a license yet."}
+            </p>
+            <Link href="/checkout/individual">
+              <Button>Get Started</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const licenseKey = license.licenseKey || "••••-••••-••••-••••";
+  const licenseStatus = license.status?.toUpperCase() || "ACTIVE";
+  const accountType = license.planName || license.accountType || "Individual";
+  const expiresAt = license.expiresAt;
+  const issuedAt = license.createdAt;
 
   const statusDisplay =
     LICENSE_STATUS_DISPLAY[licenseStatus] || LICENSE_STATUS_DISPLAY.ACTIVE;
@@ -94,14 +162,28 @@ export default function LicensePage() {
                 </Badge>
               </dd>
             </div>
-            <div>
-              <dt className="text-sm text-slate-grey">Issued</dt>
-              <dd className="text-frost-white">January 22, 2026</dd>
-            </div>
+            {issuedAt && (
+              <div>
+                <dt className="text-sm text-slate-grey">Issued</dt>
+                <dd className="text-frost-white">
+                  {new Date(issuedAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </dd>
+              </div>
+            )}
             {expiresAt && (
               <div>
                 <dt className="text-sm text-slate-grey">Expires</dt>
-                <dd className="text-frost-white">{expiresAt}</dd>
+                <dd className="text-frost-white">
+                  {new Date(expiresAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </dd>
               </div>
             )}
           </dl>

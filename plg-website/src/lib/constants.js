@@ -160,7 +160,6 @@ export const PORTAL_NAV = [
   { label: "License", href: "/portal/license", icon: "key" },
   { label: "Devices", href: "/portal/devices", icon: "devices" },
   { label: "Billing", href: "/portal/billing", icon: "credit-card" },
-  { label: "Invoices", href: "/portal/invoices", icon: "receipt" },
   { label: "Settings", href: "/portal/settings", icon: "settings" },
 ];
 

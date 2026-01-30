@@ -21,7 +21,6 @@ import {
 
 export default function BillingPage() {
   const [billing, setBilling] = useState(null);
-  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [redirecting, setRedirecting] = useState(false);
@@ -35,11 +34,8 @@ export default function BillingPage() {
       setLoading(true);
       setError(null);
 
-      // Fetch billing info and recent invoices in parallel
-      const [billingRes, invoicesRes] = await Promise.all([
-        fetch("/api/portal/billing"),
-        fetch("/api/portal/invoices?limit=3"),
-      ]);
+      // Fetch billing info
+      const billingRes = await fetch("/api/portal/billing");
 
       if (!billingRes.ok) {
         throw new Error("Failed to fetch billing information");
@@ -47,11 +43,6 @@ export default function BillingPage() {
 
       const billingData = await billingRes.json();
       setBilling(billingData);
-
-      if (invoicesRes.ok) {
-        const invoicesData = await invoicesRes.json();
-        setInvoices(invoicesData.invoices || []);
-      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -246,25 +237,21 @@ export default function BillingPage() {
 
       {/* Billing History */}
       <Card>
-        <CardHeader className="flex items-center justify-between">
-          <CardTitle>Recent Invoices</CardTitle>
-          <Button href="/portal/invoices" variant="ghost" size="sm">
-            View All
-          </Button>
+        <CardHeader>
+          <CardTitle>Invoices & Payment History</CardTitle>
         </CardHeader>
         <CardContent>
-          {invoices.length > 0 ? (
-            <div className="divide-y divide-card-border">
-              {invoices.map((invoice) => (
-                <InvoiceRow key={invoice.id} invoice={invoice} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-grey py-4 text-center">
-              No invoices yet. Your invoices will appear here after your first
-              payment.
-            </p>
-          )}
+          <p className="text-slate-grey mb-4">
+            View your complete invoice history and download receipts in the
+            Stripe Customer Portal.
+          </p>
+          <Button
+            onClick={handleManageSubscription}
+            variant="outline"
+            disabled={redirecting}
+          >
+            {redirecting ? "Opening..." : "View Invoices"}
+          </Button>
         </CardContent>
       </Card>
     </div>
@@ -314,37 +301,6 @@ function CardBrandIcon({ brand }) {
     <span className="text-xs text-slate-grey font-medium">
       {brandLabels[brand?.toLowerCase()] || brand?.toUpperCase() || "CARD"}
     </span>
-  );
-}
-
-function InvoiceRow({ invoice }) {
-  return (
-    <div className="flex items-center justify-between py-3">
-      <div>
-        <p className="text-frost-white">{formatDate(invoice.date)}</p>
-        <p className="text-sm text-slate-grey">{invoice.description}</p>
-      </div>
-      <div className="flex items-center gap-4">
-        <span className="text-frost-white">
-          {formatCurrency(invoice.amount, invoice.currency)}
-        </span>
-        <Badge variant={invoice.status === "paid" ? "success" : "warning"}>
-          {invoice.status}
-        </Badge>
-        {invoice.pdfUrl ? (
-          <a
-            href={invoice.pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cerulean-mist hover:text-frost-white text-sm"
-          >
-            Download
-          </a>
-        ) : (
-          <span className="text-slate-grey text-sm">—</span>
-        )}
-      </div>
-    </div>
   );
 }
 

@@ -49,6 +49,8 @@ const SSM_SECRET_PATHS = {
   STRIPE_SECRET_KEY: `/plg/secrets/${AMPLIFY_APP_ID}/STRIPE_SECRET_KEY`,
   STRIPE_WEBHOOK_SECRET: `/plg/secrets/${AMPLIFY_APP_ID}/STRIPE_WEBHOOK_SECRET`,
   KEYGEN_PRODUCT_TOKEN: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_PRODUCT_TOKEN`,
+  KEYGEN_POLICY_ID_INDIVIDUAL: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_INDIVIDUAL`,
+  KEYGEN_POLICY_ID_BUSINESS: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_BUSINESS`,
 };
 
 // Cache TTL: 5 minutes (secrets rarely change, but we want eventual consistency)
@@ -308,6 +310,51 @@ export async function getKeygenSecrets() {
     KEYGEN_PRODUCT_TOKEN: process.env.KEYGEN_PRODUCT_TOKEN,
   };
 }
+
+/**
+ * Get Keygen policy IDs for license creation
+ *
+ * Priority order:
+ * 1. Local development: process.env (from .env.local)
+ * 2. SSM Parameter Store: /plg/secrets/<app-id>/KEYGEN_POLICY_ID_*
+ *
+ * @returns {Promise<{individual: string, business: string}>}
+ */
+export async function getKeygenPolicyIds() {
+  console.log("[Secrets] getKeygenPolicyIds called, NODE_ENV:", process.env.NODE_ENV);
+
+  // Local development: use .env.local
+  if (process.env.NODE_ENV === "development") {
+    console.log("[Secrets] Development mode - using process.env for Keygen policy IDs");
+    return {
+      individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
+      business: process.env.KEYGEN_POLICY_ID_BUSINESS,
+    };
+  }
+
+  // Production/staging: Fetch from SSM Parameter Store
+  console.log("[Secrets] Production mode - fetching Keygen policy IDs from SSM...");
+  const [individualId, businessId] = await Promise.all([
+    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_INDIVIDUAL),
+    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_BUSINESS),
+  ]);
+
+  if (individualId && businessId) {
+    console.log("[Secrets] SSM Keygen policy IDs found");
+    return {
+      individual: individualId,
+      business: businessId,
+    };
+  }
+
+  // Fallback to env vars (shouldn't reach here in production)
+  console.warn("[Secrets] SSM policy IDs not found, falling back to process.env");
+  return {
+    individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
+    business: process.env.KEYGEN_POLICY_ID_BUSINESS,
+  };
+}
+
 
 /**
  * Get application secrets (trial token signing, admin keys, etc.)

@@ -12,7 +12,7 @@
 
 // HIC DM Layer imports - centralized dependency management
 import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
-import { getKeygenSecrets } from "./secrets.js";
+import { getKeygenSecrets, getKeygenPolicyIds } from "./secrets.js";
 
 const KEYGEN_ACCOUNT_ID = process.env.KEYGEN_ACCOUNT_ID;
 const KEYGEN_API_URL = `https://api.keygen.sh/v1/accounts/${KEYGEN_ACCOUNT_ID}`;
@@ -21,61 +21,15 @@ const KEYGEN_API_URL = `https://api.keygen.sh/v1/accounts/${KEYGEN_ACCOUNT_ID}`;
 let cachedProductToken = null;
 
 // ===========================================
-// ENVIRONMENT VARIABLE GUARD
+// CONFIGURATION
 // ===========================================
 
-/**
- * Required environment variables for Keygen integration
- */
-const REQUIRED_ENV_VARS = [
-  'KEYGEN_ACCOUNT_ID',
-  'KEYGEN_POLICY_ID_INDIVIDUAL',
-  'KEYGEN_POLICY_ID_BUSINESS',
-];
-
-/**
- * Verify required environment variables are available.
- * Call this at the start of any function that needs env vars.
- * Returns object with status and missing vars for diagnostics.
- */
-function checkKeygenEnvVars() {
-  const missing = REQUIRED_ENV_VARS.filter(name => !process.env[name]);
-  const status = {
-    ok: missing.length === 0,
-    missing,
-    available: REQUIRED_ENV_VARS.filter(name => process.env[name]),
-    debug: {
-      KEYGEN_ACCOUNT_ID: process.env.KEYGEN_ACCOUNT_ID ? 'SET' : 'UNSET',
-      KEYGEN_POLICY_ID_INDIVIDUAL: process.env.KEYGEN_POLICY_ID_INDIVIDUAL ? 'SET' : 'UNSET',
-      KEYGEN_POLICY_ID_BUSINESS: process.env.KEYGEN_POLICY_ID_BUSINESS ? 'SET' : 'UNSET',
-      NODE_ENV: process.env.NODE_ENV,
-      // Check if we're in a Lambda/serverless context
-      AWS_LAMBDA_FUNCTION_NAME: process.env.AWS_LAMBDA_FUNCTION_NAME ? 'SET' : 'UNSET',
-      AWS_EXECUTION_ENV: process.env.AWS_EXECUTION_ENV || 'UNSET',
-    },
-  };
-  return status;
-}
-
-/**
- * Throws if required env vars are missing, with detailed diagnostics
- */
-function requireKeygenEnvVars() {
-  const status = checkKeygenEnvVars();
-  if (!status.ok) {
-    const msg = `Keygen env vars not configured. Missing: ${status.missing.join(', ')}. Debug: ${JSON.stringify(status.debug)}`;
-    console.error('[Keygen] Environment check failed:', status);
-    throw new Error(msg);
-  }
-  return status;
-}
+// KEYGEN_ACCOUNT_ID is the only env var needed at module load time
+// Policy IDs are fetched from SSM Parameter Store at runtime via getKeygenPolicyIds()
 
 // Policy IDs (configured in Keygen dashboard)
 // v4.2: Individual + Business tiers only
-export const KEYGEN_POLICIES = {
-  get individual() { return process.env.KEYGEN_POLICY_ID_INDIVIDUAL; },
-  get business() { return process.env.KEYGEN_POLICY_ID_BUSINESS; },
-};
+// NOTE: Policy IDs are fetched from SSM at runtime via getKeygenPolicyIds()
 
 /**
  * Injectable request function for testing
@@ -427,21 +381,22 @@ export async function checkoutLicense(licenseId, ttl = 86400) {
 
 /**
  * Get policy ID for plan type
+ * Fetches policy IDs from SSM Parameter Store at runtime
+ * @param {string} planType - 'individual' or 'business'
+ * @returns {Promise<string>} The policy ID
  */
-export function getPolicyId(planType) {
-  // First, verify env vars are accessible
-  const envStatus = checkKeygenEnvVars();
+export async function getPolicyId(planType) {
+  const policyIds = await getKeygenPolicyIds();
+  const policyId = policyIds[planType];
   
-  const policyId = KEYGEN_POLICIES[planType];
   if (!policyId) {
     const error = {
       message: `Unknown plan type: ${planType}`,
       planType,
-      policyId,
-      envStatus,
+      availablePolicies: Object.keys(policyIds),
     };
     console.error("[Keygen] Policy lookup failed:", error);
-    throw new Error(`Unknown plan type: ${planType}. EnvVars: ${JSON.stringify(envStatus.debug)}`);
+    throw new Error(`Unknown plan type: ${planType}. Available: ${Object.keys(policyIds).join(', ')}`);
   }
   return policyId;
 }
@@ -453,6 +408,6 @@ export async function createLicenseForPlan(
   planType,
   { name, email, metadata = {} },
 ) {
-  const policyId = getPolicyId(planType);
+  const policyId = await getPolicyId(planType);
   return createLicense({ policyId, name, email, metadata });
 }
