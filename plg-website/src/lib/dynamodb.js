@@ -266,7 +266,7 @@ export async function migrateCustomerUserId(oldUserId, newUserId) {
   return newItem;
 }
 
-
+/**
  * @param {string} userId - The user's sub claim from the identity provider
  * @param {Object} updates - Fields to update (e.g., { name, notificationPreferences })
  * @returns {Promise<Object>} Updated attributes
