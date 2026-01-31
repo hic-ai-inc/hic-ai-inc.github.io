@@ -374,6 +374,7 @@ EXPECTED_LAMBDAS=(
     "email-sender"
     "customer-update"
     "scheduled-tasks"
+    "cognito-post-confirmation"
 )
 
 MISSING_PACKAGES=""

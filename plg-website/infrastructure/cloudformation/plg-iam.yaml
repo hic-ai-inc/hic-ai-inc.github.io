@@ -308,6 +308,50 @@ Resources:
                   - !Sub "${DynamoDBTableArn}/index/*"
         - PolicyName: SESAccess
           PolicyDocument:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # COGNITO POST-CONFIRMATION LAMBDA ROLE
+  # Triggered by Cognito PostConfirmation, requests SES verification, writes to DynamoDB
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  CognitoPostConfirmationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "plg-cognito-post-confirmation-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SESVerifyEmailAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:VerifyEmailIdentity
+                Resource: "*"
+        - PolicyName: DynamoDBWriteAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                Resource:
+                  - !Ref DynamoDBTableArn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
@@ -354,3 +398,9 @@ Outputs:
     Value: !GetAtt ScheduledTasksRole.Arn
     Export:
       Name: !Sub "${AWS::StackName}-ScheduledTasksRoleArn"
+
+  CognitoPostConfirmationRoleArn:
+    Description: ARN of Cognito Post-Confirmation Lambda role
+    Value: !GetAtt CognitoPostConfirmationRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CognitoPostConfirmationRoleArn"

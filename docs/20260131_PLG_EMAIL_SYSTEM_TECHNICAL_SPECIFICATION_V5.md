@@ -293,23 +293,23 @@ For automated E2E tests, use AWS SES simulator addresses (bypass verification):
 
 ---
 
-### Phase 1: Webhook Fixes (Previously identified gaps)
+### Phase 1: Webhook Fixes ✅ ALREADY IMPLEMENTED
 
-1.  **Immediate Cancellation Fix:**
-    - Update `webhooks/stripe/route.js` → `handleSubscriptionDeleted`
-    - Add `eventType: "SUBSCRIPTION_CANCELLED"` to update call
+1.  **Immediate Cancellation Fix:** ✅ VERIFIED IN CODE
+    - Location: `webhooks/stripe/route.js` → `handleSubscriptionDeleted` (lines 389-394)
+    - Already has `eventType: "SUBSCRIPTION_CANCELLED"` and `email: dbCustomer.email`
 
-2.  **License Suspended Fix:**
-    - Update `webhooks/keygen/route.js` → `handleLicenseSuspended`
-    - Add `eventType: "LICENSE_SUSPENDED"` to update call
+2.  **License Suspended Fix:** ✅ VERIFIED IN CODE
+    - Location: `webhooks/keygen/route.js` → `handleLicenseSuspended` (lines 249-253)
+    - Already has `eventType: "LICENSE_SUSPENDED"` and `email: license?.email`
 
-**Phase 1 Success Metrics:**
-| Metric | Target | Validation Method |
-|--------|--------|-------------------|
-| Immediate cancellation triggers email | 100% | Cancel via Stripe Dashboard → cancellation email received |
-| License suspension triggers email | 100% | Suspend via Keygen → suspension email received |
-| DynamoDB records contain eventType | 100% | Query shows `eventType` field on MODIFY events |
-| No regression in existing flows | 100% | All 790 unit tests + 104 E2E tests pass |
+**Phase 1 Success Metrics:** ✅ CODE VERIFIED
+| Metric | Target | Status | Notes |
+|--------|--------|--------|-------|
+| Immediate cancellation has eventType | ✅ | Verified | Line 391: `eventType: "SUBSCRIPTION_CANCELLED"` |
+| License suspension has eventType | ✅ | Verified | Line 251: `eventType: "LICENSE_SUSPENDED"` |
+| DynamoDB records contain eventType | ✅ | In code | Both handlers include email field |
+| E2E validation | ⏳ | Pending | Requires live test with Stripe/Keygen |
 
 ---
 
@@ -535,3 +535,4 @@ handleSubscriptionDeleted() calls updateCustomerSubscription()
 | V4 | 2026-01-31 | GitHub Copilot (Opus 4.5) | Final consolidation with reference materials |
 | V5 | 2026-01-31 | GitHub Copilot (Opus 4.5) | Added SES sandbox/email verification requirements (Section 4); reprioritized implementation plan with Phase 0; added success metrics for each phase and overall completion criteria |
 | V5.1 | 2026-01-31 | GitHub Copilot (Opus 4.5) | Phase 0 code complete: cognito-post-confirmation Lambda (10 tests), email-sender guard clause (10 tests); deployment pending |
+| V5.2 | 2026-01-31 | GitHub Copilot (Opus 4.5) | Phase 1 verified: Both webhook fixes already implemented in code; E2E testing pending |

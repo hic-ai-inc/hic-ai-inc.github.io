@@ -61,6 +61,11 @@ Parameters:
 
   ScheduledTasksRoleArn:
     Type: String
+
+  CognitoPostConfirmationRoleArn:
+    Type: String
+    Description: ARN of Cognito Post-Confirmation IAM role
+
     Description: ARN of Scheduled Tasks IAM role
 
   SESFromEmail:
@@ -278,6 +283,52 @@ Resources:
       Environment:
         Variables:
           ENVIRONMENT: !Ref Environment
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAMBDA FUNCTION: Cognito Post-Confirmation
+  # Triggered by Cognito PostConfirmation, requests SES verification
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  CognitoPostConfirmationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "plg-cognito-post-confirmation-${Environment}"
+      Description: Requests SES email verification on Cognito signup confirmation
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref CognitoPostConfirmationRoleArn
+      Timeout: 30
+      MemorySize: 128
+      Layers:
+        - !Ref HicBaseLayerArn
+        - !Ref HicSesLayerArn
+        - !Ref HicDynamoDBLayerArn
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodePrefix}/cognito-post-confirmation.zip"
+      VpcConfig: !If
+        - HasVpcConfig
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  CognitoPostConfirmationPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CognitoPostConfirmationFunction
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
+
           DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
           SES_FROM_EMAIL: !Ref SESFromEmail
       Code:
@@ -324,3 +375,9 @@ Outputs:
     Value: !Ref ScheduledTasksFunction
     Export:
       Name: !Sub "${AWS::StackName}-ScheduledTasksFunctionName"
+
+  CognitoPostConfirmationFunctionArn:
+    Description: Cognito Post-Confirmation Lambda ARN
+    Value: !GetAtt CognitoPostConfirmationFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CognitoPostConfirmationFunctionArn"
