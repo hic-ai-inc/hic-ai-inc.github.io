@@ -264,6 +264,42 @@ const templates = {
 \n${COMPANY_NAME}`,
   }),
 
+  licenseSuspended: ({ email }) => ({
+    subject: `Your ${PRODUCT_NAME} License Has Been Suspended`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto;">
+    <h1 style="color: #F6F8FB; margin-bottom: 24px;">License Suspended ⚠️</h1>
+    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+      Your ${PRODUCT_NAME} license has been suspended.
+    </p>
+    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+      This may be due to a billing issue or policy violation. Please check your account status or contact support to resolve this.
+    </p>
+    <div style="margin: 32px 0;">
+      <a href="${APP_URL}/portal/billing" style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        Check Account Status
+      </a>
+    </div>
+    <p style="color: #6B7C93; font-size: 14px;">
+      Need help? Contact support@hic-ai.com
+    </p>
+    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+    <p style="color: #6B7C93; font-size: 12px;">${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents</p>
+  </div>
+</body>
+</html>`,
+    text: `License Suspended
+\nYour ${PRODUCT_NAME} license has been suspended.
+\nThis may be due to a billing issue or policy violation. Please check your account status or contact support to resolve this.
+\nCheck account: ${APP_URL}/portal/billing
+\nNeed help? Contact support@hic-ai.com
+\n${COMPANY_NAME}`,
+  }),
+
   trialEnding: ({ email, daysRemaining, planName }) => ({
     subject: `Your ${PRODUCT_NAME} Trial Ends in ${daysRemaining} Days`,
     html: `
