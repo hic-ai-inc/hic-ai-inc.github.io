@@ -23,7 +23,12 @@ import {
   updateLicenseStatus,
   createLicense as createDynamoDBLicense,
 } from "@/lib/dynamodb";
-import { suspendLicense, reinstateLicense, createLicense, getPolicyId } from "@/lib/keygen";
+import {
+  suspendLicense,
+  reinstateLicense,
+  createLicense,
+  getPolicyId,
+} from "@/lib/keygen";
 // NOTE: Most emails are now sent via event-driven architecture:
 // DynamoDB write (with eventType) → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
 // Only sendDisputeAlert is called directly (urgent security notification)
@@ -48,12 +53,8 @@ export async function POST(request) {
     // getStripeClient() must be called first - it populates the secret cache
     const stripe = await getStripeClient();
     const webhookSecret = getWebhookSecret();
-    
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      webhookSecret,
-    );
+
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
     console.error("Webhook signature verification failed:", err.message);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
@@ -131,7 +132,9 @@ async function handleCheckoutCompleted(session) {
 
   // If user already has a license, don't create a duplicate
   if (existingCustomer?.keygenLicenseId) {
-    console.log(`Customer ${customer_email} already has license ${existingCustomer.keygenLicenseId}, skipping creation`);
+    console.log(
+      `Customer ${customer_email} already has license ${existingCustomer.keygenLicenseId}, skipping creation`,
+    );
     return; // Webhook processed successfully, no action needed
   }
 
@@ -166,9 +169,9 @@ async function handleCheckoutCompleted(session) {
     // New customer - create record in DynamoDB
     // Use email as temporary userId until they create a Cognito account
     const tempUserId = `email:${customer_email.toLowerCase()}`;
-    
+
     await upsertCustomer({
-      userId: tempUserId,  // Will be updated when they sign in with Cognito
+      userId: tempUserId, // Will be updated when they sign in with Cognito
       email: customer_email,
       stripeCustomerId: customer,
       keygenLicenseId: licenseId,
@@ -206,7 +209,9 @@ async function handleCheckoutCompleted(session) {
             stripeSubscriptionId: subscription,
           },
         });
-        console.log(`LICENSE# record created for ${licenseId}, license key email will be sent`);
+        console.log(
+          `LICENSE# record created for ${licenseId}, license key email will be sent`,
+        );
       } catch (error) {
         console.error("Failed to create LICENSE# record:", error);
         // Don't fail checkout if this fails - license key email can be sent manually
@@ -216,7 +221,9 @@ async function handleCheckoutCompleted(session) {
     // Welcome email is sent via event-driven pipeline:
     // upsertCustomer() with eventType: "CUSTOMER_CREATED" triggers
     // DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
-    console.log(`Customer created - welcome email will be sent via event pipeline`);
+    console.log(
+      `Customer created - welcome email will be sent via event pipeline`,
+    );
   } else {
     // Existing customer - update their subscription info
     await updateCustomerSubscription(existingCustomer.userId, {
@@ -248,9 +255,14 @@ async function handleCheckoutCompleted(session) {
             stripeSubscriptionId: subscription,
           },
         });
-        console.log(`LICENSE# record created for existing customer ${existingCustomer.userId}`);
+        console.log(
+          `LICENSE# record created for existing customer ${existingCustomer.userId}`,
+        );
       } catch (error) {
-        console.error("Failed to create LICENSE# record for existing customer:", error);
+        console.error(
+          "Failed to create LICENSE# record for existing customer:",
+          error,
+        );
       }
     }
   }
@@ -346,7 +358,9 @@ async function handleSubscriptionUpdated(subscription) {
   // Cancellation email is sent via event-driven pipeline
   // updateCustomerSubscription() with eventType triggers the email
   if (cancel_at_period_end) {
-    console.log(`Cancellation recorded - email will be sent via event pipeline`);
+    console.log(
+      `Cancellation recorded - email will be sent via event pipeline`,
+    );
   }
 }
 
@@ -365,9 +379,18 @@ async function handleSubscriptionDeleted(subscription) {
     return;
   }
 
-  // Update customer status
+  // Update customer status with eventType to trigger cancellation email
+  const cancelAt = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
   await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "canceled",
+    eventType: "SUBSCRIPTION_CANCELLED",
+    email: dbCustomer.email,
+    accessUntil: cancelAt,
   });
 
   // Suspend license in Keygen
@@ -428,7 +451,9 @@ async function handlePaymentSucceeded(invoice) {
 
     // Reactivation email is sent via event-driven pipeline
     // updateCustomerSubscription() with eventType triggers the email
-    console.log(`Reactivation recorded - email will be sent via event pipeline`);
+    console.log(
+      `Reactivation recorded - email will be sent via event pipeline`,
+    );
   }
 
   console.log(`Payment succeeded for customer ${dbCustomer.userId}`);
@@ -472,7 +497,9 @@ async function handlePaymentFailed(invoice) {
 
   // Payment failed email is sent via event-driven pipeline
   // updateCustomerSubscription() with eventType: "PAYMENT_FAILED" triggers the email
-  console.log(`Payment failure recorded - email will be sent via event pipeline`);
+  console.log(
+    `Payment failure recorded - email will be sent via event pipeline`,
+  );
 
   // After 3 attempts, suspend license
   if (attempt_count >= 3) {
@@ -492,7 +519,6 @@ async function handlePaymentFailed(invoice) {
     }
   }
 }
-
 
 /**
  * Handle dispute created (chargeback) - Addendum A.6.2
@@ -532,7 +558,12 @@ async function handleDisputeCreated(dispute) {
   });
 
   // Alert support team
-  await sendDisputeAlert(dbCustomer.email || "unknown", amount, reason, disputeId);
+  await sendDisputeAlert(
+    dbCustomer.email || "unknown",
+    amount,
+    reason,
+    disputeId,
+  );
 
   console.log(`License suspended for disputed customer ${dbCustomer.userId}`);
 }
@@ -579,7 +610,9 @@ async function handleDisputeClosed(dispute) {
       subscriptionStatus: "active",
     });
 
-    console.log(`Dispute ${status}: License reinstated for ${dbCustomer.userId}`);
+    console.log(
+      `Dispute ${status}: License reinstated for ${dbCustomer.userId}`,
+    );
   } else {
     // Lost dispute - keep suspended, mark as fraud
     await updateCustomerSubscription(dbCustomer.userId, {
@@ -587,7 +620,8 @@ async function handleDisputeClosed(dispute) {
       fraudulent: true,
     });
 
-    console.log(`Dispute lost: License remains suspended for ${dbCustomer.userId}`);
+    console.log(
+      `Dispute lost: License remains suspended for ${dbCustomer.userId}`,
+    );
   }
 }
-

@@ -60,7 +60,11 @@ function verifySignature(payload, signatureHeader, request) {
     const { algorithm, signature, headers } = parts;
 
     if (!algorithm || !signature || !headers) {
-      console.error("Missing required signature parts:", { algorithm: !!algorithm, signature: !!signature, headers: !!headers });
+      console.error("Missing required signature parts:", {
+        algorithm: !!algorithm,
+        signature: !!signature,
+        headers: !!headers,
+      });
       return false;
     }
 
@@ -187,7 +191,11 @@ export async function POST(request) {
       case "machine.heartbeat.dead":
         // Device missed heartbeat deadline - Keygen will auto-deactivate
         // (DEACTIVATE_DEAD strategy) and send machine.deleted webhook
-        console.log("Machine heartbeat dead:", data.id, "- will be auto-deactivated");
+        console.log(
+          "Machine heartbeat dead:",
+          data.id,
+          "- will be auto-deactivated",
+        );
         break;
 
       // Policy Events
@@ -234,16 +242,22 @@ async function handleLicenseSuspended(data) {
   const licenseId = data.id;
   console.log("License suspended:", licenseId);
 
+  // Get license first to include email in update (for event-driven email)
+  const license = await getLicense(licenseId);
+
+  // Update with eventType to trigger email via DynamoDB Streams pipeline
   await updateLicenseStatus(licenseId, "suspended", {
     suspendedAt: new Date().toISOString(),
+    eventType: "LICENSE_SUSPENDED",
+    email: license?.email,
   });
 
-  // Get license to find owner email
-  const license = await getLicense(licenseId);
+  // Suspension email is sent via event-driven pipeline:
+  // updateLicenseStatus() → DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
   if (license?.email) {
-    // Note: Suspension usually happens via Stripe webhook which sends its own emails
-    // Only send payment failed email if this is a standalone suspension
-    console.log(`License ${licenseId} suspended for ${license.email}`);
+    console.log(
+      `License ${licenseId} suspended - email will be sent via event pipeline`,
+    );
   }
 }
 
@@ -284,7 +298,9 @@ async function handleLicenseRevoked(data) {
 
   // Revocation email is sent via event-driven pipeline:
   // updateLicenseStatus() → DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
-  console.log(`License ${licenseId} revoked - email will be sent via event pipeline`);
+  console.log(
+    `License ${licenseId} revoked - email will be sent via event pipeline`,
+  );
 }
 
 async function handleMachineDeleted(data) {

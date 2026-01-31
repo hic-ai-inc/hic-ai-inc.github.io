@@ -23,6 +23,7 @@ After comprehensive multi-agent analysis (Haiku 4.5 → Opus 4.5 → Gemini 3 �
 **Issue:** Immediate cancellations (via Stripe Dashboard/API) don't trigger cancellation emails
 
 **Current Code (Lines 360-375):**
+
 ```javascript
 async function handleSubscriptionDeleted(subscription) {
   console.log("Subscription deleted:", subscription.id);
@@ -43,6 +44,7 @@ async function handleSubscriptionDeleted(subscription) {
 ```
 
 **Fix:** Add `eventType`, `email`, and `cancelAt` fields to trigger email pipeline
+
 ```javascript
 // Update customer status
 const cancelAt = new Date().toLocaleDateString("en-US", {
@@ -53,9 +55,9 @@ const cancelAt = new Date().toLocaleDateString("en-US", {
 
 await updateCustomerSubscription(dbCustomer.userId, {
   subscriptionStatus: "canceled",
-  eventType: "SUBSCRIPTION_CANCELLED",        // ADD THIS
-  email: dbCustomer.email,                    // ADD THIS
-  accessUntil: cancelAt,                      // ADD THIS
+  eventType: "SUBSCRIPTION_CANCELLED", // ADD THIS
+  email: dbCustomer.email, // ADD THIS
+  accessUntil: cancelAt, // ADD THIS
 });
 ```
 
@@ -72,6 +74,7 @@ await updateCustomerSubscription(dbCustomer.userId, {
 **Issue:** License suspensions don't trigger suspension emails
 
 **Current Code (Lines 232-245):**
+
 ```javascript
 async function handleLicenseSuspended(data) {
   const licenseId = data.id;
@@ -92,6 +95,7 @@ async function handleLicenseSuspended(data) {
 ```
 
 **Fix:** Add `eventType` and `email` to trigger email pipeline
+
 ```javascript
 async function handleLicenseSuspended(data) {
   const licenseId = data.id;
@@ -102,12 +106,14 @@ async function handleLicenseSuspended(data) {
 
   await updateLicenseStatus(licenseId, "suspended", {
     suspendedAt: new Date().toISOString(),
-    eventType: "LICENSE_SUSPENDED",        // ADD THIS
-    email: license?.email,                 // ADD THIS
+    eventType: "LICENSE_SUSPENDED", // ADD THIS
+    email: license?.email, // ADD THIS
   });
 
   if (license?.email) {
-    console.log(`License ${licenseId} suspended - email will be sent via event pipeline`);
+    console.log(
+      `License ${licenseId} suspended - email will be sent via event pipeline`,
+    );
   }
 }
 ```
@@ -121,19 +127,23 @@ async function handleLicenseSuspended(data) {
 ### 1.3 Validation (Phase 1)
 
 **Unit Tests:** Existing webhook tests should already cover these flows
+
 - Verify `updateCustomerSubscription` receives `eventType: "SUBSCRIPTION_CANCELLED"`
 - Verify `updateLicenseStatus` receives `eventType: "LICENSE_SUSPENDED"`
 
 **Test Files:**
+
 - `plg-website/__tests__/unit/api/webhooks.test.js` (Stripe webhook tests)
 - `plg-website/__tests__/unit/api/keygen-webhooks.test.js` (Keygen webhook tests)
 
 **Command:**
+
 ```bash
 cd plg-website && npm test -- --testPathPattern="webhooks"
 ```
 
 **Success Criteria:**
+
 - ✅ Webhook tests pass
 - ✅ No regression in existing email flows
 - ✅ New eventType fields are written to DynamoDB
@@ -149,6 +159,7 @@ cd plg-website && npm test -- --testPathPattern="webhooks"
 **New Directory:** `dm/layers/email-templates/`
 
 **Structure:**
+
 ```
 dm/layers/email-templates/
 ├── package.json
@@ -168,6 +179,7 @@ dm/layers/email-templates/
 4. **Handle environment variables** (FROM_EMAIL, APP_URL, etc.) within layer
 
 **Example:**
+
 ```javascript
 // dm/layers/email-templates/src/index.js
 export function getEmailTemplate(templateName, data) {
@@ -176,11 +188,11 @@ export function getEmailTemplate(templateName, data) {
     licenseDelivery: (data) => ({ subject: "...", html: "...", text: "..." }),
     // ... all 11 templates
   };
-  
+
   if (!templates[templateName]) {
     throw new Error(`Unknown template: ${templateName}`);
   }
-  
+
   return templates[templateName](data);
 }
 ```
@@ -194,16 +206,19 @@ export function getEmailTemplate(templateName, data) {
 ### 2.2 Migrate Applications
 
 **File 1:** `plg-website/src/lib/ses.js`
+
 - Remove inline template definitions
 - Import from `email-templates` layer
 - Update `sendEmail()` to use factory function
 
 **File 2:** `infrastructure/lambda/email-sender/index.js`
+
 - Remove inline template definitions
 - Import from `email-templates` layer in Lambda layer bundle
 - Update EMAIL_ACTIONS to reference factory
 
 **File 3:** `infrastructure/lambda/scheduled-tasks/index.js`
+
 - Remove inline template definitions
 - Import from `email-templates` layer
 - Update sendEmail() helper
@@ -217,17 +232,20 @@ export function getEmailTemplate(templateName, data) {
 ### 2.3 Validation (Phase 2)
 
 **Unit Tests:**
+
 - Template factory produces consistent output across all 11 templates
 - Environment variable injection works correctly
 - No regressions in existing ses.js tests
 
 **Command:**
+
 ```bash
 cd dm/layers/email-templates && npm test
 cd ../../plg-website && npm test -- --testPathPattern="ses"
 ```
 
 **Success Criteria:**
+
 - ✅ All template tests pass
 - ✅ All ses.js tests pass
 - ✅ All Lambda unit tests pass
@@ -241,18 +259,18 @@ cd ../../plg-website && npm test -- --testPathPattern="ses"
 
 ### 3.1 E2E Test Scenarios
 
-| Scenario | Trigger | Expected Email | Priority | Owner |
-|----------|---------|-----------------|----------|-------|
-| **Checkout Complete** | Stripe checkout.session.completed | Welcome + License | High | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **Payment Failure** | Stripe invoice.payment_failed | Payment Failed | High | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **Immediate Cancel** | Stripe subscription.deleted | Cancellation | High | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **Subscription Reactivate** | Stripe invoice.payment_succeeded (from past_due) | Reactivation | Medium | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **Trial Expiring** | Scheduled task (3 days before) | Trial Reminder | Medium | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **License Revoked** | Keygen license.revoked webhook | License Revoked | Medium | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **License Suspended** | Keygen license.suspended webhook | License Suspended | Medium | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **Win-Back 30d** | Scheduled task (30 days post-cancel) | Win-Back 30 | Low | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **Win-Back 90d** | Scheduled task (90 days post-cancel) | Win-Back 90 | Low | Opus 4.5 (test design), Haiku 4.5 (impl) |
-| **Enterprise Invite** | Portal team invite | Enterprise Invite | Low | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| Scenario                    | Trigger                                          | Expected Email    | Priority | Owner                                    |
+| --------------------------- | ------------------------------------------------ | ----------------- | -------- | ---------------------------------------- |
+| **Checkout Complete**       | Stripe checkout.session.completed                | Welcome + License | High     | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **Payment Failure**         | Stripe invoice.payment_failed                    | Payment Failed    | High     | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **Immediate Cancel**        | Stripe subscription.deleted                      | Cancellation      | High     | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **Subscription Reactivate** | Stripe invoice.payment_succeeded (from past_due) | Reactivation      | Medium   | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **Trial Expiring**          | Scheduled task (3 days before)                   | Trial Reminder    | Medium   | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **License Revoked**         | Keygen license.revoked webhook                   | License Revoked   | Medium   | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **License Suspended**       | Keygen license.suspended webhook                 | License Suspended | Medium   | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **Win-Back 30d**            | Scheduled task (30 days post-cancel)             | Win-Back 30       | Low      | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **Win-Back 90d**            | Scheduled task (90 days post-cancel)             | Win-Back 90       | Low      | Opus 4.5 (test design), Haiku 4.5 (impl) |
+| **Enterprise Invite**       | Portal team invite                               | Enterprise Invite | Low      | Opus 4.5 (test design), Haiku 4.5 (impl) |
 
 ### 3.2 Test Architecture
 
@@ -278,14 +296,14 @@ describe("Email Pipeline - Immediate Cancellation", () => {
 
     // 4. Simulate StreamProcessor reading the DynamoDB Stream
     const snsPublishSpy = jest.spyOn(snsClient, "send");
-    
+
     // 5. Verify SNS publish was called with SUBSCRIPTION_CANCELLED event
     expect(snsPublishSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         MessageAttributes: {
           eventType: { StringValue: "SUBSCRIPTION_CANCELLED" },
         },
-      })
+      }),
     );
 
     // 6. Verify EmailSender Lambda would send cancellation template
@@ -333,16 +351,16 @@ If automated E2E tests are insufficient, manual testing in staging:
 
 ## Implementation Timeline
 
-| Phase | Owner | Effort | Week |
-|-------|-------|--------|------|
-| **Phase 1: Webhook Fixes** | Haiku 4.5 | 1 hour | Week 1 (Mon) |
-| **Phase 1: Validation** | Haiku 4.5 | 0.5 hours | Week 1 (Mon) |
+| Phase                       | Owner                       | Effort    | Week             |
+| --------------------------- | --------------------------- | --------- | ---------------- |
+| **Phase 1: Webhook Fixes**  | Haiku 4.5                   | 1 hour    | Week 1 (Mon)     |
+| **Phase 1: Validation**     | Haiku 4.5                   | 0.5 hours | Week 1 (Mon)     |
 | **Phase 2: Template Layer** | Haiku 4.5 + Opus 4.5 review | 4-6 hours | Week 1 (Tue-Wed) |
-| **Phase 2: Migration** | Haiku 4.5 | 2 hours | Week 1 (Wed) |
-| **Phase 2: Validation** | Haiku 4.5 | 1 hour | Week 1 (Wed) |
-| **Phase 3: E2E Design** | Opus 4.5 | 1-2 hours | Week 1 (Thu) |
-| **Phase 3: E2E Impl** | Haiku 4.5 | 1-2 hours | Week 1 (Thu-Fri) |
-| **Phase 3: Validation** | SWR (manual staging) | 1-2 hours | Week 2 (Mon) |
+| **Phase 2: Migration**      | Haiku 4.5                   | 2 hours   | Week 1 (Wed)     |
+| **Phase 2: Validation**     | Haiku 4.5                   | 1 hour    | Week 1 (Wed)     |
+| **Phase 3: E2E Design**     | Opus 4.5                    | 1-2 hours | Week 1 (Thu)     |
+| **Phase 3: E2E Impl**       | Haiku 4.5                   | 1-2 hours | Week 1 (Thu-Fri) |
+| **Phase 3: Validation**     | SWR (manual staging)        | 1-2 hours | Week 2 (Mon)     |
 
 **Total Effort:** ~13-17 hours spread over 2 weeks
 
@@ -350,22 +368,22 @@ If automated E2E tests are insufficient, manual testing in staging:
 
 ## Roles & Responsibilities
 
-| Role | Responsibility |
-|------|-----------------|
-| **Q Developer (Haiku 4.5)** | Execute Phases 1-2-3 code changes; run unit tests; own implementation quality |
-| **GitHub Copilot (Opus 4.5)** | Design E2E test strategy; review Phase 2 architecture; ensure best practices |
-| **SWR (Human)** | Approve phase gates; manual staging validation; final sign-off |
+| Role                          | Responsibility                                                                |
+| ----------------------------- | ----------------------------------------------------------------------------- |
+| **Q Developer (Haiku 4.5)**   | Execute Phases 1-2-3 code changes; run unit tests; own implementation quality |
+| **GitHub Copilot (Opus 4.5)** | Design E2E test strategy; review Phase 2 architecture; ensure best practices  |
+| **SWR (Human)**               | Approve phase gates; manual staging validation; final sign-off                |
 
 ---
 
 ## Risk Mitigation
 
-| Risk | Probability | Mitigation |
-|------|-------------|-----------|
-| Webhook changes break existing flows | Low | Unit tests verify no regressions |
-| Template layer build failures | Medium | Separate layer testing before integration |
-| E2E tests are flaky | Medium | Start with high-priority (High) scenarios first |
-| Manual validation discovers new gaps | Low | Pre-staging review of V4 spec catches major issues |
+| Risk                                 | Probability | Mitigation                                         |
+| ------------------------------------ | ----------- | -------------------------------------------------- |
+| Webhook changes break existing flows | Low         | Unit tests verify no regressions                   |
+| Template layer build failures        | Medium      | Separate layer testing before integration          |
+| E2E tests are flaky                  | Medium      | Start with high-priority (High) scenarios first    |
+| Manual validation discovers new gaps | Low         | Pre-staging review of V4 spec catches major issues |
 
 ---
 
