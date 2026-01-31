@@ -1,3 +1,13 @@
+import dotenv from 'dotenv';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+// Load environment variables from .env.local
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const envPath = resolve(__dirname, '../../.env.local');
+dotenv.config({ path: envPath });
+
+
 /**
  * E2E Test Environment Configuration
  *
