@@ -40,29 +40,43 @@ export async function POST(request) {
     const validation = await validateLicense(licenseKey, fingerprint);
 
     // Check validation result
-    if (!validation.valid) {
-      // Handle specific cases
-      if (validation.code === "FINGERPRINT_SCOPE_MISMATCH") {
-        // Device not activated yet - this is expected, continue to activation
-      } else if (validation.code === "VALID") {
-        // Already activated on this device
-        return NextResponse.json({
-          success: true,
-          alreadyActivated: true,
-          license: validation.license,
-          message: "Device already activated",
-        });
-      } else {
-        // Other validation errors
-        return NextResponse.json(
-          {
-            error: "License validation failed",
-            code: validation.code,
-            detail: validation.detail,
-          },
-          { status: 400 },
-        );
-      }
+    // If already valid with this fingerprint, device is already activated
+    if (validation.valid) {
+      return NextResponse.json({
+        success: true,
+        alreadyActivated: true,
+        license: validation.license,
+        message: "Device already activated",
+      });
+    }
+
+    // License not valid - check if we should proceed to activation
+    if (validation.code === "FINGERPRINT_SCOPE_MISMATCH" || validation.code === "NO_MACHINES") {
+      // FINGERPRINT_SCOPE_MISMATCH: License valid but this device not yet activated
+      // NO_MACHINES: Fresh license with no devices yet
+      // Both cases: proceed to activation below
+    } else {
+      // Other validation errors (EXPIRED, SUSPENDED, NOT_FOUND, etc.)
+      return NextResponse.json(
+        {
+          error: "License validation failed",
+          code: validation.code,
+          detail: validation.detail,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Safety check: ensure we have license data to proceed
+    if (!validation.license?.id) {
+      return NextResponse.json(
+        {
+          error: "License data unavailable",
+          code: "LICENSE_DATA_MISSING",
+          detail: "Unable to retrieve license details for activation",
+        },
+        { status: 400 },
+      );
     }
 
     // Get full license details

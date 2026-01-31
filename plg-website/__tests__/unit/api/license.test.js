@@ -158,13 +158,18 @@ describe("license/activate API logic", () => {
     return { valid: true };
   }
 
+  /**
+   * Handle validation result from validateLicense()
+   * This mirrors the logic in /api/license/activate/route.js
+   *
+   * Flow:
+   * 1. If valid=true → device already activated, return early success
+   * 2. If valid=false with NO_MACHINES or FINGERPRINT_SCOPE_MISMATCH → proceed to activation
+   * 3. If valid=false with other codes → return error
+   */
   function handleValidationResult(validation) {
+    // Check if device is already activated (idempotent success)
     if (validation.valid) {
-      return null; // Continue to activation
-    }
-
-    // Already activated on this device
-    if (validation.code === "VALID") {
       return {
         success: true,
         alreadyActivated: true,
@@ -173,18 +178,33 @@ describe("license/activate API logic", () => {
       };
     }
 
-    // Device not activated yet - expected, continue
-    if (validation.code === "FINGERPRINT_SCOPE_MISMATCH") {
+    // Device not activated yet - these are expected cases, continue to activation
+    if (validation.code === "FINGERPRINT_SCOPE_MISMATCH" || validation.code === "NO_MACHINES") {
       return null; // Continue to activation
     }
 
-    // Other validation errors
+    // Other validation errors (EXPIRED, SUSPENDED, NOT_FOUND, etc.)
     return {
       error: "License validation failed",
       code: validation.code,
       detail: validation.detail,
       status: 400,
     };
+  }
+
+  /**
+   * Safety check: ensure license data is available before proceeding
+   */
+  function checkLicenseDataAvailable(validation) {
+    if (!validation.license?.id) {
+      return {
+        error: "License data unavailable",
+        code: "LICENSE_DATA_MISSING",
+        detail: "Unable to retrieve license details for activation",
+        status: 400,
+      };
+    }
+    return null; // License data available, continue
   }
 
   function checkDeviceLimit(license, dynamoLicense) {
@@ -230,36 +250,43 @@ describe("license/activate API logic", () => {
   });
 
   describe("validation result handling", () => {
-    it("should continue when valid (proceed to activation)", () => {
+    // Scenario 1: Device already activated (idempotent success)
+    it("should return idempotent success when device is already activated (valid=true)", () => {
       const result = handleValidationResult({
         valid: true,
         code: "VALID",
-        license: { id: "lic_123" },
+        license: { id: "lic_123", status: "ACTIVE" },
       });
-      // Returns null to continue to activation step
-      assert.strictEqual(result, null);
-    });
-
-    it("should return early success when already activated (valid=false but code=VALID)", () => {
-      const result = handleValidationResult({
-        valid: false,
-        code: "VALID",
-        license: { id: "lic_123" },
-      });
-      // Returns early success for already activated
+      // Returns early success - idempotent behavior
       assert.strictEqual(result.success, true);
       assert.strictEqual(result.alreadyActivated, true);
+      assert.strictEqual(result.license.id, "lic_123");
+      assert.strictEqual(result.message, "Device already activated");
     });
 
-    it("should continue on FINGERPRINT_SCOPE_MISMATCH (expected for new device)", () => {
+    // Scenario 2: Fresh license with no devices yet
+    it("should continue to activation on NO_MACHINES (fresh license)", () => {
       const result = handleValidationResult({
         valid: false,
-        code: "FINGERPRINT_SCOPE_MISMATCH",
-        detail: "Device not activated",
+        code: "NO_MACHINES",
+        detail: "License has no machines",
+        license: { id: "lic_456" },
       });
       assert.strictEqual(result, null); // Continue to activation
     });
 
+    // Scenario 3: License has devices but not this one
+    it("should continue to activation on FINGERPRINT_SCOPE_MISMATCH (new device)", () => {
+      const result = handleValidationResult({
+        valid: false,
+        code: "FINGERPRINT_SCOPE_MISMATCH",
+        detail: "Device not activated",
+        license: { id: "lic_789" },
+      });
+      assert.strictEqual(result, null); // Continue to activation
+    });
+
+    // Scenario 4: License expired
     it("should return error for expired license", () => {
       const result = handleValidationResult({
         valid: false,
@@ -268,8 +295,10 @@ describe("license/activate API logic", () => {
       });
       assert.strictEqual(result.error, "License validation failed");
       assert.strictEqual(result.code, "EXPIRED");
+      assert.strictEqual(result.status, 400);
     });
 
+    // Scenario 5: License suspended
     it("should return error for suspended license", () => {
       const result = handleValidationResult({
         valid: false,
@@ -278,6 +307,70 @@ describe("license/activate API logic", () => {
       });
       assert.strictEqual(result.error, "License validation failed");
       assert.strictEqual(result.code, "SUSPENDED");
+      assert.strictEqual(result.status, 400);
+    });
+
+    // Scenario 6: Invalid license key (not found)
+    it("should return error for invalid license key (NOT_FOUND)", () => {
+      const result = handleValidationResult({
+        valid: false,
+        code: "NOT_FOUND",
+        detail: "License not found",
+      });
+      assert.strictEqual(result.error, "License validation failed");
+      assert.strictEqual(result.code, "NOT_FOUND");
+      assert.strictEqual(result.status, 400);
+    });
+
+    // Edge case: Unknown error code
+    it("should return error for unknown validation codes", () => {
+      const result = handleValidationResult({
+        valid: false,
+        code: "UNKNOWN_ERROR",
+        detail: "Something unexpected happened",
+      });
+      assert.strictEqual(result.error, "License validation failed");
+      assert.strictEqual(result.code, "UNKNOWN_ERROR");
+    });
+  });
+
+  describe("license data availability check", () => {
+    it("should pass when license data is available", () => {
+      const result = checkLicenseDataAvailable({
+        valid: false,
+        code: "NO_MACHINES",
+        license: { id: "lic_123" },
+      });
+      assert.strictEqual(result, null); // Continue
+    });
+
+    it("should return error when license is null", () => {
+      const result = checkLicenseDataAvailable({
+        valid: false,
+        code: "NO_MACHINES",
+        license: null,
+      });
+      assert.strictEqual(result.error, "License data unavailable");
+      assert.strictEqual(result.code, "LICENSE_DATA_MISSING");
+      assert.strictEqual(result.status, 400);
+    });
+
+    it("should return error when license.id is missing", () => {
+      const result = checkLicenseDataAvailable({
+        valid: false,
+        code: "NO_MACHINES",
+        license: { status: "ACTIVE" }, // Missing id
+      });
+      assert.strictEqual(result.error, "License data unavailable");
+      assert.strictEqual(result.code, "LICENSE_DATA_MISSING");
+    });
+
+    it("should return error when license is undefined", () => {
+      const result = checkLicenseDataAvailable({
+        valid: false,
+        code: "NO_MACHINES",
+      });
+      assert.strictEqual(result.code, "LICENSE_DATA_MISSING");
     });
   });
 
