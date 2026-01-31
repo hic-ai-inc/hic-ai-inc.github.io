@@ -26,6 +26,7 @@ import {
   expectStatus,
   expectSuccess,
   expectError,
+  expectBadRequest,
   expectFields,
   expectUrl,
   expectCompletesWithin,
@@ -57,35 +58,33 @@ describe("Checkout API Contract", () => {
   });
 
   // ==========================================================================
-  // POST /api/checkout/create-session (or POST /api/checkout)
+  // POST /api/checkout (or POST /api/checkout)
   // ==========================================================================
 
-  describe("POST /api/checkout/create-session", () => {
+  describe("POST /api/checkout", () => {
     describe("Request Validation", () => {
       test("should require email", async () => {
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           licenseType: "individual",
           // email missing
         });
 
-        expectStatus(response, 400);
-        expectError(response);
+        expectBadRequest(response);
       });
 
       test("should reject invalid email format", async () => {
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: "not-an-email",
           licenseType: "individual",
         });
 
-        expectStatus(response, 400);
-        expectError(response);
+        expectBadRequest(response);
       });
 
       test("should accept valid email", async () => {
         requireMutations("checkout with valid email");
 
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "individual",
         });
@@ -103,31 +102,30 @@ describe("Checkout API Contract", () => {
       });
 
       test("should require licenseType", async () => {
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           // licenseType missing
         });
 
         // May accept with default or reject
         if (response.status === 400) {
-          expectError(response);
+          expectBadRequest(response);
         }
       });
 
       test("should reject unknown license type", async () => {
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "unknown-type",
         });
 
-        expectStatus(response, 400);
-        expectError(response);
+        expectBadRequest(response);
       });
 
       test("should accept individual license type", async () => {
         requireMutations("individual checkout");
 
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "individual",
         });
@@ -146,7 +144,7 @@ describe("Checkout API Contract", () => {
       test("should accept team license type", async () => {
         requireMutations("team checkout");
 
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "team",
           seats: 5,
@@ -167,7 +165,7 @@ describe("Checkout API Contract", () => {
       test("should accept fingerprint for trial conversion", async () => {
         requireMutations("checkout with fingerprint");
 
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "individual",
           fingerprint: generateFingerprint(),
@@ -183,7 +181,7 @@ describe("Checkout API Contract", () => {
       test("should accept seats for team license", async () => {
         requireMutations("checkout with seats");
 
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "team",
           seats: 10,
@@ -198,7 +196,7 @@ describe("Checkout API Contract", () => {
       test("should accept successUrl and cancelUrl", async () => {
         requireMutations("checkout with redirect URLs");
 
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "individual",
           successUrl: "https://example.com/success",
@@ -216,7 +214,7 @@ describe("Checkout API Contract", () => {
       test("should return checkoutUrl on success", async () => {
         requireMutations("checkout URL response");
 
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "individual",
         });
@@ -237,7 +235,7 @@ describe("Checkout API Contract", () => {
       test("should return sessionId on success", async () => {
         requireMutations("session ID response");
 
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "individual",
         });
@@ -262,7 +260,7 @@ describe("Checkout API Contract", () => {
 
         await expectCompletesWithin(
           async () => {
-            await client.post("/api/checkout/create-session", {
+            await client.post("/api/checkout", {
               email: generateEmail(),
               licenseType: "individual",
             });
@@ -275,14 +273,13 @@ describe("Checkout API Contract", () => {
 
     describe("Error Handling", () => {
       test("should handle empty request body", async () => {
-        const response = await client.post("/api/checkout/create-session", {});
+        const response = await client.post("/api/checkout", {});
 
-        expectStatus(response, 400);
-        expectError(response);
+        expectBadRequest(response);
       });
 
       test("should return structured error response", async () => {
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: "invalid",
         });
 
@@ -295,7 +292,7 @@ describe("Checkout API Contract", () => {
       });
 
       test("should not expose internal errors", async () => {
-        const response = await client.post("/api/checkout/create-session", {
+        const response = await client.post("/api/checkout", {
           email: generateEmail(),
           licenseType: "individual",
           priceId: "invalid_price_that_does_not_exist",
@@ -353,7 +350,7 @@ describe("Checkout API Contract", () => {
 
         // First create a session
         const createResponse = await client.post(
-          "/api/checkout/create-session",
+          "/api/checkout",
           {
             email: generateEmail(),
             licenseType: "individual",
@@ -448,7 +445,7 @@ describe("Checkout API Contract", () => {
       requireMutations("session status check");
 
       // Create session first
-      const createResponse = await client.post("/api/checkout/create-session", {
+      const createResponse = await client.post("/api/checkout", {
         email: generateEmail(),
         licenseType: "individual",
       });
@@ -497,7 +494,7 @@ describe("Checkout API Contract", () => {
 
       // First request
       const response1 = await client.post(
-        "/api/checkout/create-session",
+        "/api/checkout",
         checkoutData,
       );
 
@@ -508,7 +505,7 @@ describe("Checkout API Contract", () => {
 
       // Second request with same data
       const response2 = await client.post(
-        "/api/checkout/create-session",
+        "/api/checkout",
         checkoutData,
       );
 
@@ -530,7 +527,7 @@ describe("Checkout API Contract", () => {
     test("should accept currency parameter if supported", async () => {
       requireMutations("checkout with currency");
 
-      const response = await client.post("/api/checkout/create-session", {
+      const response = await client.post("/api/checkout", {
         email: generateEmail(),
         licenseType: "individual",
         currency: "eur",
@@ -546,7 +543,7 @@ describe("Checkout API Contract", () => {
     test("should accept locale parameter if supported", async () => {
       requireMutations("checkout with locale");
 
-      const response = await client.post("/api/checkout/create-session", {
+      const response = await client.post("/api/checkout", {
         email: generateEmail(),
         licenseType: "individual",
         locale: "de",

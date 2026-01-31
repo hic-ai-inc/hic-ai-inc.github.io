@@ -189,6 +189,7 @@ export async function POST(request) {
       email: user.email,
       stripeCustomerId: checkoutSession.customer?.id,
       keygenLicenseId: license.id,
+      keygenLicenseKey: license.key,
       accountType: planType,
       subscriptionStatus: "active",
       metadata: {

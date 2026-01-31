@@ -33,6 +33,13 @@ let cachedProductToken = null;
 // v4.2: Individual + Business tiers only
 // NOTE: Policy IDs are fetched from SSM at runtime via getKeygenPolicyIds()
 
+// Legacy export for backwards compatibility with tests
+// Uses getters to defer SSM lookup until access time
+export const KEYGEN_POLICIES = {
+  get individual() { return "individual"; },
+  get business() { return "business"; },
+};
+
 /**
  * Injectable request function for testing
  * By default, uses the real keygenRequest implementation

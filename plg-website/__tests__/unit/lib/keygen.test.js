@@ -495,10 +495,10 @@ describe("keygen.js", () => {
   });
 
   describe("getPolicyId", () => {
-    it("should throw error for unknown plan type", () => {
+    it("should throw error for unknown plan type", async () => {
       let error;
       try {
-        getPolicyId("unknown_plan");
+        await getPolicyId("unknown_plan");
       } catch (e) {
         error = e;
       }
