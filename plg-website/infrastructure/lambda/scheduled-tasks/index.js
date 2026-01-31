@@ -17,7 +17,7 @@ import {
   UpdateCommand,
   PutCommand,
 } from "hic-dynamodb-layer";
-import { SESClient, SendEmailCommand } from "hic-ses-layer";
+import { SESClient, SendEmailCommand, createTemplates } from "hic-ses-layer";
 import { HicLog } from "hic-base-layer";
 
 // ============================================================================
@@ -55,120 +55,13 @@ export function getSesClientInstance() {
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || "noreply@hic-ai.com";
 const APP_URL = process.env.APP_URL || "https://mouse.hic-ai.com";
-const COMPANY_NAME = "HIC AI";
-const PRODUCT_NAME = "Mouse";
 
-// ============================================================================
-// Email Templates
-// ============================================================================
-const emailTemplates = {
-  trialEnding: ({ email, daysRemaining }) => ({
-    subject: `Your ${PRODUCT_NAME} Trial Ends in ${daysRemaining} Days`,
-    html: `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
-  <div style="max-width: 600px; margin: 0 auto;">
-    <h1 style="color: #F6F8FB; margin-bottom: 24px;">Trial Ending Soon ⏰</h1>
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Your ${PRODUCT_NAME} trial ends in <strong style="color: #F6F8FB;">${daysRemaining} days</strong>.
-    </p>
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Subscribe now to keep using all the features you've been enjoying.
-    </p>
-    <div style="margin: 32px 0;">
-      <a href="${APP_URL}/pricing" style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-        View Plans
-      </a>
-    </div>
-    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
-    <p style="color: #6B7C93; font-size: 12px;">${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents</p>
-  </div>
-</body>
-</html>`,
-    text: `Trial Ending Soon
-\nYour ${PRODUCT_NAME} trial ends in ${daysRemaining} days.
-\nSubscribe now: ${APP_URL}/pricing
-\n${COMPANY_NAME}`,
-  }),
-
-  winback30: ({ email }) => ({
-    subject: `We miss you! Come back to ${PRODUCT_NAME}`,
-    html: `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
-  <div style="max-width: 600px; margin: 0 auto;">
-    <h1 style="color: #F6F8FB; margin-bottom: 24px;">We Miss You! 💙</h1>
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      It's been a month since you canceled your ${PRODUCT_NAME} subscription.
-    </p>
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Since then, we've been working hard on improvements:
-    </p>
-    <ul style="color: #B8C4D0; font-size: 14px; line-height: 1.8;">
-      <li>Faster performance and reliability</li>
-      <li>New editing tools and operations</li>
-      <li>Better integration with AI agents</li>
-    </ul>
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Ready to give us another try?
-    </p>
-    <div style="margin: 32px 0;">
-      <a href="${APP_URL}/pricing" style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-        Resubscribe Now
-      </a>
-    </div>
-    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
-    <p style="color: #6B7C93; font-size: 12px;">${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents</p>
-  </div>
-</body>
-</html>`,
-    text: `We Miss You!
-\nIt's been a month since you canceled your ${PRODUCT_NAME} subscription.
-\nSince then, we've made improvements:\n- Faster performance and reliability\n- New editing tools and operations\n- Better integration with AI agents
-\nResubscribe now: ${APP_URL}/pricing
-\n${COMPANY_NAME}`,
-  }),
-
-  winback90: ({ email }) => ({
-    subject: `One more chance? ${PRODUCT_NAME} has evolved`,
-    html: `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
-  <div style="max-width: 600px; margin: 0 auto;">
-    <h1 style="color: #F6F8FB; margin-bottom: 24px;">A Lot Has Changed 🚀</h1>
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      It's been 90 days since you last used ${PRODUCT_NAME}, and we've transformed.
-    </p>
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      ${PRODUCT_NAME} now offers the most precise file editing tools available for AI coding agents.
-    </p>
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      We'd love to have you back. Your feedback helped shape many of our improvements.
-    </p>
-    <div style="margin: 32px 0;">
-      <a href="${APP_URL}/pricing" style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-        See What's New
-      </a>
-    </div>
-    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
-    <p style="color: #6B7C93; font-size: 12px;">${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents</p>
-  </div>
-</body>
-</html>`,
-    text: `A Lot Has Changed
-\nIt's been 90 days since you last used ${PRODUCT_NAME}, and we've transformed.
-\n${PRODUCT_NAME} now offers the most precise file editing tools available for AI coding agents.
-\nWe'd love to have you back.
-\nSee what's new: ${APP_URL}/pricing
-\n${COMPANY_NAME}`,
-  }),
-};
+// Initialize templates from hic-ses-layer (single source of truth)
+const emailTemplates = createTemplates({
+  appUrl: APP_URL,
+  companyName: "HIC AI",
+  productName: "Mouse",
+});
 
 // ============================================================================
 // Helper: Send email via SES
@@ -339,7 +232,7 @@ async function handleWinback30(log) {
       continue;
     }
 
-    const success = await sendEmail("winback30", { email: customer.email }, log);
+    const success = await sendEmail("winBack30", { email: customer.email }, log);
 
     if (success) {
       await markEmailSent(customer.userId, "winback-30");
@@ -390,7 +283,7 @@ async function handleWinback90(log) {
       continue;
     }
 
-    const success = await sendEmail("winback90", { email: customer.email }, log);
+    const success = await sendEmail("winBack90", { email: customer.email }, log);
 
     if (success) {
       await markEmailSent(customer.userId, "winback-90");

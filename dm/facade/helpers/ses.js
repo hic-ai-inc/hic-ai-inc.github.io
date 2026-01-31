@@ -210,4 +210,11 @@ export {
   GetSendStatisticsCommand,
 } from "@aws-sdk/client-ses";
 
+// Re-export email templates for compatibility with hic-ses-layer
+export {
+  createTemplates,
+  TEMPLATE_NAMES,
+  EVENT_TYPE_TO_TEMPLATE,
+} from "../../layers/ses/src/email-templates.js";
+
 export { createSESMock };

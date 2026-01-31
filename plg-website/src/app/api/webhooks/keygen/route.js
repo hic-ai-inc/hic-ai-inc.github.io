@@ -38,8 +38,8 @@ const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
  */
 function verifySignature(payload, signatureHeader, request) {
   if (!KEYGEN_WEBHOOK_PUBLIC_KEY) {
-    console.warn("KEYGEN_WEBHOOK_PUBLIC_KEY not set, skipping verification");
-    return true;
+    console.error("KEYGEN_WEBHOOK_PUBLIC_KEY not configured - rejecting request");
+    return false;
   }
 
   if (!signatureHeader) {

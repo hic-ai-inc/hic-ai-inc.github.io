@@ -346,7 +346,8 @@ describe("Scheduled Tasks Lambda", () => {
       const command = sesCall.arguments[0];
 
       // Should be SendEmailCommand with trial ending subject
-      expect(command.input.Message.Subject.Data).toContain("Trial Ends");
+      // Template uses: "Your Mouse trial ends in X days"
+      expect(command.input.Message.Subject.Data.toLowerCase()).toContain("trial ends");
     });
   });
 
