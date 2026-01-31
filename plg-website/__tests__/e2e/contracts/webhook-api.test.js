@@ -606,8 +606,10 @@ describe("Webhook API Contract", () => {
         },
       );
 
+      // 401 is acceptable because signature verification runs before JSON parsing
+      // With invalid signature, the request is rejected before malformed JSON is processed
       assert.ok(
-        [400, 415].includes(response.status),
+        [400, 401, 415].includes(response.status),
         `Malformed JSON should return client error, got ${response.status}`,
       );
     });

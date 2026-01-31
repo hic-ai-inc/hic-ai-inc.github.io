@@ -20,6 +20,7 @@ import { getSession } from "@/lib/auth";
 import { Header, Footer, Container } from "@/components/layout";
 import { Button, Card } from "@/components/ui";
 import Link from "next/link";
+import { formatLicenseKeyForDisplay } from "@/lib/constants";
 
 function WelcomeCompleteContent() {
   const searchParams = useSearchParams();
@@ -224,8 +225,8 @@ function WelcomeCompleteContent() {
                   Your License Key
                 </p>
                 <div className="flex items-center justify-center gap-3">
-                  <code className="text-lg font-mono text-cerulean-mist break-all">
-                    {state.licenseKey}
+                  <code className="text-lg font-mono text-cerulean-mist">
+                    {formatLicenseKeyForDisplay(state.licenseKey)}
                   </code>
                   <button
                     onClick={copyLicenseKey}

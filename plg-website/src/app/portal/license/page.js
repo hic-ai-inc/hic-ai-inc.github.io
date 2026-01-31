@@ -19,7 +19,7 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { LICENSE_STATUS_DISPLAY } from "@/lib/constants";
+import { LICENSE_STATUS_DISPLAY, formatLicenseKeyForDisplay } from "@/lib/constants";
 import { useUser } from "@/lib/cognito-provider";
 import { getSession } from "@/lib/cognito";
 import CopyLicenseButton from "./CopyLicenseButton";
@@ -106,7 +106,8 @@ export default function LicensePage() {
     );
   }
 
-  const licenseKey = license.licenseKey || "••••-••••-••••-••••";
+  const fullLicenseKey = license.licenseKey || "";
+  const licenseKey = formatLicenseKeyForDisplay(fullLicenseKey);
   const licenseStatus = license.status?.toUpperCase() || "ACTIVE";
   const accountType = license.planName || license.accountType || "Individual";
   const expiresAt = license.expiresAt;
@@ -135,7 +136,7 @@ export default function LicensePage() {
             {licenseKey}
           </div>
           <div className="flex items-center gap-4">
-            <CopyLicenseButton licenseKey={licenseKey} />
+            <CopyLicenseButton licenseKey={fullLicenseKey} />
             <Button variant="ghost" size="sm">
               Regenerate Key
             </Button>

@@ -198,3 +198,31 @@ export const APP_NAME = "Mouse";
 export const APP_DESCRIPTION = "Precision Editing Tools for AI Coding Agents";
 export const COMPANY_NAME = "HIC AI";
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://hic-ai.com";
+
+
+// ===========================================
+// LICENSE KEY UTILITIES
+// ===========================================
+
+/**
+ * Format a license key for display
+ * Shows first 8 and last 4 characters with ellipsis in between
+ *
+ * @param {string} licenseKey - Full license key (e.g., "XXXXXX-XXXXXX-XXXXXX-XXXXXX-V3")
+ * @returns {string} Formatted key (e.g., "XXXXXX-X...X-V3")
+ */
+export function formatLicenseKeyForDisplay(licenseKey) {
+  if (!licenseKey || typeof licenseKey !== "string") {
+    return "••••-••••-••••";
+  }
+
+  // For short keys, just return as-is
+  if (licenseKey.length <= 16) {
+    return licenseKey;
+  }
+
+  // Show first 8 chars, ellipsis, last 4 chars
+  const prefix = licenseKey.slice(0, 8);
+  const suffix = licenseKey.slice(-4);
+  return `${prefix}...${suffix}`;
+}
