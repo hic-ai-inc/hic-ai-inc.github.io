@@ -1,0 +1,52 @@
+{
+  "name": "PLG E2E Testing",
+  "build": {
+    "dockerfile": "Dockerfile.plg-e2e",
+    "context": "."
+  },
+  
+  // Run as non-root user
+  "remoteUser": "vscode",
+  
+  // Mount the VSIX file from the host (adjust path as needed)
+  "mounts": [
+    "source=${localEnv:USERPROFILE}/source/repos/hic/mouse-vscode,target=/vsix,type=bind,readonly"
+  ],
+  
+  // Features to add (GitHub CLI, etc.)
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  
+  // DO NOT install Mouse extension automatically - we want to test manual install
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Only install Copilot for testing Mouse integration
+        "github.copilot",
+        "github.copilot-chat"
+      ],
+      "settings": {
+        // Ensure clean state
+        "mouse.licenseKey": "",
+        // Enable licensing for real testing
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  
+  // Ensure clean ~/.hic on every container start
+  "postCreateCommand": "rm -rf ~/.hic && echo '✅ Clean slate: No existing license state'",
+  
+  // Verify environment on start
+  "postStartCommand": "echo '🧪 PLG E2E Testing Environment' && node --version && echo 'VSIX files available at /vsix/' && ls -la /vsix/*.vsix 2>/dev/null || echo '⚠️  No VSIX files found. Place Mouse VSIX in ~/source/repos/hic/mouse/releases/'",
+  
+  // Forward ports for local PLG website testing
+  "forwardPorts": [3000],
+  
+  // Environment variables
+  "remoteEnv": {
+    "HIC_LICENSING_ENABLED": "true",
+    "NODE_ENV": "development"
+  }
+}

@@ -1,0 +1,54 @@
+# PLG E2E Testing Container
+# 
+# Purpose: Clean environment for testing the full Mouse PLG flow:
+#   1. Fresh VS Code (no pre-installed extensions)
+#   2. No ~/.hic/ directory (no existing license state)
+#   3. Install VSIX → Trial → Signup → Activation
+#
+# Usage:
+#   1. Open this folder in VS Code
+#   2. Command Palette → "Dev Containers: Reopen in Container"
+#   3. Install Mouse VSIX via Extensions panel
+#   4. Run "Mouse: Initialize Workspace"
+#   5. Test trial flow
+#   6. Sign up on PLG website, get license
+#   7. Activate license in VS Code
+
+FROM node:22-bookworm
+
+# Install essential tools
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    sudo \
+    ca-certificates \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for VS Code Dev Containers
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Ensure no .hic directory exists (clean license state)
+RUN rm -rf /home/$USERNAME/.hic /root/.hic
+
+# Set working directory
+WORKDIR /workspace
+
+# Switch to non-root user
+USER $USERNAME
+
+# Verify Node.js version
+RUN node --version && npm --version
+
+# Labels for documentation
+LABEL maintainer="HIC AI <support@hic-ai.com>"
+LABEL description="PLG E2E Testing - Clean VS Code environment for Mouse trial/activation testing"
+LABEL version="1.0.0"
