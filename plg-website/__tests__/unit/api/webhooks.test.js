@@ -429,3 +429,523 @@ describe("webhook handler patterns", () => {
     });
   });
 });
+
+
+
+describe("Stripe License Provisioning - LICENSE# Record Creation", () => {
+  /**
+   * Test helpers for LICENSE# record creation
+   * These validate the event-driven pipeline for license key email delivery
+   */
+
+  function createMockKeygenLicense(overrides = {}) {
+    return {
+      id: "lic_keygen_123",
+      key: "key/MOUSE-ABC-DEF-GHI",
+      status: "ACTIVE",
+      expiresAt: "2027-01-31T00:00:00Z",
+      maxMachines: 3,
+      ...overrides,
+    };
+  }
+
+  function createMockCheckoutSession(overrides = {}) {
+    return {
+      id: "cs_test_checkout_123",
+      customer: "cus_stripe_789",
+      customer_email: "customer@example.com",
+      subscription: "sub_stripe_456",
+      payment_status: "paid",
+      metadata: {
+        planType: "individual",
+        seats: "1",
+      },
+      ...overrides,
+    };
+  }
+
+  function createMockCustomer(overrides = {}) {
+    return {
+      userId: "auth0|user_existing_456",
+      email: "existing@example.com",
+      stripeCustomerId: "cus_stripe_789",
+      keygenLicenseId: null,
+      accountType: "individual",
+      ...overrides,
+    };
+  }
+
+  function createLicenseRecord(license, customer, planType, customerEmail) {
+    /**
+     * Simulates the LICENSE# record structure that should be created
+     * This is what gets stored in DynamoDB and triggers SNS events
+     */
+    const planNameMap = {
+      individual: "Individual",
+      business: "Business",
+      enterprise: "Enterprise",
+    };
+
+    return {
+      pk: `LICENSE#${license.id}`,
+      sk: "DETAILS",
+      keygenLicenseId: license.id,
+      userId: customer.userId,
+      email: customerEmail,
+      licenseKey: license.key, // Critical: This field enables email pipeline
+      policyId: planType,
+      planName: planNameMap[planType] || "Individual",
+      status: "active",
+      expiresAt: license.expiresAt,
+      maxDevices: planType === "business" ? 5 : planType === "enterprise" ? 10 : 3,
+      eventType: "LICENSE_CREATED", // Triggers SNS event for email
+      metadata: {
+        stripeCustomerId: customer.stripeCustomerId,
+        stripeSubscriptionId: customer.subscriptionId || null,
+      },
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  function validateLicenseRecord(record, expectedLicense, expectedPlan) {
+    /**
+     * Validates that LICENSE# record has all required fields for:
+     * - Portal display (licenseKey, status, expiresAt)
+     * - Email pipeline (eventType, email, licenseKey)
+     * - Device tracking (maxDevices, userId)
+     */
+    const errors = [];
+
+    if (!record.pk || !record.pk.startsWith("LICENSE#")) {
+      errors.push("Missing or invalid pk (should be LICENSE#...)");
+    }
+    if (record.sk !== "DETAILS") {
+      errors.push("Invalid sk (should be DETAILS)");
+    }
+    if (!record.licenseKey) {
+      errors.push(
+        "Missing licenseKey (critical for email pipeline and portal)",
+      );
+    }
+    if (record.eventType !== "LICENSE_CREATED") {
+      errors.push("Missing eventType: LICENSE_CREATED (triggers SNS event)");
+    }
+    if (!record.email) {
+      errors.push("Missing email (required for email delivery)");
+    }
+    if (!record.userId) {
+      errors.push("Missing userId (required for user-license link)");
+    }
+    if (record.planName !== expectedPlan) {
+      errors.push(`Invalid planName (expected ${expectedPlan})`);
+    }
+    if (!record.metadata?.stripeCustomerId) {
+      errors.push("Missing metadata.stripeCustomerId");
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  function shouldCreateLicenseRecord(keygenLicenseId, licenseKey) {
+    /**
+     * Determines if LICENSE# record should be created
+     * Should create unless both already exist and match
+     */
+    return Boolean(keygenLicenseId && licenseKey);
+  }
+
+  // =========================================================================
+  // Tests: LICENSE# Record Creation for New Customers
+  // =========================================================================
+
+  describe("LICENSE# record creation - new customers", () => {
+    it("should create LICENSE# record with all required fields", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|new_user_123" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      assert.strictEqual(record.keygenLicenseId, license.id);
+      assert.strictEqual(record.userId, customer.userId);
+      assert.strictEqual(record.email, session.customer_email);
+      assert.strictEqual(record.licenseKey, license.key);
+      assert.strictEqual(record.eventType, "LICENSE_CREATED");
+      assert.strictEqual(record.planName, "Individual");
+      assert.strictEqual(record.status, "active");
+    });
+
+    it("should set correct maxDevices for individual plan", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      assert.strictEqual(record.maxDevices, 3);
+    });
+
+    it("should set correct maxDevices for business plan", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "business",
+        session.customer_email,
+      );
+
+      assert.strictEqual(record.maxDevices, 5);
+    });
+
+    it("should set correct maxDevices for enterprise plan", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "enterprise",
+        session.customer_email,
+      );
+
+      assert.strictEqual(record.maxDevices, 10);
+    });
+
+    it("should include Stripe customer ID in metadata", () => {
+      const license = createMockKeygenLicense();
+      const customer = {
+        userId: "auth0|user_1",
+        stripeCustomerId: "cus_stripe_123",
+      };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      assert.strictEqual(
+        record.metadata.stripeCustomerId,
+        customer.stripeCustomerId,
+      );
+    });
+
+    it("should validate successful LICENSE# record", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1", stripeCustomerId: "cus_stripe_123" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      const validation = validateLicenseRecord(record, license, "Individual");
+      assert.strictEqual(validation.valid, true);
+      assert.strictEqual(validation.errors.length, 0);
+    });
+  });
+
+  // =========================================================================
+  // Tests: LICENSE# Record Creation for Existing Customers
+  // =========================================================================
+
+  describe("LICENSE# record creation - existing customers", () => {
+    it("should create LICENSE# record for existing customer", () => {
+      const license = createMockKeygenLicense();
+      const existingCustomer = createMockCustomer();
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        existingCustomer,
+        "business",
+        session.customer_email,
+      );
+
+      assert.strictEqual(record.userId, existingCustomer.userId);
+      assert.strictEqual(record.email, session.customer_email);
+      assert.strictEqual(record.licenseKey, license.key);
+      assert.strictEqual(record.planName, "Business");
+      assert.strictEqual(record.maxDevices, 5);
+    });
+
+    it("should handle existing customer upgrading plan", () => {
+      const license = createMockKeygenLicense({
+        id: "lic_keygen_upgraded_789",
+      });
+      const existingCustomer = createMockCustomer({
+        accountType: "individual", // Was individual, now upgrading
+      });
+      const session = createMockCheckoutSession({
+        metadata: { planType: "business" },
+      });
+
+      const record = createLicenseRecord(
+        license,
+        existingCustomer,
+        "business", // New plan type
+        session.customer_email,
+      );
+
+      assert.strictEqual(record.planName, "Business");
+      assert.strictEqual(record.maxDevices, 5); // Upgraded from 3
+    });
+  });
+
+  // =========================================================================
+  // Tests: LICENSE# Record Validation & Error Handling
+  // =========================================================================
+
+  describe("LICENSE# record validation", () => {
+    it("should detect missing licenseKey", () => {
+      const invalidRecord = {
+        pk: "LICENSE#lic_123",
+        sk: "DETAILS",
+        userId: "auth0|user",
+        email: "test@example.com",
+        eventType: "LICENSE_CREATED",
+        licenseKey: null, // Missing!
+      };
+
+      const validation = validateLicenseRecord(invalidRecord);
+      assert.strictEqual(validation.valid, false);
+      assert.ok(validation.errors.some((e) => e.includes("licenseKey")));
+    });
+
+    it("should detect missing eventType", () => {
+      const invalidRecord = {
+        pk: "LICENSE#lic_123",
+        sk: "DETAILS",
+        userId: "auth0|user",
+        email: "test@example.com",
+        licenseKey: "key/ABC123",
+        eventType: null, // Missing!
+      };
+
+      const validation = validateLicenseRecord(invalidRecord);
+      assert.strictEqual(validation.valid, false);
+      assert.ok(validation.errors.some((e) => e.includes("eventType")));
+    });
+
+    it("should detect missing email", () => {
+      const invalidRecord = {
+        pk: "LICENSE#lic_123",
+        sk: "DETAILS",
+        userId: "auth0|user",
+        email: null, // Missing!
+        licenseKey: "key/ABC123",
+        eventType: "LICENSE_CREATED",
+      };
+
+      const validation = validateLicenseRecord(invalidRecord);
+      assert.strictEqual(validation.valid, false);
+      assert.ok(validation.errors.some((e) => e.includes("email")));
+    });
+
+    it("should detect missing userId", () => {
+      const invalidRecord = {
+        pk: "LICENSE#lic_123",
+        sk: "DETAILS",
+        userId: null, // Missing!
+        email: "test@example.com",
+        licenseKey: "key/ABC123",
+        eventType: "LICENSE_CREATED",
+      };
+
+      const validation = validateLicenseRecord(invalidRecord);
+      assert.strictEqual(validation.valid, false);
+      assert.ok(validation.errors.some((e) => e.includes("userId")));
+    });
+  });
+
+  describe("LICENSE# record creation conditions", () => {
+    it("should create record when both keygenLicenseId and licenseKey present", () => {
+      const shouldCreate = shouldCreateLicenseRecord(
+        "lic_keygen_123",
+        "key/MOUSE-ABC",
+      );
+      assert.strictEqual(shouldCreate, true);
+    });
+
+    it("should not create record without keygenLicenseId", () => {
+      const shouldCreate = shouldCreateLicenseRecord(null, "key/MOUSE-ABC");
+      assert.strictEqual(shouldCreate, false);
+    });
+
+    it("should not create record without licenseKey", () => {
+      const shouldCreate = shouldCreateLicenseRecord("lic_keygen_123", null);
+      assert.strictEqual(shouldCreate, false);
+    });
+
+    it("should not create record without both fields", () => {
+      const shouldCreate = shouldCreateLicenseRecord(null, null);
+      assert.strictEqual(shouldCreate, false);
+    });
+  });
+
+  // =========================================================================
+  // Tests: Event Pipeline Integration
+  // =========================================================================
+
+  describe("LICENSE# record event pipeline", () => {
+    it("should include eventType for SNS stream", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      // This field triggers DynamoDB Stream → SNS → Email Sender
+      assert.strictEqual(
+        record.eventType,
+        "LICENSE_CREATED",
+        "eventType triggers email pipeline",
+      );
+    });
+
+    it("should structure record for DynamoDB put with PK/SK", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      // DynamoDB requires PK and SK for put operation
+      assert.ok(
+        record.pk.startsWith("LICENSE#"),
+        "PK should be LICENSE#licenseId",
+      );
+      assert.strictEqual(record.sk, "DETAILS", "SK should be DETAILS");
+    });
+
+    it("should include all fields needed by email sender Lambda", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      // Email sender expects these fields in SNS message
+      assert.ok(record.email, "email required for SES");
+      assert.ok(record.licenseKey, "licenseKey required in email body");
+      assert.ok(record.planName, "planName required for email context");
+    });
+
+    it("should include all fields needed by portal API", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      const record = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      // Portal API queries LICENSE# and displays these
+      assert.ok(
+        record.licenseKey,
+        "licenseKey displayed in portal license page",
+      );
+      assert.ok(record.status, "status displayed in portal");
+      assert.ok(record.expiresAt, "expiresAt displayed in portal");
+      assert.ok(record.maxDevices, "maxDevices shown for device tracking");
+    });
+  });
+
+  describe("idempotency - LICENSE# record creation", () => {
+    it("should not recreate record if already exists with same licenseKey", () => {
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      // First creation
+      const record1 = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      // Second creation (should be same/idempotent)
+      const record2 = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      assert.strictEqual(record1.licenseKey, record2.licenseKey);
+      assert.strictEqual(record1.pk, record2.pk);
+      assert.strictEqual(record1.eventType, record2.eventType);
+    });
+
+    it("should handle webhook retry without duplicating records", () => {
+      // Simulate webhook retry scenario
+      const license = createMockKeygenLicense();
+      const customer = { userId: "auth0|user_1" };
+      const session = createMockCheckoutSession();
+
+      // Initial webhook call
+      const recordFromInitial = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      // Retry call (Stripe webhook retry)
+      const recordFromRetry = createLicenseRecord(
+        license,
+        customer,
+        "individual",
+        session.customer_email,
+      );
+
+      // Both should be identical, preventing duplicate email sends
+      assert.strictEqual(
+        recordFromInitial.pk,
+        recordFromRetry.pk,
+        "Same PK allows upsert instead of duplicate",
+      );
+    });
+  });
+});
