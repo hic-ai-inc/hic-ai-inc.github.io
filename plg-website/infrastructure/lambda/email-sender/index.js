@@ -16,6 +16,7 @@
 import {
   SESClient,
   SendEmailCommand,
+  GetIdentityVerificationAttributesCommand,
   createTemplates,
   EVENT_TYPE_TO_TEMPLATE,
 } from "hic-ses-layer";
@@ -123,6 +124,42 @@ export const handler = async (event) => {
 
       const emailContent = template(templateData);
 
+      // Check if email is verified in SES (required for sandbox mode, good practice in production)
+      const maskedEmail = email.replace(/(.{2}).*@/, "$1***@");
+      try {
+        const verificationResult = await sesClient.send(
+          new GetIdentityVerificationAttributesCommand({
+            Identities: [email],
+          }),
+        );
+        const verificationStatus =
+          verificationResult.VerificationAttributes?.[email]?.VerificationStatus;
+
+        if (verificationStatus !== "Success") {
+          log.warn("email-not-verified", {
+            emailAction,
+            email: maskedEmail,
+            status: verificationStatus || "NotFound",
+          });
+          results.push({
+            success: false,
+            skipped: true,
+            reason: "email-not-verified",
+            email,
+            status: verificationStatus || "NotFound",
+          });
+          continue;
+        }
+      } catch (verificationError) {
+        // If we can't check verification status, log warning but continue
+        // This allows graceful degradation if SES API is temporarily unavailable
+        log.warn("verification-check-failed", {
+          email: maskedEmail,
+          error: verificationError.message,
+        });
+        // Continue to try sending - SES will reject if not verified
+      }
+
       // Send email via SES
       await sesClient.send(
         new SendEmailCommand({
@@ -148,14 +185,21 @@ export const handler = async (event) => {
   }
 
   const successCount = results.filter((r) => r.success).length;
-  const failCount = results.filter((r) => !r.success).length;
+  const skippedCount = results.filter((r) => r.skipped).length;
+  const failCount = results.filter((r) => !r.success && !r.skipped).length;
 
-  log.info("complete", { processed: results.length, success: successCount, failed: failCount });
+  log.info("complete", {
+    processed: results.length,
+    success: successCount,
+    skipped: skippedCount,
+    failed: failCount,
+  });
 
-  // If all failed, throw to trigger SQS retry
+  // If all emails had actual errors (not just skipped for verification), throw to trigger SQS retry
+  // Skipped emails (unverified) should not trigger retry - retrying won't help
   if (failCount > 0 && successCount === 0) {
     throw new Error(`All ${failCount} emails failed to send`);
   }
 
-  return { processed: results.length, success: successCount, failed: failCount };
+  return { processed: results.length, success: successCount, skipped: skippedCount, failed: failCount };
 };

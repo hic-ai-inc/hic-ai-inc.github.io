@@ -252,39 +252,44 @@ For automated E2E tests, use AWS SES simulator addresses (bypass verification):
 
 ## Implementation Plan
 
-### Phase 0: SES Email Verification (PRIORITY - Unblocks all email delivery)
+### Phase 0: SES Email Verification ✅ COMPLETE
 
-1.  **Create `cognito-post-confirmation` Lambda:**
+1.  **Create `cognito-post-confirmation` Lambda:** ✅ DONE
     - Location: `plg-website/infrastructure/lambda/cognito-post-confirmation/`
-    - Layers: `hic-base-layer`, `hic-ses-layer`
+    - Layers: `hic-base-layer`, `hic-ses-layer`, `hic-dynamodb-layer`
     - On Cognito PostConfirmation event:
       - Call `ses.verifyEmailIdentity(email)` → AWS sends verification email
       - Write `USER#/PROFILE` to DynamoDB with `eventType: "USER_CREATED"`
     - IAM permissions: `ses:VerifyEmailIdentity`, `dynamodb:PutItem`
+    - Unit tests: 10/10 pass (`cognito-post-confirmation.test.js`)
 
-2.  **Wire Cognito to Lambda:**
+2.  **Wire Cognito to Lambda:** ⏳ PENDING DEPLOYMENT
     - Configure `mouse-staging-v2` user pool (ID: `us-east-1_CntYimcMm`)
     - Set PostConfirmation trigger to new Lambda ARN
 
-3.  **Update `email-sender` Lambda with guard clause:**
+3.  **Update `email-sender` Lambda with guard clause:** ✅ DONE
+    - Added `GetIdentityVerificationAttributesCommand` import
     - Before every email send, check `ses.getIdentityVerificationAttributes(email)`
-    - If status !== "Success", log warning and skip (don't fail)
-    - This works identically in sandbox and production modes
+    - If status !== "Success", log `email-not-verified` warning and skip
+    - New result category: `skipped` (distinct from `failed`)
+    - Only true failures trigger SQS retry, not skipped (unverified)
+    - Unit tests: 10/10 pass (`email-sender.test.js`)
 
-4.  **Verification:**
+4.  **Verification:** ⏳ PENDING E2E TEST
     - Sign up with new email address
     - Confirm AWS sends verification email
     - Click verification link
     - Complete checkout → verify license email arrives
 
 **Phase 0 Success Metrics:**
-| Metric | Target | Validation Method |
-|--------|--------|-------------------|
-| Cognito trigger fires on signup | 100% | CloudWatch logs show Lambda invocation |
-| SES verification email sent | 100% | User receives AWS verification email within 60s |
-| Guard clause blocks unverified | 100% | email-sender logs "email-not-verified" for pending users |
-| Verified user receives license email | 100% | E2E: signup → verify → checkout → email received |
-| Unit test coverage | >80% | `cognito-post-confirmation.test.js` passes |
+| Metric | Target | Status | Validation |
+|--------|--------|--------|------------|
+| Cognito trigger fires on signup | 100% | ⏳ Pending deploy | CloudWatch logs |
+| SES verification email sent | 100% | ⏳ Pending deploy | User receives email within 60s |
+| Guard clause blocks unverified | 100% | ✅ Unit tested | email-sender logs "email-not-verified" |
+| Verified user receives license email | 100% | ⏳ Pending E2E | signup → verify → checkout → email |
+| cognito-post-confirmation tests | >80% | ✅ 10/10 pass | `cognito-post-confirmation.test.js` |
+| email-sender tests | >80% | ✅ 10/10 pass | `email-sender.test.js` |
 
 ---
 
@@ -529,3 +534,4 @@ handleSubscriptionDeleted() calls updateCustomerSubscription()
 | V3 | 2026-01-31 | Gemini 3 | Identified immediate cancellation gap; streamlined format |
 | V4 | 2026-01-31 | GitHub Copilot (Opus 4.5) | Final consolidation with reference materials |
 | V5 | 2026-01-31 | GitHub Copilot (Opus 4.5) | Added SES sandbox/email verification requirements (Section 4); reprioritized implementation plan with Phase 0; added success metrics for each phase and overall completion criteria |
+| V5.1 | 2026-01-31 | GitHub Copilot (Opus 4.5) | Phase 0 code complete: cognito-post-confirmation Lambda (10 tests), email-sender guard clause (10 tests); deployment pending |

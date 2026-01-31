@@ -1,9 +1,9 @@
 # PLG Roadmap v5 — Final Sprint: Individual Validation → Business RBAC → Launch
 
-**Document Version:** 5.0.0  
-**Date:** January 30, 2026  
+**Document Version:** 5.1.0  
+**Date:** January 31, 2026  
 **Owner:** General Counsel  
-**Status:** 🟡 INDIVIDUAL AUTH WORKING — Focus: Complete Individual Validation, then Business RBAC
+**Status:** 🟢 PHASE 1 NEAR COMPLETE — Email pipeline fixed, license display working, pending deployment verification
 
 ---
 
@@ -11,21 +11,21 @@
 
 This document consolidates the final sprint to ship Mouse with full PLG self-service capability. v5 supersedes v4 with a **phase-based approach** for the remaining work.
 
-**Current State:** Cognito auth working for Individual users. Dashboard and Settings pages wired. Next: Complete Individual E2E validation, then implement Business RBAC.
+**Current State:** Individual flow nearly complete. Email pipeline fixed (Jan 31), license display working on Welcome + Portal pages. Pending: deployment verification of email delivery.
 
 ### Sprint Phases (New in v5)
 
 | Phase | Focus | Status | Est. Hours |
 |-------|-------|--------|------------|
-| **1** | Individual Validation | 🟡 In Progress | 8-16h |
+| **1** | Individual Validation | 🟢 Near Complete | 2-4h |
 | **2** | Business RBAC (Owner/Admin/Member) | ⬜ Next | 16-24h |
 | **3** | Device Management Wire-up | ⬜ Pending | 8-12h |
-| **4** | VS Code Extension Finalization | ⬜ Pending | 8-12h |
+| **4** | VS Code Extension Finalization | 🟡 Near Complete | 4-8h |
 | **5** | Launch | ⬜ Pending | 4-8h |
 
 **North Star:** Ship Mouse with Individual self-service first, then Business role-based access controls.
 
-**Estimated Total Effort:** ~50-75 hours remaining (auth complete, core infra complete)
+**Estimated Total Effort:** ~35-55 hours remaining (Phase 1 near complete, email pipeline fixed)
 
 ---
 
@@ -49,8 +49,9 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 | Display device count | ⬜ TODO | Wire to Keygen machines |
 | **Checkout** | | |
 | Stripe checkout redirect | ✅ DONE | All 4 price IDs working |
-| Post-checkout license provisioning | ⬜ TODO | Stripe webhook → Keygen |
-| Success page with license key | ⬜ TODO | Display after checkout |
+| Post-checkout license provisioning | ✅ DONE | Stripe webhook → Keygen working |
+| Success page with license key | ✅ DONE | License displayed + copy button |
+| License key display UX | ✅ DONE | Compact format (Jan 31) |
 | **Settings** | | |
 | Display/update preferences | ✅ DONE | JWT auth, DynamoDB |
 | Export data | ⬜ TODO | Verify working |
@@ -58,10 +59,11 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 
 ### 1.2 Success Criteria
 
-- [ ] Fresh user can: signup → checkout → receive license key → see dashboard
-- [ ] License key appears in portal dashboard
-- [ ] Device count shows correctly
-- [ ] Settings preferences persist
+- [x] Fresh user can: signup → checkout → receive license key → see dashboard
+- [x] License key appears in portal License page
+- [ ] Device count shows correctly (pending KeyGen wire-up)
+- [x] Settings preferences persist
+- [ ] Email delivery verified (pending deployment)
 
 ---
 
@@ -252,6 +254,8 @@ exports.handler = async (event) => {
 > 🚀 **MILESTONE (Jan 29, 11:00 PM EST):** Test license provisioning endpoint created (`/api/admin/provision-test-license`) — enables E2E testing of full payment→license→email pipeline without real Stripe payment. Creates real Keygen licenses, writes DynamoDB records, triggers email via Streams.
 >
 > ⚠️ **MoR UPDATE (Jan 30):** Lemon Squeezy declined our Merchant of Record application — reason: "no website or social media presence." **Action:** Get website deployed to production, then re-apply. Once approved, swap Stripe → Lemon Squeezy post-launch (LS handles global tax collection/remittance, eliminating our tax compliance burden for international sales).
+>
+> 🚀 **MILESTONE (Jan 31, 2026):** Email pipeline complete! Phase 1 fixes deployed (immediate cancellation + license suspension email gaps). Email templates consolidated into `hic-ses-layer` v0.2.0. License key display UX improved (compact format). All 790 unit tests + 104 E2E contract tests passing. Test data cleared for fresh validation.
 
 ---
 

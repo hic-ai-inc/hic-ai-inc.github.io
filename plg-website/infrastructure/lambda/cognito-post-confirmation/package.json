@@ -1,0 +1,6 @@
+{
+  "name": "plg-cognito-post-confirmation",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PLG Cognito Post-Confirmation Lambda - triggers SES email verification on user signup"
+}

@@ -18,7 +18,7 @@ This document represents the definitive technical analysis of the PLG Email Syst
 | ------------------- | -------------------- | -------------------------------------------------------------------------- |
 | **Event Pipeline**  | 🟢 **Healthy**       | DynamoDB Stream → SNS → SQS → Lambda works for 90% of cases.               |
 | **Scheduled Tasks** | 🟢 **Healthy**       | Trial reminders (3-day) and Win-back (30/90d) are implemented.             |
-| **Templates**       | 🔴 **Critical Debt** | 3 separate copies of templates exist (src, email-sender, scheduled-tasks). |
+| **Templates**       | 🟢 **Resolved**      | Consolidated into `hic-ses-layer` v0.2.0 `email-templates.js` (Jan 31). |
 | **Edge Cases**      | 🟠 **Gaps**          | Immediate cancellation & license suspension do not trigger emails.         |
 
 ---
@@ -78,20 +78,19 @@ await updateLicenseStatus(licenseId, "suspended", {
 });
 ```
 
-### 3. Template Fragmentation (Technical Debt)
+### 3. Template Fragmentation ~~(Technical Debt)~~ ✅ RESOLVED
 
-**Severity:** High (Maintenance Risk)
+**Status:** ✅ RESOLVED (January 31, 2026)
 
-Use of email templates is fragmented across three isolated locations. A change to the "Welcome" email must be manually copied to 3 places to ensure consistency across all trigger types.
+Templates consolidated into `dm/layers/ses/src/email-templates.js` (824 lines, 12 templates). The `hic-ses-layer` v0.2.0 now exports `createTemplates()` function used by all consumers:
 
-| Location                                         | Purpose                          |
-| ------------------------------------------------ | -------------------------------- |
-| `src/lib/ses.js`                                 | Direct app calls (e.g., portals) |
-| `infrastructure/lambda/email-sender/index.js`    | Event-driven emails              |
-| `infrastructure/lambda/scheduled-tasks/index.js` | Cron-job emails                  |
+| Consumer | Import |
+| -------- | ------ |
+| `src/lib/ses.js` | `import { createTemplates } from 'hic-ses-layer/email-templates.js'` |
+| `email-sender/index.js` | Same layer import |
+| `scheduled-tasks/index.js` | Same layer import |
 
-**Fix Required:**
-Refactor templates into a shared `dm/layer` (e.g., `hic-templates-layer`) or a single source of truth file that is built/bundled into the Lambdas.
+**Implementation:** Single source of truth. Changes to templates only need to be made in one place.
 
 ---
 
