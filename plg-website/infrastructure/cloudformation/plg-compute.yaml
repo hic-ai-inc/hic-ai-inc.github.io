@@ -61,12 +61,11 @@ Parameters:
 
   ScheduledTasksRoleArn:
     Type: String
+    Description: ARN of Scheduled Tasks IAM role
 
   CognitoPostConfirmationRoleArn:
     Type: String
     Description: ARN of Cognito Post-Confirmation IAM role
-
-    Description: ARN of Scheduled Tasks IAM role
 
   SESFromEmail:
     Type: String
@@ -283,6 +282,21 @@ Resources:
       Environment:
         Variables:
           ENVIRONMENT: !Ref Environment
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          SES_FROM_EMAIL: !Ref SESFromEmail
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodePrefix}/scheduled-tasks.zip"
+      VpcConfig: !If
+        - HasVpcConfig
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
 
   # ═══════════════════════════════════════════════════════════════════════════
   # LAMBDA FUNCTION: Cognito Post-Confirmation
@@ -328,22 +342,6 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: cognito-idp.amazonaws.com
       SourceArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
-
-          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
-          SES_FROM_EMAIL: !Ref SESFromEmail
-      Code:
-        S3Bucket: !Ref LambdaCodeBucket
-        S3Key: !Sub "${LambdaCodePrefix}/scheduled-tasks.zip"
-      VpcConfig: !If
-        - HasVpcConfig
-        - SubnetIds: !Ref VpcSubnetIds
-          SecurityGroupIds: !Ref VpcSecurityGroupIds
-        - !Ref AWS::NoValue
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Application
-          Value: plg-website
 
 Outputs:
   StreamProcessorFunctionArn:

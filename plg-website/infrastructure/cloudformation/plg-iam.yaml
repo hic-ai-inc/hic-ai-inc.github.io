@@ -308,6 +308,21 @@ Resources:
                   - !Sub "${DynamoDBTableArn}/index/*"
         - PolicyName: SESAccess
           PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: "*"
+                Condition:
+                  StringLike:
+                    ses:FromAddress: !Sub "*@${Environment}.hic-ai.com"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
 
   # ═══════════════════════════════════════════════════════════════════════════
   # COGNITO POST-CONFIRMATION LAMBDA ROLE
@@ -346,22 +361,6 @@ Resources:
                   - dynamodb:GetItem
                 Resource:
                   - !Ref DynamoDBTableArn
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Application
-          Value: plg-website
-
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ses:SendEmail
-                  - ses:SendRawEmail
-                Resource: "*"
-                Condition:
-                  StringLike:
-                    ses:FromAddress: !Sub "*@${Environment}.hic-ai.com"
       Tags:
         - Key: Environment
           Value: !Ref Environment

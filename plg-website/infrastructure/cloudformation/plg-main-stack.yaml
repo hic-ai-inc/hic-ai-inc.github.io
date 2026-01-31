@@ -178,7 +178,6 @@ Resources:
         CustomerUpdateRoleArn: !GetAtt IAMStack.Outputs.CustomerUpdateRoleArn
         ScheduledTasksRoleArn: !GetAtt IAMStack.Outputs.ScheduledTasksRoleArn
         CognitoPostConfirmationRoleArn: !GetAtt IAMStack.Outputs.CognitoPostConfirmationRoleArn
-
         SESFromEmail: !Sub "noreply@${Environment}.${EmailDomain}"
         VpcSubnetIds: !Join [",", !Ref VpcSubnetIds]
         VpcSecurityGroupIds: !Join [",", !Ref VpcSecurityGroupIds]
@@ -273,7 +272,6 @@ Outputs:
     Value: !GetAtt IAMStack.Outputs.AmplifyExecutionRoleArn
     Export:
       Name: !Sub "${AWS::StackName}-AmplifyExecutionRoleArn"
-
 
   CognitoPostConfirmationFunctionArn:
     Description: Cognito Post-Confirmation Lambda ARN (use in Amplify Cognito config)
