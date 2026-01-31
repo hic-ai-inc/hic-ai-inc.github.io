@@ -21,6 +21,7 @@ import {
   updateCustomerSubscription,
   getLicense,
   updateLicenseStatus,
+  createLicense as createDynamoDBLicense,
 } from "@/lib/dynamodb";
 import { suspendLicense, reinstateLicense, createLicense, getPolicyId } from "@/lib/keygen";
 // NOTE: Most emails are now sent via event-driven architecture:
@@ -185,6 +186,33 @@ async function handleCheckoutCompleted(session) {
     });
     console.log(`New customer record created for ${customer_email}`);
 
+    // Create separate LICENSE# record for event-driven license key email
+    // This will trigger LICENSE_CREATED event → license key email
+    if (licenseId && licenseKey) {
+      try {
+        const planName = plan === "business" ? "Business" : "Individual";
+        await createDynamoDBLicense({
+          keygenLicenseId: licenseId,
+          userId: tempUserId,
+          licenseKey,
+          policyId,
+          status: "active",
+          expiresAt: null, // Set by Keygen or webhook later
+          maxDevices: plan === "business" ? 5 : 3,
+          email: customer_email,
+          planName,
+          metadata: {
+            stripeCustomerId: customer,
+            stripeSubscriptionId: subscription,
+          },
+        });
+        console.log(`LICENSE# record created for ${licenseId}, license key email will be sent`);
+      } catch (error) {
+        console.error("Failed to create LICENSE# record:", error);
+        // Don't fail checkout if this fails - license key email can be sent manually
+      }
+    }
+
     // Welcome email is sent via event-driven pipeline:
     // upsertCustomer() with eventType: "CUSTOMER_CREATED" triggers
     // DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
@@ -200,6 +228,31 @@ async function handleCheckoutCompleted(session) {
       seats,
     });
     console.log(`Updated existing customer ${existingCustomer.userId}`);
+
+    // If creating a license for existing customer, also create LICENSE# record
+    if (licenseId && licenseKey && !existingCustomer.keygenLicenseId) {
+      try {
+        const planName = plan === "business" ? "Business" : "Individual";
+        await createDynamoDBLicense({
+          keygenLicenseId: licenseId,
+          userId: existingCustomer.userId,
+          licenseKey,
+          policyId,
+          status: "active",
+          expiresAt: null,
+          maxDevices: plan === "business" ? 5 : 3,
+          email: customer_email,
+          planName,
+          metadata: {
+            stripeCustomerId: customer,
+            stripeSubscriptionId: subscription,
+          },
+        });
+        console.log(`LICENSE# record created for existing customer ${existingCustomer.userId}`);
+      } catch (error) {
+        console.error("Failed to create LICENSE# record for existing customer:", error);
+      }
+    }
   }
 
   console.log(
