@@ -3,6 +3,7 @@ Description: |
   HIC PLG EventBridge Scheduled Rules
 
   Scheduled jobs:
+  - Pending Email Retry: Every 15 min - Retry emails for newly verified addresses
   - Trial Reminder: Daily 9 AM UTC - Remind users 3 days before trial ends
   - Win-back 30 Day: Daily 10 AM UTC - Email users 30 days after cancellation
   - Win-back 90 Day: Daily 10 AM UTC - Email users 90 days after cancellation (with discount)
@@ -30,6 +31,28 @@ Resources:
   # ═══════════════════════════════════════════════════════════════════════════
   # EVENTBRIDGE RULES
   # ═══════════════════════════════════════════════════════════════════════════
+
+  # Pending Email Retry - Every 15 minutes
+  # Retries pending emails for users whose email has been verified since initial attempt
+  PendingEmailRetryRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "plg-pending-email-retry-${Environment}"
+      Description: Retry pending emails for newly verified addresses
+      ScheduleExpression: "rate(15 minutes)"
+      State: ENABLED  # Always enabled - critical for email delivery
+      Targets:
+        - Id: ScheduledTasksLambda
+          Arn: !Ref ScheduledTasksFunctionArn
+          Input: '{"taskType": "pending-email-retry"}'
+
+  PendingEmailRetryPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScheduledTasksFunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt PendingEmailRetryRule.Arn
 
   # Trial Reminder - Daily at 9 AM UTC
   TrialReminderRule:
@@ -98,6 +121,12 @@ Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
 
 Outputs:
+  PendingEmailRetryRuleArn:
+    Description: Pending Email Retry EventBridge rule ARN
+    Value: !GetAtt PendingEmailRetryRule.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PendingEmailRetryRuleArn"
+
   TrialReminderRuleArn:
     Description: Trial Reminder EventBridge rule ARN
     Value: !GetAtt TrialReminderRule.Arn

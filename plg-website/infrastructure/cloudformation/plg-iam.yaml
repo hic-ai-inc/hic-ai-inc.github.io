@@ -200,7 +200,7 @@ Resources:
                 Condition:
                   StringLike:
                     ses:FromAddress: !Sub "*@${Environment}.hic-ai.com"
-        - PolicyName: DynamoDBReadAccess
+        - PolicyName: DynamoDBAccess
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -208,6 +208,7 @@ Resources:
                 Action:
                   - dynamodb:GetItem
                   - dynamodb:Query
+                  - dynamodb:UpdateItem  # Clear emailPendingVerification flag after sending
                 Resource:
                   - !Ref DynamoDBTableArn
                   - !Sub "${DynamoDBTableArn}/index/*"
@@ -318,6 +319,10 @@ Resources:
                 Condition:
                   StringLike:
                     ses:FromAddress: !Sub "*@${Environment}.hic-ai.com"
+              - Effect: Allow
+                Action:
+                  - ses:GetIdentityVerificationAttributes  # Check email verification status
+                Resource: "*"
       Tags:
         - Key: Environment
           Value: !Ref Environment

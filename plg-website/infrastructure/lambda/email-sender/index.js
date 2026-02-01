@@ -11,7 +11,7 @@
  * Event Flow:
  *   DynamoDB write (with eventType) → Stream → StreamProcessor → SNS → SQS → This Lambda → SES
  *
- * Layer Dependencies: hic-base-layer, hic-ses-layer
+ * Layer Dependencies: hic-base-layer, hic-ses-layer, hic-dynamodb-layer
  */
 import {
   SESClient,
@@ -20,15 +20,27 @@ import {
   createTemplates,
   EVENT_TYPE_TO_TEMPLATE,
 } from "hic-ses-layer";
+import {
+  DynamoDBClient,
+  DynamoDBDocumentClient,
+  UpdateCommand,
+} from "hic-dynamodb-layer";
 import { HicLog } from "hic-base-layer";
 
 // ============================================================================
-// Injectable Client for Testing
+// Injectable Clients for Testing
 // ============================================================================
 let sesClient = new SESClient({
   region: process.env.AWS_REGION || "us-east-1",
   maxAttempts: 3,
 });
+
+let dynamoClient = DynamoDBDocumentClient.from(
+  new DynamoDBClient({
+    region: process.env.AWS_REGION || "us-east-1",
+    maxAttempts: 3,
+  }),
+);
 
 export function __setSesClientForTests(client) {
   sesClient = client;
@@ -37,11 +49,19 @@ export function getSesClientInstance() {
   return sesClient;
 }
 
+export function __setDynamoClientForTests(client) {
+  dynamoClient = client;
+}
+export function getDynamoClientInstance() {
+  return dynamoClient;
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || "noreply@hic-ai.com";
 const APP_URL = process.env.APP_URL || "https://mouse.hic-ai.com";
+const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 
 // Initialize templates from hic-ses-layer (single source of truth)
 const templates = createTemplates({
@@ -176,6 +196,35 @@ export const handler = async (event) => {
       );
 
       log.info("email-sent", { emailAction, email: email.replace(/(.{2}).*@/, "$1***@") });
+
+      // Clear emailPendingVerification flag to prevent duplicate sends from scheduled retry
+      // Extract userId from PK (format: USER#<userId> or EVENT#<eventId>)
+      const pk = getField(newImage, "PK");
+      const userId = getField(newImage, "userId");
+      if (TABLE_NAME && userId) {
+        try {
+          await dynamoClient.send(
+            new UpdateCommand({
+              TableName: TABLE_NAME,
+              Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+              UpdateExpression: "SET emailPendingVerification = :false, #emailsSent.#eventType = :timestamp",
+              ExpressionAttributeNames: {
+                "#emailsSent": "emailsSent",
+                "#eventType": eventType,
+              },
+              ExpressionAttributeValues: {
+                ":false": false,
+                ":timestamp": new Date().toISOString(),
+              },
+            }),
+          );
+          log.info("cleared-pending-flag", { userId, eventType });
+        } catch (updateError) {
+          // Non-fatal - worst case is a duplicate email attempt from scheduled retry
+          log.warn("failed-to-clear-pending-flag", { userId, error: updateError.message });
+        }
+      }
+
       results.push({ success: true, emailAction, email });
     } catch (error) {
       log.error("email-failed", { error: error.message, record: record.messageId });

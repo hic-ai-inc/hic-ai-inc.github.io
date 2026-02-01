@@ -156,6 +156,7 @@ async function writeUserCreatedEvent(userId, email, name, log) {
   // Write new user profile with USER_CREATED event type
   // This triggers DynamoDB Stream → StreamProcessor → SNS → email-sender
   // But email-sender will check SES verification before actually sending
+  // If email is not yet verified, emailPendingVerification flag enables scheduled retry
   const userItem = {
     PK: `USER#${userId}`,
     SK: "PROFILE",
@@ -165,6 +166,9 @@ async function writeUserCreatedEvent(userId, email, name, log) {
     // Event-driven email fields
     eventType: "USER_CREATED",
     sesVerificationStatus: "pending",
+    // Pending email retry flag - scheduled-tasks Lambda will retry when email is verified
+    emailPendingVerification: true,
+    emailsSent: {}, // Track sent emails to prevent duplicates
     // Metadata
     createdAt: now,
     updatedAt: now,

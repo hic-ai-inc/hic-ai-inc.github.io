@@ -2,6 +2,7 @@
  * Scheduled Tasks Lambda
  *
  * Runs scheduled jobs:
+ * - Pending email retry (every 15 min) - retries emails for newly verified addresses
  * - Trial ending reminders (3 days before)
  * - Win-back emails (30 days, 90 days after cancellation)
  *
@@ -17,7 +18,13 @@ import {
   UpdateCommand,
   PutCommand,
 } from "hic-dynamodb-layer";
-import { SESClient, SendEmailCommand, createTemplates } from "hic-ses-layer";
+import {
+  SESClient,
+  SendEmailCommand,
+  GetIdentityVerificationAttributesCommand,
+  createTemplates,
+  EVENT_TYPE_TO_TEMPLATE,
+} from "hic-ses-layer";
 import { HicLog } from "hic-base-layer";
 
 // ============================================================================
@@ -298,9 +305,111 @@ async function handleWinback90(log) {
 }
 
 /**
+ * Handle pending email retry job
+ * Scans for users with pending emails and retries if their email is now verified
+ */
+async function handlePendingEmailRetry(log) {
+  log.info("running-job", { job: "pending-email-retry" });
+
+  // Scan for users with pending welcome emails
+  const result = await dynamoClient.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: "SK = :sk AND emailPendingVerification = :pending",
+      ExpressionAttributeValues: {
+        ":sk": "PROFILE",
+        ":pending": true,
+      },
+    }),
+  );
+
+  const pendingUsers = result.Items || [];
+  log.info("found-pending-users", { count: pendingUsers.length });
+
+  if (pendingUsers.length === 0) {
+    return { sent: 0, stillPending: 0, failed: 0 };
+  }
+
+  // Batch check verification status for all pending emails
+  const emails = pendingUsers.map((u) => u.email);
+  let verificationStatuses = {};
+
+  try {
+    const verificationResult = await sesClient.send(
+      new GetIdentityVerificationAttributesCommand({
+        Identities: emails,
+      }),
+    );
+    verificationStatuses = verificationResult.VerificationAttributes || {};
+  } catch (error) {
+    log.error("verification-check-failed", { error: error.message });
+    throw error;
+  }
+
+  let sent = 0;
+  let stillPending = 0;
+  let failed = 0;
+
+  for (const user of pendingUsers) {
+    const verificationStatus = verificationStatuses[user.email]?.VerificationStatus;
+
+    if (verificationStatus !== "Success") {
+      // Still not verified - skip
+      stillPending++;
+      continue;
+    }
+
+    // Email is now verified - determine which email template to send
+    const templateName = EVENT_TYPE_TO_TEMPLATE[user.eventType];
+    if (!templateName) {
+      log.warn("no-template-for-event", { eventType: user.eventType, userId: user.userId });
+      failed++;
+      continue;
+    }
+
+    // Build template data from user record
+    const templateData = {
+      email: user.email,
+      licenseKey: user.licenseKey,
+      planName: user.planName,
+      sessionId: user.sessionId,
+    };
+
+    const success = await sendEmail(templateName, templateData, log);
+
+    if (success) {
+      // Mark email as sent and clear pending flag
+      await dynamoClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: { PK: `USER#${user.userId}`, SK: "PROFILE" },
+          UpdateExpression:
+            "SET emailPendingVerification = :false, #emailsSent.#eventType = :timestamp REMOVE pendingEmailEventType",
+          ExpressionAttributeNames: {
+            "#emailsSent": "emailsSent",
+            "#eventType": user.eventType,
+          },
+          ExpressionAttributeValues: {
+            ":false": false,
+            ":timestamp": new Date().toISOString(),
+          },
+        }),
+      );
+      sent++;
+    } else {
+      failed++;
+    }
+  }
+
+  log.info("pending-email-retry-complete", { sent, stillPending, failed, total: pendingUsers.length });
+  return { sent, stillPending, failed };
+}
+
+/**
  * Task handlers map
  */
 const TASK_HANDLERS = {
+  "pending-email-retry": handlePendingEmailRetry,
   "trial-reminder": handleTrialReminder,
   "winback-30": handleWinback30,
   "winback-90": handleWinback90,
