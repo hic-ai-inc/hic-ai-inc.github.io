@@ -13,7 +13,6 @@ import { headers } from "next/headers";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   getCustomerByEmail,
-  getCustomerLicensesByEmail,
   getLicenseDevices,
 } from "@/lib/dynamodb";
 import { getLicenseMachines, deactivateDevice } from "@/lib/keygen";
@@ -94,20 +93,21 @@ export async function GET() {
       return NextResponse.json({ devices: [], maxDevices: 0 });
     }
 
-    // Get licenses by email (B0 FIX: licenses are stored with GSI1PK: USER#email:{email})
-    const licenses = await getCustomerLicensesByEmail(userEmail);
-    if (licenses.length === 0) {
+    // Get license ID directly from customer record
+    // The customer record has keygenLicenseId from checkout webhook
+    const licenseId = customer.keygenLicenseId;
+    if (!licenseId) {
+      console.log("[Devices] Customer has no license:", userEmail);
       return NextResponse.json({ devices: [], maxDevices: 0 });
     }
 
-    // Get devices for the primary license
-    const primaryLicense = licenses[0];
-    const devices = await getLicenseDevices(primaryLicense.keygenLicenseId);
+    // Get devices for the license
+    const devices = await getLicenseDevices(licenseId);
 
     // Also fetch from Keygen for the most accurate data
     let keygenDevices = [];
     try {
-      keygenDevices = await getLicenseMachines(primaryLicense.keygenLicenseId);
+      keygenDevices = await getLicenseMachines(licenseId);
     } catch (e) {
       console.error("Failed to fetch from Keygen:", e);
     }
@@ -135,7 +135,7 @@ export async function GET() {
     return NextResponse.json({
       devices: mergedDevices,
       maxDevices,
-      licenseId: primaryLicense.keygenLicenseId,
+      licenseId,
     });
   } catch (error) {
     console.error("Portal devices error:", error);
