@@ -226,8 +226,10 @@ async function handleCheckoutCompleted(session) {
     );
   } else {
     // Existing customer - update their subscription info
+    // IMPORTANT: Include stripeCustomerId for users who signed up before checkout
     await updateCustomerSubscription(existingCustomer.userId, {
       subscriptionStatus: "active",
+      stripeCustomerId: customer, // B0 FIX: Was missing, causing billing page to show "No subscription"
       stripeSubscriptionId: subscription,
       keygenLicenseId: licenseId || existingCustomer.keygenLicenseId,
       keygenLicenseKey: licenseKey || existingCustomer.keygenLicenseKey,
