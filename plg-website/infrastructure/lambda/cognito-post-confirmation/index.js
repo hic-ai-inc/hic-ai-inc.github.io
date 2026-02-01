@@ -4,7 +4,7 @@
  * Triggered when a user successfully confirms their Cognito account.
  * This Lambda:
  *   1. Requests SES email verification for the user's email address
- *   2. Writes a USER_CREATED event to DynamoDB to trigger welcome email
+ *   2. Writes a CUSTOMER_CREATED event to DynamoDB to trigger welcome email
  *      (once email is verified)
  *
  * Trigger: Cognito PostConfirmation event
@@ -83,7 +83,7 @@ export const handler = async (event, context) => {
     // AWS will send a verification email to the user
     await requestSesVerification(email, log);
 
-    // Step 2: Write USER_CREATED event to DynamoDB
+    // Step 2: Write CUSTOMER_CREATED event to DynamoDB
     // This will NOT trigger welcome email yet (email-sender will check verification)
     await writeUserCreatedEvent(userId, email, name, log);
 
@@ -137,7 +137,7 @@ async function requestSesVerification(email, log) {
 async function writeUserCreatedEvent(userId, email, name, log) {
   const now = new Date().toISOString();
 
-  // Check if user already exists (avoid duplicate USER_CREATED events)
+  // Check if user already exists (avoid duplicate CUSTOMER_CREATED events)
   const existing = await dynamoClient.send(
     new GetItemCommand({
       TableName: TABLE_NAME,
@@ -153,7 +153,7 @@ async function writeUserCreatedEvent(userId, email, name, log) {
     return;
   }
 
-  // Write new user profile with USER_CREATED event type
+  // Write new user profile with CUSTOMER_CREATED event type
   // This triggers DynamoDB Stream → StreamProcessor → SNS → email-sender
   // But email-sender will check SES verification before actually sending
   // If email is not yet verified, emailPendingVerification flag enables scheduled retry
@@ -167,7 +167,7 @@ async function writeUserCreatedEvent(userId, email, name, log) {
     email,
     name,
     // Event-driven email fields
-    eventType: "USER_CREATED",
+    eventType: "CUSTOMER_CREATED",
     sesVerificationStatus: "pending",
     // Pending email retry flag - scheduled-tasks Lambda will retry when email is verified
     emailPendingVerification: true,
@@ -189,7 +189,7 @@ async function writeUserCreatedEvent(userId, email, name, log) {
   log.info("user-created-event-written", {
     userId,
     email: maskEmail(email),
-    eventType: "USER_CREATED",
+    eventType: "CUSTOMER_CREATED",
   });
 }
 

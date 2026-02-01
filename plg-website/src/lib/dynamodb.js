@@ -525,6 +525,10 @@ export async function getLicenseDevices(keygenLicenseId) {
 
 /**
  * Add device activation
+ * 
+ * IMPORTANT: Uses fingerprint as the deduplication key.
+ * If a device with the same fingerprint already exists for this license,
+ * updates the existing record instead of creating a duplicate.
  */
 export async function addDeviceActivation({
   keygenLicenseId,
@@ -536,6 +540,35 @@ export async function addDeviceActivation({
 }) {
   const now = new Date().toISOString();
 
+  // Check if a device with this fingerprint already exists for this license
+  const existingDevices = await getLicenseDevices(keygenLicenseId);
+  const existingDevice = existingDevices.find(d => d.fingerprint === fingerprint);
+
+  if (existingDevice) {
+    // Update existing device record (may have new Keygen machine ID)
+    await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `LICENSE#${keygenLicenseId}`,
+          SK: existingDevice.SK,
+        },
+        UpdateExpression: "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen",
+        ExpressionAttributeNames: {
+          "#name": "name",
+        },
+        ExpressionAttributeValues: {
+          ":machineId": keygenMachineId,
+          ":name": name,
+          ":platform": platform,
+          ":lastSeen": now,
+        },
+      }),
+    );
+    return { ...existingDevice, keygenMachineId, name, platform, lastSeenAt: now };
+  }
+
+  // No existing device with this fingerprint - create new record
   const item = {
     PK: `LICENSE#${keygenLicenseId}`,
     SK: `DEVICE#${keygenMachineId}`,
@@ -550,7 +583,7 @@ export async function addDeviceActivation({
 
   await dynamodb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
 
-  // Increment activated devices count
+  // Increment activated devices count only for new devices
   await dynamodb.send(
     new UpdateCommand({
       TableName: TABLE_NAME,

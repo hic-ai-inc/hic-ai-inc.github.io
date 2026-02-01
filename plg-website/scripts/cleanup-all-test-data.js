@@ -153,11 +153,20 @@ async function cleanupDynamoDB() {
   }
 
   let deleted = 0;
+  let skipped = 0;
   for (const item of items) {
     // Table uses PK/SK composite key
     const pk = item.PK?.S || "(no PK)";
     const sk = item.SK?.S || "(no SK)";
     const email = item.email?.S || "(no email)";
+
+    // Skip VERSION# records - these are configuration, not test data
+    if (pk.startsWith("VERSION#")) {
+      console.log(`   • ${pk} / ${sk} [SKIPPED - config data]`);
+      skipped++;
+      continue;
+    }
+
     console.log(`   • ${pk} / ${sk}`);
     console.log(`     Email: ${email}`);
 
@@ -175,6 +184,10 @@ async function cleanupDynamoDB() {
         console.log(`     ❌ Error: ${err.message}`);
       }
     }
+  }
+
+  if (skipped > 0) {
+    console.log(`   ℹ️  Skipped ${skipped} config record(s)`);
   }
 
   return { total: items.length, deleted };
