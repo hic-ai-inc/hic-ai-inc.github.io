@@ -5,10 +5,12 @@
  * DELETE /api/portal/devices (deactivate)
  *
  * Fetches and manages devices for the authenticated user's license.
+ * Requires Authorization header with Cognito ID token.
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   getCustomerByEmail,
   getCustomerLicensesByEmail,
@@ -16,6 +18,33 @@ import {
 } from "@/lib/dynamodb";
 import { getLicenseMachines, deactivateDevice } from "@/lib/keygen";
 import { PRICING } from "@/lib/constants";
+
+// Cognito JWT verifier for ID tokens
+const idVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "id",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Verify Cognito ID token from Authorization header
+ */
+async function verifyAuthToken() {
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return await idVerifier.verify(token);
+  } catch (error) {
+    console.error("[Devices] JWT verification failed:", error.message);
+    return null;
+  }
+}
 
 // Mock data for development preview
 const MOCK_DEVICES = [
@@ -47,28 +76,16 @@ const MOCK_DEVICES = [
 
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // In development with mock user, return mock data
-    if (
-      process.env.NODE_ENV === "development" &&
-      session.user.sub === "dev-preview-user"
-    ) {
-      return NextResponse.json({
-        devices: MOCK_DEVICES,
-        maxDevices: 5,
-        licenseId: "license_preview_123",
-      });
-    }
-
-    // Get customer by email (B0 FIX: use email, not OAuth user ID)
-    // The session has the user's email from the Cognito ID token
-    const userEmail = session.user.email;
+    // Get user email from verified token
+    const userEmail = tokenPayload.email;
     if (!userEmail) {
-      console.error("[Devices] No email in session");
+      console.error("[Devices] No email in token");
       return NextResponse.json({ devices: [], maxDevices: 0 });
     }
 
@@ -131,8 +148,9 @@ export async function GET() {
 
 export async function DELETE(request) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -146,16 +164,9 @@ export async function DELETE(request) {
       );
     }
 
-    // In development with mock user, simulate success
-    if (
-      process.env.NODE_ENV === "development" &&
-      session.user.sub === "dev-preview-user"
-    ) {
-      return NextResponse.json({ success: true });
-    }
-
-    // Verify user owns this license
-    const licenses = await getCustomerLicenses(session.user.sub);
+    // Verify user owns this license by checking their licenses
+    const userEmail = tokenPayload.email;
+    const licenses = await getCustomerLicensesByEmail(userEmail);
     const ownsLicense = licenses.some((l) => l.keygenLicenseId === licenseId);
     if (!ownsLicense) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
