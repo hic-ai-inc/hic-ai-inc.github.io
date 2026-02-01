@@ -615,21 +615,7 @@ describe("provision-license API logic", () => {
       assert.strictEqual(record.maxDevices, 3);
     });
 
-    it("should set correct maxDevices for enterprise plan", () => {
-      const user = { sub: "user-1", email: "test@example.com" };
-      const license = createMockLicense();
-
-      const record = buildLicenseRecord(
-        user,
-        license,
-        "enterprise",
-        "Enterprise",
-      );
-
-      assert.strictEqual(record.maxDevices, 10);
-    });
-
-    it("should set correct maxDevices for business/other plan", () => {
+    it("should set correct maxDevices for business plan", () => {
       const user = { sub: "user-1", email: "test@example.com" };
       const license = createMockLicense();
 
@@ -637,10 +623,24 @@ describe("provision-license API logic", () => {
         user,
         license,
         "business",
-        "Open Source",
+        "Business",
       );
 
-      assert.strictEqual(record.maxDevices, 2);
+      assert.strictEqual(record.maxDevices, 5);
+    });
+
+    it("should default to individual maxDevices for unknown plan", () => {
+      const user = { sub: "user-1", email: "test@example.com" };
+      const license = createMockLicense();
+
+      const record = buildLicenseRecord(
+        user,
+        license,
+        "unknown",
+        "Unknown Plan",
+      );
+
+      assert.strictEqual(record.maxDevices, 3);
     });
   });
 
