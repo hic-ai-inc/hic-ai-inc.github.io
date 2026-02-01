@@ -1,9 +1,9 @@
 # PLG Roadmap v5 — Final Sprint: Individual Validation → Business RBAC → Launch
 
-**Document Version:** 5.2.0  
+**Document Version:** 5.3.0  
 **Date:** February 1, 2026  
 **Owner:** General Counsel  
-**Status:** ✅ PHASE 1 COMPLETE — Full Individual E2E flow validated (signup → checkout → license → portal → devices)
+**Status:** ✅ PHASE 1 & 4 COMPLETE — Individual E2E validated, VS Code Extension licensing refactored, CI/CD pipeline ready
 
 ---
 
@@ -15,13 +15,13 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 
 ### Sprint Phases (New in v5)
 
-| Phase | Focus | Status | Est. Hours |
-|-------|-------|--------|------------|
-| **1** | Individual Validation | ✅ **COMPLETE** | 0h (done) |
-| **2** | Business RBAC (Owner/Admin/Member) | ⬜ Next | 16-24h |
-| **3** | Device Management Wire-up | ✅ **COMPLETE** | 0h (done) |
-| **4** | VS Code Extension Finalization | ✅ **COMPLETE** | 0h (done) |
-| **5** | Launch | 🟡 Ready | 4-8h |
+| Phase | Focus                              | Status          | Est. Hours |
+| ----- | ---------------------------------- | --------------- | ---------- |
+| **1** | Individual Validation              | ✅ **COMPLETE** | 0h (done)  |
+| **2** | Business RBAC (Owner/Admin/Member) | ⬜ Next         | 16-24h     |
+| **3** | Device Management Wire-up          | ✅ **COMPLETE** | 0h (done)  |
+| **4** | VS Code Extension Finalization     | ✅ **COMPLETE** | 0h (done)  |
+| **5** | Launch                             | 🟡 Ready        | 4-8h       |
 
 **North Star:** Ship Mouse with Individual self-service first, then Business role-based access controls.
 
@@ -37,35 +37,35 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 
 ### 1.1 Individual Flow Checklist
 
-| Task | Status | Notes |
-|------|--------|-------|
-| **Authentication** | | |
-| Cognito signup/login | ✅ DONE | Google OAuth + email working |
-| Portal protected routes | ✅ DONE | Middleware auth check |
-| JWT verification in APIs | ✅ DONE | `aws-jwt-verify` in all portal APIs |
-| **Dashboard** | | |
-| Display user info | ✅ DONE | Name, email from Cognito |
-| Display license status | ✅ DONE | Real status from DynamoDB (Feb 1) |
-| Display device count | ✅ DONE | Real count from DynamoDB (Feb 1) |
-| **Checkout** | | |
-| Stripe checkout redirect | ✅ DONE | All 4 price IDs working |
-| Post-checkout license provisioning | ✅ DONE | Stripe webhook → Keygen working |
-| Success page with license key | ✅ DONE | License displayed + copy button |
-| License key display UX | ✅ DONE | Compact format (Jan 31) |
-| **Billing Page** | | |
-| Display subscription info | ✅ DONE | stripeCustomerId fix (Feb 1) |
-| Stripe Customer Portal link | ✅ DONE | Working |
-| **Devices Page** | | |
-| Display devices list | ✅ DONE | From DynamoDB LICENSE#/DEVICE# records |
-| Show device count / max | ✅ DONE | Uses PRICING constants (Feb 1) |
-| Fingerprint deduplication | ✅ DONE | Prevents duplicate device records (Feb 1) |
-| **License Page** | | |
-| Display license key | ✅ DONE | Copy button working |
-| Activation instructions | ✅ DONE | Updated for Mouse UI commands (Feb 1) |
-| **Settings** | | |
-| Display/update preferences | ✅ DONE | JWT auth, DynamoDB |
-| Export data | ✅ DONE | Working |
-| Delete account | ⬜ TODO | Verify cascade delete |
+| Task                               | Status  | Notes                                     |
+| ---------------------------------- | ------- | ----------------------------------------- |
+| **Authentication**                 |         |                                           |
+| Cognito signup/login               | ✅ DONE | Google OAuth + email working              |
+| Portal protected routes            | ✅ DONE | Middleware auth check                     |
+| JWT verification in APIs           | ✅ DONE | `aws-jwt-verify` in all portal APIs       |
+| **Dashboard**                      |         |                                           |
+| Display user info                  | ✅ DONE | Name, email from Cognito                  |
+| Display license status             | ✅ DONE | Real status from DynamoDB (Feb 1)         |
+| Display device count               | ✅ DONE | Real count from DynamoDB (Feb 1)          |
+| **Checkout**                       |         |                                           |
+| Stripe checkout redirect           | ✅ DONE | All 4 price IDs working                   |
+| Post-checkout license provisioning | ✅ DONE | Stripe webhook → Keygen working           |
+| Success page with license key      | ✅ DONE | License displayed + copy button           |
+| License key display UX             | ✅ DONE | Compact format (Jan 31)                   |
+| **Billing Page**                   |         |                                           |
+| Display subscription info          | ✅ DONE | stripeCustomerId fix (Feb 1)              |
+| Stripe Customer Portal link        | ✅ DONE | Working                                   |
+| **Devices Page**                   |         |                                           |
+| Display devices list               | ✅ DONE | From DynamoDB LICENSE#/DEVICE# records    |
+| Show device count / max            | ✅ DONE | Uses PRICING constants (Feb 1)            |
+| Fingerprint deduplication          | ✅ DONE | Prevents duplicate device records (Feb 1) |
+| **License Page**                   |         |                                           |
+| Display license key                | ✅ DONE | Copy button working                       |
+| Activation instructions            | ✅ DONE | Updated for Mouse UI commands (Feb 1)     |
+| **Settings**                       |         |                                           |
+| Display/update preferences         | ✅ DONE | JWT auth, DynamoDB                        |
+| Export data                        | ✅ DONE | Working                                   |
+| Delete account                     | ⬜ TODO | Verify cascade delete                     |
 
 ### 1.2 Success Criteria
 
@@ -89,88 +89,91 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 
 ### 2.1 Role Definitions
 
-| Role | Description | Portal Access |
-|------|-------------|---------------|
-| **Owner** | Business license purchaser | Full access (billing, team, settings, delete account) |
-| **Admin** | Delegated administrator | Same as Owner EXCEPT: cannot delete account, cannot change/remove Owner |
-| **Member** | Team member | Dashboard only: license status, their devices, "Contact your administrator" messaging |
+| Role       | Description                | Portal Access                                                                         |
+| ---------- | -------------------------- | ------------------------------------------------------------------------------------- |
+| **Owner**  | Business license purchaser | Full access (billing, team, settings, delete account)                                 |
+| **Admin**  | Delegated administrator    | Same as Owner EXCEPT: cannot delete account, cannot change/remove Owner               |
+| **Member** | Team member                | Dashboard only: license status, their devices, "Contact your administrator" messaging |
 
 ### 2.2 Implementation Plan
 
 #### 2.2.1 Cognito Groups (Infrastructure)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Create `mouse-owner` Cognito Group | ⬜ TODO | AWS Console or CloudFormation |
-| Create `mouse-admin` Cognito Group | ⬜ TODO | |
-| Create `mouse-member` Cognito Group | ⬜ TODO | |
-| Assign group on license purchase | ⬜ TODO | Stripe webhook → assign `mouse-owner` |
-| Assign group on invite accept | ⬜ TODO | Based on invite role |
+| Task                                | Status  | Notes                                 |
+| ----------------------------------- | ------- | ------------------------------------- |
+| Create `mouse-owner` Cognito Group  | ⬜ TODO | AWS Console or CloudFormation         |
+| Create `mouse-admin` Cognito Group  | ⬜ TODO |                                       |
+| Create `mouse-member` Cognito Group | ⬜ TODO |                                       |
+| Assign group on license purchase    | ⬜ TODO | Stripe webhook → assign `mouse-owner` |
+| Assign group on invite accept       | ⬜ TODO | Based on invite role                  |
 
 #### 2.2.2 Pre-token Lambda Trigger
 
 **Purpose:** Inject `custom:role` claim into ID token based on Cognito Group membership.
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Create Lambda function | ⬜ TODO | `plg-cognito-pretrigger-{env}` |
-| Add PreTokenGeneration trigger | ⬜ TODO | Cognito User Pool → Triggers |
-| Add CloudFormation template | ⬜ TODO | `plg-cognito.yaml` |
-| Test role claim in ID token | ⬜ TODO | Decode JWT to verify |
+| Task                           | Status  | Notes                          |
+| ------------------------------ | ------- | ------------------------------ |
+| Create Lambda function         | ⬜ TODO | `plg-cognito-pretrigger-{env}` |
+| Add PreTokenGeneration trigger | ⬜ TODO | Cognito User Pool → Triggers   |
+| Add CloudFormation template    | ⬜ TODO | `plg-cognito.yaml`             |
+| Test role claim in ID token    | ⬜ TODO | Decode JWT to verify           |
 
 **Lambda Logic:**
+
 ```javascript
 // Pre-token generation trigger
 exports.handler = async (event) => {
   const groups = event.request.groupConfiguration?.groupsToOverride || [];
-  
+
   // Determine role from group membership (first match wins)
-  let role = 'individual'; // default for Individual tier
-  if (groups.includes('mouse-owner')) role = 'owner';
-  else if (groups.includes('mouse-admin')) role = 'admin';
-  else if (groups.includes('mouse-member')) role = 'member';
-  
+  let role = "individual"; // default for Individual tier
+  if (groups.includes("mouse-owner")) role = "owner";
+  else if (groups.includes("mouse-admin")) role = "admin";
+  else if (groups.includes("mouse-member")) role = "member";
+
   // Add to ID token claims
   event.response.claimsOverrideDetails = {
     claimsToAddOrOverride: {
-      'custom:role': role
-    }
+      "custom:role": role,
+    },
   };
-  
+
   return event;
 };
 ```
 
 #### 2.2.3 Portal Middleware Role Checks
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Extract role from ID token | ⬜ TODO | `req.user.role` from `custom:role` claim |
-| Create `requireOwner()` middleware | ⬜ TODO | 403 if not Owner |
-| Create `requireAdmin()` middleware | ⬜ TODO | 403 if not Owner or Admin |
-| Protect `/portal/billing` | ⬜ TODO | Require Owner |
-| Protect `/portal/team` | ⬜ TODO | Require Admin |
-| Protect `/api/portal/settings/delete-account` | ⬜ TODO | Require Owner |
+| Task                                          | Status  | Notes                                    |
+| --------------------------------------------- | ------- | ---------------------------------------- |
+| Extract role from ID token                    | ⬜ TODO | `req.user.role` from `custom:role` claim |
+| Create `requireOwner()` middleware            | ⬜ TODO | 403 if not Owner                         |
+| Create `requireAdmin()` middleware            | ⬜ TODO | 403 if not Owner or Admin                |
+| Protect `/portal/billing`                     | ⬜ TODO | Require Owner                            |
+| Protect `/portal/team`                        | ⬜ TODO | Require Admin                            |
+| Protect `/api/portal/settings/delete-account` | ⬜ TODO | Require Owner                            |
 
 #### 2.2.4 Role-Based UI Gating
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Add `useRole()` hook | ⬜ TODO | Extract role from auth context |
-| Hide billing nav for Members | ⬜ TODO | `PortalSidebar.js` |
-| Hide team nav for Members | ⬜ TODO | `PortalSidebar.js` |
-| Hide delete account for non-Owners | ⬜ TODO | `settings/page.js` |
-| Show "Contact admin" for Members | ⬜ TODO | Dashboard messaging |
+| Task                               | Status  | Notes                          |
+| ---------------------------------- | ------- | ------------------------------ |
+| Add `useRole()` hook               | ⬜ TODO | Extract role from auth context |
+| Hide billing nav for Members       | ⬜ TODO | `PortalSidebar.js`             |
+| Hide team nav for Members          | ⬜ TODO | `PortalSidebar.js`             |
+| Hide delete account for non-Owners | ⬜ TODO | `settings/page.js`             |
+| Show "Contact admin" for Members   | ⬜ TODO | Dashboard messaging            |
 
 #### 2.2.5 Member Experience
 
 **Member Dashboard shows:**
+
 - License tier and status (active/suspended/expired)
 - Their registered devices
 - Organization name
 - "Contact your administrator" messaging for billing/team questions
 
 **Members CANNOT:**
+
 - Access `/portal/billing`
 - Access `/portal/team`
 - Change organization settings
@@ -184,21 +187,19 @@ exports.handler = async (event) => {
 
 ### 2.4 Testing Checklist
 
-| Scenario | Status |
-|----------|--------|
-| Owner can access all portal sections | ⬜ |
-| Owner can delete account | ⬜ |
-| Owner can change member roles | ⬜ |
-| Admin can access billing | ⬜ |
-| Admin CANNOT delete account | ⬜ |
-| Admin CANNOT change Owner role | ⬜ |
-| Member sees dashboard only | ⬜ |
-| Member gets 403 on /billing | ⬜ |
-| Member sees "Contact admin" messaging | ⬜ |
+| Scenario                              | Status |
+| ------------------------------------- | ------ |
+| Owner can access all portal sections  | ⬜     |
+| Owner can delete account              | ⬜     |
+| Owner can change member roles         | ⬜     |
+| Admin can access billing              | ⬜     |
+| Admin CANNOT delete account           | ⬜     |
+| Admin CANNOT change Owner role        | ⬜     |
+| Member sees dashboard only            | ⬜     |
+| Member gets 403 on /billing           | ⬜     |
+| Member sees "Contact admin" messaging | ⬜     |
 
 ---
-
-
 
 ## ✅ DECISION (COMPLETE): Auth0 → Cognito Migration
 
@@ -227,24 +228,24 @@ exports.handler = async (event) => {
 
 > **v5 Note:** Business RBAC moved to Phase 2 (after Individual validation). See [Phase 2: Business RBAC](#-phase-2-business-rbac-owneradminmember) for detailed implementation plan.
 
-| #   | Workstream                         | Status                      | Est. Hours | Owner      | Blocks            |
-| --- | ---------------------------------- | --------------------------- | ---------- | ---------- | ----------------- |
-| 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —                 |
-| 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —                 |
-| 3   | Auth (Cognito — Individual)        | ✅ **COMPLETE** (v2 pool)   | 0h (done)  | GC + Simon | —                 |
-| 3b  | **Amplify Gen 2 Migration**        | ✅ **STRUCTURE COMPLETE**   | 0h (done)  | GC + Simon | **3** (Auth)      |
-| 3c  | **Business RBAC (Phase 2)**        | ⬜ **NEXT PRIORITY**        | **16-24h** | GC         | **Phase 1**       |
-| 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —                 |
-| 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
-| 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —                 |
-| 5c  | **Server-Side Trial Token API**    | ✅ **COMPLETE** (33 tests)  | 0h (done)  | GC         | —                 |
-| 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —                 |
-| 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | 0h (done)  | GC         | —                 |
-| 8   | **VS Code Extension (VSIX)**       | 🟡 **NEAR COMPLETE**        | **8-12h**  | GC + Simon | **CRITICAL PATH** |
-| 9   | Back-End E2E Testing               | 🟡 **LAMBDAS DEPLOYED**     | 4-6h       | GC         | —                 |
-| 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —                 |
-| 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**          |
-| 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —                 |
+| #   | Workstream                         | Status                      | Est. Hours | Owner      | Blocks       |
+| --- | ---------------------------------- | --------------------------- | ---------- | ---------- | ------------ |
+| 1   | Analytics                          | ✅ Script ready             | 0h (done)  | GC         | —            |
+| 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —            |
+| 3   | Auth (Cognito — Individual)        | ✅ **COMPLETE** (v2 pool)   | 0h (done)  | GC + Simon | —            |
+| 3b  | **Amplify Gen 2 Migration**        | ✅ **STRUCTURE COMPLETE**   | 0h (done)  | GC + Simon | **3** (Auth) |
+| 3c  | **Business RBAC (Phase 2)**        | ⬜ **NEXT PRIORITY**        | **16-24h** | GC         | **Phase 1**  |
+| 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —            |
+| 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —            |
+| 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —            |
+| 5c  | **Server-Side Trial Token API**    | ✅ **COMPLETE** (33 tests)  | 0h (done)  | GC         | —            |
+| 6   | Payments (Stripe)                  | ✅ **COMPLETE**             | 0h (done)  | Simon      | —            |
+| 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | 0h (done)  | GC         | —            |
+| 8   | **VS Code Extension (VSIX)**       | ✅ **PHASE 4 COMPLETE**     | **4-6h**   | GC + Simon | **B1-B4**    |
+| 9   | Back-End E2E Testing               | 🟡 **LAMBDAS DEPLOYED**     | 4-6h       | GC         | —            |
+| 10  | Front-End Polish                   | ⚠️ Partial                  | 8-12h      | GC         | —            |
+| 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**     |
+| 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —            |
 
 > 🔄 **DECISION (Jan 29, 12:30 PM EST):** Migrating from Amplify Gen 1 to Gen 2 for proper IAM runtime credentials. Required for Stripe checkout (Secrets Manager access).
 >
@@ -393,50 +394,50 @@ npm run metrics -- --period=7d
 
 ### 3.1 Why Cognito?
 
-| Factor | Auth0 | Cognito | Winner |
-|--------|-------|---------|--------|
-| Amplify compatibility | ❌ Broken | ✅ Native | **Cognito** |
-| Free tier | 7,500 MAUs | 50,000 MAUs | **Cognito** |
-| Cost per MAU | ~$0.07 | ~$0.0055 | **Cognito** |
-| Google login | ✅ Native | ✅ Native | Tie |
-| GitHub login | ✅ Native | ⚠️ OIDC setup | Auth0 |
-| Custom branding | ✅ Full CSS | ⚠️ Limited | Auth0 |
-| SCIM provisioning | ✅ Enterprise | ❌ Build ourselves | Auth0 |
+| Factor                | Auth0         | Cognito            | Winner      |
+| --------------------- | ------------- | ------------------ | ----------- |
+| Amplify compatibility | ❌ Broken     | ✅ Native          | **Cognito** |
+| Free tier             | 7,500 MAUs    | 50,000 MAUs        | **Cognito** |
+| Cost per MAU          | ~$0.07        | ~$0.0055           | **Cognito** |
+| Google login          | ✅ Native     | ✅ Native          | Tie         |
+| GitHub login          | ✅ Native     | ⚠️ OIDC setup      | Auth0       |
+| Custom branding       | ✅ Full CSS   | ⚠️ Limited         | Auth0       |
+| SCIM provisioning     | ✅ Enterprise | ❌ Build ourselves | Auth0       |
 
 **Bottom Line:** Cognito wins on integration stability, which is non-negotiable. The drawbacks are solvable.
 
 ### 3.2 Migration Checklist
 
-| Task                                 | Status | Notes                                           |
-| ------------------------------------ | ------ | ----------------------------------------------- |
-| **Phase 1: Cognito Resources**       |        |                                                 |
-| Create User Pool v1 (`mouse-plg-staging`)| ❌ REPLACED | `us-east-1_MDTi26EOf` — name not required, deleted |
-| Create User Pool v2 (`mouse-staging-v2`) | ✅     | `us-east-1_CntYimcMm`, required given_name/family_name |
-| Create User Pool Client              | ✅     | `3jobildap1dobb5vfmiul47bvc`, public PKCE        |
-| Configure Cognito Domain             | ✅     | `mouse-staging-v2.auth.us-east-1.amazoncognito.com` |
-| Configure Google social IdP          | ✅     | Attribute mapping: given_name, family_name, email |
-| Configure GitHub OIDC IdP            | ⏸️     | **Deferred** — Cognito requires OIDC well-known |
-| Create Cognito Groups for roles      | ⏸️ DEFERRED | Business RBAC — after Individual E2E complete |
-| **Phase 2: Code Migration**          |        |                                                 |
-| Remove `@auth0/nextjs-auth0` package | ✅     | Removed — Cognito migration complete           |
-| Add `aws-amplify` package            | ✅     | Amplify Auth v6 + aws-jwt-verify               |
-| Create `src/lib/cognito.js`          | ✅     | Amplify Auth, PKCE, session helpers            |
-| Rewrite `src/lib/auth.js`            | ⬜     | Keep for compatibility, migrate later          |
-| Simplify `src/middleware.js`         | ✅     | Simplified for Cognito, removed Auth0 dep      |
-| Create `/auth/login/page.js`         | ✅     | Login page with Google button                   |
-| Create `/auth/callback/page.js`      | ✅     | Token exchange with PKCE code_verifier          |
-| Create `/auth/logout/route.js`       | ✅     | Fixed: uses `logout_uri` per AWS SDK standard   |
-| Update portal pages (claim namespace)| ✅     | Client components using useUser()/useAuth()    |
-| **Phase 3: Environment Variables**   |        |                                                 |
-| Remove `AUTH0_*` from Amplify        | ⬜     | Deferred — env vars remain for reference       |
-| Add `COGNITO_*` to Amplify           | ✅     | 4 env vars configured in Amplify console        |
-| **Phase 4: Test & Deploy**           |        |                                                 |
-| Test locally                         | ✅     | Login, signup, protected routes working        |
-| Deploy to staging                    | ✅     | Build #14+ deployed, Google OAuth working      |
-| E2E test on staging                  | ✅     | Google OAuth, signup, logout all working       |
-| **Phase 5: Cleanup**                 |        |                                                 |
-| Delete Auth0 application             | ⬜     | Auth0 Dashboard → Applications (defer post-launch) |
-| Delete `src/lib/auth0.js`            | ✅     | Deleted Jan 29 — full legacy code cleanup done |
+| Task                                      | Status      | Notes                                                  |
+| ----------------------------------------- | ----------- | ------------------------------------------------------ |
+| **Phase 1: Cognito Resources**            |             |                                                        |
+| Create User Pool v1 (`mouse-plg-staging`) | ❌ REPLACED | `us-east-1_MDTi26EOf` — name not required, deleted     |
+| Create User Pool v2 (`mouse-staging-v2`)  | ✅          | `us-east-1_CntYimcMm`, required given_name/family_name |
+| Create User Pool Client                   | ✅          | `3jobildap1dobb5vfmiul47bvc`, public PKCE              |
+| Configure Cognito Domain                  | ✅          | `mouse-staging-v2.auth.us-east-1.amazoncognito.com`    |
+| Configure Google social IdP               | ✅          | Attribute mapping: given_name, family_name, email      |
+| Configure GitHub OIDC IdP                 | ⏸️          | **Deferred** — Cognito requires OIDC well-known        |
+| Create Cognito Groups for roles           | ⏸️ DEFERRED | Business RBAC — after Individual E2E complete          |
+| **Phase 2: Code Migration**               |             |                                                        |
+| Remove `@auth0/nextjs-auth0` package      | ✅          | Removed — Cognito migration complete                   |
+| Add `aws-amplify` package                 | ✅          | Amplify Auth v6 + aws-jwt-verify                       |
+| Create `src/lib/cognito.js`               | ✅          | Amplify Auth, PKCE, session helpers                    |
+| Rewrite `src/lib/auth.js`                 | ⬜          | Keep for compatibility, migrate later                  |
+| Simplify `src/middleware.js`              | ✅          | Simplified for Cognito, removed Auth0 dep              |
+| Create `/auth/login/page.js`              | ✅          | Login page with Google button                          |
+| Create `/auth/callback/page.js`           | ✅          | Token exchange with PKCE code_verifier                 |
+| Create `/auth/logout/route.js`            | ✅          | Fixed: uses `logout_uri` per AWS SDK standard          |
+| Update portal pages (claim namespace)     | ✅          | Client components using useUser()/useAuth()            |
+| **Phase 3: Environment Variables**        |             |                                                        |
+| Remove `AUTH0_*` from Amplify             | ⬜          | Deferred — env vars remain for reference               |
+| Add `COGNITO_*` to Amplify                | ✅          | 4 env vars configured in Amplify console               |
+| **Phase 4: Test & Deploy**                |             |                                                        |
+| Test locally                              | ✅          | Login, signup, protected routes working                |
+| Deploy to staging                         | ✅          | Build #14+ deployed, Google OAuth working              |
+| E2E test on staging                       | ✅          | Google OAuth, signup, logout all working               |
+| **Phase 5: Cleanup**                      |             |                                                        |
+| Delete Auth0 application                  | ⬜          | Auth0 Dashboard → Applications (defer post-launch)     |
+| Delete `src/lib/auth0.js`                 | ✅          | Deleted Jan 29 — full legacy code cleanup done         |
 
 ### 3.3 SSO/SAML (Contact Sales)
 
@@ -459,6 +460,7 @@ Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2
 **Actual Root Cause:** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` were **never added to Amplify environment variables**.
 
 **Resolution (Jan 29):**
+
 1. Added `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to Amplify env vars for both branches
 2. The `secrets.js` fallback to `process.env` now works correctly
 3. Gen 2 backend structure created for future IAM-based secrets access
@@ -467,41 +469,41 @@ Pricing: $500 setup + $100/org/month. See [v4.2 pricing](./20260126_PRICING_v4.2
 
 ### 3b.2 What Gen 2 Provides
 
-| Capability | Gen 1 | Gen 2 |
-|------------|-------|-------|
-| IAM for SSR at runtime | ❌ Build-time only | ✅ Full runtime access |
-| Secrets management | Manual Secrets Manager | Native `secret()` function |
-| Infrastructure as code | amplify.yml only | Full CDK in `amplify/` folder |
-| Local development | Limited | `ampx sandbox` environment |
+| Capability             | Gen 1                  | Gen 2                         |
+| ---------------------- | ---------------------- | ----------------------------- |
+| IAM for SSR at runtime | ❌ Build-time only     | ✅ Full runtime access        |
+| Secrets management     | Manual Secrets Manager | Native `secret()` function    |
+| Infrastructure as code | amplify.yml only       | Full CDK in `amplify/` folder |
+| Local development      | Limited                | `ampx sandbox` environment    |
 
 > **Note:** Gen 2 recommends TypeScript but does not require it. Per HIC platform standards, we use **ES6 JavaScript modules** (ESM) for the `amplify/` backend. Files use `.js` extension with `{"type": "module"}` in `amplify/package.json`.
 
 ### 3b.3 Migration Checklist
 
-| Task | Status | Notes |
-|------|--------|-------|
-| **Phase 1: Initialize Gen 2 Backend** | | |
-| Run `npm create amplify@latest` | ✅ | Created `amplify/` folder |
-| Install backend dependencies | ✅ | `@aws-amplify/backend`, `@aws-amplify/backend-cli` |
-| Create `amplify/backend.js` | ✅ | Entry point (ES6 module, not .ts) |
-| Create `amplify/package.json` with ESM | ✅ | `{"type": "module"}` |
-| Bootstrap CDK | ✅ | `cdk bootstrap aws://496998973008/us-east-1` |
-| **Phase 2: Reference Existing Cognito** | | |
-| Create `amplify/auth/resource.js` | ❌ SKIPPED | `referenceAuth()` requires Identity Pool |
-| Use minimal `defineBackend({})` | ✅ | Auth managed in `src/lib/cognito.js` |
-| Test auth still works | ✅ | Login, logout, protected routes all working |
-| **Phase 3: Add Secrets to Amplify Env Vars** | | |
-| Add `STRIPE_SECRET_KEY` to env vars | ✅ | Added via AWS CLI |
-| Add `STRIPE_WEBHOOK_SECRET` to env vars | ✅ | Added via AWS CLI |
-| Verify `secrets.js` fallback works | ✅ | SSM Parameter Store working with Compute role |
-| **Phase 4: Deploy & Test** | | |
-| Connect feature branch to Amplify | ✅ | Branch auto-detected and built |
-| Merge to development | ✅ | Fast-forward merge completed |
-| Deploy to staging.hic-ai.com | ✅ | Build triggered |
-| **Phase 5: Verify E2E** | | |
-| Test login/logout | ✅ | Google OAuth working |
-| Test checkout flow | ✅ | All 4 routes working (Individual/Business × Monthly/Annual) |
-| Add diagnostic error codes | ✅ | `[AUTH-xxx]`, `[SEC-xxx]`, `[STRIPE-xxx]` |
+| Task                                         | Status     | Notes                                                       |
+| -------------------------------------------- | ---------- | ----------------------------------------------------------- |
+| **Phase 1: Initialize Gen 2 Backend**        |            |                                                             |
+| Run `npm create amplify@latest`              | ✅         | Created `amplify/` folder                                   |
+| Install backend dependencies                 | ✅         | `@aws-amplify/backend`, `@aws-amplify/backend-cli`          |
+| Create `amplify/backend.js`                  | ✅         | Entry point (ES6 module, not .ts)                           |
+| Create `amplify/package.json` with ESM       | ✅         | `{"type": "module"}`                                        |
+| Bootstrap CDK                                | ✅         | `cdk bootstrap aws://496998973008/us-east-1`                |
+| **Phase 2: Reference Existing Cognito**      |            |                                                             |
+| Create `amplify/auth/resource.js`            | ❌ SKIPPED | `referenceAuth()` requires Identity Pool                    |
+| Use minimal `defineBackend({})`              | ✅         | Auth managed in `src/lib/cognito.js`                        |
+| Test auth still works                        | ✅         | Login, logout, protected routes all working                 |
+| **Phase 3: Add Secrets to Amplify Env Vars** |            |                                                             |
+| Add `STRIPE_SECRET_KEY` to env vars          | ✅         | Added via AWS CLI                                           |
+| Add `STRIPE_WEBHOOK_SECRET` to env vars      | ✅         | Added via AWS CLI                                           |
+| Verify `secrets.js` fallback works           | ✅         | SSM Parameter Store working with Compute role               |
+| **Phase 4: Deploy & Test**                   |            |                                                             |
+| Connect feature branch to Amplify            | ✅         | Branch auto-detected and built                              |
+| Merge to development                         | ✅         | Fast-forward merge completed                                |
+| Deploy to staging.hic-ai.com                 | ✅         | Build triggered                                             |
+| **Phase 5: Verify E2E**                      |            |                                                             |
+| Test login/logout                            | ✅         | Google OAuth working                                        |
+| Test checkout flow                           | ✅         | All 4 routes working (Individual/Business × Monthly/Annual) |
+| Add diagnostic error codes                   | ✅         | `[AUTH-xxx]`, `[SEC-xxx]`, `[STRIPE-xxx]`                   |
 
 ### 3b.4 Key Configuration Values
 
@@ -525,27 +527,28 @@ Amplify Env Vars: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET (runtime)
 
 Comprehensive error codes added to isolate checkout failures:
 
-| Code | Location | Meaning |
-|------|----------|--------|
-| `[AUTH-001]` | Frontend | OAuth session retrieval failed |
-| `[AUTH-002]` | Frontend | No OAuth session found |
-| `[AUTH-003]` | Frontend | Session missing ID token |
-| `[NET-001]` | Frontend | Network error calling API |
-| `[API-001]` | Frontend | Couldn't parse API response |
-| `[SRV-001]` to `[SRV-005]` | Backend | Request validation errors |
-| `[SEC-001]` | Backend | Secrets Manager retrieval failed |
-| `[SEC-002]` | Backend | AWS credentials unavailable |
-| `[SEC-003]` | Backend | Invalid Stripe API key |
-| `[STRIPE-001]` | Backend | Invalid price ID |
-| `[STRIPE-004]` | Backend | Stripe authentication failed |
+| Code                       | Location | Meaning                          |
+| -------------------------- | -------- | -------------------------------- |
+| `[AUTH-001]`               | Frontend | OAuth session retrieval failed   |
+| `[AUTH-002]`               | Frontend | No OAuth session found           |
+| `[AUTH-003]`               | Frontend | Session missing ID token         |
+| `[NET-001]`                | Frontend | Network error calling API        |
+| `[API-001]`                | Frontend | Couldn't parse API response      |
+| `[SRV-001]` to `[SRV-005]` | Backend  | Request validation errors        |
+| `[SEC-001]`                | Backend  | Secrets Manager retrieval failed |
+| `[SEC-002]`                | Backend  | AWS credentials unavailable      |
+| `[SEC-003]`                | Backend  | Invalid Stripe API key           |
+| `[STRIPE-001]`             | Backend  | Invalid price ID                 |
+| `[STRIPE-004]`             | Backend  | Stripe authentication failed     |
 
 ### 3b.6 Diagnosis Complete (Jan 29, 2:30 PM EST)
 
 **Error received:** `[SEC-999] Stripe init failed: Neither apiKey nor config.authenticator provided`
 
 **What this confirms:**
+
 - ✅ Frontend auth working (no AUTH-xxx errors)
-- ✅ API request/response working (no NET-xxx, SRV-xxx errors)  
+- ✅ API request/response working (no NET-xxx, SRV-xxx errors)
 - ❌ `STRIPE_SECRET_KEY` is `undefined` at SSR runtime
 
 **Root cause confirmed:** Amplify Gen 1 WEB_COMPUTE does NOT pass environment variables to SSR Lambda at runtime—only during build. The env var exists (`sk_test_51SsU8DA4W8n...`) but isn't reaching `process.env` in the Lambda.
@@ -555,11 +558,13 @@ Comprehensive error codes added to isolate checkout failures:
 Instead of Amplify's `secret()` function (which requires custom Lambda functions), we use **SSM Parameter Store** which is accessible from SSR at runtime with proper IAM permissions.
 
 **Implementation:**
+
 1. Created `manage-ssm-secrets.sh` script to manage SSM secrets
 2. Updated `secrets.js` to fetch from SSM at `/plg/secrets/<app-id>/` path
 3. Copied secrets from Secrets Manager to SSM Parameter Store
 
 **Script usage:**
+
 ```bash
 # List all secrets
 ./scripts/manage-ssm-secrets.sh list
@@ -572,6 +577,7 @@ Instead of Amplify's `secret()` function (which requires custom Lambda functions
 ```
 
 **Secret priority order in `secrets.js`:**
+
 1. Local development: `process.env` (from `.env.local`)
 2. SSM Parameter Store: `/plg/secrets/d2yhz9h4xdd5rb/<key>`
 3. AWS Secrets Manager: `plg/staging/stripe` (fallback)
@@ -579,27 +585,28 @@ Instead of Amplify's `secret()` function (which requires custom Lambda functions
 
 ### 3b.8 SSM Secrets Checklist
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Create `manage-ssm-secrets.sh` | ✅ | With MSYS path conversion fix |
-| Update `secrets.js` SSM paths | ✅ | `/plg/secrets/<app-id>/<key>` |
-| Copy `STRIPE_SECRET_KEY` to SSM | ✅ | Via `copy-from-secrets-manager` |
-| Copy `STRIPE_WEBHOOK_SECRET` to SSM | ✅ | Via `copy-from-secrets-manager` |
-| Add IAM policy for SSM access | ✅ | `SSMParameterAccess` policy |
-| Create Amplify Compute role | ✅ | `plg-amplify-compute-role-staging` |
-| Configure Compute role in Console | ✅ | Set via Amplify Console → IAM roles |
-| Deploy and test | ✅ | **All 4 checkout paths working!** |
+| Task                                | Status | Notes                               |
+| ----------------------------------- | ------ | ----------------------------------- |
+| Create `manage-ssm-secrets.sh`      | ✅     | With MSYS path conversion fix       |
+| Update `secrets.js` SSM paths       | ✅     | `/plg/secrets/<app-id>/<key>`       |
+| Copy `STRIPE_SECRET_KEY` to SSM     | ✅     | Via `copy-from-secrets-manager`     |
+| Copy `STRIPE_WEBHOOK_SECRET` to SSM | ✅     | Via `copy-from-secrets-manager`     |
+| Add IAM policy for SSM access       | ✅     | `SSMParameterAccess` policy         |
+| Create Amplify Compute role         | ✅     | `plg-amplify-compute-role-staging`  |
+| Configure Compute role in Console   | ✅     | Set via Amplify Console → IAM roles |
+| Deploy and test                     | ✅     | **All 4 checkout paths working!**   |
 
 ### 3b.10 IAM Configuration Summary (Jan 29)
 
 **The Fix:** Amplify SSR requires a **Compute role** (separate from Service role) for runtime AWS API access.
 
-| Role | ARN | Purpose |
-|------|-----|---------|
-| Service Role | `arn:aws:iam::496998973008:role/plg-amplify-role-staging` | Build-time operations |
+| Role         | ARN                                                               | Purpose                    |
+| ------------ | ----------------------------------------------------------------- | -------------------------- |
+| Service Role | `arn:aws:iam::496998973008:role/plg-amplify-role-staging`         | Build-time operations      |
 | Compute Role | `arn:aws:iam::496998973008:role/plg-amplify-compute-role-staging` | **SSR runtime AWS access** |
 
 **Compute Role Policies:**
+
 - `SSMParameterAccess` — Read `/plg/secrets/*` parameters
 - `DynamoDBAccess` — CRUD on `hic-plg-staging` table
 - `SESAccess` — Send emails via SES
@@ -609,19 +616,19 @@ Instead of Amplify's `secret()` function (which requires custom Lambda functions
 
 For production, consider migrating to Amplify Gen 2's native `secret()` function:
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Update `amplify/backend.js` with `defineSecret()` | ⬜ DEFERRED | Post-MVP |
-| Grant SSR function access to secrets | ⬜ DEFERRED | Via `backend.addOutput()` |
-| Run `ampx sandbox secret set` | ⬜ DEFERRED | For local development |
-| Add secrets via Amplify Console | ⬜ DEFERRED | For deployed branches |
-| **Phase 3: Update Code to Use Secrets** | | |
-| Update `secrets.js` to use `env.STRIPE_SECRET_KEY` | ⬜ | Gen 2 injects via `env` |
-| Test locally with `ampx sandbox` | ⬜ | Verify secret injection |
-| **Phase 4: Deploy and Verify** | | |
-| Push to development | ⬜ | Triggers rebuild |
-| Test checkout on staging | ✅ | **WORKING** — All 4 checkout paths redirect to Stripe |
-| Remove diagnostic logging | ⬜ | After confirmed working |
+| Task                                               | Status      | Notes                                                 |
+| -------------------------------------------------- | ----------- | ----------------------------------------------------- |
+| Update `amplify/backend.js` with `defineSecret()`  | ⬜ DEFERRED | Post-MVP                                              |
+| Grant SSR function access to secrets               | ⬜ DEFERRED | Via `backend.addOutput()`                             |
+| Run `ampx sandbox secret set`                      | ⬜ DEFERRED | For local development                                 |
+| Add secrets via Amplify Console                    | ⬜ DEFERRED | For deployed branches                                 |
+| **Phase 3: Update Code to Use Secrets**            |             |                                                       |
+| Update `secrets.js` to use `env.STRIPE_SECRET_KEY` | ⬜          | Gen 2 injects via `env`                               |
+| Test locally with `ampx sandbox`                   | ⬜          | Verify secret injection                               |
+| **Phase 4: Deploy and Verify**                     |             |                                                       |
+| Push to development                                | ⬜          | Triggers rebuild                                      |
+| Test checkout on staging                           | ✅          | **WORKING** — All 4 checkout paths redirect to Stripe |
+| Remove diagnostic logging                          | ⬜          | After confirmed working                               |
 
 ---
 
@@ -904,22 +911,80 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 
 ---
 
-## 8. VS Code Extension (VSIX) — 🟡 NEAR COMPLETE
+## 8. VS Code Extension (VSIX) — ✅ PHASE 4 COMPLETE
 
-**Status:** 🟡 **NEAR COMPLETE** — VSIX v0.9.9 built, 139 tests passing, only wire-up + publish remaining  
-**Est. Hours:** 8-12h remaining (scaffold, MCP integration, licensing, heartbeat, VSIX build all complete)  
-**Documentation:** [GC_STRATEGY_FOR_VS_CODE_EXTENSION_MIGRATION.md](../20260123_GC_STRATEGY_FOR_VS_CODE_EXTENSION_MIGRATION.md) (1,628 lines), [MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md](../20260124_MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md) (1,253 lines)
+**Status:** ✅ **PHASE 4 COMPLETE** — VSIX v0.10.1 built and tested, licensing architecture refactored, CI/CD pipeline ready  
+**Est. Hours:** 4-6h remaining (marketplace publish + production API deploy only)  
+**Documentation:** [GC_STRATEGY_FOR_VS_CODE_EXTENSION_MIGRATION.md](../20260123_GC_STRATEGY_FOR_VS_CODE_EXTENSION_MIGRATION.md) (1,628 lines), [MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md](../20260124_MOUSE_LICENSING_TRIAL_IMPLEMENTATION_PLAN.md) (1,253 lines), [Licensing Architecture Refactor](https://github.com/SimonReiff/hic/blob/main/plg/docs/20260201_GC_TECH_SPEC_LICENSING_ARCHITECTURE_REFACTOR.md), [Auto-Update Integration Addendum](https://github.com/SimonReiff/hic/blob/main/plg/docs/20260201_GC_TECH_SPEC_ADDENDUM_AUTO_UPDATE_INTEGRATION.md)
 
+### 8.1 Progress Update (Feb 1, 2026)
 
-### 8.1 Progress Update (Jan 29, 2026)
-
-> ✅ **Server-Side Complete:** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration Tests (13 tests). Total: 91 new tests.
+> ✅ **Server-Side Complete:** Heartbeat API (27 tests), Trial Token API (33 tests), Rate Limiting (18 tests), Integration Tests (13 tests). Total: 91 server tests.
 >
-> ✅ **Client-Side Complete:** Extension scaffold, MCP integration, StatusBarManager, licensing (139 tests), heartbeat, fingerprint generation, state management.
+> ✅ **Client-Side Complete (Feb 1):**
 >
-> 🟡 **Remaining:** `Activate License` command implementation, live API wiring, VS Code Publisher account setup, marketplace publish.
+> - **Licensing Architecture Refactor:** Consolidated all licensing logic into shared `/licensing/` core library at `/hic/licensing/`. Single source of truth for state management, validation, heartbeat, and CLI commands.
+> - **Unified Version Management (v0.10.0):** `mouse/VERSION` file as canonical source. `mouse-version.js` script syncs version across all `package.json` files.
+> - **CI/CD Pipeline Phase 1 & 2:** GitHub workflows for version bump (`version-bump.yml`), release (`release.yml`), and VSIX publish (`publish-vsix.yml`) with production gate.
+> - **Heartbeat Manager:** Robust background heartbeat with proper validation and state persistence.
+> - **CLI Commands:** Unified `hic` CLI with `mouse license status|activate|deactivate|info` subcommands.
+> - **Core Validate Command:** License validation with grace period support.
+> - **VSIX ESM Build:** Fixed imports to use source `/licensing/` directory.
+>
+> ✅ **E2E Validated (Feb 1):** Mouse v0.10.1 installed, activated with real Keygen license, device registration working, heartbeat successful.
+>
+> 🟡 **Remaining (4-6h):**
+>
+> - Auto-Update Integration (blocked on B1-B4 server-side work — see Addendum)
+> - VS Code Marketplace publish
+> - Production API deployment (`api.hic-ai.com`)
 
-### 8.2 Work Breakdown (8-12h remaining)
+### 8.1.1 Licensing Architecture Refactor (Feb 1)
+
+The client-side licensing was consolidated from 3 separate implementations into a single shared library:
+
+| Component        | Location                            | Purpose                                         |
+| ---------------- | ----------------------------------- | ----------------------------------------------- |
+| **Core Library** | `/hic/licensing/`                   | Shared state, validation, constants             |
+| `state.js`       | `/licensing/state.js`               | `LicenseStateManager` - canonical state storage |
+| `validation.js`  | `/licensing/validation.js`          | Heartbeat response validation                   |
+| `constants.js`   | `/licensing/constants.js`           | Status values, URLs, timing                     |
+| `heartbeat.js`   | `/licensing/heartbeat.js`           | Heartbeat manager                               |
+| **Commands**     | `/licensing/commands/`              | CLI command implementations                     |
+| `status.js`      | `/licensing/commands/status.js`     | `hic mouse license status`                      |
+| `activate.js`    | `/licensing/commands/activate.js`   | License activation                              |
+| `deactivate.js`  | `/licensing/commands/deactivate.js` | Device deactivation                             |
+| `validate.js`    | `/licensing/commands/validate.js`   | Grace period validation                         |
+| **Consumers**    |                                     | Use shared library                              |
+| MCP Server       | `/mouse/src/licensing/`             | Imports from `/licensing/`                      |
+| VSIX             | `/mouse-vscode/src/licensing/`      | Imports from `/licensing/`                      |
+| CLI              | `/packaging/cli/bin/`               | `hic mouse` commands                            |
+
+### 8.1.2 CI/CD Pipeline (Feb 1)
+
+| Phase       | Workflow           | Trigger         | Purpose                                    |
+| ----------- | ------------------ | --------------- | ------------------------------------------ |
+| **Phase 1** | `version-bump.yml` | Manual          | Increment VERSION, sync package.json files |
+| **Phase 2** | `release.yml`      | Push to main    | Create GitHub Release with changelog       |
+| **Phase 2** | `publish-vsix.yml` | Release created | Build VSIX, publish to Marketplace         |
+
+**Production Gate:** `PRODUCTION_READY` repository variable must be `true` for marketplace publish. Currently `false` (staging only).
+
+### 8.1.3 Auto-Update Integration Blockers (Feb 1)
+
+Per the [Auto-Update Addendum](https://github.com/SimonReiff/hic/blob/main/plg/docs/20260201_GC_TECH_SPEC_ADDENDUM_AUTO_UPDATE_INTEGRATION.md), the following server-side blockers must be resolved before auto-update can be implemented:
+
+| Blocker | Description                                                  | Status                                              |
+| ------- | ------------------------------------------------------------ | --------------------------------------------------- |
+| **B0**  | Fix user-to-license lookup (query by email only)             | ✅ **RESOLVED** (Feb 1) — Portal devices page fixed |
+| **B1**  | Add `VERSION#mouse` record to DynamoDB                       | ⬜ TODO                                             |
+| **B2**  | Heartbeat returns `latestVersion`, `minVersion`, `updateUrl` | ⬜ TODO                                             |
+| **B3**  | Deploy to staging.hic-ai.com                                 | ⬜ TODO                                             |
+| **B4**  | Deploy to api.hic-ai.com (production)                        | ⬜ TODO                                             |
+
+Once B1-B4 are complete, client-side auto-update (C1-C7) can be implemented per the spec.
+
+### 8.2 Work Breakdown (4-6h remaining)
 
 #### Phase 1: Extension Scaffold ✅ COMPLETE
 
@@ -1020,82 +1085,82 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 
 #### 9.0.1 Phase 1: Settings API Wire-up ✅ COMPLETE
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| Create Cognito User Pool v2 (`mouse-staging-v2`) | ✅ | Required `given_name`/`family_name` at signup |
-| Configure Google IdP with attribute mapping | ✅ | Maps given_name, family_name, email, picture |
-| Update `cognito.js` for name field extraction | ✅ | Builds fullName from given/middle/family |
-| Create `updateCustomerProfile()` in DynamoDB lib | ✅ | Partial update via UpdateCommand |
-| Update Settings API for separate name fields | ✅ | Validates givenName, middleName, familyName |
-| Update Settings page UI (3-column name grid) | ✅ | First Name, Middle Initial, Last Name |
-| Verify JWT auth on protected API routes | ✅ | `getSessionFromRequest()` validates tokens |
+| Task                                             | Status | Notes                                         |
+| ------------------------------------------------ | ------ | --------------------------------------------- |
+| Create Cognito User Pool v2 (`mouse-staging-v2`) | ✅     | Required `given_name`/`family_name` at signup |
+| Configure Google IdP with attribute mapping      | ✅     | Maps given_name, family_name, email, picture  |
+| Update `cognito.js` for name field extraction    | ✅     | Builds fullName from given/middle/family      |
+| Create `updateCustomerProfile()` in DynamoDB lib | ✅     | Partial update via UpdateCommand              |
+| Update Settings API for separate name fields     | ✅     | Validates givenName, middleName, familyName   |
+| Update Settings page UI (3-column name grid)     | ✅     | First Name, Middle Initial, Last Name         |
+| Verify JWT auth on protected API routes          | ✅     | `getSessionFromRequest()` validates tokens    |
 
 #### 9.0.2 Phase 2: Checkout Flow Wire-up 🟡 NEXT
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| `/api/checkout` → redirect to `checkout.stripe.com` | ⬜ | Smart routing based on auth state |
-| Pass `client_reference_id` with Cognito `sub` | ⬜ | Links Stripe customer to DynamoDB record |
-| Create/update customer record pre-checkout | ⬜ | Ensure DynamoDB record exists |
-| Handle checkout success callback | ⬜ | Update subscription status |
-| Handle checkout cancel callback | ⬜ | Track abandoned carts |
+| Task                                                | Status | Notes                                    |
+| --------------------------------------------------- | ------ | ---------------------------------------- |
+| `/api/checkout` → redirect to `checkout.stripe.com` | ⬜     | Smart routing based on auth state        |
+| Pass `client_reference_id` with Cognito `sub`       | ⬜     | Links Stripe customer to DynamoDB record |
+| Create/update customer record pre-checkout          | ⬜     | Ensure DynamoDB record exists            |
+| Handle checkout success callback                    | ⬜     | Update subscription status               |
+| Handle checkout cancel callback                     | ⬜     | Track abandoned carts                    |
 
 #### 9.0.3 Phase 3: Stripe Webhook Integration ✅ COMPLETE (Jan 29)
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| `checkout.session.completed` → create customer | ✅ | customer-update Lambda |
-| `customer.subscription.created` → update status | ✅ | customer-update Lambda |
-| `customer.subscription.updated` → sync changes | ✅ | customer-update Lambda |
-| `customer.subscription.deleted` → mark cancelled | ✅ | customer-update Lambda |
-| `invoice.payment_succeeded` → update billing | ✅ | customer-update Lambda |
-| `invoice.payment_failed` → trigger grace period | ✅ | customer-update Lambda |
+| Task                                             | Status | Notes                  |
+| ------------------------------------------------ | ------ | ---------------------- |
+| `checkout.session.completed` → create customer   | ✅     | customer-update Lambda |
+| `customer.subscription.created` → update status  | ✅     | customer-update Lambda |
+| `customer.subscription.updated` → sync changes   | ✅     | customer-update Lambda |
+| `customer.subscription.deleted` → mark cancelled | ✅     | customer-update Lambda |
+| `invoice.payment_succeeded` → update billing     | ✅     | customer-update Lambda |
+| `invoice.payment_failed` → trigger grace period  | ✅     | customer-update Lambda |
 
 #### 9.0.4 Phase 4: KeyGen Webhook Integration 🔲 PENDING
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| `license.created` → store license key | ⬜ | Link to customer record |
-| `license.validated` → update last validation | ⬜ | Track license health |
-| `license.suspended` → update status | ⬜ | Payment-related suspension |
-| `machine.created` → track device activation | ⬜ | Update device count |
-| `machine.deleted` → update device list | ⬜ | Device deactivation |
+| Task                                         | Status | Notes                      |
+| -------------------------------------------- | ------ | -------------------------- |
+| `license.created` → store license key        | ⬜     | Link to customer record    |
+| `license.validated` → update last validation | ⬜     | Track license health       |
+| `license.suspended` → update status          | ⬜     | Payment-related suspension |
+| `machine.created` → track device activation  | ⬜     | Update device count        |
+| `machine.deleted` → update device list       | ⬜     | Device deactivation        |
 
 #### 9.0.5 Phase 5: Portal Data Display 🔲 PENDING
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| Dashboard: Show subscription status | ⬜ | From DynamoDB record |
-| Dashboard: Show license status | ⬜ | From KeyGen via API |
-| License page: Display license key | ⬜ | Mask with reveal toggle |
-| Billing page: Show payment history | ⬜ | From Stripe via API |
-| Devices page: List active machines | ⬜ | From KeyGen via API |
+| Task                                | Status | Notes                   |
+| ----------------------------------- | ------ | ----------------------- |
+| Dashboard: Show subscription status | ⬜     | From DynamoDB record    |
+| Dashboard: Show license status      | ⬜     | From KeyGen via API     |
+| License page: Display license key   | ⬜     | Mask with reveal toggle |
+| Billing page: Show payment history  | ⬜     | From Stripe via API     |
+| Devices page: List active machines  | ⬜     | From KeyGen via API     |
 
 ### 9.1 Test Scenarios
 
-| Scenario                                          | Status | Coverage                |
-| ------------------------------------------------- | ------ | ----------------------- |
-| **Purchase Flows**                                |        |                         |
-| Individual: Checkout → Payment → License created  | ✅     | UI + Lambda handlers    |
-| Team: Checkout → Payment → Org + Licenses created | ✅     | UI + Lambda handlers    |
-| **Activation Flows**                              |        |                         |
-| Activate license with valid key                   | ⬜     | KeyGen machine create   |
-| Activate with expired/revoked key                 | ⬜     | Error handling          |
-| Concurrent session enforcement                    | ⬜     | Heartbeat timeout       |
-| **Portal Flows**                                  |        |                         |
-| Login → View dashboard                            | ✅     | Cognito + Portal        |
-| Update profile (name fields)                      | ✅     | Settings API wired      |
-| View/copy license key                             | 🟡     | UI exists, data TODO    |
-| Deactivate device                                 | 🟡     | UI exists, KeyGen TODO  |
-| Update payment method                             | ✅     | Stripe Portal link      |
-| **Team Admin Flows**                              |        |                         |
-| Invite member → Accept → Login                    | ✅     | Full invite flow        |
-| Revoke member → License deactivated               | ✅     | TeamManagement.js       |
-| Change role (member → admin)                      | ✅     | TeamManagement.js       |
-| **Webhook Flows**                                 |        |                         |
-| Stripe subscription created                       | ✅     | customer-update Lambda  |
-| Stripe subscription cancelled                     | ✅     | customer-update Lambda  |
-| Stripe payment failed                             | ⬜     | Grace period handling   |
+| Scenario                                          | Status | Coverage               |
+| ------------------------------------------------- | ------ | ---------------------- |
+| **Purchase Flows**                                |        |                        |
+| Individual: Checkout → Payment → License created  | ✅     | UI + Lambda handlers   |
+| Team: Checkout → Payment → Org + Licenses created | ✅     | UI + Lambda handlers   |
+| **Activation Flows**                              |        |                        |
+| Activate license with valid key                   | ⬜     | KeyGen machine create  |
+| Activate with expired/revoked key                 | ⬜     | Error handling         |
+| Concurrent session enforcement                    | ⬜     | Heartbeat timeout      |
+| **Portal Flows**                                  |        |                        |
+| Login → View dashboard                            | ✅     | Cognito + Portal       |
+| Update profile (name fields)                      | ✅     | Settings API wired     |
+| View/copy license key                             | 🟡     | UI exists, data TODO   |
+| Deactivate device                                 | 🟡     | UI exists, KeyGen TODO |
+| Update payment method                             | ✅     | Stripe Portal link     |
+| **Team Admin Flows**                              |        |                        |
+| Invite member → Accept → Login                    | ✅     | Full invite flow       |
+| Revoke member → License deactivated               | ✅     | TeamManagement.js      |
+| Change role (member → admin)                      | ✅     | TeamManagement.js      |
+| **Webhook Flows**                                 |        |                        |
+| Stripe subscription created                       | ✅     | customer-update Lambda |
+| Stripe subscription cancelled                     | ✅     | customer-update Lambda |
+| Stripe payment failed                             | ⬜     | Grace period handling  |
 
 ### 9.2 Test Environments
 
@@ -1112,11 +1177,13 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 **Endpoint:** `POST /api/admin/provision-test-license`
 
 **Security:**
+
 - Staging-only (returns 403 in production)
 - Requires `x-admin-key` header (from Secrets Manager `plg/staging/app`)
 - All records marked with `testMode: true` for identification
 
 **What It Does:**
+
 1. Creates a **real Keygen license** (not mocked)
 2. Writes customer record to DynamoDB (for Admin Portal)
 3. Writes license record to DynamoDB with `eventType: LICENSE_CREATED`
@@ -1124,6 +1191,7 @@ develop → PR → CI tests → merge to main → manual approval → deploy pro
 5. Returns full license key for VS Code extension testing
 
 **Usage:**
+
 ```bash
 curl -X POST https://staging.mouse.hic-ai.com/api/admin/provision-test-license \
   -H "Content-Type: application/json" \
@@ -1132,6 +1200,7 @@ curl -X POST https://staging.mouse.hic-ai.com/api/admin/provision-test-license \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1154,67 +1223,67 @@ curl -X POST https://staging.mouse.hic-ai.com/api/admin/provision-test-license \
 
 #### Phase A: Validate Test Endpoint (Next Session)
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| Call test endpoint with real email | ⬜ | Verify real Keygen license created |
-| Verify DynamoDB records created | ⬜ | LICENSE# and USER# records |
-| Verify stream-processor logs LICENSE event | ⬜ | CloudWatch logs |
-| Verify email-sender Lambda triggers | ⬜ | CloudWatch logs |
-| **Verify email arrives with license key** | ⬜ | **Critical validation** |
-| Test license key in VS Code extension | ⬜ | Activate and remove trial |
+| Task                                       | Status | Notes                              |
+| ------------------------------------------ | ------ | ---------------------------------- |
+| Call test endpoint with real email         | ⬜     | Verify real Keygen license created |
+| Verify DynamoDB records created            | ⬜     | LICENSE# and USER# records         |
+| Verify stream-processor logs LICENSE event | ⬜     | CloudWatch logs                    |
+| Verify email-sender Lambda triggers        | ⬜     | CloudWatch logs                    |
+| **Verify email arrives with license key**  | ⬜     | **Critical validation**            |
+| Test license key in VS Code extension      | ⬜     | Activate and remove trial          |
 
 #### Phase B: Admin Portal Wire-up
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| Dashboard: Display subscription status | ⬜ | From DynamoDB customer record |
-| Dashboard: Display license key (masked) | ⬜ | From DynamoDB license record |
-| Billing: Show Stripe payment history | ⬜ | Stripe API or portal link |
-| Billing: Update payment method | ⬜ | Stripe Customer Portal |
-| Devices: List active machines | ⬜ | From KeyGen API |
-| Devices: Deactivate device | ⬜ | KeyGen machine delete |
+| Task                                    | Status | Notes                         |
+| --------------------------------------- | ------ | ----------------------------- |
+| Dashboard: Display subscription status  | ⬜     | From DynamoDB customer record |
+| Dashboard: Display license key (masked) | ⬜     | From DynamoDB license record  |
+| Billing: Show Stripe payment history    | ⬜     | Stripe API or portal link     |
+| Billing: Update payment method          | ⬜     | Stripe Customer Portal        |
+| Devices: List active machines           | ⬜     | From KeyGen API               |
+| Devices: Deactivate device              | ⬜     | KeyGen machine delete         |
 
 #### Phase C: Subscription Lifecycle Testing
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| Test subscription renewal (mock) | ⬜ | Stripe test clock or webhook |
-| Test payment failure → grace period | ⬜ | `invoice.payment_failed` webhook |
-| Test grace period expiry → suspension | ⬜ | scheduled-tasks Lambda |
-| Test payment method update → reactivation | ⬜ | Stripe Customer Portal |
-| Test subscription cancellation | ⬜ | Cancel at period end |
-| Test resubscription after cancellation | ⬜ | New checkout flow |
+| Task                                      | Status | Notes                            |
+| ----------------------------------------- | ------ | -------------------------------- |
+| Test subscription renewal (mock)          | ⬜     | Stripe test clock or webhook     |
+| Test payment failure → grace period       | ⬜     | `invoice.payment_failed` webhook |
+| Test grace period expiry → suspension     | ⬜     | scheduled-tasks Lambda           |
+| Test payment method update → reactivation | ⬜     | Stripe Customer Portal           |
+| Test subscription cancellation            | ⬜     | Cancel at period end             |
+| Test resubscription after cancellation    | ⬜     | New checkout flow                |
 
 #### Phase D: Email Pipeline Verification
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| License delivery email | ⬜ | LICENSE_CREATED event |
-| Payment received confirmation | ⬜ | CUSTOMER_CREATED event |
-| Payment failed notice | ⬜ | PAYMENT_FAILED event |
-| Subscription renewal reminder | ⬜ | TRIAL_ENDING or scheduled |
-| Cancellation confirmation | ⬜ | SUBSCRIPTION_CANCELLED event |
+| Task                          | Status | Notes                        |
+| ----------------------------- | ------ | ---------------------------- |
+| License delivery email        | ⬜     | LICENSE_CREATED event        |
+| Payment received confirmation | ⬜     | CUSTOMER_CREATED event       |
+| Payment failed notice         | ⬜     | PAYMENT_FAILED event         |
+| Subscription renewal reminder | ⬜     | TRIAL_ENDING or scheduled    |
+| Cancellation confirmation     | ⬜     | SUBSCRIPTION_CANCELLED event |
 
 #### Phase E: VS Code Extension Finalization
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| Activate License command | ⬜ | Enter key, validate with Keygen |
-| Trial nag banner removal | ⬜ | After valid license activation |
-| Heartbeat loop | ✅ | Already implemented |
-| Concurrent session enforcement | ⬜ | Test with multiple machines |
-| VSIX marketplace publish | ⬜ | After all validations pass |
+| Task                           | Status | Notes                           |
+| ------------------------------ | ------ | ------------------------------- |
+| Activate License command       | ⬜     | Enter key, validate with Keygen |
+| Trial nag banner removal       | ⬜     | After valid license activation  |
+| Heartbeat loop                 | ✅     | Already implemented             |
+| Concurrent session enforcement | ⬜     | Test with multiple machines     |
+| VSIX marketplace publish       | ⬜     | After all validations pass      |
 
 #### Phase F: Business/RBAC (After Individual Complete)
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| Cognito Groups for roles | ⬜ | Owner, Admin, Member |
-| Owner account = Individual + Team page | ⬜ | Nearly identical |
-| Admin account = Owner - Billing | ⬜ | Subset of pages |
-| Member account = Dashboard + Devices only | ⬜ | Minimal pages |
-| Team seat management | ⬜ | Already built in TeamManagement.js |
-| Invite flow (already complete) | ✅ | Working |
+| Task                                      | Status | Notes                              |
+| ----------------------------------------- | ------ | ---------------------------------- |
+| Cognito Groups for roles                  | ⬜     | Owner, Admin, Member               |
+| Owner account = Individual + Team page    | ⬜     | Nearly identical                   |
+| Admin account = Owner - Billing           | ⬜     | Subset of pages                    |
+| Member account = Dashboard + Devices only | ⬜     | Minimal pages                      |
+| Team seat management                      | ⬜     | Already built in TeamManagement.js |
+| Invite flow (already complete)            | ✅     | Working                            |
 
 ---
 
@@ -1263,30 +1332,30 @@ curl -X POST https://staging.mouse.hic-ai.com/api/admin/provision-test-license \
 
 ### 11.1 Pre-Launch Checklist
 
-| Task                                         | Status | Notes                      |
-| -------------------------------------------- | ------ | -------------------------- |
-| **Infrastructure**                           |        |                            |
-| Deploy CloudFormation stacks                 | ✅     | Staging: Jan 27, 2026      |
-| Verify DynamoDB table exists                 | ✅     | `hic-plg-staging` ACTIVE   |
-| Add SES DNS records to GoDaddy               | ✅     | 4 records added            |
-| Verify SES domain verified                   | ✅     | Domain + DKIM verified     |
-| **Environment**                              |        |                            |
-| All env vars set in Amplify                  | ✅     | 15 variables (secrets moved)|
+| Task                                         | Status | Notes                        |
+| -------------------------------------------- | ------ | ---------------------------- |
+| **Infrastructure**                           |        |                              |
+| Deploy CloudFormation stacks                 | ✅     | Staging: Jan 27, 2026        |
+| Verify DynamoDB table exists                 | ✅     | `hic-plg-staging` ACTIVE     |
+| Add SES DNS records to GoDaddy               | ✅     | 4 records added              |
+| Verify SES domain verified                   | ✅     | Domain + DKIM verified       |
+| **Environment**                              |        |                              |
+| All env vars set in Amplify                  | ✅     | 15 variables (secrets moved) |
 | Secrets in Parameter Store / Secrets Manager | ✅     | 3 secrets in Secrets Manager |
-| **DNS**                                      |        |                            |
-| Amplify connected to staging.hic-ai.com      | 🟡     | DNS records added          |
-| SSL certificate provisioned                  | 🟡     | ACM verification pending   |
-| **Third-Party Services**                     |        |                            |
-| Stripe webhooks pointing to production       | ⬜     | Update URL                 |
-| KeyGen webhooks pointing to production       | ⬜     | Update URL                 |
-| Auth0 callback URLs include production       | ⬜     | Update URLs                |
-| **Testing**                                  |        |                            |
-| Smoke test all critical paths                | ⬜     | Checkout, activate, portal |
-| Test on multiple browsers                    | ⬜     | Chrome, Firefox, Safari    |
-| Test on mobile                               | ⬜     | Responsive                 |
-| **Rollback Plan**                            |        |                            |
-| Document rollback procedure                  | ⬜     | If launch fails            |
-| Verify can disable signups if needed         | ⬜     | Emergency brake            |
+| **DNS**                                      |        |                              |
+| Amplify connected to staging.hic-ai.com      | 🟡     | DNS records added            |
+| SSL certificate provisioned                  | 🟡     | ACM verification pending     |
+| **Third-Party Services**                     |        |                              |
+| Stripe webhooks pointing to production       | ⬜     | Update URL                   |
+| KeyGen webhooks pointing to production       | ⬜     | Update URL                   |
+| Auth0 callback URLs include production       | ⬜     | Update URLs                  |
+| **Testing**                                  |        |                              |
+| Smoke test all critical paths                | ⬜     | Checkout, activate, portal   |
+| Test on multiple browsers                    | ⬜     | Chrome, Firefox, Safari      |
+| Test on mobile                               | ⬜     | Responsive                   |
+| **Rollback Plan**                            |        |                              |
+| Document rollback procedure                  | ⬜     | If launch fails              |
+| Verify can disable signups if needed         | ⬜     | Emergency brake              |
 
 ### 11.2 Launch Day Checklist
 
@@ -1381,7 +1450,7 @@ User Issue
 
 ## Dependencies Graph
 
-```
+````
 ┌─────────────────────────────────────────────────────────────────┐
 
 ---
@@ -1433,57 +1502,57 @@ aws dynamodb get-item --table-name hic-plg-staging \
 # Check SQS queue depth
 aws sqs get-queue-attributes --queue-url <queue-url> \
   --attribute-names ApproximateNumberOfMessages
-```
+````
 
-
-│                         LAUNCH                                   │
+│ LAUNCH │
 └─────────────────────────────────────────────────────────────────┘
-                              ▲
-                              │
+▲
+│
 ┌─────────────────────────────────────────────────────────────────┐
-│                    11. Deployment & Launch                       │
+│ 11. Deployment & Launch │
 └─────────────────────────────────────────────────────────────────┘
-                              ▲
-          ┌───────────────────┼───────────────────┐
-          │                   │                   │
+▲
+┌───────────────────┼───────────────────┐
+│ │ │
 ┌─────────┴─────────┐ ┌───────┴───────┐ ┌────────┴────────┐
-│ 10. Front-End     │ │ 12. Support   │ │ 9. E2E Testing  │
-│ Polish            │ │ & Community   │ │                 │
+│ 10. Front-End │ │ 12. Support │ │ 9. E2E Testing │
+│ Polish │ │ & Community │ │ │
 └─────────┬─────────┘ └───────────────┘ └────────┬────────┘
-          │                                       │
-          └───────────────────┬───────────────────┘
-                              │
-          ┌───────────────────┼───────────────────┐
-          │                   │                   │
+│ │
+└───────────────────┬───────────────────┘
+│
+┌───────────────────┼───────────────────┐
+│ │ │
 ┌─────────┴─────────┐ ┌───────┴───────┐ ┌────────┴────────┐
-│ 4. Admin Portal   │ │ 8. VSIX      │ │ 7. AWS Infra    │
-│ (Individuals +    │ │ Packaging    │ │ (Deploy only)   │
-│ Teams)            │ │              │ │                 │
+│ 4. Admin Portal │ │ 8. VSIX │ │ 7. AWS Infra │
+│ (Individuals + │ │ Packaging │ │ (Deploy only) │
+│ Teams) │ │ │ │ │
 └─────────┬─────────┘ └───────┬───────┘ └────────┬────────┘
-          │                   │                   │
-          │                   │        ┌──────────┘
-          │                   │        │
+│ │ │
+│ │ ┌──────────┘
+│ │ │
 ┌─────────┴─────────┐ ┌───────┴───────┐│
-│ 3. Auth (Auth0)   │ │ 5. Licensing  ││
-│                   │ │ (KeyGen)      ││
+│ 3. Auth (Auth0) │ │ 5. Licensing ││
+│ │ │ (KeyGen) ││
 └───────────────────┘ └───────┬───────┘│
-                              │        │
-                      ┌───────┴───────┐│
-                      │ 6. Payments   ││
-                      │ (Stripe)      ││
-                      └───────────────┘│
-                                       │
-                      ┌────────────────┘
-                      │
-        ��� ┌──────────┴──────────┐
-           │ 7.3 CI/CD Pipeline  │ ← DO THIS FIRST
-           │ (GitHub Actions)    │
-           └─────────────────────┘
+│ │
+┌───────┴───────┐│
+│ 6. Payments ││
+│ (Stripe) ││
+└───────────────┘│
+│
+┌────────────────┘
+│
+��� ┌──────────┴──────────┐
+│ 7.3 CI/CD Pipeline │ ← DO THIS FIRST
+│ (GitHub Actions) │
+└─────────────────────┘
 
 Parallel workstreams (no dependencies):
 ├── 1. Analytics
 ├── 2. Cookie Compliance
 └── 12. Support & Community (partial)
+
 ```
 
 ---
@@ -1591,3 +1660,4 @@ Parallel workstreams (no dependencies):
 | [20260126_PRICING_v4.1_BUSINESS_TIER_AND_MACHINE_MODEL.md](./20260126_PRICING_v4.1_BUSINESS_TIER_AND_MACHINE_MODEL.md) | Superseded by v4.2 — Team→Business rename, machine model                                                                      |
 | [20260126_AGENT_SALESPERSON_ENFORCEMENT_MODEL.md](./20260126_AGENT_SALESPERSON_ENFORCEMENT_MODEL.md)                   | Soft enforcement via Agent-facing banners in tool responses                                                                   |
 | [20260126_ADMIN_PORTAL_v4.1_ADDENDUM.md](./20260126_ADMIN_PORTAL_v4.1_ADDENDUM.md)                                     | Admin Portal changes for machine-based dashboard                                                                              |
+```
