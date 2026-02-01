@@ -12,8 +12,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, Badge, Button } from "@/components/ui";
+import { useUser } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 
 export default function DevicesPage() {
+  const { user, isLoading: userLoading } = useUser();
   const [devices, setDevices] = useState([]);
   const [maxDevices, setMaxDevices] = useState(3);
   const [loading, setLoading] = useState(true);
@@ -21,16 +24,33 @@ export default function DevicesPage() {
   const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
-    fetchDevices();
-  }, []);
+    if (user && !userLoading) {
+      fetchDevices();
+    }
+  }, [user, userLoading]);
 
   async function fetchDevices() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/portal/devices");
+
+      const session = await getSession();
+      if (!session?.idToken) {
+        setError("Not authenticated");
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch("/api/portal/devices", {
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${session.idToken}`,
+        },
+      });
+
       if (!res.ok) {
-        throw new Error("Failed to fetch devices");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to fetch devices");
       }
       const data = await res.json();
       setDevices(data.devices || []);
