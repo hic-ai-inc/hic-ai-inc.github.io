@@ -50,6 +50,17 @@ export async function POST(request) {
       });
     }
 
+    // HEARTBEAT_NOT_STARTED means machine exists but hasn't sent heartbeat yet
+    // This is an idempotent success case - the device IS activated, just needs heartbeat
+    if (validation.code === "HEARTBEAT_NOT_STARTED") {
+      return NextResponse.json({
+        success: true,
+        alreadyActivated: true,
+        license: validation.license,
+        message: "Device already activated (awaiting first heartbeat)",
+      });
+    }
+
     // License not valid - check if we should proceed to activation
     if (validation.code === "FINGERPRINT_SCOPE_MISMATCH" || validation.code === "NO_MACHINES") {
       // FINGERPRINT_SCOPE_MISMATCH: License valid but this device not yet activated
