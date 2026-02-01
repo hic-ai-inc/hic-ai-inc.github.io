@@ -222,8 +222,9 @@ export default function LicensePage() {
                 2
               </span>
               <span>
-                Open VS Code Settings (
-                <code className="text-cerulean-mist">Cmd/Ctrl + ,</code>)
+                Open the Command Palette (
+                <code className="text-cerulean-mist">Ctrl+Shift+P</code>) and run{" "}
+                <code className="text-cerulean-mist">Mouse: Initialize Workspace</code>
               </span>
             </li>
             <li className="flex gap-3">
@@ -231,15 +232,15 @@ export default function LicensePage() {
                 3
               </span>
               <span>
-                Search for{" "}
-                <code className="text-cerulean-mist">mouse.licenseKey</code>
+                Open the Command Palette again and run{" "}
+                <code className="text-cerulean-mist">Mouse: Enter License Key</code>
               </span>
             </li>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cerulean-mist/20 text-cerulean-mist flex items-center justify-center text-sm font-semibold">
                 4
               </span>
-              <span>Paste your license key and restart VS Code</span>
+              <span>Paste your license key from above when prompted</span>
             </li>
           </ol>
         </CardContent>
