@@ -13,7 +13,8 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
-import { getCustomerByUserId, getCustomerByEmail } from "@/lib/dynamodb";
+import { getCustomerByUserId, getCustomerByEmail, getLicenseDevices } from "@/lib/dynamodb";
+import { PRICING } from "@/lib/constants";
 
 // Cognito JWT verifier
 const verifier = CognitoJwtVerifier.create({
@@ -87,6 +88,21 @@ export async function GET(request) {
       subscriptionStatus,
     );
 
+    // Get device count for dashboard display
+    const accountType = customer.accountType || "individual";
+    const planConfig = PRICING[accountType];
+    const maxDevices = planConfig?.maxConcurrentMachinesPerSeat || planConfig?.maxConcurrentMachines || 3;
+    
+    let activatedDevices = 0;
+    if (customer.keygenLicenseId) {
+      try {
+        const devices = await getLicenseDevices(customer.keygenLicenseId);
+        activatedDevices = devices.length;
+      } catch (error) {
+        console.error("[Portal Status] Failed to get device count:", error.message);
+      }
+    }
+
     return NextResponse.json({
       status: hasActiveSubscription
         ? "active"
@@ -97,9 +113,11 @@ export async function GET(request) {
       hasSubscription: hasActiveSubscription,
       shouldRedirectToCheckout:
         !hasActiveSubscription && !hasExpiredSubscription,
-      accountType: customer.accountType || "individual",
+      accountType,
       keygenLicenseId: customer.keygenLicenseId || null,
       stripeCustomerId: customer.stripeCustomerId || null,
+      activatedDevices,
+      maxDevices,
       user: {
         email: user.email,
         userId: user.userId,

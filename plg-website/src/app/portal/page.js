@@ -263,9 +263,8 @@ function ActiveUserDashboard({
   const statusDisplay =
     LICENSE_STATUS_DISPLAY[subscriptionStatus?.toUpperCase()] ||
     LICENSE_STATUS_DISPLAY.ACTIVE;
-  const maxDevices = accountType === "business" ? 5 : 3;
-  // TODO: Get real device count from portalStatus
-  const activatedDevices = 0;
+  const maxDevices = portalStatus?.maxDevices || (accountType === "business" ? 5 : 3);
+  const activatedDevices = portalStatus?.activatedDevices || 0;
 
   return (
     <div className="max-w-6xl">

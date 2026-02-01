@@ -130,7 +130,7 @@ export async function GET() {
     // Get max devices from customer's plan using PRICING constants
     const planConfig = PRICING[customer.accountType];
     const maxDevices =
-      planConfig?.maxDevices || planConfig?.maxDevicesPerSeat || 3;
+      planConfig?.maxConcurrentMachinesPerSeat || planConfig?.maxConcurrentMachines || 3;
 
     return NextResponse.json({
       devices: mergedDevices,
