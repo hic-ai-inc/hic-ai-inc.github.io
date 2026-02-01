@@ -148,7 +148,7 @@ export async function POST(request) {
           planName,
           status: "active",
           expiresAt: null, // Subscription-based, no fixed expiry
-          maxDevices: planType === "business" ? 10 : 3,
+          maxDevices: planType === "business" ? 5 : 3,
         });
         console.log("[ProvisionLicense] DynamoDB license record created - license email will be sent");
       }
@@ -212,7 +212,7 @@ export async function POST(request) {
       status: "active",
       expiresAt: license.expiresAt,
       maxDevices:
-        planType === "enterprise" ? 10 : planType === "individual" ? 3 : 2,
+        planType === "enterprise" ? 10 : planType === "business" ? 5 : 3,
     });
 
     // Email is sent asynchronously via event-driven pipeline
