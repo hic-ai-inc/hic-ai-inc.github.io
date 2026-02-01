@@ -212,7 +212,7 @@ export async function POST(request) {
       status: "active",
       expiresAt: license.expiresAt,
       maxDevices:
-        planType === "enterprise" ? 10 : planType === "business" ? 5 : 3,
+        planType === "business" ? 5 : 3,
     });
 
     // Email is sent asynchronously via event-driven pipeline

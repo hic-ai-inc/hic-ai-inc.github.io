@@ -166,7 +166,7 @@ export async function POST(request) {
       status: "active",
       expiresAt: license.expiresAt,
       maxDevices:
-        planType === "enterprise" ? 10 : planType === "individual" ? 3 : 2,
+        planType === "business" ? 5 : 3,
       metadata: {
         testMode: true,
       },

@@ -60,7 +60,7 @@ function getPlanName(planType) {
  * Simulates max devices calculation based on plan
  */
 function getMaxDevices(planType) {
-  return planType === "enterprise" ? 10 : planType === "business" ? 5 : 3;
+  return planType === "business" ? 5 : 3;
 }
 
 /**
@@ -240,10 +240,6 @@ describe("provision-license API logic", () => {
   });
 
   describe("max devices calculation", () => {
-    it("should return 10 for enterprise plan", () => {
-      assert.strictEqual(getMaxDevices("enterprise"), 10);
-    });
-
     it("should return 3 for individual plan", () => {
       assert.strictEqual(getMaxDevices("individual"), 3);
     });

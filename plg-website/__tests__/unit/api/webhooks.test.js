@@ -497,7 +497,7 @@ describe("Stripe License Provisioning - LICENSE# Record Creation", () => {
       planName: planNameMap[planType] || "Individual",
       status: "active",
       expiresAt: license.expiresAt,
-      maxDevices: planType === "business" ? 5 : planType === "enterprise" ? 10 : 3,
+      maxDevices: planType === "business" ? 5 : 3,
       eventType: "LICENSE_CREATED", // Triggers SNS event for email
       metadata: {
         stripeCustomerId: customer.stripeCustomerId,
@@ -611,21 +611,6 @@ describe("Stripe License Provisioning - LICENSE# Record Creation", () => {
       );
 
       assert.strictEqual(record.maxDevices, 5);
-    });
-
-    it("should set correct maxDevices for enterprise plan", () => {
-      const license = createMockKeygenLicense();
-      const customer = { userId: "auth0|user_1" };
-      const session = createMockCheckoutSession();
-
-      const record = createLicenseRecord(
-        license,
-        customer,
-        "enterprise",
-        session.customer_email,
-      );
-
-      assert.strictEqual(record.maxDevices, 10);
     });
 
     it("should include Stripe customer ID in metadata", () => {
