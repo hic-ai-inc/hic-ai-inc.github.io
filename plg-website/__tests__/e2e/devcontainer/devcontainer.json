@@ -10,7 +10,7 @@
   
   // Mount the VSIX file from the host (adjust path as needed)
   "mounts": [
-    "source=${localEnv:USERPROFILE}/source/repos/hic/mouse-vscode,target=/vsix,type=bind,readonly"
+    "source=${localEnv:USERPROFILE}/source/repos/hic/mouse/releases,target=/vsix,type=bind,readonly"
   ],
   
   // Features to add (GitHub CLI, etc.)

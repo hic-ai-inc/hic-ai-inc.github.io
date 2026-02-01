@@ -1,0 +1,19 @@
+{
+  "name": "PLG E2E Testing",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "./.devcontainer/mouse-0.9.9.vsix"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "postCreateCommand": "echo 'Dev container ready for E2E testing!'",
+  "remoteUser": "node"
+}

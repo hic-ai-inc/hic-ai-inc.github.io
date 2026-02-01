@@ -1,0 +1,19 @@
+# PLG E2E Testing Container
+# Pre-configured with Node.js for Mouse MCP server
+
+FROM codercom/code-server:latest
+
+USER root
+
+# Install Node.js 22.x
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify installation
+RUN node --version && npm --version
+
+USER coder
+
+WORKDIR /home/coder
