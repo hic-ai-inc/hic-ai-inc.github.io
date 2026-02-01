@@ -456,6 +456,9 @@ describe("dynamodb.js", () => {
 
   describe("addDeviceActivation", () => {
     it("should create device record and increment counter", async () => {
+      // Mock getLicenseDevices to return empty (no existing devices)
+      mockSend.mockResolvedValueOnce({ Items: [] });
+      // Mock the remaining calls
       mockSend.mockResolvedValue({});
 
       const result = await addDeviceActivation({
@@ -466,8 +469,8 @@ describe("dynamodb.js", () => {
         platform: "darwin",
       });
 
-      // Should call send twice (device record + increment counter)
-      expect(mockSend.callCount).toBe(2);
+      // Should call send 3 times (getLicenseDevices + device record + increment counter)
+      expect(mockSend.callCount).toBe(3);
 
       expect(result.keygenMachineId).toBe("mach_new");
       expect(result.fingerprint).toBe("abc123fingerprint");

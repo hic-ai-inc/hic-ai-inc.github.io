@@ -102,7 +102,7 @@ describe("Cognito Post-Confirmation Lambda", async () => {
       expect(sesCall.input.EmailAddress).toBe("newuser@example.com");
     });
 
-    test("should write USER_CREATED event to DynamoDB for new user", async () => {
+    test("should write CUSTOMER_CREATED event to DynamoDB for new user", async () => {
       const event = createCognitoEvent(
         {
           email: "newuser@example.com",
@@ -123,7 +123,7 @@ describe("Cognito Post-Confirmation Lambda", async () => {
       expect(item.SK.S).toBe("PROFILE");
       expect(item.email.S).toBe("newuser@example.com");
       expect(item.name.S).toBe("Test User");
-      expect(item.eventType.S).toBe("USER_CREATED");
+      expect(item.eventType.S).toBe("CUSTOMER_CREATED");
       expect(item.sesVerificationStatus.S).toBe("pending");
     });
 
