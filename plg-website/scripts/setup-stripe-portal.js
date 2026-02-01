@@ -26,7 +26,8 @@ const Stripe = require("stripe");
 // CONFIGURATION
 // ===========================================
 
-const RETURN_URL = process.env.NEXT_PUBLIC_APP_URL || "https://staging.hic-ai.com";
+const RETURN_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "https://staging.hic-ai.com";
 
 /**
  * Get price IDs from environment, with fallbacks for staging
@@ -59,7 +60,9 @@ function validateEnvironment(isLive) {
 
   if (missing.length > 0) {
     console.error("❌ Missing price ID environment variables:");
-    missing.forEach((key) => console.error(`   - NEXT_PUBLIC_STRIPE_PRICE_${key.toUpperCase()}`));
+    missing.forEach((key) =>
+      console.error(`   - NEXT_PUBLIC_STRIPE_PRICE_${key.toUpperCase()}`),
+    );
     process.exit(1);
   }
 
@@ -158,7 +161,9 @@ async function configurePortal(stripe, prices) {
 
   try {
     // Check for existing configuration
-    const existingConfigs = await stripe.billingPortal.configurations.list({ limit: 1 });
+    const existingConfigs = await stripe.billingPortal.configurations.list({
+      limit: 1,
+    });
 
     let configuration;
     if (existingConfigs.data.length > 0 && existingConfigs.data[0].is_default) {
@@ -166,12 +171,13 @@ async function configurePortal(stripe, prices) {
       console.log("\n   ℹ️  Updating existing default configuration...");
       configuration = await stripe.billingPortal.configurations.update(
         existingConfigs.data[0].id,
-        portalConfig
+        portalConfig,
       );
     } else {
       // Create new configuration
       console.log("\n   ℹ️  Creating new portal configuration...");
-      configuration = await stripe.billingPortal.configurations.create(portalConfig);
+      configuration =
+        await stripe.billingPortal.configurations.create(portalConfig);
     }
 
     return configuration;
@@ -217,7 +223,9 @@ function displaySummary(config, isLive) {
   console.log("\n" + "=".repeat(60));
 
   if (!isLive) {
-    console.log("\n⚠️  This configured TEST mode. Run with --live for production.\n");
+    console.log(
+      "\n⚠️  This configured TEST mode. Run with --live for production.\n",
+    );
   }
 }
 

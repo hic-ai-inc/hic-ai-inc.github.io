@@ -10,8 +10,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import {
-  getCustomerByUserId,
-  getCustomerLicenses,
+  getCustomerByEmail,
+  getCustomerLicensesByEmail,
   getLicenseDevices,
 } from "@/lib/dynamodb";
 import { getLicenseMachines, deactivateDevice } from "@/lib/keygen";
@@ -64,14 +64,21 @@ export async function GET() {
       });
     }
 
-    // Get customer and licenses
-    const customer = await getCustomerByUserId(session.user.sub);
+    // Get customer by email (B0 FIX: use email, not OAuth user ID)
+    // The session has the user's email from the Cognito ID token
+    const userEmail = session.user.email;
+    if (!userEmail) {
+      console.error("[Devices] No email in session");
+      return NextResponse.json({ devices: [], maxDevices: 0 });
+    }
+
+    const customer = await getCustomerByEmail(userEmail);
     if (!customer) {
       return NextResponse.json({ devices: [], maxDevices: 0 });
     }
 
-    // Get licenses
-    const licenses = await getCustomerLicenses(session.user.sub);
+    // Get licenses by email (B0 FIX: licenses are stored with GSI1PK: USER#email:{email})
+    const licenses = await getCustomerLicensesByEmail(userEmail);
     if (licenses.length === 0) {
       return NextResponse.json({ devices: [], maxDevices: 0 });
     }

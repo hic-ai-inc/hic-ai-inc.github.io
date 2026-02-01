@@ -375,6 +375,31 @@ export async function getCustomerLicenses(userId) {
 }
 
 /**
+ * Get all licenses for a customer by email
+ * This is the correct lookup method as licenses are stored with GSI1PK: USER#email:{email}
+ * @param {string} email - The user's email address
+ * @returns {Promise<Array>} Array of license records
+ */
+export async function getCustomerLicensesByEmail(email) {
+  const normalizedEmail = email.toLowerCase();
+  const result = await dynamodb.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      IndexName: "GSI1",
+      KeyConditionExpression: "GSI1PK = :pk",
+      ExpressionAttributeValues: {
+        ":pk": `USER#email:${normalizedEmail}`,
+      },
+    }),
+  );
+  // Filter to only LICENSE records (not other GSI1 records)
+  return (result.Items || []).filter(item => 
+    item.PK?.startsWith("LICENSE#") && item.SK === "DETAILS"
+  );
+}
+
+
+/**
  * Store license record
  *
  * Event-Driven Architecture:

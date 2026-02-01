@@ -29,6 +29,7 @@ import {
   getLicenseByKey,
   getLicense,
   getCustomerLicenses,
+  getCustomerLicensesByEmail,
   createLicense,
   updateLicenseStatus,
   getLicenseDevices,
@@ -306,6 +307,64 @@ describe("dynamodb.js", () => {
       mockSend.mockResolvedValue({});
 
       const result = await getCustomerLicenses("auth0|nolicenses");
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("getCustomerLicensesByEmail", () => {
+    it("should query licenses by email via GSI1", async () => {
+      mockSend.mockResolvedValue({
+        Items: [
+          { PK: "LICENSE#lic_1", SK: "DETAILS", status: "active" },
+          { PK: "LICENSE#lic_2", SK: "DETAILS", status: "expired" },
+        ],
+      });
+
+      const result = await getCustomerLicensesByEmail("test@example.com");
+
+      expect(result).toHaveLength(2);
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.IndexName).toBe("GSI1");
+      expect(command.input.KeyConditionExpression).toBe("GSI1PK = :pk");
+      expect(command.input.ExpressionAttributeValues[":pk"]).toBe(
+        "USER#email:test@example.com",
+      );
+    });
+
+    it("should normalize email to lowercase", async () => {
+      mockSend.mockResolvedValue({ Items: [] });
+
+      await getCustomerLicensesByEmail("Test@EXAMPLE.com");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.ExpressionAttributeValues[":pk"]).toBe(
+        "USER#email:test@example.com",
+      );
+    });
+
+    it("should filter out non-license records", async () => {
+      mockSend.mockResolvedValue({
+        Items: [
+          { PK: "LICENSE#lic_1", SK: "DETAILS", status: "active" },
+          { PK: "LICENSE#lic_1", SK: "DEVICE#abc", machineId: "abc" },
+          { PK: "USER#123", SK: "PROFILE", email: "test@example.com" },
+        ],
+      });
+
+      const result = await getCustomerLicensesByEmail("test@example.com");
+
+      // Should only return the LICENSE DETAILS record
+      expect(result).toHaveLength(1);
+      expect(result[0].PK).toBe("LICENSE#lic_1");
+      expect(result[0].SK).toBe("DETAILS");
+    });
+
+    it("should return empty array when no licenses", async () => {
+      mockSend.mockResolvedValue({});
+
+      const result = await getCustomerLicensesByEmail("nolicenses@example.com");
 
       expect(result).toEqual([]);
     });

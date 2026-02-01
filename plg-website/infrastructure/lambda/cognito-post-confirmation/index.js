@@ -160,6 +160,9 @@ async function writeUserCreatedEvent(userId, email, name, log) {
   const userItem = {
     PK: `USER#${userId}`,
     SK: "PROFILE",
+    // B0 FIX: Add GSI2PK for email-based lookup (enables getCustomerByEmail)
+    GSI2PK: `EMAIL#${email.toLowerCase()}`,
+    GSI2SK: "USER",
     userId,
     email,
     name,
