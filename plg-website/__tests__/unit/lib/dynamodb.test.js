@@ -18,6 +18,7 @@ import {
   afterEach,
   expect,
   createSpy,
+  spyOn,
 } from "../../../../dm/facade/test-helpers/index.js";
 
 import {
@@ -39,6 +40,7 @@ import {
   getOrgMembers,
   updateOrgMemberStatus,
   getOrgLicenseUsage,
+  getVersionConfig,
   dynamodb,
 } from "../../../src/lib/dynamodb.js";
 
@@ -590,6 +592,67 @@ describe("dynamodb.js", () => {
       expect(result.seatsUsed).toBe(0);
       expect(result.seatsAvailable).toBe(0);
       expect(result.utilizationPercent).toBe(0);
+    });
+  });
+
+  // ===========================================
+  // VERSION CONFIG TESTS (B2)
+  // ===========================================
+
+  describe("getVersionConfig", () => {
+    it("should return version config for mouse product", async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: "VERSION#mouse",
+          SK: "CURRENT",
+          latestVersion: "0.10.0",
+          minVersion: "0.9.0",
+          updateUrl: {
+            marketplace: "https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse",
+          },
+          releaseNotesUrl: "https://hic.ai/mouse/changelog",
+        },
+      });
+
+      const result = await getVersionConfig("mouse");
+
+      expect(result).not.toBeNull();
+      expect(result.latestVersion).toBe("0.10.0");
+      expect(result.minVersion).toBe("0.9.0");
+      expect(result.updateUrl.marketplace).toContain("marketplace.visualstudio.com");
+    });
+
+    it("should default to mouse product when no argument provided", async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: { PK: "VERSION#mouse", SK: "CURRENT", latestVersion: "0.10.0" },
+      });
+
+      await getVersionConfig();
+
+      expect(mockSend.callCount).toBe(1);
+      const call = mockSend.calls[0][0];
+      expect(call.input.Key.PK).toBe("VERSION#mouse");
+    });
+
+    it("should return null when version config not found", async () => {
+      mockSend.mockResolvedValueOnce({ Item: undefined });
+
+      const result = await getVersionConfig("unknown");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null and log error on DynamoDB failure", async () => {
+      const consoleSpy = spyOn(console, "error").mockImplementation(() => {});
+      mockSend.mockRejectedValueOnce(new Error("DynamoDB error"));
+
+      const result = await getVersionConfig("mouse");
+
+      expect(result).toBeNull();
+      expect(consoleSpy.callCount).toBe(1);
+      expect(consoleSpy.calls[0][0]).toBe("Failed to get version config:");
+      expect(consoleSpy.calls[0][1]).toBe("DynamoDB error");
+      consoleSpy.mockRestore();
     });
   });
 });

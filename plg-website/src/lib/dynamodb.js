@@ -1297,3 +1297,63 @@ export async function addOrgMember({
     throw error;
   }
 }
+
+
+// ===========================================
+// VERSION CONFIG OPERATIONS (B2)
+// ===========================================
+
+/**
+ * Get version config for auto-update integration
+ * Returns the VERSION#mouse record with latest version info
+ * 
+ * @param {string} productId - Product identifier (default: "mouse")
+ * @returns {Promise<Object|null>} Version config or null if not found
+ */
+export async function getVersionConfig(productId = "mouse") {
+  try {
+    const result = await dynamodb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `VERSION#${productId}`,
+          SK: "CURRENT",
+        },
+      }),
+    );
+    return result.Item || null;
+  } catch (error) {
+    console.error("Failed to get version config:", error.message);
+    return null;
+  }
+}
+
+/**
+ * Update version config (for CI/CD release automation)
+ * 
+ * @param {string} productId - Product identifier (default: "mouse")
+ * @param {Object} versionInfo - Version info to update
+ * @param {string} versionInfo.latestVersion - Latest version number
+ * @param {string} versionInfo.releaseNotesUrl - URL to release notes
+ * @returns {Promise<void>}
+ */
+export async function updateVersionConfig(productId = "mouse", versionInfo) {
+  const now = new Date().toISOString();
+  
+  await dynamodb.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `VERSION#${productId}`,
+        SK: "CURRENT",
+      },
+      UpdateExpression: "SET latestVersion = :v, releaseNotesUrl = :r, updatedAt = :t",
+      ExpressionAttributeValues: {
+        ":v": versionInfo.latestVersion,
+        ":r": versionInfo.releaseNotesUrl,
+        ":t": now,
+      },
+    }),
+  );
+}
+

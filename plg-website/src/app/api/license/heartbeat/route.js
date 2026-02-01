@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { machineHeartbeat, getLicenseMachines } from "@/lib/keygen";
-import { updateDeviceLastSeen, getLicense, recordTrialHeartbeat } from "@/lib/dynamodb";
+import { updateDeviceLastSeen, getLicense, recordTrialHeartbeat, getVersionConfig } from "@/lib/dynamodb";
 import {
   rateLimitMiddleware,
   getRateLimitHeaders,
@@ -119,6 +119,9 @@ export async function POST(request) {
         // Non-critical - continue with success response
       }
 
+      // Get version config for auto-update notification (B2)
+      const versionConfig = await getVersionConfig();
+
       return NextResponse.json({
         valid: true,
         status: "trial",
@@ -126,6 +129,10 @@ export async function POST(request) {
         concurrentMachines: 1,
         maxMachines: 1,
         nextHeartbeat: 900,
+        // Auto-update fields (B2)
+        latestVersion: versionConfig?.latestVersion || null,
+        minVersion: versionConfig?.minVersion || null,
+        updateUrl: versionConfig?.updateUrl?.marketplace || null,
       });
     }
 
@@ -221,6 +228,9 @@ export async function POST(request) {
       RATE_LIMIT_PRESETS.heartbeat,
     );
 
+    // Get version config for auto-update notification (B2)
+    const versionConfig = await getVersionConfig();
+
     return NextResponse.json(
       {
         valid: true,
@@ -229,6 +239,10 @@ export async function POST(request) {
         concurrentMachines,
         maxMachines,
         nextHeartbeat: 900,
+        // Auto-update fields (B2)
+        latestVersion: versionConfig?.latestVersion || null,
+        minVersion: versionConfig?.minVersion || null,
+        updateUrl: versionConfig?.updateUrl?.marketplace || null,
       },
       { headers: rateLimitHeaders },
     );
