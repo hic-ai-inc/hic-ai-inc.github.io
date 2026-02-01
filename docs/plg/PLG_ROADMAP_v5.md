@@ -1834,6 +1834,7 @@ Per roadmap, complete remaining CI/CD work:
 - [ ] **Section 83(b) Election** — File within 30 days of stock grant
 - [ ] **Copyright Application** — Register Mouse software copyright
 - [ ] **Provisional Patent Application** — File for any patentable inventions
+- [ ] **Privacy Policy & Terms of Service** — Final review before deployment (drafts complete, links active)
 - [ ] Consult with legal counsel on timing and requirements
 
 ### TODO 11: Payment Edge Cases
@@ -1974,6 +1975,128 @@ Unlike Mouse (zero external deps), this project has dependencies:
 - [ ] LinkedIn posts targeting enterprise developers
 - [ ] Consider sponsoring AI/developer newsletters
 
+### TODO 17: Disaster Recovery & Backups
+
+**Priority:** High  
+**Category:** Operations/Infrastructure
+
+- [ ] Verify DynamoDB Point-in-Time Recovery (PITR) is enabled
+- [ ] Document backup retention policy
+- [ ] Create restore runbook with step-by-step instructions
+- [ ] Test restore procedure from backup (at least once)
+- [ ] Document RTO (Recovery Time Objective) and RPO (Recovery Point Objective)
+- [ ] S3 bucket versioning for any stored assets
+- [ ] Lambda function code backup strategy
+- [ ] Secrets Manager backup considerations
+- [ ] Create disaster recovery checklist
+
+### TODO 18: Load/Stress Testing
+
+**Priority:** Medium  
+**Category:** Testing
+
+Ensure system can handle traffic spikes:
+
+- [ ] Define load testing scenarios:
+  - 100 concurrent users hitting checkout
+  - 1000 concurrent heartbeat requests
+  - Burst traffic patterns
+- [ ] Set up load testing tool (Artillery, k6, or Locust)
+- [ ] Test Lambda cold start behavior under load
+- [ ] Test DynamoDB read/write capacity under load
+- [ ] Test Cognito auth endpoints under load
+- [ ] Document performance baselines
+- [ ] Identify and address bottlenecks
+- [ ] Consider auto-scaling configurations
+
+### TODO 19: Incident Response Plan
+
+**Priority:** High  
+**Category:** Operations
+
+Currently: No paging system, single operator (SWR).
+
+- [ ] Document incident severity levels (P1/P2/P3/P4)
+- [ ] Create incident response runbook:
+  - Site down procedures
+  - Payment system failure procedures
+  - Auth system failure procedures
+  - Data breach procedures
+- [ ] Set up alerting (CloudWatch Alarms → SNS → Email/SMS)
+- [ ] Define on-call expectations (for now: SWR only)
+- [ ] Create incident communication templates
+- [ ] Document escalation paths (even if just "SWR handles everything")
+- [ ] Post-incident review process
+
+### TODO 20: Extension Version Compatibility
+
+**Priority:** Medium  
+**Category:** Testing
+
+Test Mouse on latest versions of supported editors before deployment:
+
+| Editor | Version to Test | Status |
+|--------|-----------------|--------|
+| VS Code | Latest stable | ⬜ |
+| Cursor | Latest stable | ⬜ |
+| Kiro | Latest stable | ⬜ |
+
+- [ ] Test installation flow on each editor
+- [ ] Test license activation on each editor
+- [ ] Test MCP tool functionality on each editor
+- [ ] Document any editor-specific quirks
+- [ ] Update documentation with editor-specific instructions if needed
+
+### TODO 21: Cross-Browser Testing
+
+**Priority:** Medium  
+**Category:** Testing
+
+Test portal functionality across browsers:
+
+| Browser | Status |
+|---------|--------|
+| Chrome (latest) | ⬜ |
+| Firefox (latest) | ⬜ |
+| Safari (latest) | ⬜ |
+| Edge (latest) | ⬜ |
+
+- [ ] Test complete purchase flow in each browser
+- [ ] Test portal navigation and functionality
+- [ ] Test responsive design on mobile browsers
+- [ ] Document any browser-specific issues
+- [ ] Fix critical cross-browser issues before launch
+
+### TODO 22: Onboarding Flow Polish
+
+**Priority:** Medium  
+**Category:** UX
+
+Goal: Super-simple, completely seamless first-time user experience.
+
+- [ ] Review post-purchase flow messaging
+- [ ] Add clearer "what to do next" guidance after checkout
+- [ ] Add help access information at key touchpoints:
+  - Where to get help (support@hic-ai.com, Discord, GitHub Issues)
+  - Link to documentation
+- [ ] Test complete onboarding flow as new user
+- [ ] Simplify any confusing steps
+- [ ] Add tooltips or inline help where needed
+- [ ] Ensure error messages are helpful and actionable
+
+### TODO 23: Refund Policy
+
+**Priority:** Medium  
+**Category:** Legal/Payments
+
+Policy: **No refunds** (except credit card fraud cases).
+
+- [ ] Document refund policy clearly on website
+- [ ] Add refund policy link to checkout flow
+- [ ] Add refund policy to Terms of Service (if not already)
+- [ ] Create internal procedure for handling fraud cases
+- [ ] Document Stripe refund process for fraud exceptions
+
 ---
 
 ## Summary: TODO Priority Matrix
@@ -1981,12 +2104,12 @@ Unlike Mouse (zero external deps), this project has dependencies:
 | Priority | TODOs | Est. Hours |
 |----------|-------|------------|
 | **Critical** | 6 (Launch Plan), 10 (Legal), 14 (Security) | 20-30h |
-| **High** | 1 (Devices), 2 (RBAC), 4 (Parity), 5 (Docs), 8 (CI/CD), 11 (Payments), 16 (Marketing) | 60-80h |
-| **Medium** | 3 (Emails), 7 (Support), 9 (IP), 12 (Monitoring), 13 (Analytics), 15 (UX) | 30-40h |
+| **High** | 1 (Devices), 2 (RBAC), 4 (Parity), 5 (Docs), 8 (CI/CD), 11 (Payments), 16 (Marketing), 17 (DR/Backups), 19 (Incident Response) | 80-100h |
+| **Medium** | 3 (Emails), 7 (Support), 9 (IP), 12 (Monitoring), 13 (Analytics), 15 (UX), 18 (Load Testing), 20 (Editor Compat), 21 (Browsers), 22 (Onboarding), 23 (Refund) | 50-70h |
 
-**Total Estimated Remaining Work:** 110-150 hours
+**Total Estimated Remaining Work:** 150-200 hours
 
-> **Note:** This is a rough estimate. Some items may take longer, some may be parallelizable, and some may be deferred post-launch.
+> **Note:** This is a rough estimate. Some items may take longer, some may be parallelizable, and some may be deferred post-launch. Marketing (TODO 16) and Pricing Optimization are post-launch priorities.
 
 ---
 
