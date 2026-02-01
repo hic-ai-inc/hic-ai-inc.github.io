@@ -1661,3 +1661,332 @@ Parallel workstreams (no dependencies):
 | [20260126_AGENT_SALESPERSON_ENFORCEMENT_MODEL.md](./20260126_AGENT_SALESPERSON_ENFORCEMENT_MODEL.md)                   | Soft enforcement via Agent-facing banners in tool responses                                                                   |
 | [20260126_ADMIN_PORTAL_v4.1_ADDENDUM.md](./20260126_ADMIN_PORTAL_v4.1_ADDENDUM.md)                                     | Admin Portal changes for machine-based dashboard                                                                              |
 ```
+
+
+---
+
+## 🚧 COMPREHENSIVE TODO LIST (SWR Notes — Feb 1, 2026)
+
+> **Purpose:** Brain dump of all remaining work items. To be consolidated with existing roadmap sections in a future pass. Captured here for cognitive relief and completeness.
+
+### TODO 1: Device Concurrent Limits Testing
+
+**Priority:** High  
+**Category:** E2E Testing
+
+- [ ] Install Mouse in multiple containers to test concurrent device behavior
+- [ ] Verify soft limits are enforced (warning at limit)
+- [ ] Verify hard limits are enforced (block at limit+1)
+- [ ] Test edge cases:
+  - Activating same license on machine A, then machine B, then machine A again
+  - Network disconnection during heartbeat
+  - Offline mode behavior
+  - Device deactivation and reactivation
+  - Hitting limit then deactivating one device to make room
+
+### TODO 2: Business RBAC Implementation
+
+**Priority:** High  
+**Category:** Portal Development
+
+Build out complete portal experiences for all three roles:
+
+| Role | Access | Test Cases |
+|------|--------|------------|
+| **Owner** | Full access (billing, team, settings, delete account) | Can see all sections, can delete account, can change roles |
+| **Admin** | Same as Owner EXCEPT delete account, change Owner | Cannot see delete account button, cannot demote Owner |
+| **Member** | Dashboard only (license status, their devices) | Gets 403 on /billing, /team; sees "Contact your administrator" messaging |
+
+- [ ] Implement Cognito Groups (mouse-owner, mouse-admin, mouse-member)
+- [ ] Create Pre-token Lambda trigger to inject `custom:role` claim
+- [ ] Build role-based middleware (requireOwner, requireAdmin)
+- [ ] Implement UI gating (hide nav items based on role)
+- [ ] Test all user journeys for each role
+
+### TODO 3: Email Flow Verification
+
+**Priority:** Medium  
+**Category:** E2E Testing
+
+- [ ] Test auth code flow route with Yopmail temp accounts
+- [ ] Verify Welcome email delivery to temp accounts
+- [ ] Verify License Key email delivery
+- [ ] Verify all transactional emails:
+  - Welcome email
+  - License key delivery
+  - Payment confirmation
+  - Subscription renewal
+  - Payment failed (grace period)
+  - Subscription cancelled
+  - License suspended
+
+### TODO 4: VSIX/npx Delivery Parity
+
+**Priority:** High  
+**Category:** Extension Development
+
+Ensure identical UX regardless of installation method:
+
+| Step | VSIX Route | npx Route | Parity Status |
+|------|------------|-----------|---------------|
+| Installation | VS Code Marketplace / sideload | `npx @get-hic/mouse init` | ⬜ Verify |
+| Initialization | `Ctrl+Shift+P > Mouse: Initialize Workspace` | `hic mouse init` | ⬜ Verify |
+| License Activation | `Mouse: Enter License Key` | `hic mouse license activate` | ⬜ Verify |
+| Status Check | `Mouse: Show License Status` | `hic mouse license status` | ⬜ Verify |
+| Deactivation | `Mouse: Deactivate Device` | `hic mouse license deactivate` | ⬜ Verify |
+
+- [ ] Test complete flow via VSIX (Command Palette)
+- [ ] Test complete flow via npx (Terminal)
+- [ ] Document both flows in user documentation
+- [ ] Ensure error messages and UX are consistent
+
+### TODO 5: Documentation Site (docs.hic-ai.com)
+
+**Priority:** High  
+**Category:** Documentation
+
+Current state: Home page documentation link returns 404.
+
+**Proposal:** Create dedicated `docs.hic-ai.com` subdomain
+
+- [ ] Set up documentation site infrastructure (consider Docusaurus, GitBook, or Mintlify)
+- [ ] Rewrite documentation comprehensively
+- [ ] Cover both delivery routes:
+  - npx installation and usage
+  - VSIX installation (VS Code Marketplace, sideload)
+- [ ] Cover multiple editors:
+  - VS Code
+  - Cursor
+  - Kiro
+  - Visual Studio (investigate compatibility)
+- [ ] Getting Started guide
+- [ ] Troubleshooting guide
+- [ ] API reference (if applicable)
+- [ ] FAQ
+
+### TODO 6: Launch Plan Document
+
+**Priority:** Critical  
+**Category:** Planning
+
+Need comprehensive launch plan covering:
+
+- [ ] Deployment checklist (staging → production)
+- [ ] Stripe: Sandbox → Production mode switch
+- [ ] SES: Sandbox → Production mode switch
+- [ ] VS Code Marketplace: Publisher account, publish flow
+- [ ] DNS and domain configuration verification
+- [ ] Rollback procedures
+- [ ] Launch day monitoring plan
+- [ ] Communication plan (social media, announcements)
+- [ ] Post-launch support readiness
+
+### TODO 7: Support Infrastructure
+
+**Priority:** Medium  
+**Category:** Support
+
+**Options to consider:**
+
+| Channel | Pros | Cons |
+|---------|------|------|
+| Discord | Community building, real-time support | Requires moderation |
+| GitHub Issues (hic-ai-inc.github.io) | Integrated with code, public visibility | May get spam |
+| Email support | Professional, private | Labor-intensive |
+
+- [ ] Decide on primary support channel
+- [ ] Set up Discord server (if chosen)
+- [ ] Configure GitHub Issues for hic-ai-inc.github.io repo
+  - Issue templates for bug reports
+  - Issue templates for feature requests
+- [ ] Create comprehensive docs to reduce support volume
+- [ ] Set up support email (support@hic-ai.com)
+
+### TODO 8: CI/CD Pipeline Completion
+
+**Priority:** High  
+**Category:** DevOps
+
+Per roadmap, complete remaining CI/CD work:
+
+- [ ] Auto-update integration (blocked on B1-B4)
+- [ ] Automated VSIX packaging and deployment
+- [ ] Version bump automation
+- [ ] Changelog generation
+- [ ] Release notes automation
+- [ ] Staging → Production promotion workflow
+
+### TODO 9: IP Review
+
+**Priority:** Medium  
+**Category:** Legal/Documentation
+
+- [ ] Review all documentation for proprietary design/implementation details
+- [ ] Remove or generalize sensitive technical details
+- [ ] Ensure public docs don't expose security-sensitive information
+- [ ] Review code comments for proprietary information
+
+### TODO 10: Corporate/Legal Filings
+
+**Priority:** High (Time-Sensitive)  
+**Category:** Legal
+
+- [ ] **Section 83(b) Election** — File within 30 days of stock grant
+- [ ] **Copyright Application** — Register Mouse software copyright
+- [ ] **Provisional Patent Application** — File for any patentable inventions
+- [ ] Consult with legal counsel on timing and requirements
+
+### TODO 11: Payment Edge Cases
+
+**Priority:** High  
+**Category:** Payments
+
+**Critical Edge Case: Business → Individual Downgrade**
+
+| Scenario | Allowed? | Action |
+|----------|----------|--------|
+| Business (1 user, Owner only) → Individual | ✅ Yes | Allow downgrade |
+| Business (multi-user) → Individual | ❌ No | Block with error message |
+
+If multi-user Business tries to downgrade:
+1. Display error: "Please cancel extra licenses first"
+2. Force cancellation of additional seats
+3. Once down to 1 user, allow downgrade to Individual
+
+**Other Payment TODOs:**
+
+- [ ] Implement downgrade blocking logic
+- [ ] Stripe: Sandbox → Production conversion
+- [ ] **Lemon Squeezy MoR Application** — Reapply ASAP once website is live
+  - Previous rejection reason: "no website or social media presence"
+  - Goal: Avoid tax withholding/remittance complexity
+  - Interim plan: Handle taxes manually until LS approval
+
+### TODO 12: Monitoring & Status Page (status.hic-ai.com)
+
+**Priority:** Medium  
+**Category:** Operations
+
+Need health monitoring for:
+
+| Service | Endpoint | Monitor Type |
+|---------|----------|--------------|
+| Website | https://hic-ai.com | Uptime, response time |
+| Auth API | Cognito endpoints | Availability |
+| Payments API | Stripe webhooks | Webhook delivery |
+| Licensing API | Keygen endpoints | API health |
+| Email | SES delivery | Delivery rate, bounces |
+
+- [ ] Set up status page at `status.hic-ai.com`
+- [ ] Consider services: Statuspage.io, UptimeRobot, Better Stack
+- [ ] Configure alerts for downtime
+- [ ] Create incident response procedures
+
+### TODO 13: Analytics & CloudWatch Integration
+
+**Priority:** Medium  
+**Category:** Analytics
+
+Current state: PLG metrics script exists but no CloudFormation/CloudWatch integration.
+
+- [ ] Wire up CloudWatch logs to analytics
+- [ ] Create CloudWatch dashboards for:
+  - Lambda invocation metrics
+  - Error rates
+  - API latency
+  - DynamoDB read/write capacity
+- [ ] Set up CloudWatch alarms for anomalies
+- [ ] Integrate with PLG metrics script
+- [ ] Consider adding Plausible Analytics post-launch (deferred per roadmap)
+
+### TODO 14: Security Audit
+
+**Priority:** Critical  
+**Category:** Security
+
+**Phase 1: Code Review**
+- [ ] Run Q Developer Code Review SAST
+- [ ] Run additional SAST tools (Snyk, CodeQL)
+- [ ] Manual review of authentication flows
+- [ ] Manual review of authorization checks
+- [ ] Review all API endpoints for proper auth
+
+**Phase 2: Dependency Audit**
+
+Unlike Mouse (zero external deps), this project has dependencies:
+- AWS SDK
+- Stripe SDK
+- Keygen SDK
+- Next.js ecosystem
+- Various npm packages
+
+- [ ] Run `npm audit` on all packages
+- [ ] Review and minimize unnecessary dependencies
+- [ ] Create dependency update policy
+- [ ] Consider Dependabot or similar for automated updates
+
+**Phase 3: CI/CD Security Integration**
+- [ ] Add SAST scanning to CI/CD pipeline
+- [ ] Add dependency vulnerability scanning
+- [ ] Configure branch protection rules
+- [ ] Set up secret scanning
+
+### TODO 15: Front-End UX Polish
+
+**Priority:** Medium  
+**Category:** Design
+
+- [ ] Fix alignment and spacing issues throughout portal
+- [ ] Standardize Mouse logo usage:
+  - ✅ Use SVG/PNG logo
+  - ❌ Remove all Mouse emoji (🐭) from UI
+  - ASCII art logo acceptable in terminal output
+- [ ] Review responsive design on mobile/tablet
+- [ ] Accessibility audit (WCAG compliance)
+- [ ] Loading states and error states polish
+- [ ] Consistent button styles and interactions
+
+### TODO 16: Marketing Strategy
+
+**Priority:** High (Post-Launch)  
+**Category:** Marketing
+
+**Goal:** Raise awareness of Mouse and drive traffic to hic-ai.com
+
+**Idea: "Show HN" Post**
+
+> **Title:** "I just built an entire PLG-driven sales pipeline by myself in 10 days using Claude Opus 4.5"
+>
+> **Angle:** Document the journey of building a complete PLG SaaS (Mouse) using AI assistance, which:
+> 1. Drives traffic to hic-ai.com
+> 2. Gets people talking about building with Claude
+> 3. Introduces Mouse as a tool for AI-assisted development
+> 4. Demonstrates the product (meta: we used AI to build an AI tool)
+
+**Other Marketing Ideas:**
+
+- [ ] Write detailed blog post about the build journey
+- [ ] Create demo video showing Mouse in action
+- [ ] Twitter/X thread about the build process
+- [ ] Reddit posts in relevant subreddits (r/programming, r/vscode, r/artificial)
+- [ ] Product Hunt launch
+- [ ] Dev.to / Hashnode articles
+- [ ] LinkedIn posts targeting enterprise developers
+- [ ] Consider sponsoring AI/developer newsletters
+
+---
+
+## Summary: TODO Priority Matrix
+
+| Priority | TODOs | Est. Hours |
+|----------|-------|------------|
+| **Critical** | 6 (Launch Plan), 10 (Legal), 14 (Security) | 20-30h |
+| **High** | 1 (Devices), 2 (RBAC), 4 (Parity), 5 (Docs), 8 (CI/CD), 11 (Payments), 16 (Marketing) | 60-80h |
+| **Medium** | 3 (Emails), 7 (Support), 9 (IP), 12 (Monitoring), 13 (Analytics), 15 (UX) | 30-40h |
+
+**Total Estimated Remaining Work:** 110-150 hours
+
+> **Note:** This is a rough estimate. Some items may take longer, some may be parallelizable, and some may be deferred post-launch.
+
+---
+
