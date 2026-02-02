@@ -81,7 +81,7 @@ const faqs = [
   {
     question: "Can I switch plans later?",
     answer:
-      "Yes! You can upgrade from Individual to Business at any time. When upgrading, you'll be prorated for the remainder of your billing cycle. You can also add seats to Business plans anytime.",
+      "Tier switching (Individual ↔ Business) requires canceling your current subscription and starting fresh on the new tier. Within a tier, you can add seats to Business plans anytime with prorated billing.",
   },
   {
     question: "What counts as a machine?",
@@ -106,7 +106,7 @@ const faqs = [
   {
     question: "What's the difference between Individual and Business?",
     answer:
-      "Business includes 5 machines per seat (vs 3), team management features, RBAC, full audit logging, email support, and volume discounts. Solo developers who need more machines or email support can upgrade to Business.",
+      "Business includes 5 machines per seat (vs 3), team management features, RBAC, full audit logging, email support, and volume discounts. Solo developers who need more machines or team features should choose Business from the start.",
   },
   {
     question: "Do you offer Enterprise SSO (SAML)?",
