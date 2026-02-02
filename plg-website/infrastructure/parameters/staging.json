@@ -13,7 +13,7 @@
   },
   {
     "ParameterKey": "AlertEmail",
-    "ParameterValue": "simon@hic-ai.com"
+    "ParameterValue": "sreiff@hic-ai.com"
   },
   {
     "ParameterKey": "LambdaCodeBucket",
@@ -33,6 +33,6 @@
   },
   {
     "ParameterKey": "UserPoolId",
-    "ParameterValue": "us-east-1_MDTi26EOf"
+    "ParameterValue": "us-east-1_CntYimcMm"
   }
 ]
