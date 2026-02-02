@@ -128,7 +128,7 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 | Role-based nav | `PortalSidebar.js` | Hides Billing/Team for members |
 | Settings UI | `settings/page.js` | Members see "Leave Org", Owners see disabled delete |
 | Leave Org API | `leave-organization/route.js` | Members can self-remove from org |
-| **Tier Change API** | `api/portal/change-tier/route.js` | Individual↔Business switching with downgrade protection |
+| **Tier Change** | ❌ REMOVED (Feb 2) | Cancel+repurchase model replaces API-based tier switching |
 | **Seat Management API** | `api/portal/seats/route.js` | GET/POST seat quantity for Business tier |
 | **Org Membership** | `getUserOrgMembership()` in dynamodb.js | Lookup user's organization for status/claims |
 | **Account Type Update** | `updateCustomerAccountType()` in dynamodb.js | Update customer tier in DynamoDB |
@@ -142,7 +142,6 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 - E2E test: Owner invite flow
 - E2E test: Member acceptance + role assignment
 - E2E test: Leave organization flow
-- E2E test: Tier change flow (Individual↔Business)
 
 ### 2.1 Role Definitions
 
@@ -251,7 +250,7 @@ exports.handler = async (event) => {
 
 | Task                                              | Status  | Notes                                      |
 | ------------------------------------------------- | ------- | ------------------------------------------ |
-| `POST /api/portal/change-tier` — Tier switching   | ✅ DONE | Individual↔Business with proration         |
+| ~~`POST /api/portal/change-tier`~~ — Tier switching   | ❌ REMOVED | Cancel+repurchase model instead         |
 | Business→Individual downgrade protection          | ✅ DONE | Blocked if seatsUsed > 1                   |
 | `GET /api/portal/seats` — Seat usage              | ✅ DONE | Returns seatLimit, seatsUsed, seatsAvailable |
 | `POST /api/portal/seats` — Update quantity        | ✅ DONE | Stripe subscription update with proration  |
@@ -260,24 +259,13 @@ exports.handler = async (event) => {
 | Portal status API org member support              | ✅ DONE | Returns orgMembership context              |
 | Pre-token Lambda org_id injection                 | ✅ DONE | Injects custom:org_id from DynamoDB lookup |
 
-**Business → Individual Downgrade Protection:**
+**Tier Switching Policy (Feb 2, 2026):**
 
-```javascript
-// In change-tier/route.js
-if (currentTier === "business" && targetTier === "individual") {
-  const org = await getOrganizationByStripeCustomer(customer.stripeCustomerId);
-  if (org) {
-    const usage = await getOrgLicenseUsage(org.orgId);
-    if (usage.seatsUsed > 1) {
-      return NextResponse.json({
-        error: "Cannot downgrade to Individual with active team members",
-        details: `You have ${usage.seatsUsed} active members. Remove team members first.`,
-        seatsUsed: usage.seatsUsed,
-      }, { status: 400 });
-    }
-  }
-}
-```
+> Cross-tier conversions (Individual ↔ Business) are not supported via API.
+> Users who need to change tiers must cancel their current subscription and
+> start fresh on the desired tier. This simplification eliminates complex
+> edge cases around prorated billing, team member orphaning, Keygen policy
+> migrations, and RBAC state transitions.
 
 ### 2.3 Implementation Order
 
@@ -299,12 +287,8 @@ if (currentTier === "business" && targetTier === "individual") {
 | Member sees dashboard only                      | ⬜     |
 | Member gets 403 on /billing                     | ⬜     |
 | Member sees "Contact admin" messaging           | ⬜     |
-| **Tier Change (NEW — Feb 2)**                   |        |
-| Individual → Business upgrade works             | ⬜     |
-| Business → Individual (solo) downgrade works    | ⬜     |
-| Business → Individual blocked when seatsUsed > 1| ⬜     |
-| Tier change API updates Stripe subscription     | ⬜     |
-| Tier change API updates DynamoDB accountType    | ⬜     |
+| **~~Tier Change~~ (REMOVED — Feb 2)**           |        |
+| ~~Tier switching via API~~                      | ❌ N/A | (Cancel+repurchase model)
 | **Seat Management (NEW — Feb 2)**               |        |
 | GET /api/portal/seats returns usage             | ⬜     |
 | POST /api/portal/seats updates quantity         | ⬜     |
@@ -340,7 +324,7 @@ if (currentTier === "business" && targetTier === "individual") {
 | 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**     |
 | 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —            |
 
-> **Latest Milestone (Feb 2, 2026):** RBAC infrastructure complete! Cognito Groups, Pre-token Lambda (with org_id injection), role-based UI, Tier Change API (`/api/portal/change-tier`), Seat Management API (`/api/portal/seats`), org membership lookup. **927 unit tests passing** (+77 new tests). E2E testing blocked by SES throttle until Feb 3.
+> **Latest Milestone (Feb 2, 2026):** RBAC infrastructure complete! Cognito Groups, Pre-token Lambda (with org_id injection), role-based UI, Seat Management API (`/api/portal/seats`), Team Management API (`/api/portal/team`), org membership lookup. Tier-switching API removed in favor of cancel+repurchase model. **903 unit tests passing**. E2E testing blocked by SES throttle until Feb 3.
 
 
 ## ✅ CI/CD Pipeline — COMPLETE
@@ -1125,7 +1109,7 @@ curl -X POST https://staging.mouse.hic-ai.com/api/admin/provision-test-license \
 | Admin account = Owner - Billing           | ✅ DONE | Role-based nav hiding               |
 | Member account = Dashboard + Devices only | ✅ DONE | Contact admin messaging             |
 | Team seat management API                  | ✅ DONE | `/api/portal/seats` GET/POST        |
-| Tier change API (Individual↔Business)     | ✅ DONE | `/api/portal/change-tier` with downgrade protection |
+| ~~Tier change API (Individual↔Business)~~     | ❌ REMOVED | Cancel+repurchase model replaces tier switching |
 | Organization membership lookup            | ✅ DONE | `getUserOrgMembership()` in dynamodb.js |
 | Portal status for org members             | ✅ DONE | Status API supports Business tier members |
 | Invite flow (already complete)            | ✅ DONE | Working                            |
