@@ -2,19 +2,21 @@
  * Portal Sidebar Component
  *
  * Navigation sidebar for authenticated portal pages.
- * Filters navigation items based on user role for business accounts.
+ * Fetches account data from DynamoDB via /api/portal/status to determine
+ * which nav items to show (Team page for Business accounts).
  */
 
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 import {
   PORTAL_NAV,
   PORTAL_NAV_BUSINESS,
-  AUTH_NAMESPACE,
 } from "@/lib/constants";
 
 // Nav items restricted to admin/owner only (business accounts)
@@ -23,9 +25,38 @@ const ADMIN_ONLY_PATHS = ["/portal/billing", "/portal/team"];
 export default function PortalSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [accountData, setAccountData] = useState(null);
 
-  const accountType = user?.[`${AUTH_NAMESPACE}/account_type`] || "individual";
-  const orgRole = user?.[`${AUTH_NAMESPACE}/org_role`] || "member";
+  // Fetch account data from DynamoDB via status API
+  useEffect(() => {
+    async function fetchAccountData() {
+      if (!user) return;
+
+      try {
+        const session = await getSession();
+        if (!session?.idToken) return;
+
+        const response = await fetch("/api/portal/status", {
+          headers: {
+            Authorization: `Bearer ${session.idToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAccountData(data);
+        }
+      } catch (error) {
+        console.error("[PortalSidebar] Failed to fetch account data:", error);
+      }
+    }
+
+    fetchAccountData();
+  }, [user]);
+
+  // Get account type and role from DynamoDB data (not JWT claims)
+  const accountType = accountData?.accountType || "individual";
+  const orgRole = accountData?.orgMembership?.role || "owner"; // Default to owner if no membership data
 
   // Select base nav items based on account type
   let navItems =
