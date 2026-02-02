@@ -15,7 +15,7 @@ import {
   getCustomerByEmail,
   getLicenseDevices,
 } from "@/lib/dynamodb";
-import { getLicenseMachines, deactivateDevice } from "@/lib/keygen";
+import { deactivateDevice } from "@/lib/keygen";
 import { PRICING } from "@/lib/constants";
 
 // Cognito JWT verifier for ID tokens
@@ -101,31 +101,19 @@ export async function GET() {
       return NextResponse.json({ devices: [], maxDevices: 0 });
     }
 
-    // Get devices for the license
+    // Get devices for the license from DynamoDB
+    // DynamoDB is the authoritative source - heartbeat API updates lastSeenAt there
     const devices = await getLicenseDevices(licenseId);
 
-    // Also fetch from Keygen for the most accurate data
-    let keygenDevices = [];
-    try {
-      keygenDevices = await getLicenseMachines(licenseId);
-    } catch (e) {
-      console.error("Failed to fetch from Keygen:", e);
-    }
-
-    // Merge data, preferring Keygen for accurate heartbeat info
-    const mergedDevices = devices.map((device) => {
-      const keygenDevice = keygenDevices.find(
-        (kd) => kd.id === device.keygenMachineId,
-      );
-      return {
-        id: device.keygenMachineId,
-        name: keygenDevice?.name || device.name,
-        platform: keygenDevice?.platform || device.platform,
-        fingerprint: device.fingerprint,
-        lastSeen: keygenDevice?.lastHeartbeat || device.lastSeenAt,
-        createdAt: keygenDevice?.createdAt || device.createdAt,
-      };
-    });
+    // Map DynamoDB device records to response format
+    const mappedDevices = devices.map((device) => ({
+      id: device.keygenMachineId,
+      name: device.name,
+      platform: device.platform,
+      fingerprint: device.fingerprint,
+      lastSeen: device.lastSeenAt,
+      createdAt: device.createdAt,
+    }));
 
     // Get max devices from customer's plan using PRICING constants
     const planConfig = PRICING[customer.accountType];
@@ -133,7 +121,7 @@ export async function GET() {
       planConfig?.maxConcurrentMachinesPerSeat || planConfig?.maxConcurrentMachines || 3;
 
     return NextResponse.json({
-      devices: mergedDevices,
+      devices: mappedDevices,
       maxDevices,
       licenseId,
     });

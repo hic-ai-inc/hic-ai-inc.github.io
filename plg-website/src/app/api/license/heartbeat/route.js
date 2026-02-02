@@ -162,7 +162,9 @@ export async function POST(request) {
     }
 
     // Ping Keygen to update machine heartbeat
-    const heartbeatResult = await machineHeartbeat(machineId);
+    // Use fingerprint for the ping - Keygen accepts URL-safe fingerprints as machine identifiers
+    // This is more reliable than machineId since Mouse always sends fingerprint
+    const heartbeatResult = await machineHeartbeat(fingerprint);
 
     if (!heartbeatResult.success) {
       // Machine not found or inactive - license may have been revoked
