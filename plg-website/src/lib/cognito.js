@@ -125,7 +125,9 @@ export async function getSession() {
         [`${NAMESPACE}/account_type`]:
           payload["custom:account_type"] || "individual",
         [`${NAMESPACE}/org_id`]: payload["custom:org_id"] || null,
-        [`${NAMESPACE}/org_role`]: payload["custom:org_role"] || null,
+        // org_role: from Pre-token Lambda based on Cognito group membership
+        // Falls back to custom:org_role for backwards compatibility
+        [`${NAMESPACE}/org_role`]: payload["custom:role"] || payload["custom:org_role"] || null,
         [`${NAMESPACE}/stripe_customer_id`]:
           payload["custom:stripe_customer_id"] || null,
         [`${NAMESPACE}/subscription_status`]:

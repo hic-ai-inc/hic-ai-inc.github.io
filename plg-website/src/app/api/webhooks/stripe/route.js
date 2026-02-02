@@ -33,6 +33,8 @@ import {
 // DynamoDB write (with eventType) → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
 // Only sendDisputeAlert is called directly (urgent security notification)
 import { sendDisputeAlert } from "@/lib/ses";
+// Cognito admin operations for RBAC group assignment
+import { assignOwnerRole } from "@/lib/cognito-admin";
 
 export async function POST(request) {
   const body = await request.text();
@@ -272,6 +274,30 @@ async function handleCheckoutCompleted(session) {
   console.log(
     `New subscription: ${plan} plan with ${seats} seats for ${customer_email}`,
   );
+
+  // RBAC: Assign owner role for Business plan purchases
+  // The purchaser becomes the organization owner with full portal access
+  if (plan === "business") {
+    // Get the actual Cognito user ID if available
+    // existingCustomer.userId might be a real Cognito sub or temporary email-based ID
+    const cognitoUserId = existingCustomer?.userId || null;
+    
+    // Only attempt if user has a real Cognito ID (not email-prefixed temp ID)
+    if (cognitoUserId && !cognitoUserId.startsWith("email:")) {
+      try {
+        await assignOwnerRole(cognitoUserId);
+        console.log(`Owner role assigned to ${cognitoUserId} for Business plan`);
+      } catch (error) {
+        // Non-fatal: User might not exist in Cognito yet (purchased before signup)
+        // Role will be assigned when they first log in via invite/signup flow
+        console.warn(`Could not assign owner role to ${cognitoUserId}:`, error.message);
+      }
+    } else {
+      console.log(
+        `Business purchase by ${customer_email} - owner role will be assigned on first Cognito login`,
+      );
+    }
+  }
 }
 
 /**

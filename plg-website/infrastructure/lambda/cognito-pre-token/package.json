@@ -1,0 +1,12 @@
+{
+  "name": "plg-cognito-pre-token",
+  "version": "1.0.0",
+  "description": "Cognito Pre-Token Generation Lambda for RBAC role injection",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Tests in __tests__/infrastructure/lambda/\" && exit 0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-bedrock": "^3.876.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.876.0",
     "@aws-sdk/client-bedrock-runtime": "^3.876.0",
     "@aws-sdk/client-cloudwatch": "^3.876.0",
     "@aws-sdk/client-dynamodb": "^3.876.0",

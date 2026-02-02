@@ -1,0 +1,13 @@
+{
+  "name": "hic-auth-layer",
+  "version": "1.0.0",
+  "description": "HIC Lambda Layer for Cognito Identity Provider SDK (server-side admin operations)",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.700.0"
+  }
+}

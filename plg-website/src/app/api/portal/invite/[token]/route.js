@@ -12,6 +12,8 @@ import {
   acceptOrgInvite,
   getCustomerByUserId,
 } from "@/lib/dynamodb";
+// Cognito admin operations for RBAC group assignment
+import { assignInvitedRole } from "@/lib/cognito-admin";
 
 /**
  * GET - Retrieve invite details for the acceptance page
@@ -140,8 +142,19 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Accept the invite
+    // Accept the invite (updates DynamoDB org membership)
     await acceptOrgInvite(token, session.user.sub);
+
+    // RBAC: Assign Cognito group based on invited role (admin or member)
+    // This ensures the user's ID token includes the correct custom:role claim
+    try {
+      await assignInvitedRole(session.user.sub, invite.role);
+      console.log(`Assigned ${invite.role} role to ${session.user.sub} via Cognito group`);
+    } catch (error) {
+      // Log but don't fail the invite accept - DynamoDB membership is the source of truth
+      // User might need to re-login to get updated token claims
+      console.error(`Failed to assign Cognito group for ${session.user.sub}:`, error.message);
+    }
 
     return NextResponse.json({
       success: true,

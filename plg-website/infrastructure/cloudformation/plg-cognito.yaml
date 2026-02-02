@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  HIC PLG Cognito Configuration
+
+  Creates:
+  - Cognito Groups for RBAC (mouse-owner, mouse-admin, mouse-member)
+  - Pre-Token Generation Lambda (injects role claims)
+  - Lambda permission for Cognito trigger
+
+  Note: The User Pool itself is created separately (mouse-staging-v2).
+  This template adds RBAC groups and triggers to the existing pool.
+
+  @see PLG Roadmap v6 - Phase 2: Business RBAC
+  @see docs/plg/PLG_ROADMAP_v6.md
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  UserPoolId:
+    Type: String
+    Description: Cognito User Pool ID (e.g., us-east-1_CntYimcMm)
+
+  LambdaCodeBucket:
+    Type: String
+    Description: S3 bucket containing Lambda deployment packages
+
+  LambdaCodePrefix:
+    Type: String
+    Default: lambda
+    Description: S3 key prefix for Lambda deployment packages
+
+  HicBaseLayerArn:
+    Type: String
+    Description: ARN of hic-base-layer (HicLog, etc.)
+
+Resources:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # COGNITO GROUPS FOR RBAC
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  MouseOwnerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: mouse-owner
+      UserPoolId: !Ref UserPoolId
+      Description: Business license purchaser - full portal access including billing and account deletion
+      Precedence: 1
+
+  MouseAdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: mouse-admin
+      UserPoolId: !Ref UserPoolId
+      Description: Delegated administrator - full access except account deletion and owner changes
+      Precedence: 2
+
+  MouseMemberGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: mouse-member
+      UserPoolId: !Ref UserPoolId
+      Description: Team member - dashboard only, contact admin for billing/team changes
+      Precedence: 3
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # IAM ROLE FOR PRE-TOKEN LAMBDA
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  PreTokenLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "plg-cognito-pre-token-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CognitoReadGroups
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Allow reading user groups (for role determination)
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminListGroupsForUser
+                  - cognito-idp:GetGroup
+                Resource:
+                  - !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PRE-TOKEN GENERATION LAMBDA
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  PreTokenFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "plg-cognito-pre-token-${Environment}"
+      Description: Injects custom:role claim based on Cognito group membership
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !GetAtt PreTokenLambdaRole.Arn
+      Timeout: 5
+      MemorySize: 128
+      Layers:
+        - !Ref HicBaseLayerArn
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${LambdaCodePrefix}/cognito-pre-token.zip"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+
+  PreTokenFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PreTokenFunction
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}"
+
+Outputs:
+  MouseOwnerGroupArn:
+    Description: ARN of mouse-owner Cognito group
+    Value: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}/group/mouse-owner"
+    Export:
+      Name: !Sub "${AWS::StackName}-MouseOwnerGroupArn"
+
+  MouseAdminGroupArn:
+    Description: ARN of mouse-admin Cognito group
+    Value: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}/group/mouse-admin"
+    Export:
+      Name: !Sub "${AWS::StackName}-MouseAdminGroupArn"
+
+  MouseMemberGroupArn:
+    Description: ARN of mouse-member Cognito group
+    Value: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}/group/mouse-member"
+    Export:
+      Name: !Sub "${AWS::StackName}-MouseMemberGroupArn"
+
+  PreTokenFunctionArn:
+    Description: Pre-Token Generation Lambda ARN
+    Value: !GetAtt PreTokenFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PreTokenFunctionArn"
+
+  PreTokenFunctionName:
+    Description: Pre-Token Generation Lambda name (for User Pool trigger configuration)
+    Value: !Ref PreTokenFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-PreTokenFunctionName"
