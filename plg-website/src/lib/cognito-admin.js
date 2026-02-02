@@ -15,7 +15,9 @@
 // HIC DM Layer imports - centralized dependency management
 import { HicLog } from "../../../dm/layers/base/src/index.js";
 
-// Import from hic-auth-layer (test-loader redirects to facade helper in dev)
+// AWS Cognito SDK
+// In tests: test-loader redirects hic-auth-layer to facade mock helper
+// In production: Next.js bundler resolves via package.json alias OR we'll need to revisit
 import {
   CognitoIdentityProviderClient,
   AdminAddUserToGroupCommand,
@@ -24,10 +26,21 @@ import {
   AdminGetUserCommand,
 } from "hic-auth-layer";
 
-// Initialize Cognito client
-const cognitoClient = new CognitoIdentityProviderClient({
-  region: process.env.AWS_REGION || "us-east-1",
-});
+// Lazy-initialized Cognito client (created on first use for test mock support)
+let cognitoClient = null;
+
+/**
+ * Get Cognito client (lazy initialization for test mock support)
+ * @returns {CognitoIdentityProviderClient}
+ */
+function getCognitoClient() {
+  if (!cognitoClient) {
+    cognitoClient = new CognitoIdentityProviderClient({
+      region: process.env.AWS_REGION || "us-east-1",
+    });
+  }
+  return cognitoClient;
+}
 
 /**
  * Get User Pool ID from environment (read at runtime for test support)
@@ -67,7 +80,7 @@ export async function addUserToGroup(userId, groupName) {
   }
 
   try {
-    await cognitoClient.send(
+    await getCognitoClient().send(
       new AdminAddUserToGroupCommand({
         UserPoolId: userPoolId,
         Username: userId,
@@ -109,7 +122,7 @@ export async function removeUserFromGroup(userId, groupName) {
   }
 
   try {
-    await cognitoClient.send(
+    await getCognitoClient().send(
       new AdminRemoveUserFromGroupCommand({
         UserPoolId: userPoolId,
         Username: userId,
@@ -149,7 +162,7 @@ export async function getUserGroups(userId) {
   }
 
   try {
-    const response = await cognitoClient.send(
+    const response = await getCognitoClient().send(
       new AdminListGroupsForUserCommand({
         UserPoolId: userPoolId,
         Username: userId,
@@ -263,7 +276,7 @@ export async function userExists(userId) {
   }
 
   try {
-    await cognitoClient.send(
+    await getCognitoClient().send(
       new AdminGetUserCommand({
         UserPoolId: userPoolId,
         Username: userId,

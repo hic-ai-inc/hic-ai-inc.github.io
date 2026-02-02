@@ -46,6 +46,7 @@ declare -A LAMBDA_FUNCTIONS=(
     ["email-sender"]="plg-email-sender"
     ["scheduled-tasks"]="plg-scheduled-tasks"
     ["cognito-post-confirmation"]="plg-cognito-post-confirmation"
+    ["cognito-pre-token"]="plg-cognito-pre-token"
 )
 
 # Colors for output

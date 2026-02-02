@@ -30,5 +30,9 @@
   {
     "ParameterKey": "VpcSecurityGroupIds",
     "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "UserPoolId",
+    "ParameterValue": "us-east-1_MDTi26EOf"
   }
 ]

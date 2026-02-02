@@ -22,6 +22,7 @@
     "test:e2e:all": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js --all"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.980.0",
     "@aws-sdk/client-dynamodb": "^3.974.0",
     "@aws-sdk/client-dynamodb-streams": "^3.974.0",
     "@aws-sdk/client-lambda": "^3.974.0",
@@ -40,7 +41,6 @@
   "devDependencies": {
     "@aws-amplify/backend": "^1.20.0",
     "@aws-amplify/backend-cli": "^1.8.2",
-    "@aws-sdk/client-cognito-identity-provider": "^3.980.0",
     "@tailwindcss/postcss": "^4",
     "aws-cdk-lib": "^2.234.1",
     "babel-plugin-react-compiler": "1.0.0",

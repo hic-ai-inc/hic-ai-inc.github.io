@@ -6,10 +6,11 @@ Description: |
   1. DynamoDB (table + GSIs + stream)
   2. Messaging (SNS topics + SQS queues)
   3. IAM (roles for Amplify + Lambdas)
-  4. Compute (4 Lambda functions)
+  4. Compute (5 Lambda functions)
   5. SES (email identity + config set)
   6. Scheduled (EventBridge rules)
-  7. Monitoring (logs + metrics + alarms + dashboard)
+  7. Cognito (RBAC groups + Pre-token Lambda)
+  8. Monitoring (logs + metrics + alarms + dashboard)
 
   Per: 20260123_INFRASTRUCTURE_GAP_ANALYSIS_AND_PLAN.md (Addendum A)
 
@@ -90,6 +91,11 @@ Parameters:
     Description: |
       ARN of hic-config-layer (SecretsManager, SSM)
       Format: arn:aws:lambda:REGION:ACCOUNT:layer:hic-config-layer:VERSION
+
+  # Cognito User Pool (created separately via Amplify)
+  UserPoolId:
+    Type: String
+    Description: Cognito User Pool ID (e.g., us-east-1_MDTi26EOf)
 
 Resources:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -234,7 +240,29 @@ Resources:
           Value: scheduled
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # LAYER 7: MONITORING
+  # LAYER 7: COGNITO (RBAC GROUPS + PRE-TOKEN LAMBDA)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  CognitoStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/plg-cognito.yaml"
+      Parameters:
+        Environment: !Ref Environment
+        UserPoolId: !Ref UserPoolId
+        LambdaCodeBucket: !Ref LambdaCodeBucket
+        LambdaCodePrefix: !Ref LambdaCodePrefix
+        HicBaseLayerArn: !Ref HicBaseLayerArn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: StackLayer
+          Value: cognito
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LAYER 8: MONITORING
   # ═══════════════════════════════════════════════════════════════════════════
 
   MonitoringStack:
@@ -278,6 +306,13 @@ Outputs:
     Value: !GetAtt ComputeStack.Outputs.CognitoPostConfirmationFunctionArn
     Export:
       Name: !Sub "${AWS::StackName}-CognitoPostConfirmationFunctionArn"
+
+  # Cognito
+  PreTokenFunctionArn:
+    Description: Pre-Token Generation Lambda ARN (for User Pool trigger config)
+    Value: !GetAtt CognitoStack.Outputs.PreTokenFunctionArn
+    Export:
+      Name: !Sub "${AWS::StackName}-PreTokenFunctionArn"
 
   # Monitoring
   DashboardUrl:
