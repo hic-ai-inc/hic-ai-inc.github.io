@@ -190,9 +190,46 @@ export async function updateCustomerSubscription(userId, updates) {
 }
 
 /**
- * Update customer profile fields (name, notification preferences, etc.)
- * Uses UpdateCommand to only modify specified fields without overwriting others.
- * 
+ * Update customer's account type (tier)
+ *
+ * Used when changing between Individual and Business tiers.
+ * This updates the accountType field which affects feature access.
+ *
+ * @param {string} userId - The user's sub claim from the identity provider
+ * @param {string} accountType - New account type ('individual' or 'business')
+ * @returns {Promise<void>}
+ */
+export async function updateCustomerAccountType(userId, accountType) {
+  const logger = createLogger("updateCustomerAccountType");
+
+  if (!["individual", "business"].includes(accountType)) {
+    throw new Error(`Invalid account type: ${accountType}`);
+  }
+
+  logger.info("Updating customer account type", { userId, accountType });
+
+  await dynamodb.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: "PROFILE",
+      },
+      UpdateExpression:
+        "SET #accountType = :accountType, #updatedAt = :updatedAt",
+      ExpressionAttributeValues: {
+        ":accountType": accountType,
+        ":updatedAt": new Date().toISOString(),
+      },
+      ExpressionAttributeNames: {
+        "#accountType": "accountType",
+        "#updatedAt": "updatedAt",
+      },
+    }),
+  );
+
+  logger.info("Account type updated successfully", { userId, accountType });
+}
 
 /**
  * Migrate customer record from temporary userId to real Cognito userId.
@@ -1047,6 +1084,60 @@ export async function getOrganizationByStripeCustomer(stripeCustomerId) {
     throw error;
   }
 }
+
+/**
+ * Get a user's organization membership by userId
+ * Queries GSI1 to find what org a user belongs to
+ * @param {string} userId - User ID (Cognito sub)
+ * @returns {Promise<Object|null>} Membership record with orgId, role, status, or null if not a member
+ */
+export async function getUserOrgMembership(userId) {
+  const logger = createLogger("getUserOrgMembership");
+
+  try {
+    // Query GSI1 where membership records have GSI1PK = USER#{userId}
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: "GSI1",
+        KeyConditionExpression: "GSI1PK = :pk AND begins_with(GSI1SK, :sk)",
+        ExpressionAttributeValues: {
+          ":pk": `USER#${userId}`,
+          ":sk": "ORG#",
+        },
+      }),
+    );
+
+    // Return the first active membership (users can only be in one org)
+    const membership = result.Items?.find((item) => item.status === "active");
+    
+    if (!membership) {
+      logger.info("No org membership found", { userId });
+      return null;
+    }
+
+    logger.info("Org membership found", {
+      userId,
+      orgId: membership.orgId,
+      role: membership.role,
+    });
+
+    return {
+      orgId: membership.orgId,
+      role: membership.role,
+      status: membership.status,
+      email: membership.email,
+      joinedAt: membership.joinedAt,
+    };
+  } catch (error) {
+    logger.error("Failed to get user org membership", {
+      userId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
 
 /**
  * Get all members of an organization

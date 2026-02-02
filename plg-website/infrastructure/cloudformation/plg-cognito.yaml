@@ -39,6 +39,15 @@ Parameters:
     Type: String
     Description: ARN of hic-base-layer (HicLog, etc.)
 
+  HicDynamoDBLayerArn:
+    Type: String
+    Description: ARN of hic-dynamodb-layer (DynamoDB client, etc.)
+
+  DynamoDBTableName:
+    Type: String
+    Description: Name of the PLG DynamoDB table (e.g., hic-plg-staging)
+    Default: hic-plg-staging
+
 Resources:
   # ═══════════════════════════════════════════════════════════════════════════
   # COGNITO GROUPS FOR RBAC
@@ -97,6 +106,18 @@ Resources:
                   - cognito-idp:GetGroup
                 Resource:
                   - !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}"
+        - PolicyName: DynamoDBReadOrgMembership
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Allow reading org membership from DynamoDB for org_id claim
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}/index/GSI1"
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -119,9 +140,11 @@ Resources:
       MemorySize: 128
       Layers:
         - !Ref HicBaseLayerArn
+        - !Ref HicDynamoDBLayerArn
       Environment:
         Variables:
           ENVIRONMENT: !Ref Environment
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
       Code:
         S3Bucket: !Ref LambdaCodeBucket
         S3Key: !Sub "${LambdaCodePrefix}/cognito-pre-token.zip"

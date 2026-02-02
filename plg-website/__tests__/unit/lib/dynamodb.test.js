@@ -42,6 +42,13 @@ import {
   getOrgLicenseUsage,
   getVersionConfig,
   dynamodb,
+  // Organization management functions
+  upsertOrganization,
+  updateOrganization,
+  updateOrgSeatLimit,
+  getOrganization,
+  getOrganizationByStripeCustomer,
+  getUserOrgMembership,
 } from "../../../src/lib/dynamodb.js";
 
 describe("dynamodb.js", () => {
@@ -596,6 +603,417 @@ describe("dynamodb.js", () => {
       expect(result.seatsAvailable).toBe(0);
       expect(result.utilizationPercent).toBe(0);
     });
+  });
+
+  // ===========================================
+  // ORGANIZATION MANAGEMENT TESTS
+  // Per Phase 1: Organization & Seat Sync
+  // ===========================================
+
+  describe("upsertOrganization", () => {
+    it("should create organization with all fields", async () => {
+      mockSend.mockResolvedValueOnce({}); // PutCommand success
+
+      const result = await upsertOrganization({
+        orgId: "cus_stripe123",
+        name: "Acme Corp",
+        seatLimit: 10,
+        ownerId: "user_owner123",
+        ownerEmail: "owner@acme.com",
+        stripeCustomerId: "cus_stripe123",
+        stripeSubscriptionId: "sub_abc123",
+      });
+
+      expect(result.orgId).toBe("cus_stripe123");
+      expect(result.name).toBe("Acme Corp");
+      expect(result.seatLimit).toBe(10);
+      expect(result.ownerId).toBe("user_owner123");
+      expect(result.ownerEmail).toBe("owner@acme.com");
+      expect(result.stripeCustomerId).toBe("cus_stripe123");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.Item.PK).toBe("ORG#cus_stripe123");
+      expect(command.input.Item.SK).toBe("DETAILS");
+    });
+
+    it("should normalize owner email to lowercase", async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await upsertOrganization({
+        orgId: "org_123",
+        name: "Test Org",
+        seatLimit: 5,
+        ownerId: "user_1",
+        ownerEmail: "OWNER@EXAMPLE.COM",
+      });
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.Item.ownerEmail).toBe("owner@example.com");
+    });
+
+    it("should default name from orgId when not provided", async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      const result = await upsertOrganization({
+        orgId: "cus_abcdefgh12345678",
+        seatLimit: 1,
+        ownerId: "user_1",
+        ownerEmail: "test@example.com",
+      });
+
+      // Name should be generated from last 8 chars of orgId
+      expect(result.name).toBe("Organization 12345678");
+    });
+
+    it("should default seatLimit to 1 when not provided", async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      const result = await upsertOrganization({
+        orgId: "org_123",
+        ownerId: "user_1",
+        ownerEmail: "test@example.com",
+      });
+
+      expect(result.seatLimit).toBe(1);
+    });
+
+    it("should call updateOrganization if org already exists", async () => {
+      // First call fails with ConditionalCheckFailedException
+      const conditionalError = new Error("Condition not met");
+      conditionalError.name = "ConditionalCheckFailedException";
+      mockSend.mockRejectedValueOnce(conditionalError);
+      // Second call (update) succeeds
+      mockSend.mockResolvedValueOnce({
+        Attributes: {
+          orgId: "org_123",
+          seatLimit: 10,
+          updatedAt: "2026-02-02T00:00:00.000Z",
+        },
+      });
+
+      const result = await upsertOrganization({
+        orgId: "org_123",
+        seatLimit: 10,
+        ownerId: "user_1",
+        ownerEmail: "test@example.com",
+      });
+
+      expect(mockSend.callCount).toBe(2);
+      expect(result.seatLimit).toBe(10);
+    });
+
+    it("should throw on non-conditional errors", async () => {
+      const dbError = new Error("DynamoDB error");
+      dbError.name = "InternalServerError";
+      mockSend.mockRejectedValueOnce(dbError);
+
+      let error;
+      try {
+        await upsertOrganization({
+          orgId: "org_123",
+          ownerId: "user_1",
+          ownerEmail: "test@example.com",
+        });
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.message).toBe("DynamoDB error");
+    });
+  });
+
+  describe("updateOrganization", () => {
+    it("should update only provided fields", async () => {
+      mockSend.mockResolvedValueOnce({
+        Attributes: {
+          orgId: "org_123",
+          name: "New Name",
+          seatLimit: 25,
+          updatedAt: "2026-02-02T00:00:00.000Z",
+        },
+      });
+
+      const result = await updateOrganization({
+        orgId: "org_123",
+        name: "New Name",
+        seatLimit: 25,
+      });
+
+      expect(result.name).toBe("New Name");
+      expect(result.seatLimit).toBe(25);
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.Key.PK).toBe("ORG#org_123");
+      expect(command.input.Key.SK).toBe("DETAILS");
+      expect(command.input.UpdateExpression).toContain("seatLimit");
+      expect(command.input.UpdateExpression).toContain("updatedAt");
+    });
+
+    it("should handle name field with reserved word", async () => {
+      mockSend.mockResolvedValueOnce({
+        Attributes: { name: "Updated Org" },
+      });
+
+      await updateOrganization({
+        orgId: "org_123",
+        name: "Updated Org",
+      });
+
+      const command = mockSend.calls[0][0];
+      // name is a reserved word, so it should use expression attribute name
+      expect(command.input.ExpressionAttributeNames["#name"]).toBe("name");
+    });
+
+    it("should always update updatedAt timestamp", async () => {
+      mockSend.mockResolvedValueOnce({ Attributes: {} });
+
+      await updateOrganization({
+        orgId: "org_123",
+        seatLimit: 5,
+      });
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.UpdateExpression).toContain("updatedAt");
+      expect(command.input.ExpressionAttributeValues[":updatedAt"]).toBeTruthy();
+    });
+  });
+
+  describe("updateOrgSeatLimit", () => {
+    it("should update seat limit directly", async () => {
+      mockSend.mockResolvedValueOnce({
+        Attributes: {
+          orgId: "cus_stripe123",
+          seatLimit: 50,
+          updatedAt: "2026-02-02T00:00:00.000Z",
+        },
+      });
+
+      const result = await updateOrgSeatLimit("cus_stripe123", 50);
+
+      expect(result.seatLimit).toBe(50);
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.Key.PK).toBe("ORG#cus_stripe123");
+      expect(command.input.Key.SK).toBe("DETAILS");
+      expect(command.input.ExpressionAttributeValues[":seatLimit"]).toBe(50);
+    });
+
+    it("should handle zero seat limit", async () => {
+      mockSend.mockResolvedValueOnce({
+        Attributes: { seatLimit: 0 },
+      });
+
+      const result = await updateOrgSeatLimit("org_123", 0);
+
+      expect(result.seatLimit).toBe(0);
+    });
+
+    it("should throw on DynamoDB error", async () => {
+      mockSend.mockRejectedValueOnce(new Error("DB error"));
+
+      let error;
+      try {
+        await updateOrgSeatLimit("org_123", 10);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.message).toBe("DB error");
+    });
+  });
+
+  describe("getOrganization", () => {
+    it("should return organization by ID", async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: "ORG#org_123",
+          SK: "DETAILS",
+          orgId: "org_123",
+          name: "Test Org",
+          seatLimit: 10,
+          ownerId: "user_1",
+        },
+      });
+
+      const result = await getOrganization("org_123");
+
+      expect(result.orgId).toBe("org_123");
+      expect(result.name).toBe("Test Org");
+      expect(result.seatLimit).toBe(10);
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.Key.PK).toBe("ORG#org_123");
+      expect(command.input.Key.SK).toBe("DETAILS");
+    });
+
+    it("should return null when organization not found", async () => {
+      mockSend.mockResolvedValueOnce({ Item: undefined });
+
+      const result = await getOrganization("nonexistent");
+
+      expect(result).toBe(null);
+    });
+
+    it("should throw on DynamoDB error", async () => {
+      mockSend.mockRejectedValueOnce(new Error("Connection failed"));
+
+      let error;
+      try {
+        await getOrganization("org_123");
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.message).toBe("Connection failed");
+    });
+  });
+
+  describe("getOrganizationByStripeCustomer", () => {
+    it("should lookup organization by Stripe customer ID", async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: "ORG#cus_stripe123",
+          SK: "DETAILS",
+          orgId: "cus_stripe123",
+          stripeCustomerId: "cus_stripe123",
+          seatLimit: 25,
+        },
+      });
+
+      const result = await getOrganizationByStripeCustomer("cus_stripe123");
+
+      expect(result.orgId).toBe("cus_stripe123");
+      expect(result.stripeCustomerId).toBe("cus_stripe123");
+      expect(result.seatLimit).toBe(25);
+
+      // Should query using stripeCustomerId as key (since orgId = stripeCustomerId)
+      const command = mockSend.calls[0][0];
+      expect(command.input.Key.PK).toBe("ORG#cus_stripe123");
+    });
+
+    it("should return null when no organization found", async () => {
+      mockSend.mockResolvedValueOnce({ Item: undefined });
+
+      const result = await getOrganizationByStripeCustomer("cus_unknown");
+
+      expect(result).toBe(null);
+    });
+
+    it("should throw on DynamoDB error", async () => {
+      mockSend.mockRejectedValueOnce(new Error("Access denied"));
+
+      let error;
+      try {
+        await getOrganizationByStripeCustomer("cus_123");
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.message).toBe("Access denied");
+    });
+
+  // ===========================================
+  // USER ORG MEMBERSHIP TESTS
+  // ===========================================
+
+  describe("getUserOrgMembership", () => {
+    it("should return org membership for user with active membership", async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            GSI1PK: "USER#user_123",
+            GSI1SK: "ORG#org_acme",
+            orgId: "org_acme",
+            role: "member",
+            status: "active",
+            email: "user@acme.com",
+            joinedAt: "2026-02-01T00:00:00.000Z",
+          },
+        ],
+      });
+
+      const result = await getUserOrgMembership("user_123");
+
+      expect(result).not.toBeNull();
+      expect(result.orgId).toBe("org_acme");
+      expect(result.role).toBe("member");
+      expect(result.status).toBe("active");
+      expect(result.email).toBe("user@acme.com");
+
+      // Should query GSI1 with USER# prefix
+      const command = mockSend.calls[0][0];
+      expect(command.input.IndexName).toBe("GSI1");
+      expect(command.input.ExpressionAttributeValues[":pk"]).toBe("USER#user_123");
+    });
+
+    it("should return null for user with no org membership", async () => {
+      mockSend.mockResolvedValueOnce({ Items: [] });
+
+      const result = await getUserOrgMembership("user_no_org");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null for user with only inactive memberships", async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            orgId: "org_old",
+            role: "member",
+            status: "removed",
+            email: "user@old.com",
+          },
+        ],
+      });
+
+      const result = await getUserOrgMembership("user_inactive");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return first active membership when user has multiple", async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            orgId: "org_inactive",
+            role: "member",
+            status: "removed",
+          },
+          {
+            orgId: "org_active",
+            role: "admin",
+            status: "active",
+            email: "user@active.com",
+            joinedAt: "2026-02-02T00:00:00.000Z",
+          },
+        ],
+      });
+
+      const result = await getUserOrgMembership("user_multi");
+
+      expect(result.orgId).toBe("org_active");
+      expect(result.role).toBe("admin");
+    });
+
+    it("should throw on DynamoDB error", async () => {
+      mockSend.mockRejectedValueOnce(new Error("Connection failed"));
+
+      let error;
+      try {
+        await getUserOrgMembership("user_error");
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.message).toBe("Connection failed");
+    });
+  });
+
   });
 
   // ===========================================

@@ -13,7 +13,14 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
-import { getCustomerByUserId, getCustomerByEmail, getLicenseDevices } from "@/lib/dynamodb";
+import {
+  getCustomerByUserId,
+  getCustomerByEmail,
+  getLicenseDevices,
+  getUserOrgMembership,
+  getOrganization,
+  getCustomerByStripeId,
+} from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
 
 // Cognito JWT verifier
@@ -65,8 +72,28 @@ export async function GET(request) {
       customer = await getCustomerByEmail(user.email);
     }
 
-    // No customer record - new user, needs to checkout
+    // If still no customer, check if user is a Business tier member
+    // Members don't have their own CUSTOMER# record - they share the org's license
+    let orgMembership = null;
+    let orgOwnerCustomer = null;
+    
     if (!customer) {
+      orgMembership = await getUserOrgMembership(user.userId);
+      
+      if (orgMembership) {
+        // User is an org member - get the org's license info via the owner
+        const org = await getOrganization(orgMembership.orgId);
+        if (org?.stripeCustomerId) {
+          // Get the org owner's customer record for license info
+          orgOwnerCustomer = await getCustomerByStripeId(org.stripeCustomerId);
+        }
+        
+        console.log(`[Portal Status] User ${user.userId} is org member (role: ${orgMembership.role})`);
+      }
+    }
+
+    // No customer record AND not an org member - new user, needs to checkout
+    if (!customer && !orgMembership) {
       return NextResponse.json({
         status: "new",
         subscriptionStatus: "none",
@@ -80,7 +107,9 @@ export async function GET(request) {
     }
 
     // Determine subscription state
-    const subscriptionStatus = customer.subscriptionStatus || "none";
+    // For org members, use the org owner's subscription status
+    const effectiveCustomer = customer || orgOwnerCustomer;
+    const subscriptionStatus = effectiveCustomer?.subscriptionStatus || "none";
     const hasActiveSubscription = ["active", "trialing"].includes(
       subscriptionStatus,
     );
@@ -88,22 +117,27 @@ export async function GET(request) {
       subscriptionStatus,
     );
 
-    // Get device count for dashboard display
-    const accountType = customer.accountType || "individual";
+    // Get device count and account type for dashboard display
+    // For org members, use the org's license info (business plan)
+    const accountType = orgMembership ? "business" : (effectiveCustomer?.accountType || "individual");
     const planConfig = PRICING[accountType];
     const maxDevices = planConfig?.maxConcurrentMachinesPerSeat || planConfig?.maxConcurrentMachines || 3;
     
+    // Get device count - for org members, count their personal devices
+    // (In future: could track member devices separately)
     let activatedDevices = 0;
-    if (customer.keygenLicenseId) {
+    const licenseId = effectiveCustomer?.keygenLicenseId;
+    if (licenseId) {
       try {
-        const devices = await getLicenseDevices(customer.keygenLicenseId);
+        const devices = await getLicenseDevices(licenseId);
         activatedDevices = devices.length;
       } catch (error) {
         console.error("[Portal Status] Failed to get device count:", error.message);
       }
     }
 
-    return NextResponse.json({
+    // Build response with org info for members
+    const response = {
       status: hasActiveSubscription
         ? "active"
         : hasExpiredSubscription
@@ -114,15 +148,28 @@ export async function GET(request) {
       shouldRedirectToCheckout:
         !hasActiveSubscription && !hasExpiredSubscription,
       accountType,
-      keygenLicenseId: customer.keygenLicenseId || null,
-      stripeCustomerId: customer.stripeCustomerId || null,
+      keygenLicenseId: licenseId || null,
+      stripeCustomerId: effectiveCustomer?.stripeCustomerId || null,
       activatedDevices,
       maxDevices,
       user: {
         email: user.email,
         userId: user.userId,
       },
-    });
+    };
+
+    // Add org context for Business tier members
+    if (orgMembership) {
+      response.orgMembership = {
+        orgId: orgMembership.orgId,
+        role: orgMembership.role,
+        joinedAt: orgMembership.joinedAt,
+      };
+      // Members don't control billing - they share the org's subscription
+      response.isOrgMember = true;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("[Portal Status] Error:", error);
     return NextResponse.json(

@@ -1104,4 +1104,218 @@ describe("Role-Based Access Control (RBAC) Logic", () => {
   });
 });
 
+// ===========================================
+// ORGANIZATION FALLBACK LOOKUP (Phase 1)
+// Tests for team API org_id fallback to stripeCustomerId
+// ===========================================
+
+describe("Organization Lookup Fallback", () => {
+  /**
+   * Simulates the org lookup strategy:
+   * 1. First try to get org_id from session token (fast path)
+   * 2. If missing, fallback to lookup by stripeCustomerId
+   */
+  function resolveOrgId(session) {
+    // Fast path: org_id in token
+    const namespace = "https://hic-ai.com/";
+    const orgIdFromToken = session?.user?.[`${namespace}org_id`];
+    if (orgIdFromToken) {
+      return {
+        orgId: orgIdFromToken,
+        source: "token",
+      };
+    }
+
+    // Fallback: use stripeCustomerId (available in session from customer lookup)
+    const stripeCustomerId = session?.user?.[`${namespace}stripeCustomerId`];
+    if (stripeCustomerId) {
+      return {
+        orgId: stripeCustomerId, // orgId = stripeCustomerId by design
+        source: "stripe_customer",
+      };
+    }
+
+    // No org resolution possible
+    return null;
+  }
+
+  /**
+   * Determines if org fallback lookup is needed
+   */
+  function needsOrgFallback(session) {
+    const namespace = "https://hic-ai.com/";
+    const hasOrgId = !!session?.user?.[`${namespace}org_id`];
+    const hasStripeCustomerId = !!session?.user?.[`${namespace}stripeCustomerId`];
+    const isBusinessAccount =
+      session?.user?.[`${namespace}account_type`] === "business";
+
+    return isBusinessAccount && !hasOrgId && hasStripeCustomerId;
+  }
+
+  describe("resolveOrgId", () => {
+    it("should use org_id from token when present", () => {
+      const session = {
+        user: {
+          "https://hic-ai.com/org_id": "org_from_token",
+          "https://hic-ai.com/stripeCustomerId": "cus_stripe123",
+        },
+      };
+
+      const result = resolveOrgId(session);
+
+      assert.strictEqual(result.orgId, "org_from_token");
+      assert.strictEqual(result.source, "token");
+    });
+
+    it("should fallback to stripeCustomerId when org_id missing", () => {
+      const session = {
+        user: {
+          // No org_id in token
+          "https://hic-ai.com/stripeCustomerId": "cus_business456",
+        },
+      };
+
+      const result = resolveOrgId(session);
+
+      assert.strictEqual(result.orgId, "cus_business456");
+      assert.strictEqual(result.source, "stripe_customer");
+    });
+
+    it("should return null when neither org_id nor stripeCustomerId available", () => {
+      const session = {
+        user: {
+          email: "user@example.com",
+          // No org_id, no stripeCustomerId
+        },
+      };
+
+      const result = resolveOrgId(session);
+
+      assert.strictEqual(result, null);
+    });
+
+    it("should prefer org_id over stripeCustomerId", () => {
+      const session = {
+        user: {
+          "https://hic-ai.com/org_id": "org_explicit",
+          "https://hic-ai.com/stripeCustomerId": "cus_different",
+        },
+      };
+
+      const result = resolveOrgId(session);
+
+      assert.strictEqual(result.orgId, "org_explicit");
+      assert.strictEqual(result.source, "token");
+    });
+
+    it("should handle null session", () => {
+      const result = resolveOrgId(null);
+      assert.strictEqual(result, null);
+    });
+
+    it("should handle session without user", () => {
+      const result = resolveOrgId({ user: null });
+      assert.strictEqual(result, null);
+    });
+  });
+
+  describe("needsOrgFallback", () => {
+    it("should return true for business account without org_id but with stripeCustomerId", () => {
+      const session = {
+        user: {
+          "https://hic-ai.com/account_type": "business",
+          "https://hic-ai.com/stripeCustomerId": "cus_business789",
+          // No org_id
+        },
+      };
+
+      const result = needsOrgFallback(session);
+
+      assert.strictEqual(result, true);
+    });
+
+    it("should return false when org_id already present", () => {
+      const session = {
+        user: {
+          "https://hic-ai.com/account_type": "business",
+          "https://hic-ai.com/org_id": "org_exists",
+          "https://hic-ai.com/stripeCustomerId": "cus_business",
+        },
+      };
+
+      const result = needsOrgFallback(session);
+
+      assert.strictEqual(result, false);
+    });
+
+    it("should return false for individual accounts", () => {
+      const session = {
+        user: {
+          "https://hic-ai.com/account_type": "individual",
+          "https://hic-ai.com/stripeCustomerId": "cus_individual",
+        },
+      };
+
+      const result = needsOrgFallback(session);
+
+      assert.strictEqual(result, false);
+    });
+
+    it("should return false when stripeCustomerId missing", () => {
+      const session = {
+        user: {
+          "https://hic-ai.com/account_type": "business",
+          // No stripeCustomerId
+        },
+      };
+
+      const result = needsOrgFallback(session);
+
+      assert.strictEqual(result, false);
+    });
+  });
+
+  describe("org lookup workflow", () => {
+    it("should resolve org for new Business customer who purchased before Cognito account", () => {
+      // Scenario: User purchases Business plan via Stripe checkout
+      // They don't have a Cognito account yet, so org_id won't be in token
+      // But stripeCustomerId will be available after customer sync
+      const session = {
+        user: {
+          email: "new.business@company.com",
+          "https://hic-ai.com/account_type": "business",
+          "https://hic-ai.com/stripeCustomerId": "cus_newBusiness123",
+          // org_id not yet available - will be synced later
+        },
+      };
+
+      const needsFallback = needsOrgFallback(session);
+      assert.strictEqual(needsFallback, true, "Should need fallback");
+
+      const resolved = resolveOrgId(session);
+      assert.strictEqual(resolved.orgId, "cus_newBusiness123");
+      assert.strictEqual(resolved.source, "stripe_customer");
+    });
+
+    it("should resolve org immediately for existing Business customer with org_id", () => {
+      // Scenario: Existing Business customer who already has org_id in token
+      const session = {
+        user: {
+          email: "existing.owner@company.com",
+          "https://hic-ai.com/account_type": "business",
+          "https://hic-ai.com/org_id": "cus_existingBusiness456",
+          "https://hic-ai.com/stripeCustomerId": "cus_existingBusiness456",
+        },
+      };
+
+      const needsFallback = needsOrgFallback(session);
+      assert.strictEqual(needsFallback, false, "Should not need fallback");
+
+      const resolved = resolveOrgId(session);
+      assert.strictEqual(resolved.orgId, "cus_existingBusiness456");
+      assert.strictEqual(resolved.source, "token");
+    });
+  });
+});
+
 });

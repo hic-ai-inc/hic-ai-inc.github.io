@@ -934,3 +934,313 @@ describe("Stripe License Provisioning - LICENSE# Record Creation", () => {
     });
   });
 });
+
+// ===========================================
+// ORGANIZATION & SEAT SYNC TESTS (Phase 1)
+// Tests for Business plan organization management
+// ===========================================
+
+describe("webhooks/stripe - Organization Management", () => {
+  /**
+   * Simulates extracting Business plan org data from checkout session
+   * Used in handleCheckoutCompleted for Business plan purchases
+   */
+  function extractBusinessPlanOrgData(session) {
+    const { customer, customer_email, subscription, metadata } = session;
+    const planType = metadata?.planType || metadata?.plan;
+
+    // Only Business plans get organization records
+    if (planType !== "business") {
+      return null;
+    }
+
+    return {
+      orgId: customer, // stripeCustomerId is the orgId
+      name: `Organization ${customer.slice(-8)}`, // Default name from customer ID
+      seatLimit: parseInt(metadata?.seats || "1", 10),
+      ownerId: metadata?.userId || null, // May not be set at checkout time
+      ownerEmail: customer_email?.toLowerCase() || null,
+      stripeCustomerId: customer,
+      stripeSubscriptionId: subscription,
+    };
+  }
+
+  /**
+   * Simulates extracting seat quantity from subscription update event
+   * Used in handleSubscriptionUpdated for seat sync
+   */
+  function extractSeatQuantity(subscription) {
+    // Stripe subscription items hold quantity
+    const items = subscription.items?.data || [];
+    if (items.length === 0) {
+      return 1; // Default to 1 if no items
+    }
+    return items[0]?.quantity || 1;
+  }
+
+  /**
+   * Determines if org seat limit should be updated
+   */
+  function shouldUpdateOrgSeatLimit(subscription, newQuantity) {
+    // Only update if there's a customer (orgId) and valid quantity
+    return Boolean(
+      subscription.customer &&
+      typeof newQuantity === "number" &&
+      newQuantity >= 1
+    );
+  }
+
+  describe("extractBusinessPlanOrgData", () => {
+    it("should extract org data from Business checkout session", () => {
+      const session = {
+        customer: "cus_business123",
+        customer_email: "owner@company.com",
+        subscription: "sub_abc123",
+        metadata: {
+          planType: "business",
+          seats: "10",
+          userId: "user_owner456",
+        },
+      };
+
+      const orgData = extractBusinessPlanOrgData(session);
+
+      assert.ok(orgData, "Should return org data for business plan");
+      assert.strictEqual(orgData.orgId, "cus_business123");
+      assert.strictEqual(orgData.ownerEmail, "owner@company.com");
+      assert.strictEqual(orgData.seatLimit, 10);
+      assert.strictEqual(orgData.stripeCustomerId, "cus_business123");
+      assert.strictEqual(orgData.stripeSubscriptionId, "sub_abc123");
+      assert.strictEqual(orgData.ownerId, "user_owner456");
+    });
+
+    it("should return null for Individual plan checkout", () => {
+      const session = {
+        customer: "cus_individual789",
+        customer_email: "user@example.com",
+        subscription: "sub_xyz",
+        metadata: {
+          planType: "individual",
+        },
+      };
+
+      const orgData = extractBusinessPlanOrgData(session);
+
+      assert.strictEqual(orgData, null, "Individual plans should not create orgs");
+    });
+
+    it("should default seatLimit to 1 when seats not specified", () => {
+      const session = {
+        customer: "cus_business456",
+        customer_email: "owner@company.com",
+        subscription: "sub_def456",
+        metadata: {
+          planType: "business",
+          // No seats specified
+        },
+      };
+
+      const orgData = extractBusinessPlanOrgData(session);
+
+      assert.strictEqual(orgData.seatLimit, 1);
+    });
+
+    it("should normalize email to lowercase", () => {
+      const session = {
+        customer: "cus_business789",
+        customer_email: "OWNER@COMPANY.COM",
+        subscription: "sub_ghi789",
+        metadata: {
+          planType: "business",
+          seats: "5",
+        },
+      };
+
+      const orgData = extractBusinessPlanOrgData(session);
+
+      assert.strictEqual(orgData.ownerEmail, "owner@company.com");
+    });
+
+    it("should handle legacy 'plan' metadata key", () => {
+      const session = {
+        customer: "cus_legacy123",
+        customer_email: "legacy@company.com",
+        subscription: "sub_legacy",
+        metadata: {
+          plan: "business", // Legacy key, not planType
+          seats: "3",
+        },
+      };
+
+      const orgData = extractBusinessPlanOrgData(session);
+
+      assert.ok(orgData, "Should recognize legacy plan metadata");
+      assert.strictEqual(orgData.seatLimit, 3);
+    });
+
+    it("should handle missing userId gracefully", () => {
+      const session = {
+        customer: "cus_nouserid",
+        customer_email: "owner@company.com",
+        subscription: "sub_nouserid",
+        metadata: {
+          planType: "business",
+          seats: "5",
+          // No userId - user may not have Cognito account yet
+        },
+      };
+
+      const orgData = extractBusinessPlanOrgData(session);
+
+      assert.strictEqual(orgData.ownerId, null);
+    });
+  });
+
+  describe("extractSeatQuantity", () => {
+    it("should extract quantity from subscription items", () => {
+      const subscription = {
+        id: "sub_test123",
+        customer: "cus_test123",
+        items: {
+          data: [
+            {
+              id: "si_item123",
+              price: { id: "price_business_monthly" },
+              quantity: 25,
+            },
+          ],
+        },
+      };
+
+      const quantity = extractSeatQuantity(subscription);
+
+      assert.strictEqual(quantity, 25);
+    });
+
+    it("should default to 1 when no items", () => {
+      const subscription = {
+        id: "sub_empty",
+        customer: "cus_empty",
+        items: { data: [] },
+      };
+
+      const quantity = extractSeatQuantity(subscription);
+
+      assert.strictEqual(quantity, 1);
+    });
+
+    it("should default to 1 when quantity is null", () => {
+      const subscription = {
+        id: "sub_nullqty",
+        customer: "cus_nullqty",
+        items: {
+          data: [{ id: "si_item", price: { id: "price_test" }, quantity: null }],
+        },
+      };
+
+      const quantity = extractSeatQuantity(subscription);
+
+      assert.strictEqual(quantity, 1);
+    });
+
+    it("should handle missing items property", () => {
+      const subscription = {
+        id: "sub_noitems",
+        customer: "cus_noitems",
+        // No items property
+      };
+
+      const quantity = extractSeatQuantity(subscription);
+
+      assert.strictEqual(quantity, 1);
+    });
+  });
+
+  describe("shouldUpdateOrgSeatLimit", () => {
+    it("should return true for valid customer and quantity", () => {
+      const subscription = { customer: "cus_valid123" };
+      const result = shouldUpdateOrgSeatLimit(subscription, 10);
+      assert.strictEqual(result, true);
+    });
+
+    it("should return false when customer is missing", () => {
+      const subscription = { customer: null };
+      const result = shouldUpdateOrgSeatLimit(subscription, 10);
+      assert.strictEqual(result, false);
+    });
+
+    it("should return false for invalid quantity", () => {
+      const subscription = { customer: "cus_valid" };
+      assert.strictEqual(shouldUpdateOrgSeatLimit(subscription, 0), false);
+      assert.strictEqual(shouldUpdateOrgSeatLimit(subscription, -1), false);
+      assert.strictEqual(shouldUpdateOrgSeatLimit(subscription, "5"), false);
+    });
+
+    it("should accept quantity of 1 (minimum)", () => {
+      const subscription = { customer: "cus_valid" };
+      const result = shouldUpdateOrgSeatLimit(subscription, 1);
+      assert.strictEqual(result, true);
+    });
+  });
+
+  describe("organization record key structure", () => {
+    /**
+     * Validates the PK/SK structure for organization records
+     * ORG#{orgId}/DETAILS
+     */
+    function createOrgRecordKeys(stripeCustomerId) {
+      return {
+        PK: `ORG#${stripeCustomerId}`,
+        SK: "DETAILS",
+      };
+    }
+
+    it("should create correct PK/SK from Stripe customer ID", () => {
+      const keys = createOrgRecordKeys("cus_abc123xyz");
+      assert.strictEqual(keys.PK, "ORG#cus_abc123xyz");
+      assert.strictEqual(keys.SK, "DETAILS");
+    });
+
+    it("should use stripeCustomerId as orgId for lookup", () => {
+      // This is the key design decision: orgId = stripeCustomerId
+      const stripeCustomerId = "cus_businessCustomer123";
+      const keys = createOrgRecordKeys(stripeCustomerId);
+
+      // The PK directly references the Stripe customer
+      // enabling direct lookup without a GSI
+      assert.ok(keys.PK.includes(stripeCustomerId));
+    });
+  });
+
+  describe("seat sync workflow", () => {
+    it("should identify when seat update is needed", () => {
+      // Scenario: Customer increases seats from 10 to 25 via Stripe portal
+      const previousQuantity = 10;
+      const newSubscription = {
+        customer: "cus_business999",
+        items: { data: [{ quantity: 25 }] },
+      };
+
+      const newQuantity = extractSeatQuantity(newSubscription);
+      const shouldUpdate = shouldUpdateOrgSeatLimit(newSubscription, newQuantity);
+
+      assert.strictEqual(newQuantity, 25);
+      assert.strictEqual(shouldUpdate, true);
+      assert.notStrictEqual(newQuantity, previousQuantity, "Quantity changed");
+    });
+
+    it("should handle seat decrease", () => {
+      // Scenario: Customer reduces seats from 50 to 25
+      const newSubscription = {
+        customer: "cus_business888",
+        items: { data: [{ quantity: 25 }] },
+      };
+
+      const quantity = extractSeatQuantity(newSubscription);
+      const shouldUpdate = shouldUpdateOrgSeatLimit(newSubscription, quantity);
+
+      assert.strictEqual(quantity, 25);
+      assert.strictEqual(shouldUpdate, true);
+    });
+  });
+});
