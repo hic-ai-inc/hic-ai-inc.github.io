@@ -40,7 +40,9 @@ export const dynamodb = DynamoDBDocumentClient.from(client, {
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || "hic-plg-staging";
 
 // Log table name on first import for debugging
-console.log(`[DynamoDB] Using table: ${TABLE_NAME} (env: ${process.env.DYNAMODB_TABLE_NAME || "not set"})`);
+console.log(
+  `[DynamoDB] Using table: ${TABLE_NAME} (env: ${process.env.DYNAMODB_TABLE_NAME || "not set"})`,
+);
 
 // ===========================================
 // CUSTOMER OPERATIONS
@@ -99,13 +101,13 @@ export async function getCustomerByEmail(email) {
       },
     }),
   );
-  
+
   if (!result.Items || result.Items.length === 0) {
     return null;
   }
-  
+
   // If multiple records, prefer one with a license
-  const withLicense = result.Items.find(item => item.keygenLicenseId);
+  const withLicense = result.Items.find((item) => item.keygenLicenseId);
   return withLicense || result.Items[0];
 }
 
@@ -233,21 +235,21 @@ export async function updateCustomerAccountType(userId, accountType) {
 
 /**
  * Migrate customer record from temporary userId to real Cognito userId.
- * 
+ *
  * When a webhook creates a customer before the user signs in with Cognito,
  * it uses a temporary ID like `email:xxx@xxx.com`. When the user later
  * signs in and completes provisioning, we need to migrate the record to
  * use their real Cognito sub as the userId.
- * 
+ *
  * This creates a new record with the real userId and deletes the old one.
- * 
+ *
  * @param {string} oldUserId - The temporary userId (e.g., "email:user@example.com")
  * @param {string} newUserId - The real Cognito sub
  * @returns {Promise<Object>} The migrated customer record
  */
 export async function migrateCustomerUserId(oldUserId, newUserId) {
   const logger = createLogger("migrateCustomerUserId");
-  
+
   // Get the existing customer record
   const existing = await getCustomerByUserId(oldUserId);
   if (!existing) {
@@ -255,14 +257,20 @@ export async function migrateCustomerUserId(oldUserId, newUserId) {
     throw new Error(`Customer not found with userId: ${oldUserId}`);
   }
 
-  logger.info("Migrating customer userId", { oldUserId, newUserId, email: existing.email });
+  logger.info("Migrating customer userId", {
+    oldUserId,
+    newUserId,
+    email: existing.email,
+  });
 
   // Create new record with updated userId
   const now = new Date().toISOString();
   const newItem = {
     PK: `USER#${newUserId}`,
     SK: "PROFILE",
-    GSI1PK: existing.stripeCustomerId ? `STRIPE#${existing.stripeCustomerId}` : undefined,
+    GSI1PK: existing.stripeCustomerId
+      ? `STRIPE#${existing.stripeCustomerId}`
+      : undefined,
     GSI1SK: existing.stripeCustomerId ? "CUSTOMER" : undefined,
     GSI2PK: `EMAIL#${existing.email.toLowerCase()}`,
     GSI2SK: "USER",
@@ -278,8 +286,13 @@ export async function migrateCustomerUserId(oldUserId, newUserId) {
     updatedAt: now,
     migratedFrom: oldUserId,
     migratedAt: now,
+    // Preserve organization linkage for Business accounts
+    ...(existing.orgId && { orgId: existing.orgId }),
+    ...(existing.orgRole && { orgRole: existing.orgRole }),
     // Preserve any metadata
-    ...(existing.notificationPreferences && { notificationPreferences: existing.notificationPreferences }),
+    ...(existing.notificationPreferences && {
+      notificationPreferences: existing.notificationPreferences,
+    }),
   };
 
   // Write new record
@@ -301,7 +314,10 @@ export async function migrateCustomerUserId(oldUserId, newUserId) {
     }),
   );
 
-  logger.info("Customer userId migrated successfully", { oldUserId, newUserId });
+  logger.info("Customer userId migrated successfully", {
+    oldUserId,
+    newUserId,
+  });
   return newItem;
 }
 
@@ -330,7 +346,10 @@ export async function updateCustomerProfile(userId, updates) {
   expressionValues[":updatedAt"] = new Date().toISOString();
   expressionNames["#updatedAt"] = "updatedAt";
 
-  logger.info("Updating customer profile", { userId, fields: Object.keys(updates) });
+  logger.info("Updating customer profile", {
+    userId,
+    fields: Object.keys(updates),
+  });
 
   const result = await dynamodb.send(
     new UpdateCommand({
@@ -430,11 +449,10 @@ export async function getCustomerLicensesByEmail(email) {
     }),
   );
   // Filter to only LICENSE records (not other GSI1 records)
-  return (result.Items || []).filter(item => 
-    item.PK?.startsWith("LICENSE#") && item.SK === "DETAILS"
+  return (result.Items || []).filter(
+    (item) => item.PK?.startsWith("LICENSE#") && item.SK === "DETAILS",
   );
 }
-
 
 /**
  * Store license record
@@ -562,7 +580,7 @@ export async function getLicenseDevices(keygenLicenseId) {
 
 /**
  * Add device activation
- * 
+ *
  * IMPORTANT: Uses fingerprint as the deduplication key.
  * If a device with the same fingerprint already exists for this license,
  * updates the existing record instead of creating a duplicate.
@@ -579,7 +597,9 @@ export async function addDeviceActivation({
 
   // Check if a device with this fingerprint already exists for this license
   const existingDevices = await getLicenseDevices(keygenLicenseId);
-  const existingDevice = existingDevices.find(d => d.fingerprint === fingerprint);
+  const existingDevice = existingDevices.find(
+    (d) => d.fingerprint === fingerprint,
+  );
 
   if (existingDevice) {
     // Update existing device record (may have new Keygen machine ID)
@@ -590,7 +610,8 @@ export async function addDeviceActivation({
           PK: `LICENSE#${keygenLicenseId}`,
           SK: existingDevice.SK,
         },
-        UpdateExpression: "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen",
+        UpdateExpression:
+          "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen",
         ExpressionAttributeNames: {
           "#name": "name",
         },
@@ -602,7 +623,13 @@ export async function addDeviceActivation({
         },
       }),
     );
-    return { ...existingDevice, keygenMachineId, name, platform, lastSeenAt: now };
+    return {
+      ...existingDevice,
+      keygenMachineId,
+      name,
+      platform,
+      lastSeenAt: now,
+    };
   }
 
   // No existing device with this fingerprint - create new record
@@ -789,7 +816,7 @@ export async function createTrial({
  * Record a heartbeat from a trial device
  * Updates lastSeenAt, or creates record if device hasn't initialized trial yet.
  * This allows us to track devices before they purchase, for later linking.
- * 
+ *
  * @param {string} deviceId - Device identifier (fingerprint or machineId)
  * @param {Object} metadata - Additional device metadata
  * @param {string} [metadata.fingerprint] - Machine fingerprint
@@ -834,7 +861,6 @@ export async function recordTrialHeartbeat(deviceId, metadata = {}) {
 // ENTERPRISE ORGANIZATION OPERATIONS
 // Per Addendum A.5/A.7
 // ===========================================
-
 
 /**
  * Create or update an organization record
@@ -1110,7 +1136,7 @@ export async function getUserOrgMembership(userId) {
 
     // Return the first active membership (users can only be in one org)
     const membership = result.Items?.find((item) => item.status === "active");
-    
+
     if (!membership) {
       logger.info("No org membership found", { userId });
       return null;
@@ -1137,7 +1163,6 @@ export async function getUserOrgMembership(userId) {
     throw error;
   }
 }
-
 
 /**
  * Get all members of an organization
@@ -1672,7 +1697,6 @@ export async function addOrgMember({
   }
 }
 
-
 // ===========================================
 // VERSION CONFIG OPERATIONS (B2)
 // ===========================================
@@ -1680,7 +1704,7 @@ export async function addOrgMember({
 /**
  * Get version config for auto-update integration
  * Returns the VERSION#mouse record with latest version info
- * 
+ *
  * @param {string} productId - Product identifier (default: "mouse")
  * @returns {Promise<Object|null>} Version config or null if not found
  */
@@ -1704,7 +1728,7 @@ export async function getVersionConfig(productId = "mouse") {
 
 /**
  * Update version config (for CI/CD release automation)
- * 
+ *
  * @param {string} productId - Product identifier (default: "mouse")
  * @param {Object} versionInfo - Version info to update
  * @param {string} versionInfo.latestVersion - Latest version number
@@ -1713,7 +1737,7 @@ export async function getVersionConfig(productId = "mouse") {
  */
 export async function updateVersionConfig(productId = "mouse", versionInfo) {
   const now = new Date().toISOString();
-  
+
   await dynamodb.send(
     new UpdateCommand({
       TableName: TABLE_NAME,
@@ -1721,7 +1745,8 @@ export async function updateVersionConfig(productId = "mouse", versionInfo) {
         PK: `VERSION#${productId}`,
         SK: "CURRENT",
       },
-      UpdateExpression: "SET latestVersion = :v, releaseNotesUrl = :r, updatedAt = :t",
+      UpdateExpression:
+        "SET latestVersion = :v, releaseNotesUrl = :r, updatedAt = :t",
       ExpressionAttributeValues: {
         ":v": versionInfo.latestVersion,
         ":r": versionInfo.releaseNotesUrl,
@@ -1730,4 +1755,3 @@ export async function updateVersionConfig(productId = "mouse", versionInfo) {
     }),
   );
 }
-
