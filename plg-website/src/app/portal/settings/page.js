@@ -19,6 +19,7 @@ import {
   Input,
 } from "@/components/ui";
 import { useUser } from "@/lib/cognito-provider";
+import { AUTH_NAMESPACE } from "@/lib/constants";
 import { getSession } from "@/lib/cognito";
 
 export default function SettingsPage() {
@@ -51,6 +52,18 @@ export default function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // Leave organization state
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaveConfirmation, setLeaveConfirmation] = useState("");
+  const [leaving, setLeaving] = useState(false);
+
+  // Get user role info for conditional rendering
+  const accountType = cognitoUser?.[`${AUTH_NAMESPACE}/account_type`] || "individual";
+  const orgRole = cognitoUser?.[`${AUTH_NAMESPACE}/org_role`] || "member";
+  const isBusinessAccount = accountType === "business";
+  const isOrgOwner = isBusinessAccount && orgRole === "owner";
+  const isOrgMember = isBusinessAccount && orgRole === "member";
 
   // Load profile from API (DynamoDB) and Cognito, fetch preferences from API with auth token
   useEffect(() => {
@@ -271,6 +284,44 @@ export default function SettingsPage() {
     }
   };
 
+  // Leave organization
+  const handleLeaveOrganization = async () => {
+    if (leaveConfirmation !== "LEAVE ORGANIZATION") {
+      setError("Please type 'LEAVE ORGANIZATION' to confirm");
+      return;
+    }
+
+    setLeaving(true);
+    setError(null);
+
+    try {
+      const session = await getSession();
+      const response = await fetch("/api/portal/settings/leave-organization", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.idToken && { Authorization: `Bearer ${session.idToken}` }),
+        },
+        body: JSON.stringify({
+          confirmation: leaveConfirmation,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to leave organization");
+      }
+
+      // Redirect to portal after leaving
+      window.location.href = data.redirectTo || "/portal";
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLeaving(false);
+    }
+  };
+
   // Toggle notification
   const toggleNotification = (key) => {
     setNotifications((prev) => ({
@@ -445,52 +496,113 @@ export default function SettingsPage() {
               </Button>
             </div>
 
-            <div className="p-4 bg-error/5 rounded-lg border border-error/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-frost-white">
-                    Delete Account
-                  </h4>
-                  <p className="text-sm text-slate-grey">
-                    Permanently delete your account and all data
-                  </p>
-                </div>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
-                >
-                  {showDeleteConfirm ? "Cancel" : "Delete Account"}
-                </Button>
-              </div>
-
-              {showDeleteConfirm && (
-                <div className="mt-4 pt-4 border-t border-error/20">
-                  <p className="text-sm text-error mb-3">
-                    This action cannot be undone. Your account will be scheduled
-                    for deletion with a 30-day grace period. Type{" "}
-                    <strong>DELETE MY ACCOUNT</strong> to confirm.
-                  </p>
-                  <div className="flex gap-3">
-                    <Input
-                      value={deleteConfirmation}
-                      onChange={(e) => setDeleteConfirmation(e.target.value)}
-                      placeholder="Type DELETE MY ACCOUNT"
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="danger"
-                      onClick={handleDeleteAccount}
-                      disabled={
-                        deleting || deleteConfirmation !== "DELETE MY ACCOUNT"
-                      }
-                    >
-                      {deleting ? "Deleting..." : "Confirm Delete"}
-                    </Button>
+            {/* Leave Organization - for business members only */}
+            {isOrgMember && (
+              <div className="p-4 bg-error/5 rounded-lg border border-error/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-frost-white">
+                      Leave Organization
+                    </h4>
+                    <p className="text-sm text-slate-grey">
+                      Remove yourself from the organization
+                    </p>
                   </div>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setShowLeaveConfirm(!showLeaveConfirm)}
+                  >
+                    {showLeaveConfirm ? "Cancel" : "Leave Organization"}
+                  </Button>
                 </div>
-              )}
-            </div>
+
+                {showLeaveConfirm && (
+                  <div className="mt-4 pt-4 border-t border-error/20">
+                    <p className="text-sm text-error mb-3">
+                      You will lose access to your organization&apos;s license and team features.
+                      Type <strong>LEAVE ORGANIZATION</strong> to confirm.
+                    </p>
+                    <div className="flex gap-3">
+                      <Input
+                        value={leaveConfirmation}
+                        onChange={(e) => setLeaveConfirmation(e.target.value)}
+                        placeholder="Type LEAVE ORGANIZATION"
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="danger"
+                        onClick={handleLeaveOrganization}
+                        disabled={leaving || leaveConfirmation !== "LEAVE ORGANIZATION"}
+                      >
+                        {leaving ? "Leaving..." : "Confirm Leave"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Delete Account - for individual users and org owners */}
+            {!isOrgMember && (
+              <div className="p-4 bg-error/5 rounded-lg border border-error/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-frost-white">
+                      Delete Account
+                    </h4>
+                    <p className="text-sm text-slate-grey">
+                      {isOrgOwner
+                        ? "Transfer ownership or delete the organization first"
+                        : "Permanently delete your account and all data"}
+                    </p>
+                  </div>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+                    disabled={isOrgOwner}
+                  >
+                    {showDeleteConfirm ? "Cancel" : "Delete Account"}
+                  </Button>
+                </div>
+
+                {isOrgOwner && (
+                  <p className="mt-2 text-xs text-slate-grey">
+                    As the organization owner, you must transfer ownership to another admin
+                    or delete the organization before you can delete your account.
+                    Visit the <a href="/portal/team" className="text-cerulean-mist hover:underline">Team page</a> to manage your organization.
+                  </p>
+                )}
+
+                {showDeleteConfirm && !isOrgOwner && (
+                  <div className="mt-4 pt-4 border-t border-error/20">
+                    <p className="text-sm text-error mb-3">
+                      This action cannot be undone. Your account will be scheduled
+                      for deletion with a 30-day grace period. Type{" "}
+                      <strong>DELETE MY ACCOUNT</strong> to confirm.
+                    </p>
+                    <div className="flex gap-3">
+                      <Input
+                        value={deleteConfirmation}
+                        onChange={(e) => setDeleteConfirmation(e.target.value)}
+                        placeholder="Type DELETE MY ACCOUNT"
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="danger"
+                        onClick={handleDeleteAccount}
+                        disabled={
+                          deleting || deleteConfirmation !== "DELETE MY ACCOUNT"
+                        }
+                      >
+                        {deleting ? "Deleting..." : "Confirm Delete"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
