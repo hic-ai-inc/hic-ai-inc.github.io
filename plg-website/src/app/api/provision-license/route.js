@@ -71,14 +71,21 @@ export async function POST(request) {
 
     // Build user object from token payload
     // For Google login, name is in given_name/family_name; for email login, use cognito:username
-    const firstName = tokenPayload.given_name || 
-      tokenPayload.name?.split(' ')[0] || 
-      tokenPayload.email?.split('@')[0] || 
-      'there';
+    // IMPORTANT: cognito:username is the Cognito Username needed for admin API calls
+    // For federated users (Google), this is "google_XXXX" format, not the sub UUID
+    const firstName =
+      tokenPayload.given_name ||
+      tokenPayload.name?.split(" ")[0] ||
+      tokenPayload.email?.split("@")[0] ||
+      "there";
     const user = {
       sub: tokenPayload.sub,
+      username: tokenPayload["cognito:username"], // Cognito Username for admin API calls
       email: tokenPayload.email,
-      name: tokenPayload.name || tokenPayload.given_name || tokenPayload["cognito:username"],
+      name:
+        tokenPayload.name ||
+        tokenPayload.given_name ||
+        tokenPayload["cognito:username"],
       firstName,
     };
 
@@ -92,9 +99,12 @@ export async function POST(request) {
 
     // Retrieve Stripe checkout session
     const stripeClient = await getStripeClient();
-    const checkoutSession = await stripeClient.checkout.sessions.retrieve(sessionId, {
-      expand: ["subscription", "customer"],
-    });
+    const checkoutSession = await stripeClient.checkout.sessions.retrieve(
+      sessionId,
+      {
+        expand: ["subscription", "customer"],
+      },
+    );
 
     if (checkoutSession.payment_status !== "paid") {
       return NextResponse.json(
@@ -119,12 +129,22 @@ export async function POST(request) {
       // migrate it to the real Cognito userId so dashboard lookups work
       if (existingCustomer.userId && existingCustomer.userId !== user.sub) {
         if (existingCustomer.userId.startsWith("email:")) {
-          console.log("[ProvisionLicense] Migrating customer userId from temp to Cognito");
+          console.log(
+            "[ProvisionLicense] Migrating customer userId from temp to Cognito",
+          );
           try {
-            existingCustomer = await migrateCustomerUserId(existingCustomer.userId, user.sub);
-            console.log("[ProvisionLicense] Customer userId migrated successfully");
+            existingCustomer = await migrateCustomerUserId(
+              existingCustomer.userId,
+              user.sub,
+            );
+            console.log(
+              "[ProvisionLicense] Customer userId migrated successfully",
+            );
           } catch (migrateError) {
-            console.error("[ProvisionLicense] Failed to migrate userId:", migrateError);
+            console.error(
+              "[ProvisionLicense] Failed to migrate userId:",
+              migrateError,
+            );
             // Continue anyway - they still have a valid license
           }
         }
@@ -133,25 +153,40 @@ export async function POST(request) {
       // RBAC: Assign owner role for Business plan if user was created before signing up
       // The Stripe webhook skips this if userId was temporary (email:xxx format)
       // Now that we have the real Cognito sub, assign the owner role
-      const existingPlanType = existingCustomer.accountType || checkoutSession.metadata?.planType || "individual";
+      const existingPlanType =
+        existingCustomer.accountType ||
+        checkoutSession.metadata?.planType ||
+        "individual";
       if (existingPlanType === "business") {
         try {
-          await assignOwnerRole(user.sub);
-          console.log(`[ProvisionLicense] Owner role assigned to ${user.sub} for Business plan`);
+          await assignOwnerRole(user.username);
+          console.log(
+            `[ProvisionLicense] Owner role assigned to ${user.sub} for Business plan`,
+          );
         } catch (roleError) {
           // Non-fatal: Log but continue - user can still use the license
-          console.warn(`[ProvisionLicense] Could not assign owner role:`, roleError.message);
+          console.warn(
+            `[ProvisionLicense] Could not assign owner role:`,
+            roleError.message,
+          );
         }
       }
 
       // Check if DynamoDB license record exists (needed for license email)
       // The webhook may have created the Keygen license but not the DynamoDB license record
-      const existingLicenseRecord = await getLicense(existingCustomer.keygenLicenseId);
+      const existingLicenseRecord = await getLicense(
+        existingCustomer.keygenLicenseId,
+      );
       if (!existingLicenseRecord) {
-        console.log("[ProvisionLicense] Creating DynamoDB license record for email trigger");
-        const planType = existingCustomer.accountType || checkoutSession.metadata?.planType || "individual";
+        console.log(
+          "[ProvisionLicense] Creating DynamoDB license record for email trigger",
+        );
+        const planType =
+          existingCustomer.accountType ||
+          checkoutSession.metadata?.planType ||
+          "individual";
         const planName = planType === "business" ? "Business" : "Individual";
-        
+
         // Create DynamoDB license record to trigger LICENSE_CREATED email
         // Use full license key from customer record (webhook stores it as keygenLicenseKey)
         const fullKeyForRecord = existingCustomer.keygenLicenseKey;
@@ -166,20 +201,26 @@ export async function POST(request) {
           expiresAt: null, // Subscription-based, no fixed expiry
           maxDevices: planType === "business" ? 5 : 3,
         });
-        console.log("[ProvisionLicense] DynamoDB license record created - license email will be sent");
+        console.log(
+          "[ProvisionLicense] DynamoDB license record created - license email will be sent",
+        );
       }
-      
+
       // Get the full license key for display
       // Priority: license record has full key > customer record has full key > check email fallback
-      const fullLicenseKey = existingLicenseRecord?.licenseKey || existingCustomer.keygenLicenseKey;
-      
+      const fullLicenseKey =
+        existingLicenseRecord?.licenseKey || existingCustomer.keygenLicenseKey;
+
       // If this is from the same Stripe checkout, it's a refresh - just return the info
       // If it's a different Stripe checkout, they already have a license (shouldn't happen due to checkout guard)
       return NextResponse.json({
         success: true,
         alreadyProvisioned: true,
         licenseKey: fullLicenseKey || "Check your email for your license key",
-        planName: existingCustomer.accountType === "business" ? "Business" : "Individual",
+        planName:
+          existingCustomer.accountType === "business"
+            ? "Business"
+            : "Individual",
         userName: user.firstName,
       });
     }
@@ -227,19 +268,23 @@ export async function POST(request) {
       planName, // Human-readable plan name for email template
       status: "active",
       expiresAt: license.expiresAt,
-      maxDevices:
-        planType === "business" ? 5 : 3,
+      maxDevices: planType === "business" ? 5 : 3,
     });
 
     // RBAC: Assign owner role for new Business plan purchases
     // This user signed up first then purchased, so we can assign immediately
     if (planType === "business") {
       try {
-        await assignOwnerRole(user.sub);
-        console.log(`[ProvisionLicense] Owner role assigned to ${user.sub} for new Business plan`);
+        await assignOwnerRole(user.username);
+        console.log(
+          `[ProvisionLicense] Owner role assigned to ${user.sub} for new Business plan`,
+        );
       } catch (roleError) {
         // Non-fatal: Log but continue - user has license, role can be fixed later
-        console.warn(`[ProvisionLicense] Could not assign owner role:`, roleError.message);
+        console.warn(
+          `[ProvisionLicense] Could not assign owner role:`,
+          roleError.message,
+        );
       }
     }
 
