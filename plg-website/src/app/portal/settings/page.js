@@ -549,37 +549,41 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium text-frost-white">
-                      Delete Account
+                      {isOrgOwner ? "Delete Account & Organization" : "Delete Account"}
                     </h4>
                     <p className="text-sm text-slate-grey">
                       {isOrgOwner
-                        ? "Transfer ownership or delete the organization first"
-                        : "Permanently delete your account and all data"}
+                        ? "Cancel subscription and dissolve your organization"
+                        : "Cancel subscription and delete your account"}
                     </p>
                   </div>
                   <Button
                     variant="danger"
                     size="sm"
                     onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
-                    disabled={isOrgOwner}
                   >
                     {showDeleteConfirm ? "Cancel" : "Delete Account"}
                   </Button>
                 </div>
 
-                {isOrgOwner && (
-                  <p className="mt-2 text-xs text-slate-grey">
-                    As the organization owner, you must transfer ownership to another admin
-                    or delete the organization before you can delete your account.
-                    Visit the <a href="/portal/team" className="text-cerulean-mist hover:underline">Team page</a> to manage your organization.
-                  </p>
-                )}
-
-                {showDeleteConfirm && !isOrgOwner && (
+                {showDeleteConfirm && (
                   <div className="mt-4 pt-4 border-t border-error/20">
+                    {isOrgOwner && (
+                      <div className="mb-3 p-3 bg-warning/10 rounded border border-warning/20">
+                        <p className="text-sm text-warning font-medium mb-1">
+                          ⚠️ Organization Dissolution Warning
+                        </p>
+                        <p className="text-xs text-slate-grey">
+                          Deleting your account will also dissolve your organization.
+                          All team members will lose access to Mouse at the end of the
+                          current billing period. They can subscribe individually if they
+                          wish to continue using Mouse.
+                        </p>
+                      </div>
+                    )}
                     <p className="text-sm text-error mb-3">
-                      This action cannot be undone. Your account will be scheduled
-                      for deletion with a 30-day grace period. Type{" "}
+                      Your subscription will be cancelled. You&apos;ll keep access to Mouse
+                      until the end of your current billing period. Type{" "}
                       <strong>DELETE MY ACCOUNT</strong> to confirm.
                     </p>
                     <div className="flex gap-3">

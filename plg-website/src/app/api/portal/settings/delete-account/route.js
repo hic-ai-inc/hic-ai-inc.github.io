@@ -4,14 +4,23 @@
  * POST /api/portal/settings/delete-account - Request account deletion
  *
  * Implements soft-delete with grace period for account recovery.
- * Hard deletion happens after 30 days via scheduled job.
+ * Subscription is cancelled at period end (user keeps access until then).
+ * Account transitions to "deleted" when subscription actually ends.
+ * User can reinstate by subscribing again later.
+ *
+ * For Business owners: Also dissolves the organization and removes all members.
+ *
  * Requires Authorization header with Cognito ID token.
  */
 
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
-import { getCustomerByUserId, upsertCustomer } from "@/lib/dynamodb";
+import {
+  getCustomerByUserId,
+  upsertCustomer,
+  getOrgMembers,
+} from "@/lib/dynamodb";
 import { getStripeClient } from "@/lib/stripe";
 
 // Cognito JWT verifier for ID tokens
@@ -72,7 +81,7 @@ export async function POST(request) {
       );
     }
 
-    // Check for active team memberships
+    // Check for active team memberships (non-owners must leave first)
     if (customer.orgId && customer.orgRole !== "owner") {
       return NextResponse.json(
         {
@@ -83,18 +92,12 @@ export async function POST(request) {
       );
     }
 
-    // If user is org owner, prevent deletion (must transfer ownership or delete org first)
-    if (customer.orgId && customer.orgRole === "owner") {
-      return NextResponse.json(
-        {
-          error:
-            "As an organization owner, you must transfer ownership or delete the organization before deleting your account.",
-        },
-        { status: 400 },
-      );
-    }
+    // Track if this is an org owner deletion (requires org dissolution)
+    const isOrgOwner = customer.orgId && customer.orgRole === "owner";
+    let orgMembers = [];
+    let accessUntil = null;
 
-    // Cancel any active Stripe subscription
+    // Cancel subscription at period end (user keeps access until then)
     if (customer.stripeCustomerId) {
       try {
         const stripe = await getStripeClient();
@@ -105,10 +108,14 @@ export async function POST(request) {
         });
 
         for (const subscription of subscriptions.data) {
-          await stripe.subscriptions.cancel(subscription.id, {
-            invoice_now: false,
-            prorate: true,
+          // Cancel at period end - user keeps access until billing period ends
+          await stripe.subscriptions.update(subscription.id, {
+            cancel_at_period_end: true,
           });
+          // Track when access ends for the response
+          if (subscription.current_period_end) {
+            accessUntil = new Date(subscription.current_period_end * 1000).toISOString();
+          }
         }
       } catch (stripeError) {
         console.error("Error cancelling subscriptions:", stripeError);
@@ -116,34 +123,61 @@ export async function POST(request) {
       }
     }
 
-    // Calculate deletion date (30 days from now)
-    const deletionDate = new Date();
-    deletionDate.setDate(deletionDate.getDate() + 30);
+    // If org owner, dissolve the organization
+    if (isOrgOwner) {
+      try {
+        orgMembers = await getOrgMembers(customer.orgId);
+        
+        // Remove all non-owner members from the org
+        for (const member of orgMembers) {
+          if (member.userId !== user.sub) {
+            await upsertCustomer({
+              userId: member.userId,
+              email: member.email,
+              name: member.name,
+              orgId: null,
+              orgRole: null,
+              accountStatus: "active", // They can still use Mouse if they subscribe individually
+            });
+            console.log(`[DeleteAccount] Removed member ${member.userId} from org ${customer.orgId}`);
+          }
+        }
+        console.log(`[DeleteAccount] Dissolved org ${customer.orgId} with ${orgMembers.length} members`);
+      } catch (orgError) {
+        console.error("Error dissolving organization:", orgError);
+        // Continue - org dissolution failure shouldn't block account deletion
+      }
+    }
 
     // Soft-delete: Mark account for deletion
+    // Account stays in "pending_deletion" until subscription actually ends
     await upsertCustomer({
       userId: user.sub,
       email: user.email,
       name: customer.name,
       accountStatus: "pending_deletion",
       deletionRequestedAt: new Date().toISOString(),
-      scheduledDeletionAt: deletionDate.toISOString(),
+      accessUntil: accessUntil || new Date().toISOString(),
       deletionReason: reason || "User requested",
-      subscriptionStatus: "cancelled",
+      // Clear org membership for owner (org is dissolved)
+      ...(isOrgOwner && { orgId: null, orgRole: null }),
     });
 
-    // TODO: In production, queue a job to:
-    // 1. Deactivate all devices in KeyGen
-    // 2. Delete user from Cognito
-    // 3. Hard-delete from DynamoDB after grace period
-    // 4. Send confirmation email
-
-    return NextResponse.json({
+    // Build response with org dissolution info if applicable
+    const response = {
       success: true,
-      message: "Account deletion requested",
-      scheduledDeletionAt: deletionDate.toISOString(),
-      gracePeriodDays: 30,
-    });
+      message: isOrgOwner
+        ? "Account deletion requested. Your organization has been dissolved."
+        : "Account deletion requested",
+      accessUntil,
+    };
+
+    if (isOrgOwner && orgMembers.length > 1) {
+      response.orgDissolved = true;
+      response.membersAffected = orgMembers.length - 1; // Exclude owner
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Account deletion error:", error);
     return NextResponse.json(
