@@ -314,6 +314,15 @@ async function handleCheckoutCompleted(session) {
         stripeSubscriptionId: subscription,
       });
       console.log(`Organization created for ${customer_email} with ${seats} seats`);
+
+      // Link the owner to the organization
+      // This enables the Team Management UI in the portal
+      const ownerId = existingCustomer?.userId || `email:${customer_email.toLowerCase()}`;
+      await updateCustomerSubscription(ownerId, {
+        orgId: customer, // Same as org's orgId (Stripe customer ID)
+        orgRole: "owner",
+      });
+      console.log(`Owner ${ownerId} linked to organization ${customer}`);
     } catch (error) {
       console.error("Failed to create organization:", error);
       // Non-fatal - org can be created later via admin tools
