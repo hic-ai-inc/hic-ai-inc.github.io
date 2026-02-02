@@ -29,10 +29,16 @@ const cognitoClient = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION || "us-east-1",
 });
 
-// Get User Pool ID from environment
-const USER_POOL_ID =
-  process.env.COGNITO_USER_POOL_ID ||
-  process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID;
+/**
+ * Get User Pool ID from environment (read at runtime for test support)
+ * @returns {string|undefined} User Pool ID
+ */
+function getUserPoolId() {
+  return (
+    process.env.COGNITO_USER_POOL_ID ||
+    process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID
+  );
+}
 
 // RBAC Group names
 export const COGNITO_GROUPS = {
@@ -53,8 +59,9 @@ const createLogger = (operation) =>
  */
 export async function addUserToGroup(userId, groupName) {
   const log = createLogger("addUserToGroup");
+  const userPoolId = getUserPoolId();
 
-  if (!USER_POOL_ID) {
+  if (!userPoolId) {
     log.error("Missing USER_POOL_ID", { userId, groupName });
     throw new Error("Cognito User Pool ID not configured");
   }
@@ -62,7 +69,7 @@ export async function addUserToGroup(userId, groupName) {
   try {
     await cognitoClient.send(
       new AdminAddUserToGroupCommand({
-        UserPoolId: USER_POOL_ID,
+        UserPoolId: userPoolId,
         Username: userId,
         GroupName: groupName,
       }),
@@ -94,8 +101,9 @@ export async function addUserToGroup(userId, groupName) {
  */
 export async function removeUserFromGroup(userId, groupName) {
   const log = createLogger("removeUserFromGroup");
+  const userPoolId = getUserPoolId();
 
-  if (!USER_POOL_ID) {
+  if (!userPoolId) {
     log.error("Missing USER_POOL_ID", { userId, groupName });
     throw new Error("Cognito User Pool ID not configured");
   }
@@ -103,7 +111,7 @@ export async function removeUserFromGroup(userId, groupName) {
   try {
     await cognitoClient.send(
       new AdminRemoveUserFromGroupCommand({
-        UserPoolId: USER_POOL_ID,
+        UserPoolId: userPoolId,
         Username: userId,
         GroupName: groupName,
       }),
@@ -133,8 +141,9 @@ export async function removeUserFromGroup(userId, groupName) {
  */
 export async function getUserGroups(userId) {
   const log = createLogger("getUserGroups");
+  const userPoolId = getUserPoolId();
 
-  if (!USER_POOL_ID) {
+  if (!userPoolId) {
     log.error("Missing USER_POOL_ID", { userId });
     throw new Error("Cognito User Pool ID not configured");
   }
@@ -142,7 +151,7 @@ export async function getUserGroups(userId) {
   try {
     const response = await cognitoClient.send(
       new AdminListGroupsForUserCommand({
-        UserPoolId: USER_POOL_ID,
+        UserPoolId: userPoolId,
         Username: userId,
       }),
     );
@@ -247,15 +256,16 @@ export async function getUserRole(userId) {
  */
 export async function userExists(userId) {
   const log = createLogger("userExists");
+  const userPoolId = getUserPoolId();
 
-  if (!USER_POOL_ID) {
+  if (!userPoolId) {
     return false;
   }
 
   try {
     await cognitoClient.send(
       new AdminGetUserCommand({
-        UserPoolId: USER_POOL_ID,
+        UserPoolId: userPoolId,
         Username: userId,
       }),
     );

@@ -8,6 +8,8 @@
  * - Template generation with correct data substitution
  * - Email sending functions for different scenarios
  * - Error handling
+ *
+ * Uses hic-ses-layer facade for mocking - no real SES calls are made.
  */
 
 import {
@@ -17,6 +19,9 @@ import {
   afterEach,
   expect,
 } from "../../../../dm/facade/test-helpers/index.js";
+
+// Import the SES mock from the facade (test-loader redirects hic-ses-layer to facade)
+import { createSESMock } from "hic-ses-layer";
 
 import {
   sendEmail,
@@ -33,21 +38,27 @@ import {
   sendEnterpriseInviteEmail,
 } from "../../../src/lib/ses.js";
 
-// Mock the SES client's send method
-// Since ses.js creates the client at module load time, we need to mock at the module level
-// For now, we'll test that the functions call sendEmail with correct parameters
-
 describe("ses.js", () => {
   // Store original env vars and restore after tests
   const originalEnv = { ...process.env };
+  let sesMock;
 
   beforeEach(() => {
     // Set required env vars for templates
     process.env.NEXT_PUBLIC_APP_URL = "https://mouse.hic-ai.com";
     process.env.SUPPORT_EMAIL = "support@hic-ai.com";
+
+    // Initialize SES mock - intercepts all SES calls
+    sesMock = createSESMock();
+    sesMock.whenSendEmailAny({ messageId: "test-message-id" });
   });
 
   afterEach(() => {
+    // Reset mock
+    if (sesMock) {
+      sesMock.reset();
+    }
+
     // Restore original env
     Object.keys(process.env).forEach((key) => {
       if (!(key in originalEnv)) {
@@ -68,183 +79,168 @@ describe("ses.js", () => {
       expect(error).toBeDefined();
       expect(error.message).toBe("Unknown email template: nonexistent_template");
     });
+
+    it("should send email successfully with valid template", async () => {
+      const result = await sendEmail("welcome", "test@example.com", {
+        email: "test@example.com",
+        sessionId: "cs_test_123",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.messageId).toBe("test-message-id");
+    });
+
+    it("should handle SES errors gracefully", async () => {
+      // Reset and set up failure mock
+      sesMock.reset();
+      sesMock.whenSendEmailFails({
+        errorCode: "MessageRejected",
+        errorMessage: "Email address not verified",
+      });
+
+      let error;
+      try {
+        await sendEmail("welcome", "test@example.com", { email: "test@example.com" });
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.message).toBe("Email address not verified");
+    });
   });
 
-  // Since we can't easily mock the SES client without module-level mocking,
-  // we'll test the template generation and function signatures
-
   describe("Email template parameters", () => {
-    // These tests verify that the convenience functions exist and accept correct params
-    // They will fail with SES errors in test environment which is expected
+    // These tests verify convenience functions work end-to-end with mocked SES
 
     describe("sendWelcomeEmail", () => {
       it("should accept email and sessionId parameters", async () => {
-        // The function should exist and accept these params
-        expect(typeof sendWelcomeEmail).toBe("function");
+        const result = await sendWelcomeEmail("test@example.com", "cs_test_session123");
 
-        // We can verify it calls sendEmail with correct template
-        // by checking the error message mentions SES (function executed with correct params)
-        try {
-          await sendWelcomeEmail("test@example.com", "cs_test_session123");
-        } catch (error) {
-          // Expected to fail due to no SES credentials, but confirms function works
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendLicenseEmail", () => {
       it("should accept email, licenseKey, and planName parameters", async () => {
-        expect(typeof sendLicenseEmail).toBe("function");
+        const result = await sendLicenseEmail(
+          "test@example.com",
+          "MOUSE-ABC-123-DEF",
+          "Individual",
+        );
 
-        try {
-          await sendLicenseEmail(
-            "test@example.com",
-            "MOUSE-ABC-123-DEF",
-            "Individual",
-          );
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendPaymentFailedEmail", () => {
       it("should accept email, attemptCount, and retryDate parameters", async () => {
-        expect(typeof sendPaymentFailedEmail).toBe("function");
+        const result = await sendPaymentFailedEmail(
+          "test@example.com",
+          2,
+          "January 25, 2026",
+        );
 
-        try {
-          await sendPaymentFailedEmail(
-            "test@example.com",
-            2,
-            "January 25, 2026",
-          );
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendTrialEndingEmail", () => {
       it("should accept email, daysRemaining, and planName parameters", async () => {
-        expect(typeof sendTrialEndingEmail).toBe("function");
+        const result = await sendTrialEndingEmail("test@example.com", 3, "Individual");
 
-        try {
-          await sendTrialEndingEmail("test@example.com", 3, "Individual");
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendReactivationEmail", () => {
       it("should accept email parameter", async () => {
-        expect(typeof sendReactivationEmail).toBe("function");
+        const result = await sendReactivationEmail("test@example.com");
 
-        try {
-          await sendReactivationEmail("test@example.com");
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendCancellationEmail", () => {
       it("should accept email and accessUntil parameters", async () => {
-        expect(typeof sendCancellationEmail).toBe("function");
+        const result = await sendCancellationEmail("test@example.com", "February 1, 2026");
 
-        try {
-          await sendCancellationEmail("test@example.com", "February 1, 2026");
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendLicenseRevokedEmail", () => {
       it("should accept email and optional organizationName", async () => {
-        expect(typeof sendLicenseRevokedEmail).toBe("function");
+        const result = await sendLicenseRevokedEmail("test@example.com", "Acme Corp");
 
-        try {
-          await sendLicenseRevokedEmail("test@example.com", "Acme Corp");
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
 
       it("should work without organizationName", async () => {
-        try {
-          await sendLicenseRevokedEmail("test@example.com");
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        const result = await sendLicenseRevokedEmail("test@example.com");
+
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendDisputeAlert", () => {
       it("should accept customerEmail, amount, reason, and disputeId", async () => {
-        expect(typeof sendDisputeAlert).toBe("function");
+        const result = await sendDisputeAlert(
+          "customer@example.com",
+          1000, // $10.00 in cents
+          "fraudulent",
+          "dp_dispute123",
+        );
 
-        try {
-          await sendDisputeAlert(
-            "customer@example.com",
-            1000, // $10.00 in cents
-            "fraudulent",
-            "dp_dispute123",
-          );
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendWinBack30Email", () => {
       it("should accept email parameter", async () => {
-        expect(typeof sendWinBack30Email).toBe("function");
+        const result = await sendWinBack30Email("test@example.com");
 
-        try {
-          await sendWinBack30Email("test@example.com");
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendWinBack90Email", () => {
       it("should accept email and optional discountCode", async () => {
-        expect(typeof sendWinBack90Email).toBe("function");
+        const result = await sendWinBack90Email("test@example.com", "COMEBACK25");
 
-        try {
-          await sendWinBack90Email("test@example.com", "COMEBACK25");
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
 
       it("should use default discountCode when not provided", async () => {
-        try {
-          await sendWinBack90Email("test@example.com");
-        } catch (error) {
-          // Function executed with default param
-          expect(error).toBeDefined();
-        }
+        const result = await sendWinBack90Email("test@example.com");
+
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
 
     describe("sendEnterpriseInviteEmail", () => {
       it("should accept all enterprise invite parameters", async () => {
-        expect(typeof sendEnterpriseInviteEmail).toBe("function");
+        const result = await sendEnterpriseInviteEmail(
+          "newuser@example.com",
+          "Acme Corporation",
+          "Jane Admin",
+          "invite_token_abc123",
+        );
 
-        try {
-          await sendEnterpriseInviteEmail(
-            "newuser@example.com",
-            "Acme Corporation",
-            "Jane Admin",
-            "invite_token_abc123",
-          );
-        } catch (error) {
-          expect(error).toBeDefined();
-        }
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe("test-message-id");
       });
     });
   });

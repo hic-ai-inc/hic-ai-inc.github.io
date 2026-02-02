@@ -14,11 +14,12 @@
  */
 
 // HIC DM Layer imports - centralized dependency management
+// Uses hic-ses-layer alias which test-loader redirects to facade helper during tests
 import {
   SESClient,
   SendEmailCommand,
   createTemplates,
-} from "../../../dm/layers/ses/src/index.js";
+} from "hic-ses-layer";
 import { HicLog } from "../../../dm/layers/base/src/index.js";
 
 const ses = new SESClient({
