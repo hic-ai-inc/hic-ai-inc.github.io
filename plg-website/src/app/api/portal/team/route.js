@@ -21,6 +21,7 @@ import {
   removeOrgMember,
   getCustomerByUserId,
   resendOrgInvite,
+  getOrganizationByStripeCustomer,
 } from "@/lib/dynamodb";
 import { sendEnterpriseInviteEmail } from "@/lib/ses";
 
@@ -39,7 +40,8 @@ export async function GET() {
 
     const user = session.user;
     const accountType = user[`${AUTH_NAMESPACE}/account_type`];
-    const orgId = user[`${AUTH_NAMESPACE}/org_id`];
+    let orgId = user[`${AUTH_NAMESPACE}/org_id`];
+    const stripeCustomerId = user[`${AUTH_NAMESPACE}/stripe_customer_id`];
 
     // Check for business account
     if (accountType !== "business") {
@@ -49,9 +51,18 @@ export async function GET() {
       );
     }
 
+    // Fallback: If no org_id in token, try to find org by stripeCustomerId
+    // This handles the case where the user purchased before org_id was set in Cognito
+    if (!orgId && stripeCustomerId) {
+      const org = await getOrganizationByStripeCustomer(stripeCustomerId);
+      if (org) {
+        orgId = org.orgId;
+      }
+    }
+
     if (!orgId) {
       return NextResponse.json(
-        { error: "Organization not configured" },
+        { error: "Organization not configured. Please contact support." },
         { status: 400 },
       );
     }

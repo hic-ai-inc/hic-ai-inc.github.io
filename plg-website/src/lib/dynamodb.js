@@ -798,6 +798,256 @@ export async function recordTrialHeartbeat(deviceId, metadata = {}) {
 // Per Addendum A.5/A.7
 // ===========================================
 
+
+/**
+ * Create or update an organization record
+ * Creates ORG#{orgId} / SK: DETAILS with organization metadata
+ * @param {Object} params - Organization parameters
+ * @param {string} params.orgId - Organization ID (usually stripeCustomerId)
+ * @param {string} params.name - Organization name
+ * @param {number} params.seatLimit - Number of seats purchased
+ * @param {string} params.ownerId - Cognito user ID of owner
+ * @param {string} params.ownerEmail - Email of owner
+ * @param {string} [params.stripeCustomerId] - Stripe customer ID
+ * @param {string} [params.stripeSubscriptionId] - Stripe subscription ID
+ * @returns {Promise<Object>} Created/updated organization record
+ */
+export async function upsertOrganization({
+  orgId,
+  name,
+  seatLimit,
+  ownerId,
+  ownerEmail,
+  stripeCustomerId,
+  stripeSubscriptionId,
+}) {
+  const logger = createLogger("upsertOrganization");
+  const now = new Date().toISOString();
+
+  try {
+    const item = {
+      PK: `ORG#${orgId}`,
+      SK: "DETAILS",
+      orgId,
+      name: name || `Organization ${orgId.slice(-8)}`,
+      seatLimit: seatLimit || 1,
+      ownerId,
+      ownerEmail: ownerEmail?.toLowerCase(),
+      stripeCustomerId,
+      stripeSubscriptionId,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: item,
+        // Don't overwrite if exists - use updateOrgSeatLimit for updates
+        ConditionExpression: "attribute_not_exists(PK)",
+      }),
+    );
+
+    logger.info("Organization created", { orgId, seatLimit, ownerId });
+    return item;
+  } catch (error) {
+    // If org exists, update it instead
+    if (error.name === "ConditionalCheckFailedException") {
+      logger.info("Organization exists, updating", { orgId });
+      return updateOrganization({
+        orgId,
+        name,
+        seatLimit,
+        stripeCustomerId,
+        stripeSubscriptionId,
+      });
+    }
+
+    logger.error("Failed to create organization", {
+      orgId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Update an existing organization's details
+ * @param {Object} params - Update parameters
+ * @param {string} params.orgId - Organization ID
+ * @param {string} [params.name] - New organization name
+ * @param {number} [params.seatLimit] - New seat limit
+ * @param {string} [params.stripeCustomerId] - Stripe customer ID
+ * @param {string} [params.stripeSubscriptionId] - Stripe subscription ID
+ * @returns {Promise<Object>} Updated organization record
+ */
+export async function updateOrganization({
+  orgId,
+  name,
+  seatLimit,
+  stripeCustomerId,
+  stripeSubscriptionId,
+}) {
+  const logger = createLogger("updateOrganization");
+  const now = new Date().toISOString();
+
+  // Build update expression dynamically based on provided fields
+  const updates = [];
+  const expressionNames = {};
+  const expressionValues = { ":updatedAt": now };
+
+  if (name !== undefined) {
+    updates.push("#name = :name");
+    expressionNames["#name"] = "name";
+    expressionValues[":name"] = name;
+  }
+
+  if (seatLimit !== undefined) {
+    updates.push("seatLimit = :seatLimit");
+    expressionValues[":seatLimit"] = seatLimit;
+  }
+
+  if (stripeCustomerId !== undefined) {
+    updates.push("stripeCustomerId = :stripeCustomerId");
+    expressionValues[":stripeCustomerId"] = stripeCustomerId;
+  }
+
+  if (stripeSubscriptionId !== undefined) {
+    updates.push("stripeSubscriptionId = :stripeSubscriptionId");
+    expressionValues[":stripeSubscriptionId"] = stripeSubscriptionId;
+  }
+
+  updates.push("updatedAt = :updatedAt");
+
+  try {
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: "DETAILS",
+        },
+        UpdateExpression: `SET ${updates.join(", ")}`,
+        ExpressionAttributeNames:
+          Object.keys(expressionNames).length > 0 ? expressionNames : undefined,
+        ExpressionAttributeValues: expressionValues,
+        ReturnValues: "ALL_NEW",
+      }),
+    );
+
+    logger.info("Organization updated", { orgId, seatLimit });
+    return result.Attributes;
+  } catch (error) {
+    logger.error("Failed to update organization", {
+      orgId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Update organization seat limit (called from Stripe webhook)
+ * @param {string} orgId - Organization ID
+ * @param {number} newSeatLimit - New seat limit from Stripe subscription quantity
+ * @returns {Promise<Object>} Updated organization record
+ */
+export async function updateOrgSeatLimit(orgId, newSeatLimit) {
+  const logger = createLogger("updateOrgSeatLimit");
+
+  try {
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: "DETAILS",
+        },
+        UpdateExpression: "SET seatLimit = :seatLimit, updatedAt = :updatedAt",
+        ExpressionAttributeValues: {
+          ":seatLimit": newSeatLimit,
+          ":updatedAt": new Date().toISOString(),
+        },
+        ReturnValues: "ALL_NEW",
+      }),
+    );
+
+    logger.info("Organization seat limit updated", {
+      orgId,
+      newSeatLimit,
+      previousLimit: result.Attributes?.seatLimit,
+    });
+    return result.Attributes;
+  } catch (error) {
+    logger.error("Failed to update organization seat limit", {
+      orgId,
+      newSeatLimit,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Get organization details by ID
+ * @param {string} orgId - Organization ID
+ * @returns {Promise<Object|null>} Organization details or null if not found
+ */
+export async function getOrganization(orgId) {
+  const logger = createLogger("getOrganization");
+
+  try {
+    const result = await dynamodb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: "DETAILS",
+        },
+      }),
+    );
+
+    return result.Item || null;
+  } catch (error) {
+    logger.error("Failed to get organization", {
+      orgId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Get organization by Stripe customer ID
+ * @param {string} stripeCustomerId - Stripe customer ID
+ * @returns {Promise<Object|null>} Organization details or null if not found
+ */
+export async function getOrganizationByStripeCustomer(stripeCustomerId) {
+  const logger = createLogger("getOrganizationByStripeCustomer");
+
+  try {
+    // Query GSI for stripe customer ID
+    // For now, we use stripeCustomerId as orgId, so direct lookup works
+    const result = await dynamodb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${stripeCustomerId}`,
+          SK: "DETAILS",
+        },
+      }),
+    );
+
+    return result.Item || null;
+  } catch (error) {
+    logger.error("Failed to get organization by Stripe customer", {
+      stripeCustomerId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
 /**
  * Get all members of an organization
  * @param {string} orgId - Organization ID

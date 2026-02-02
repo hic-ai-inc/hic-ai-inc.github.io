@@ -22,6 +22,9 @@ import {
   getLicense,
   updateLicenseStatus,
   createLicense as createDynamoDBLicense,
+  upsertOrganization,
+  updateOrgSeatLimit,
+  getOrganizationByStripeCustomer,
 } from "@/lib/dynamodb";
 import {
   suspendLicense,
@@ -297,6 +300,24 @@ async function handleCheckoutCompleted(session) {
         `Business purchase by ${customer_email} - owner role will be assigned on first Cognito login`,
       );
     }
+
+    // Create organization record for Business plan
+    // Uses stripeCustomerId as orgId for easy lookup from webhooks
+    try {
+      await upsertOrganization({
+        orgId: customer, // Stripe customer ID
+        name: `${customer_email.split("@")[0]}'s Organization`,
+        seatLimit: seats,
+        ownerId: existingCustomer?.userId || `email:${customer_email.toLowerCase()}`,
+        ownerEmail: customer_email,
+        stripeCustomerId: customer,
+        stripeSubscriptionId: subscription,
+      });
+      console.log(`Organization created for ${customer_email} with ${seats} seats`);
+    } catch (error) {
+      console.error("Failed to create organization:", error);
+      // Non-fatal - org can be created later via admin tools
+    }
   }
 }
 
@@ -310,12 +331,16 @@ async function handleSubscriptionCreated(subscription) {
 }
 
 /**
- * Handle subscription updates (plan changes, renewals)
+ * Handle subscription updates (plan changes, renewals, seat count changes)
  */
 async function handleSubscriptionUpdated(subscription) {
   console.log("Subscription updated:", subscription.id);
 
-  const { status, cancel_at_period_end, customer } = subscription;
+  const { status, cancel_at_period_end, customer, items } = subscription;
+  
+  // Extract seat quantity from subscription items
+  // Business subscriptions have quantity > 1 for multiple seats
+  const seatQuantity = items?.data?.[0]?.quantity || 1;
 
   // Find customer by Stripe ID
   const dbCustomer = await getCustomerByStripeId(customer);
@@ -389,6 +414,23 @@ async function handleSubscriptionUpdated(subscription) {
     console.log(
       `Cancellation recorded - email will be sent via event pipeline`,
     );
+  }
+
+  // Sync seat count to organization record for Business plans
+  // This updates the seatLimit when customer changes quantity in Stripe Portal
+  if (seatQuantity > 0) {
+    try {
+      const org = await getOrganizationByStripeCustomer(customer);
+      if (org && org.seatLimit !== seatQuantity) {
+        await updateOrgSeatLimit(customer, seatQuantity);
+        console.log(
+          `Organization seat limit synced: ${org.seatLimit} → ${seatQuantity}`,
+        );
+      }
+    } catch (error) {
+      // Non-fatal - log but don't fail webhook
+      console.error("Failed to sync organization seat limit:", error);
+    }
   }
 }
 
