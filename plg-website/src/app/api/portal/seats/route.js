@@ -11,14 +11,43 @@
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import { AUTH_NAMESPACE } from "@/lib/constants";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   getCustomerByUserId,
+  getCustomerByEmail,
+  getUserOrgMembership,
   getOrganizationByStripeCustomer,
   getOrgLicenseUsage,
 } from "@/lib/dynamodb";
 import { updateSubscriptionQuantity, getStripeClient } from "@/lib/stripe";
+
+// Cognito JWT verifier for ID tokens
+const idVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "id",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Verify Cognito ID token from Authorization header
+ */
+async function verifyAuthToken() {
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return await idVerifier.verify(token);
+  } catch (error) {
+    console.error("[Seats] JWT verification failed:", error.message);
+    return null;
+  }
+}
 
 /**
  * GET /api/portal/seats
@@ -28,15 +57,26 @@ import { updateSubscriptionQuantity, getStripeClient } from "@/lib/stripe";
  */
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = session.user;
-    const accountType = user[`${AUTH_NAMESPACE}/account_type`];
-    const orgId = user[`${AUTH_NAMESPACE}/org_id`];
-    const stripeCustomerId = user[`${AUTH_NAMESPACE}/stripe_customer_id`];
+    // Look up account type from DynamoDB (not JWT claims)
+    let customer = await getCustomerByUserId(tokenPayload.sub);
+    if (!customer && tokenPayload.email) {
+      customer = await getCustomerByEmail(tokenPayload.email);
+    }
+
+    // Check for org membership (Business tier members)
+    let orgMembership = null;
+    if (!customer) {
+      orgMembership = await getUserOrgMembership(tokenPayload.sub);
+    }
+
+    // Determine account type from DynamoDB
+    const accountType = orgMembership ? "business" : (customer?.accountType || "individual");
 
     // Only Business tier has seats
     if (accountType !== "business") {
@@ -46,8 +86,10 @@ export async function GET() {
       );
     }
 
-    // Get org either from token or by stripeCustomerId
-    let effectiveOrgId = orgId;
+    // Get orgId from membership or customer record
+    let effectiveOrgId = orgMembership?.orgId || customer?.orgId;
+    const stripeCustomerId = customer?.stripeCustomerId;
+    
     if (!effectiveOrgId && stripeCustomerId) {
       const org = await getOrganizationByStripeCustomer(stripeCustomerId);
       if (org) {
@@ -68,8 +110,6 @@ export async function GET() {
     // Get current subscription quantity from Stripe for accurate billing info
     let subscriptionQuantity = usage.seatLimit;
     let pricePerSeat = null;
-
-    const customer = await getCustomerByUserId(user.sub);
     if (customer?.stripeSubscriptionId) {
       try {
         const stripe = await getStripeClient();
@@ -124,15 +164,28 @@ export async function GET() {
  */
 export async function POST(request) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = session.user;
-    const accountType = user[`${AUTH_NAMESPACE}/account_type`];
-    const orgRole = user[`${AUTH_NAMESPACE}/org_role`];
-    const stripeCustomerId = user[`${AUTH_NAMESPACE}/stripe_customer_id`];
+    // Look up account type from DynamoDB (not JWT claims)
+    let customer = await getCustomerByUserId(tokenPayload.sub);
+    if (!customer && tokenPayload.email) {
+      customer = await getCustomerByEmail(tokenPayload.email);
+    }
+
+    // Check for org membership (Business tier members)
+    let orgMembership = null;
+    if (!customer) {
+      orgMembership = await getUserOrgMembership(tokenPayload.sub);
+    }
+
+    // Determine account type and org role from DynamoDB
+    const accountType = orgMembership ? "business" : (customer?.accountType || "individual");
+    const orgRole = orgMembership?.role || customer?.orgRole || "member";
+    const stripeCustomerId = customer?.stripeCustomerId;
 
     // Only Business tier has seats
     if (accountType !== "business") {
@@ -183,8 +236,7 @@ export async function POST(request) {
       );
     }
 
-    // Get customer's subscription ID
-    const customer = await getCustomerByUserId(user.sub);
+    // Check customer's subscription ID (customer already fetched above)
     if (!customer?.stripeSubscriptionId) {
       return NextResponse.json(
         { error: "No active subscription found" },

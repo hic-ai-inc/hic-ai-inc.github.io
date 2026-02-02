@@ -5,14 +5,13 @@
       "command": "node",
       "args": ["c:/Users/SimonAdmin/source/repos/hic/mcp/src/core/server.js"],
       "env": {
-        "DEBUG": "true",
-        "NODE_ENV": "production",
+        "DEBUG": "false",
         "HIC_AGENT_ADAPTER": "copilot",
+        "HIC_ALLOWED_DIRECTORIES": "c:/Users/SimonAdmin/source/repos/hic-ai-inc.github.io;c:/Users/SimonAdmin/source/repos/hic",
         "HIC_LICENSING_ENABLED": "true",
         "HIC_SCHEMA_PROFILE": "gemini",
-        "HIC_ALLOWED_DIRECTORIES": "c:/Users/SimonAdmin/source/repos/hic;c:/Users/SimonAdmin/source/repos/hic-ai-inc.github.io"
+        "NODE_ENV": "production"
       }
     }
-  },
-  "inputs": []
+  }
 }

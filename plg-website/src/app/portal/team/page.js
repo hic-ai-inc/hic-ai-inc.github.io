@@ -2,6 +2,7 @@
  * Team Management Page (Business Only)
  *
  * Manage team members, seats, and permissions.
+ * Fetches account data from DynamoDB to determine access.
  *
  * @see PLG User Journey - Section 2.6
  * @see PLG Pricing v4 - Business tier includes team management
@@ -9,27 +10,62 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AUTH_NAMESPACE } from "@/lib/constants";
 import { useUser } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 import TeamManagement from "./TeamManagement";
 
 export default function TeamPage() {
   const { user, isLoading } = useUser();
   const router = useRouter();
-  const namespace = AUTH_NAMESPACE;
+  const [accountData, setAccountData] = useState(null);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  const accountType = user?.[`${namespace}/account_type`];
+  // Fetch account data from DynamoDB
+  useEffect(() => {
+    async function fetchAccountData() {
+      if (!user) return;
+
+      try {
+        const session = await getSession();
+        if (!session?.idToken) {
+          setDataLoading(false);
+          return;
+        }
+
+        const response = await fetch("/api/portal/status", {
+          headers: {
+            Authorization: `Bearer ${session.idToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAccountData(data);
+        }
+      } catch (error) {
+        console.error("[TeamPage] Failed to fetch account data:", error);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+
+    if (user && !isLoading) {
+      fetchAccountData();
+    }
+  }, [user, isLoading]);
+
+  const accountType = accountData?.accountType;
 
   useEffect(() => {
     // Redirect non-business users (per v4 pricing: only business has team features)
-    if (!isLoading && user && accountType !== "business") {
+    if (!dataLoading && accountData && accountType !== "business") {
       router.push("/portal");
     }
-  }, [isLoading, user, accountType, router]);
+  }, [dataLoading, accountData, accountType, router]);
 
-  if (isLoading || !user) {
+  if (isLoading || !user || dataLoading) {
     return (
       <div className="max-w-5xl">
         <div className="animate-pulse">

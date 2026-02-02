@@ -49,6 +49,8 @@ import {
   updateOrgMemberRole,
   removeOrgMember,
   getCustomerByUserId,
+  getCustomerByEmail,
+  getUserOrgMembership,
   resendOrgInvite,
   getOrganizationByStripeCustomer,
 } from "@/lib/dynamodb";
@@ -68,10 +70,21 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract claims from token
-    const accountType = tokenPayload["custom:account_type"];
-    let orgId = tokenPayload["custom:org_id"];
-    const stripeCustomerId = tokenPayload["custom:stripe_customer_id"];
+    // Look up account type from DynamoDB (not JWT claims)
+    // This handles cases where JWT custom attributes aren't set
+    let customer = await getCustomerByUserId(tokenPayload.sub);
+    if (!customer && tokenPayload.email) {
+      customer = await getCustomerByEmail(tokenPayload.email);
+    }
+
+    // Check for org membership (Business tier members)
+    let orgMembership = null;
+    if (!customer) {
+      orgMembership = await getUserOrgMembership(tokenPayload.sub);
+    }
+
+    // Determine account type from DynamoDB
+    const accountType = orgMembership ? "business" : (customer?.accountType || "individual");
 
     // Check for business account
     if (accountType !== "business") {
@@ -81,8 +94,11 @@ export async function GET() {
       );
     }
 
-    // Fallback: If no org_id in token, try to find org by stripeCustomerId
-    // This handles the case where the user purchased before org_id was set in Cognito
+    // Get orgId from membership or customer record
+    let orgId = orgMembership?.orgId || customer?.orgId;
+    
+    // Fallback: If no org_id, try to find org by stripeCustomerId
+    const stripeCustomerId = customer?.stripeCustomerId || tokenPayload["custom:stripe_customer_id"];
     if (!orgId && stripeCustomerId) {
       const org = await getOrganizationByStripeCustomer(stripeCustomerId);
       if (org) {
@@ -157,10 +173,22 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract claims from token
-    const accountType = tokenPayload["custom:account_type"];
-    const orgId = tokenPayload["custom:org_id"];
-    const userRole = tokenPayload["custom:role"];
+    // Look up account type from DynamoDB (not JWT claims)
+    let customer = await getCustomerByUserId(tokenPayload.sub);
+    if (!customer && tokenPayload.email) {
+      customer = await getCustomerByEmail(tokenPayload.email);
+    }
+
+    // Check for org membership (Business tier members)
+    let orgMembership = null;
+    if (!customer) {
+      orgMembership = await getUserOrgMembership(tokenPayload.sub);
+    }
+
+    // Determine account type and org role from DynamoDB
+    const accountType = orgMembership ? "business" : (customer?.accountType || "individual");
+    const orgId = orgMembership?.orgId || customer?.orgId;
+    const userRole = orgMembership?.role || customer?.orgRole || "member";
 
     // Check for business account
     if (accountType !== "business") {
@@ -472,10 +500,22 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract claims from token
-    const accountType = tokenPayload["custom:account_type"];
-    const orgId = tokenPayload["custom:org_id"];
-    const userRole = tokenPayload["custom:role"];
+    // Look up account type from DynamoDB (not JWT claims)
+    let customer = await getCustomerByUserId(tokenPayload.sub);
+    if (!customer && tokenPayload.email) {
+      customer = await getCustomerByEmail(tokenPayload.email);
+    }
+
+    // Check for org membership (Business tier members)
+    let orgMembership = null;
+    if (!customer) {
+      orgMembership = await getUserOrgMembership(tokenPayload.sub);
+    }
+
+    // Determine account type and org role from DynamoDB
+    const accountType = orgMembership ? "business" : (customer?.accountType || "individual");
+    const orgId = orgMembership?.orgId || customer?.orgId;
+    const userRole = orgMembership?.role || customer?.orgRole || "member";
 
     // Check for business account
     if (accountType !== "business") {
