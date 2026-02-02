@@ -24,6 +24,8 @@ import {
   getLicense,
   migrateCustomerUserId,
 } from "@/lib/dynamodb";
+// Cognito RBAC for Business plan owner role assignment
+import { assignOwnerRole } from "@/lib/cognito-admin";
 // NOTE: Email is sent via event-driven architecture:
 // DynamoDB write → DynamoDB Streams → StreamProcessor Lambda → SNS → EmailSender Lambda → SES
 // Do NOT call sendLicenseEmail() directly here.
@@ -128,6 +130,20 @@ export async function POST(request) {
         }
       }
 
+      // RBAC: Assign owner role for Business plan if user was created before signing up
+      // The Stripe webhook skips this if userId was temporary (email:xxx format)
+      // Now that we have the real Cognito sub, assign the owner role
+      const existingPlanType = existingCustomer.accountType || checkoutSession.metadata?.planType || "individual";
+      if (existingPlanType === "business") {
+        try {
+          await assignOwnerRole(user.sub);
+          console.log(`[ProvisionLicense] Owner role assigned to ${user.sub} for Business plan`);
+        } catch (roleError) {
+          // Non-fatal: Log but continue - user can still use the license
+          console.warn(`[ProvisionLicense] Could not assign owner role:`, roleError.message);
+        }
+      }
+
       // Check if DynamoDB license record exists (needed for license email)
       // The webhook may have created the Keygen license but not the DynamoDB license record
       const existingLicenseRecord = await getLicense(existingCustomer.keygenLicenseId);
@@ -214,6 +230,18 @@ export async function POST(request) {
       maxDevices:
         planType === "business" ? 5 : 3,
     });
+
+    // RBAC: Assign owner role for new Business plan purchases
+    // This user signed up first then purchased, so we can assign immediately
+    if (planType === "business") {
+      try {
+        await assignOwnerRole(user.sub);
+        console.log(`[ProvisionLicense] Owner role assigned to ${user.sub} for new Business plan`);
+      } catch (roleError) {
+        // Non-fatal: Log but continue - user has license, role can be fixed later
+        console.warn(`[ProvisionLicense] Could not assign owner role:`, roleError.message);
+      }
+    }
 
     // Email is sent asynchronously via event-driven pipeline
     // (see StreamProcessor Lambda → SNS → EmailSender Lambda)

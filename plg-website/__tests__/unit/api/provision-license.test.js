@@ -644,6 +644,340 @@ describe("provision-license API logic", () => {
     });
   });
 
+  describe("owner role assignment for Business plans", () => {
+    /**
+     * Determines if owner role should be assigned to a user
+     * Owner role is assigned when:
+     * 1. Plan type is "business"
+     * 2. User has a valid Cognito sub (not null/undefined)
+     */
+    function shouldAssignOwnerRole(planType, cognitoSub) {
+      return planType === "business" && !!cognitoSub;
+    }
+
+    /**
+     * Simulates owner role assignment result
+     * Returns { success: true } or throws error
+     */
+    async function assignOwnerRoleWithResult(cognitoSub, mockBehavior = {}) {
+      if (mockBehavior.shouldFail) {
+        throw new Error(mockBehavior.errorMessage || "Failed to assign owner role");
+      }
+      return { success: true, cognitoSub };
+    }
+
+    describe("role assignment decision logic", () => {
+      it("should assign owner role for business plan with valid cognitoSub", () => {
+        const result = shouldAssignOwnerRole("business", "e4a8f4f8-f0a1-704b-a2cf-66461fae76ed");
+        assert.strictEqual(result, true);
+      });
+
+      it("should NOT assign owner role for individual plan", () => {
+        const result = shouldAssignOwnerRole("individual", "e4a8f4f8-f0a1-704b-a2cf-66461fae76ed");
+        assert.strictEqual(result, false);
+      });
+
+      it("should NOT assign owner role for business plan without cognitoSub", () => {
+        const result = shouldAssignOwnerRole("business", null);
+        assert.strictEqual(result, false);
+      });
+
+      it("should NOT assign owner role for business plan with undefined cognitoSub", () => {
+        const result = shouldAssignOwnerRole("business", undefined);
+        assert.strictEqual(result, false);
+      });
+
+      it("should NOT assign owner role for business plan with empty string cognitoSub", () => {
+        const result = shouldAssignOwnerRole("business", "");
+        assert.strictEqual(result, false);
+      });
+
+      it("should NOT assign owner role for enterprise plan", () => {
+        const result = shouldAssignOwnerRole("enterprise", "valid-sub");
+        assert.strictEqual(result, false);
+      });
+
+      it("should NOT assign owner role for unknown plan type", () => {
+        const result = shouldAssignOwnerRole("unknown", "valid-sub");
+        assert.strictEqual(result, false);
+      });
+    });
+
+    describe("role assignment for existing Business customers", () => {
+      /**
+       * Simulates the existing customer flow in provision-license
+       * - Gets planType from existingCustomer.accountType OR checkout metadata
+       * - Assigns owner role if business plan
+       */
+      async function handleExistingBusinessCustomer(existingCustomer, checkoutSession, cognitoSub, mockAssign) {
+        const planType = existingCustomer.accountType || checkoutSession.metadata?.planType || "individual";
+        
+        const result = {
+          planType,
+          ownerRoleAssigned: false,
+          ownerRoleError: null,
+        };
+
+        if (planType === "business" && cognitoSub) {
+          try {
+            await mockAssign(cognitoSub);
+            result.ownerRoleAssigned = true;
+          } catch (error) {
+            result.ownerRoleError = error.message;
+            // Non-fatal: continue anyway
+          }
+        }
+
+        return result;
+      }
+
+      it("should assign owner role to existing business customer", async () => {
+        const existingCustomer = createMockExistingCustomer({ accountType: "business" });
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: "business" } });
+        const cognitoSub = "e4a8f4f8-f0a1-704b-a2cf-66461fae76ed";
+        
+        const result = await handleExistingBusinessCustomer(
+          existingCustomer,
+          checkoutSession,
+          cognitoSub,
+          () => Promise.resolve({ success: true })
+        );
+
+        assert.strictEqual(result.planType, "business");
+        assert.strictEqual(result.ownerRoleAssigned, true);
+        assert.strictEqual(result.ownerRoleError, null);
+      });
+
+      it("should NOT assign owner role to existing individual customer", async () => {
+        const existingCustomer = createMockExistingCustomer({ accountType: "individual" });
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: "individual" } });
+        const cognitoSub = "e4a8f4f8-f0a1-704b-a2cf-66461fae76ed";
+
+        const result = await handleExistingBusinessCustomer(
+          existingCustomer,
+          checkoutSession,
+          cognitoSub,
+          () => Promise.resolve({ success: true })
+        );
+
+        assert.strictEqual(result.planType, "individual");
+        assert.strictEqual(result.ownerRoleAssigned, false);
+      });
+
+      it("should fallback to checkout metadata when accountType is missing", async () => {
+        const existingCustomer = createMockExistingCustomer({ accountType: undefined });
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: "business" } });
+        const cognitoSub = "e4a8f4f8-f0a1-704b-a2cf-66461fae76ed";
+
+        const result = await handleExistingBusinessCustomer(
+          existingCustomer,
+          checkoutSession,
+          cognitoSub,
+          () => Promise.resolve({ success: true })
+        );
+
+        assert.strictEqual(result.planType, "business");
+        assert.strictEqual(result.ownerRoleAssigned, true);
+      });
+
+      it("should default to individual when both accountType and metadata are missing", async () => {
+        const existingCustomer = createMockExistingCustomer({ accountType: undefined });
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: undefined } });
+        const cognitoSub = "e4a8f4f8-f0a1-704b-a2cf-66461fae76ed";
+
+        const result = await handleExistingBusinessCustomer(
+          existingCustomer,
+          checkoutSession,
+          cognitoSub,
+          () => Promise.resolve({ success: true })
+        );
+
+        assert.strictEqual(result.planType, "individual");
+        assert.strictEqual(result.ownerRoleAssigned, false);
+      });
+
+      it("should continue on role assignment failure (non-fatal error)", async () => {
+        const existingCustomer = createMockExistingCustomer({ accountType: "business" });
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: "business" } });
+        const cognitoSub = "e4a8f4f8-f0a1-704b-a2cf-66461fae76ed";
+
+        const result = await handleExistingBusinessCustomer(
+          existingCustomer,
+          checkoutSession,
+          cognitoSub,
+          () => Promise.reject(new Error("Cognito API rate limit exceeded"))
+        );
+
+        assert.strictEqual(result.planType, "business");
+        assert.strictEqual(result.ownerRoleAssigned, false);
+        assert.strictEqual(result.ownerRoleError, "Cognito API rate limit exceeded");
+      });
+
+      it("should NOT assign role when cognitoSub is missing", async () => {
+        const existingCustomer = createMockExistingCustomer({ accountType: "business" });
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: "business" } });
+
+        const mockAssign = () => {
+          throw new Error("Should not be called");
+        };
+
+        const result = await handleExistingBusinessCustomer(
+          existingCustomer,
+          checkoutSession,
+          null, // No cognitoSub
+          mockAssign
+        );
+
+        assert.strictEqual(result.ownerRoleAssigned, false);
+      });
+    });
+
+    describe("role assignment for new Business customers", () => {
+      /**
+       * Simulates the new customer flow in provision-license
+       * - Gets planType from checkout metadata
+       * - Assigns owner role if business plan
+       */
+      async function handleNewBusinessCustomer(checkoutSession, cognitoSub, mockAssign) {
+        const planType = checkoutSession.metadata?.planType || "individual";
+        
+        const result = {
+          planType,
+          ownerRoleAssigned: false,
+          ownerRoleError: null,
+        };
+
+        if (planType === "business") {
+          try {
+            await mockAssign(cognitoSub);
+            result.ownerRoleAssigned = true;
+          } catch (error) {
+            result.ownerRoleError = error.message;
+            // Non-fatal: continue anyway
+          }
+        }
+
+        return result;
+      }
+
+      it("should assign owner role for new business purchase", async () => {
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: "business" } });
+        const cognitoSub = "new-user-cognito-sub-123";
+
+        const result = await handleNewBusinessCustomer(
+          checkoutSession,
+          cognitoSub,
+          () => Promise.resolve({ success: true })
+        );
+
+        assert.strictEqual(result.planType, "business");
+        assert.strictEqual(result.ownerRoleAssigned, true);
+        assert.strictEqual(result.ownerRoleError, null);
+      });
+
+      it("should NOT assign owner role for new individual purchase", async () => {
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: "individual" } });
+        const cognitoSub = "new-user-cognito-sub-123";
+
+        const result = await handleNewBusinessCustomer(
+          checkoutSession,
+          cognitoSub,
+          () => { throw new Error("Should not be called"); }
+        );
+
+        assert.strictEqual(result.planType, "individual");
+        assert.strictEqual(result.ownerRoleAssigned, false);
+      });
+
+      it("should continue on role assignment failure for new customer", async () => {
+        const checkoutSession = createMockCheckoutSession({ metadata: { planType: "business" } });
+        const cognitoSub = "new-user-cognito-sub-123";
+
+        const result = await handleNewBusinessCustomer(
+          checkoutSession,
+          cognitoSub,
+          () => Promise.reject(new Error("User pool not found"))
+        );
+
+        assert.strictEqual(result.planType, "business");
+        assert.strictEqual(result.ownerRoleAssigned, false);
+        assert.strictEqual(result.ownerRoleError, "User pool not found");
+      });
+
+      it("should default to individual when planType metadata is missing", async () => {
+        const checkoutSession = createMockCheckoutSession({ metadata: {} });
+        const cognitoSub = "new-user-cognito-sub-123";
+
+        const result = await handleNewBusinessCustomer(
+          checkoutSession,
+          cognitoSub,
+          () => { throw new Error("Should not be called"); }
+        );
+
+        assert.strictEqual(result.planType, "individual");
+        assert.strictEqual(result.ownerRoleAssigned, false);
+      });
+    });
+
+    describe("Cognito group assignment behavior", () => {
+      /**
+       * Simulates what assignOwnerRole does - adds user to mouse-owner group
+       */
+      function simulateAssignOwnerRole(cognitoSub, existingGroups = []) {
+        const targetGroup = "mouse-owner";
+        
+        if (!cognitoSub) {
+          throw new Error("Cognito sub is required");
+        }
+
+        // Check if already in group
+        if (existingGroups.includes(targetGroup)) {
+          return { success: true, alreadyInGroup: true };
+        }
+
+        // Add to group (simulated)
+        return { 
+          success: true, 
+          alreadyInGroup: false,
+          groupAdded: targetGroup,
+        };
+      }
+
+      it("should add user to mouse-owner group", () => {
+        const result = simulateAssignOwnerRole("user-sub-123", []);
+        
+        assert.strictEqual(result.success, true);
+        assert.strictEqual(result.alreadyInGroup, false);
+        assert.strictEqual(result.groupAdded, "mouse-owner");
+      });
+
+      it("should handle user already in mouse-owner group (idempotent)", () => {
+        const result = simulateAssignOwnerRole("user-sub-123", ["mouse-owner"]);
+        
+        assert.strictEqual(result.success, true);
+        assert.strictEqual(result.alreadyInGroup, true);
+      });
+
+      it("should handle user in other groups (Google auth)", () => {
+        const result = simulateAssignOwnerRole(
+          "user-sub-123", 
+          ["us-east-1_CntYimcMm_Google"]
+        );
+        
+        assert.strictEqual(result.success, true);
+        assert.strictEqual(result.alreadyInGroup, false);
+        assert.strictEqual(result.groupAdded, "mouse-owner");
+      });
+
+      it("should throw error when cognitoSub is missing", () => {
+        assert.throws(
+          () => simulateAssignOwnerRole(null),
+          /Cognito sub is required/
+        );
+      });
+    });
+  });
+
   describe("error handling", () => {
     /**
      * Builds error response
