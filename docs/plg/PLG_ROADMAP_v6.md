@@ -1,9 +1,37 @@
 # PLG Roadmap v6 — Final Sprint: Business RBAC → Launch
 
-**Document Version:** 6.0.0  
-**Date:** February 1, 2026  
+**Document Version:** 6.1.0  
+**Date:** February 2, 2026  
 **Owner:** General Counsel  
 **Status:** ✅ PHASES 1, 3, 4 COMPLETE — Individual E2E validated, Device Management wired, VS Code Extension ready
+
+---
+
+## ⚡ LAUNCH CONTRACT (New in v6.1)
+
+> **This section defines what's live at launch and removes ambiguity from downstream decisions.**
+
+| Decision | Choice | Implication |
+|----------|--------|-------------|
+| **Launch Posture** | Individual-only public launch | Business plan hidden/waitlist |
+| **Business Plan UI** | "Coming Soon" or Contact Sales | No checkout for Business tier |
+| **RBAC Status** | POST-LAUNCH (triggered by demand) | Not a deployment blocker |
+| **Downgrade Logic** | POST-LAUNCH (no Business customers yet) | Simplifies Tier 1 payments work |
+
+### What's Live at Launch
+
+✅ **Individual tier** — Full self-service: signup → checkout → license → portal → extension  
+⬜ **Business tier** — Hidden. Page shows "Coming Soon — Join Waitlist" or "Contact Sales"
+
+### What This Unlocks
+
+- **RBAC (16-24h)** moves from "Next Priority" to POST-LAUNCH
+- **Business→Individual downgrade** moves from Tier 1 to POST-LAUNCH Medium
+- **Pre-deployment critical path** drops from ~46h to ~30h
+
+### Why This Is Right
+
+Business customers won't exist on day 1. Building RBAC now is building for a segment that hasn't validated demand. Ship Individual, validate the flow, gather feedback, then build Business when there's a customer asking for it.
 
 ---
 
@@ -65,7 +93,7 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 | **Settings**                       |         |                                           |
 | Display/update preferences         | ✅ DONE | JWT auth, DynamoDB                        |
 | Export data                        | ✅ DONE | Working                                   |
-| Delete account                     | ⬜ TODO | Verify cascade delete                     |
+| Delete account                     | ⬜ TODO | **TIER 2** — Verify cascade delete OR ship stopgap |
 
 ### 1.2 Success Criteria
 
@@ -212,7 +240,7 @@ exports.handler = async (event) => {
 | 2   | Cookie/Privacy Compliance          | ✅ Documented               | 1h         | GC         | —            |
 | 3   | Auth (Cognito — Individual)        | ✅ **COMPLETE** (v2 pool)   | 0h (done)  | GC + Simon | —            |
 | 3b  | **Amplify Gen 2 Migration**        | ✅ **STRUCTURE COMPLETE**   | 0h (done)  | GC + Simon | **3** (Auth) |
-| 3c  | **Business RBAC (Phase 2)**        | ⬜ **NEXT PRIORITY**        | **16-24h** | GC         | **Phase 1**  |
+| 3c  | **Business RBAC (Phase 2)**        | ⬜ POST-LAUNCH (per Launch Contract) | **16-24h** | GC         | Demand-triggered |
 | 4   | Admin Portal (Individuals + Teams) | ✅ **COMPLETE** (550 tests) | 0h (done)  | GC         | —            |
 | 5   | Licensing (KeyGen.sh) — Server     | ✅ **COMPLETE**             | 0h (done)  | Simon      | —            |
 | 5b  | **Server-Side Heartbeat API**      | ✅ **COMPLETE** (91 tests)  | 0h (done)  | GC         | —            |
@@ -626,7 +654,7 @@ CI/CD pipeline adapted from SimonReiff/hic and deployed to `.github/workflows/ci
 | `cicd.yml` — Run tests on PR/push     | ✅     | Auto-detects systems with package.json |
 | Workflow triggers                     | ✅     | push/PR to development and main        |
 | Test full CI/CD flow                  | ✅     | PR #1 verified, all tests passed (58s) |
-| Branch protection rules               | ⬜     | Optional — add later if needed         |
+| Branch protection rules               | ⬜     | **TIER 2** — Pre-launch (low effort, high value) |
 
 **Recommended CI/CD Flow:**
 
@@ -1398,8 +1426,9 @@ Parallel workstreams (no dependencies):
 
 ### TODO 1: Device Concurrent Limits Testing
 
-**Priority:** High  
-**Category:** E2E Testing
+**Priority:** 🔴 TIER 2 — Critical Quality (Pre-Launch)  
+**Category:** E2E Testing  
+**Est. Hours:** 8h
 
 - [ ] Install Mouse in multiple containers to test concurrent device behavior
 - [ ] Verify soft limits are enforced (warning at limit)
@@ -1413,8 +1442,10 @@ Parallel workstreams (no dependencies):
 
 ### TODO 2: Business RBAC Implementation
 
-**Priority:** High  
-**Category:** Portal Development
+**Priority:** 🟢 POST-LAUNCH — Low Risk  
+**Category:** Portal Development  
+**Est. Hours:** 16-24h  
+**Rationale:** Individual tier works. Business buyers are rare at launch. Build when demand exists.
 
 Build out complete portal experiences for all three roles:
 
@@ -1432,8 +1463,10 @@ Build out complete portal experiences for all three roles:
 
 ### TODO 3: Email Flow Verification
 
-**Priority:** Medium  
-**Category:** E2E Testing
+**Priority:** 🟢 POST-LAUNCH — Low Risk  
+**Category:** E2E Testing  
+**Est. Hours:** 4h  
+**Rationale:** Transactional emails secondary—users have portal access. Can verify post-launch.
 
 - [ ] Test auth code flow route with Yopmail temp accounts
 - [ ] Verify Welcome email delivery to temp accounts
@@ -1449,8 +1482,9 @@ Build out complete portal experiences for all three roles:
 
 ### TODO 4: VSIX/npx Delivery Parity
 
-**Priority:** High  
-**Category:** Extension Development
+**Priority:** 🔴 TIER 2 — Critical Quality (Pre-Launch)  
+**Category:** Extension Development  
+**Est. Hours:** 4h
 
 Ensure identical UX regardless of installation method:
 
@@ -1469,10 +1503,11 @@ Ensure identical UX regardless of installation method:
 
 ### TODO 5: Documentation Site (docs.hic-ai.com)
 
-**Priority:** High  
-**Category:** Documentation
+**Priority:** 🔴 TIER 2 — Critical Quality (Pre-Launch)  
+**Category:** Documentation  
+**Est. Hours:** 8h (MVP Getting Started + Troubleshooting)
 
-Current state: Home page documentation link returns 404.
+Current state: Home page documentation link returns 404. **Must fix before launch.**
 
 **Proposal:** Create dedicated `docs.hic-ai.com` subdomain
 
@@ -1493,11 +1528,13 @@ Current state: Home page documentation link returns 404.
 
 ### TODO 6: Launch Plan Document
 
-**Priority:** Critical  
-**Category:** Planning
+**Priority:** 🔴 TIER 1 — Deployment Blocker  
+**Category:** Planning  
+**Est. Hours:** 6h (expanded per GPT-5.2 review)
 
 Need comprehensive launch plan covering:
 
+**Deployment Checklist:**
 - [ ] Deployment checklist (staging → production)
 - [ ] Stripe: Sandbox → Production mode switch
 - [ ] SES: Sandbox → Production mode switch
@@ -1508,10 +1545,37 @@ Need comprehensive launch plan covering:
 - [ ] Communication plan (social media, announcements)
 - [ ] Post-launch support readiness
 
+**Security Hygiene — TIER 2 (GPT-5.2 recommendation):**
+> "Boring but catastrophic if skipped"
+- [ ] Enable 2FA on GitHub org (hic-ai-inc)
+- [ ] Enable 2FA on Stripe dashboard
+- [ ] Enable 2FA on AWS root + IAM admin accounts
+- [ ] Enable 2FA on Keygen dashboard
+- [ ] Verify MFA on Cognito admin accounts
+
+**Billing Safeguards — TIER 2 (GPT-5.2 recommendation):**
+- [ ] Set up AWS Budget alerts ($50, $100, $250 thresholds)
+- [ ] Configure CloudWatch billing alarms
+- [ ] Review Lambda provisioned concurrency limits
+
+**Email Deliverability — TIER 2 (GPT-5.2 recommendation):**
+- [ ] DMARC record configured (in addition to DKIM/SPF)
+- [ ] Test sends to Gmail (verify not spam)
+- [ ] Test sends to Outlook (verify not spam)
+- [ ] Set up bounce/complaint monitoring in SES
+- [ ] Review SES sending limits for production
+
+**Support Minimum — TIER 2 (GPT-5.2 recommendation):**
+- [ ] support@hic-ai.com exists and routes to SWR
+- [ ] Autoresponder: "We received your message, expect response within 24h"
+- [ ] Basic triage rule: "billing" vs "bug" → different response templates
+
 ### TODO 7: Support Infrastructure
 
-**Priority:** Medium  
-**Category:** Support
+**Priority:** 🟢 POST-LAUNCH — Low Risk  
+**Category:** Support  
+**Est. Hours:** 4h  
+**Rationale:** GitHub Issues exists. Discord/email can come later based on demand.
 
 **Options to consider:**
 
@@ -1531,8 +1595,10 @@ Need comprehensive launch plan covering:
 
 ### TODO 8: CI/CD Pipeline Completion
 
-**Priority:** High  
-**Category:** DevOps
+**Priority:** 🟡 POST-LAUNCH — Medium Risk  
+**Category:** DevOps  
+**Est. Hours:** 8h  
+**Rationale:** Manual deploy works. Automation is efficiency, not blocking.
 
 Per roadmap, complete remaining CI/CD work:
 
@@ -1545,8 +1611,10 @@ Per roadmap, complete remaining CI/CD work:
 
 ### TODO 9: IP Review
 
-**Priority:** Medium  
-**Category:** Legal/Documentation
+**Priority:** 🟡 POST-LAUNCH — Medium Risk  
+**Category:** Legal/Documentation  
+**Est. Hours:** 4h  
+**Rationale:** Should do eventually, but not launch-blocking.
 
 - [ ] Review all documentation for proprietary design/implementation details
 - [ ] Remove or generalize sensitive technical details
@@ -1555,8 +1623,10 @@ Per roadmap, complete remaining CI/CD work:
 
 ### TODO 10: Corporate/Legal Filings
 
-**Priority:** High (Time-Sensitive)  
-**Category:** Legal
+**Priority:** 🔴 TIER 1 — Deployment Blocker  
+**Category:** Legal  
+**Est. Hours:** 4h  
+**WARNING:** 83(b) has 30-day deadline; Privacy/ToS must be live before payments.
 
 - [ ] **Section 83(b) Election** — File within 30 days of stock grant
 - [ ] **Copyright Application** — Register Mouse software copyright
@@ -1566,25 +1636,32 @@ Per roadmap, complete remaining CI/CD work:
 
 ### TODO 11: Payment Edge Cases
 
-**Priority:** High  
-**Category:** Payments
+**Priority:** 🔴 TIER 1 — Deployment Blocker  
+**Category:** Payments  
+**Est. Hours:** 4h (reduced scope per Launch Contract)
 
-**Critical Edge Case: Business → Individual Downgrade**
+**Tier 1 Scope (Individual-only launch):**
+
+- [ ] Stripe: Sandbox → Production conversion
+- [ ] Webhook verification (checkout.session.completed, invoice.paid)
+- [ ] Test Individual upgrade/cancel flows
+- [ ] Verify proration handling
+
+**Deferred to POST-LAUNCH (Business → Individual Downgrade):**
+
+> Per Launch Contract: Business tier not live at launch, so downgrade logic is not a blocker.
 
 | Scenario | Allowed? | Action |
 |----------|----------|--------|
 | Business (1 user, Owner only) → Individual | ✅ Yes | Allow downgrade |
 | Business (multi-user) → Individual | ❌ No | Block with error message |
 
-If multi-user Business tries to downgrade:
-1. Display error: "Please cancel extra licenses first"
-2. Force cancellation of additional seats
-3. Once down to 1 user, allow downgrade to Individual
+When Business goes live:
+1. Implement downgrade blocking logic
+2. Display error: "Please cancel extra licenses first"
+3. Force cancellation of additional seats before allowing downgrade
 
-**Other Payment TODOs:**
-
-- [ ] Implement downgrade blocking logic
-- [ ] Stripe: Sandbox → Production conversion
+**Other Payment TODOs (unchanged):**
 - [ ] **Lemon Squeezy MoR Application** — Reapply ASAP once website is live
   - Previous rejection reason: "no website or social media presence"
   - Goal: Avoid tax withholding/remittance complexity
@@ -1592,8 +1669,10 @@ If multi-user Business tries to downgrade:
 
 ### TODO 12: Monitoring & Status Page (status.hic-ai.com)
 
-**Priority:** Medium  
-**Category:** Operations
+**Priority:** 🟢 POST-LAUNCH — Low Risk  
+**Category:** Operations  
+**Est. Hours:** 4h  
+**Rationale:** Nice-to-have for trust. Can monitor manually at first.
 
 Need health monitoring for:
 
@@ -1612,8 +1691,10 @@ Need health monitoring for:
 
 ### TODO 13: Analytics & CloudWatch Integration
 
-**Priority:** Medium  
-**Category:** Analytics
+**Priority:** 🟢 POST-LAUNCH — Low Risk  
+**Category:** Analytics  
+**Est. Hours:** 6h  
+**Rationale:** Can add after launch; not revenue-impacting.
 
 Current state: PLG metrics script exists but no CloudFormation/CloudWatch integration.
 
@@ -1629,10 +1710,11 @@ Current state: PLG metrics script exists but no CloudFormation/CloudWatch integr
 
 ### TODO 14: Security Audit
 
-**Priority:** Critical  
-**Category:** Security
+**Priority:** 🔴 TIER 1 — Deployment Blocker (Phase 1) / 🟡 POST-LAUNCH (Phases 2-3)  
+**Category:** Security  
+**Est. Hours:** 8h (Phase 1) + 8h (Phases 2-3)
 
-**Phase 1: Code Review**
+**Phase 1: Code Review** ← TIER 1: Do before launch
 - [ ] Run Q Developer Code Review SAST
 - [ ] Run additional SAST tools (Snyk, CodeQL)
 - [ ] Manual review of authentication flows
@@ -1656,13 +1738,15 @@ Unlike Mouse (zero external deps), this project has dependencies:
 **Phase 3: CI/CD Security Integration**
 - [ ] Add SAST scanning to CI/CD pipeline
 - [ ] Add dependency vulnerability scanning
-- [ ] Configure branch protection rules
+- [ ] Configure branch protection rules **(TIER 2 — do pre-launch)**
 - [ ] Set up secret scanning
 
 ### TODO 15: Front-End UX Polish
 
-**Priority:** Medium  
-**Category:** Design
+**Priority:** 🟢 POST-LAUNCH — Low Risk  
+**Category:** Design  
+**Est. Hours:** 8h  
+**Rationale:** Works > Pretty. Iterate post-launch based on feedback.
 
 - [ ] Fix alignment and spacing issues throughout portal
 - [ ] Standardize Mouse logo usage:
@@ -1676,8 +1760,10 @@ Unlike Mouse (zero external deps), this project has dependencies:
 
 ### TODO 16: Marketing Strategy
 
-**Priority:** High (Post-Launch)  
-**Category:** Marketing
+**Priority:** 🟢 POST-LAUNCH — Low Risk  
+**Category:** Marketing  
+**Est. Hours:** 8h  
+**Rationale:** Launch first, then market. HN post can come anytime.
 
 **Goal:** Raise awareness of Mouse and drive traffic to hic-ai.com
 
@@ -1704,8 +1790,10 @@ Unlike Mouse (zero external deps), this project has dependencies:
 
 ### TODO 17: Disaster Recovery & Backups
 
-**Priority:** High  
-**Category:** Operations/Infrastructure
+**Priority:** 🔴 TIER 2 — Critical Quality (Pre-Launch)  
+**Category:** Operations/Infrastructure  
+**Est. Hours:** 2h (verification only)  
+**Note:** Only verify PITR is enabled and document restore; full DR plan can come post-launch.
 
 - [ ] Verify DynamoDB Point-in-Time Recovery (PITR) is enabled
 - [ ] Document backup retention policy
@@ -1719,8 +1807,10 @@ Unlike Mouse (zero external deps), this project has dependencies:
 
 ### TODO 18: Load/Stress Testing
 
-**Priority:** Medium  
-**Category:** Testing
+**Priority:** 🟡 POST-LAUNCH — Medium Risk  
+**Category:** Testing  
+**Est. Hours:** 8h  
+**Rationale:** Low traffic expected at launch. Scale issues are good problems.
 
 Ensure system can handle traffic spikes:
 
@@ -1736,29 +1826,43 @@ Ensure system can handle traffic spikes:
 - [ ] Identify and address bottlenecks
 - [ ] Consider auto-scaling configurations
 
-### TODO 19: Incident Response Plan
+### TODO 19: Incident Response Plan + Minimum Monitoring
 
-**Priority:** High  
-**Category:** Operations
+**Priority:** 🔴 TIER 2 — Critical Quality (Pre-Launch)  
+**Category:** Operations  
+**Est. Hours:** 6h (merged: incident response + basic monitoring per GPT-5.2 review)
+
+**Rationale:** You don't need a public status page on day 1, but you DO need basic uptime + webhook failure visibility because Stripe/Keygen are core revenue plumbing.
 
 Currently: No paging system, single operator (SWR).
 
-- [ ] Document incident severity levels (P1/P2/P3/P4)
-- [ ] Create incident response runbook:
-  - Site down procedures
-  - Payment system failure procedures
-  - Auth system failure procedures
+**Tier 2 Minimum (Pre-Launch):**
+
+- [ ] CloudWatch Alarms → SNS → Email for:
+  - Lambda errors (checkout, webhooks, portal APIs)
+  - Stripe webhook failures (DLQ depth)
+  - Keygen API errors
+  - API Gateway 5xx rate
+- [ ] Document severity levels (P1/P2/P3/P4)
+- [ ] Create minimal runbook (site down, payment failure, auth failure)
+- [ ] Webhook failure containment: confirm retry behavior, DLQ alerting
+
+**POST-LAUNCH (Full Incident Response):**
+
+- [ ] Create full incident response runbook:
   - Data breach procedures
-- [ ] Set up alerting (CloudWatch Alarms → SNS → Email/SMS)
+  - Escalation paths
+  - Communication templates
 - [ ] Define on-call expectations (for now: SWR only)
-- [ ] Create incident communication templates
-- [ ] Document escalation paths (even if just "SWR handles everything")
 - [ ] Post-incident review process
+- [ ] Public status page (status.hic-ai.com)
 
 ### TODO 20: Extension Version Compatibility
 
-**Priority:** Medium  
-**Category:** Testing
+**Priority:** 🟡 POST-LAUNCH — Medium Risk  
+**Category:** Testing  
+**Est. Hours:** 4h  
+**Rationale:** VS Code works. Cursor/Kiro testing can follow based on user feedback.
 
 Test Mouse on latest versions of supported editors before deployment:
 
@@ -1776,8 +1880,10 @@ Test Mouse on latest versions of supported editors before deployment:
 
 ### TODO 21: Cross-Browser Testing
 
-**Priority:** Medium  
-**Category:** Testing
+**Priority:** 🟡 POST-LAUNCH — Medium Risk  
+**Category:** Testing  
+**Est. Hours:** 4h  
+**Rationale:** Chrome works. Others can be fixed reactively based on bug reports.
 
 Test portal functionality across browsers:
 
@@ -1796,8 +1902,10 @@ Test portal functionality across browsers:
 
 ### TODO 22: Onboarding Flow Polish
 
-**Priority:** Medium  
-**Category:** UX
+**Priority:** 🟢 POST-LAUNCH — Low Risk  
+**Category:** UX  
+**Est. Hours:** 4h  
+**Rationale:** Functional > polished at MVP. Iterate on user feedback.
 
 Goal: Super-simple, completely seamless first-time user experience.
 
@@ -1813,8 +1921,10 @@ Goal: Super-simple, completely seamless first-time user experience.
 
 ### TODO 23: Refund Policy
 
-**Priority:** Medium  
-**Category:** Legal/Payments
+**Priority:** 🟡 POST-LAUNCH — Medium Risk  
+**Category:** Legal/Payments  
+**Est. Hours:** 2h  
+**Rationale:** Add to ToS, handle case-by-case initially.
 
 Policy: **No refunds** (except credit card fraud cases).
 
@@ -1826,17 +1936,119 @@ Policy: **No refunds** (except credit card fraud cases).
 
 ---
 
-## Summary: TODO Priority Matrix
+## Summary: Tiered Priority System
 
-| Priority | TODOs | Est. Hours |
-|----------|-------|------------|
-| **Critical** | 6 (Launch Plan), 10 (Legal), 14 (Security) | 20-30h |
-| **High** | 1 (Devices), 2 (RBAC), 4 (Parity), 5 (Docs), 8 (CI/CD), 11 (Payments), 16 (Marketing), 17 (DR/Backups), 19 (Incident Response) | 80-100h |
-| **Medium** | 3 (Emails), 7 (Support), 9 (IP), 12 (Monitoring), 13 (Analytics), 15 (UX), 18 (Load Testing), 20 (Editor Compat), 21 (Browsers), 22 (Onboarding), 23 (Refund) | 50-70h |
+### Priority Legend
 
-**Total Estimated Remaining Work:** 150-200 hours
+| Tier | Meaning | Action |
+|------|---------|--------|
+| 🔴 **TIER 1** | Deployment Blocker | MUST complete before production deploy |
+| 🔴 **TIER 2** | Critical Quality | SHOULD complete before deploy; high-risk if skipped |
+| 🟡 **POST-LAUNCH Medium** | Track Closely | Do soon after launch; some risk if delayed |
+| 🟢 **POST-LAUNCH Low** | Can Wait | Iterate based on user feedback |
 
-> **Note:** This is a rough estimate. Some items may take longer, some may be parallelizable, and some may be deferred post-launch. Marketing (TODO 16) and Pricing Optimization are post-launch priorities.
+---
+
+### 🔴 TIER 1 — Deployment Blockers (~22h)
+
+| # | TODO | Category | Est. | Why Blocking |
+|---|------|----------|------|--------------|
+| 6 | Launch Plan Document (expanded) | Planning | 6h | Includes 2FA, billing alerts, email deliverability, support@ |
+| 10 | Corporate/Legal Filings | Legal | 4h | 83(b) deadline; Privacy/ToS must be live |
+| 11 | Payment Edge Cases (reduced) | Payments | 4h | Stripe sandbox→prod only; downgrade deferred per Launch Contract |
+| 14 | Security Audit (Phase 1) | Security | 8h | Basic SAST + auth review; don't ship known vulns |
+
+> **Note:** Scope reduced per Launch Contract (Individual-only launch). Business downgrade logic moves to POST-LAUNCH.
+
+---
+
+### 🔴 TIER 2 — Critical Quality (~28h)
+
+| # | TODO | Category | Est. | Why Critical |
+|---|------|----------|------|--------------|
+| 1 | Device Concurrent Limits | E2E Testing | 8h | Core license enforcement |
+| 4 | VSIX/npx Delivery Parity | Extension | 4h | 50% of users if one route broken |
+| 5 | Documentation Site (MVP) | Documentation | 8h | 404 on docs = immediate bounce |
+| 17 | DR/Backups (verify) | Operations | 2h | Confirm PITR enabled |
+| 19 | Incident Response + Monitoring | Operations | 6h | Merged per GPT-5.2: webhook visibility is revenue plumbing |
+| — | Branch Protection Rules | DevOps | <1h | Low effort, high value (prevents accidental pushes) |
+| — | Delete Account Cascade | Data | 1h | Verify or ship stopgap ("email us to delete") |
+
+---
+
+### 🟡 POST-LAUNCH — Medium Risk (~38h)
+
+| # | TODO | Category | Est. | Risk if Delayed |
+|---|------|----------|------|-----------------|
+| 8 | CI/CD Pipeline Completion | DevOps | 8h | Manual deploy works |
+| 9 | IP Review | Legal | 4h | Should do eventually |
+| 14 | Security Audit (Phases 2-3) | Security | 8h | Dependency audit, CI/CD integration |
+| 18 | Load/Stress Testing | Testing | 8h | Scale issues = good problems |
+| 20 | Extension Version Compat | Testing | 4h | VS Code works; test others later |
+| 21 | Cross-Browser Testing | Testing | 4h | Chrome works; fix others reactively |
+| 23 | Refund Policy | Legal | 2h | Handle case-by-case initially |
+
+---
+
+### 🟢 POST-LAUNCH — Low Risk (~56h)
+
+| # | TODO | Category | Est. | When to Do |
+|---|------|----------|------|------------|
+| 2 | Business RBAC | Portal | 16-24h | When first Business customer asks |
+| 3 | Email Flow Verification | Testing | 4h | Users have portal access |
+| 7 | Support Infrastructure | Support | 4h | GitHub Issues exists |
+| 12 | Status Page | Operations | 4h | Monitor manually at first |
+| 13 | Analytics/CloudWatch | Analytics | 6h | Not revenue-impacting |
+| 15 | Front-End UX Polish | Design | 8h | Works > Pretty; iterate on feedback |
+| 16 | Marketing Strategy | Marketing | 8h | Launch first, then market |
+| 22 | Onboarding Flow Polish | UX | 4h | Functional > polished at MVP |
+
+---
+
+### Recommended Execution Order
+
+#### Week 1: Deployment Foundation
+1. **TODO 10** — Legal filings (time-sensitive, 83(b) deadline)
+2. **TODO 6** — Launch plan document
+3. **TODO 11** — Stripe sandbox→prod, payment edge cases
+4. **TODO 14** — Security audit (Phase 1: SAST + auth review)
+
+#### Week 2: Quality Assurance
+5. **TODO 1** — Device concurrent limits testing
+6. **TODO 4** — VSIX/npx delivery parity verification
+7. **TODO 17** — Verify backups (PITR enabled)
+8. **TODO 19** — Minimal incident response (CloudWatch alarms)
+
+#### Week 3: Documentation & Deploy
+9. **TODO 5** — Documentation MVP (Getting Started, Troubleshooting)
+10. **🚀 DEPLOY TO PRODUCTION**
+
+#### Post-Launch (Weeks 4+)
+11. **TODO 2** — Business RBAC (when first Business customer asks)
+12. **TODO 16** — Marketing (HN post, Product Hunt)
+13. **TODO 7** — Support infrastructure (Discord)
+14. Everything else based on user feedback
+
+---
+
+### Time Estimates Summary (v6.1 — Updated per GPT-5.2 Review)
+
+| Tier | Est. Hours | Status | Notes |
+|------|------------|--------|-------|
+| 🔴 TIER 1 (Blockers) | ~22h | **MUST DO** | TODO 6 expanded (+2h) |
+| 🔴 TIER 2 (Critical) | ~28h | **SHOULD DO** | TODO 19 merged with monitoring (+2h), branch protection, delete cascade |
+| 🟡 POST-LAUNCH Medium | ~38h | Track closely | Unchanged |
+| 🟢 POST-LAUNCH Low | ~72h | Iterate on feedback | Business RBAC (16-24h) now explicitly here |
+| **Total** | **~160h** | | |
+
+**Pre-deployment critical path:** ~50h (Tiers 1 + 2)
+
+> **Key Insight (per Launch Contract):** You're launching Individual-only. Business tier is hidden ("Coming Soon"). This means:
+> - RBAC (16-24h) → POST-LAUNCH, triggered by first Business customer  
+> - Business→Individual downgrade logic → POST-LAUNCH
+> - Pre-deployment scope significantly reduced
+>
+> Ship Individual, validate the flow, then build Business when there's demand.
 
 ---
 
