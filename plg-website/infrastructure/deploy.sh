@@ -375,7 +375,11 @@ EXPECTED_LAMBDAS=(
     "customer-update"
     "scheduled-tasks"
     "cognito-post-confirmation"
+    "cognito-pre-token"
 )
+
+LAMBDA_SOURCE_DIR="${SCRIPT_DIR}/lambda"
+BUILD_DIR="${SCRIPT_DIR}/.lambda-build"
 
 MISSING_PACKAGES=""
 for lambda_name in "${EXPECTED_LAMBDAS[@]}"; do
@@ -386,20 +390,45 @@ for lambda_name in "${EXPECTED_LAMBDAS[@]}"; do
 done
 
 if [[ -n "$MISSING_PACKAGES" ]]; then
-    print_error "Missing Lambda packages in s3://${LAMBDA_CODE_BUCKET}/${LAMBDA_CODE_PREFIX}/:"
+    print_warning "Missing Lambda packages - will build and upload automatically:"
     for pkg in $MISSING_PACKAGES; do
-        echo "    ❌ ${pkg}.zip"
+        echo "    📦 ${pkg}.zip"
     done
     echo ""
-    echo "To fix, package and upload Lambda functions:"
+
+    # Create build directory
+    mkdir -p "$BUILD_DIR"
+
+    # Build and upload each missing package
+    for lambda_name in $MISSING_PACKAGES; do
+        lambda_src="${LAMBDA_SOURCE_DIR}/${lambda_name}"
+        zip_file="${BUILD_DIR}/${lambda_name}.zip"
+
+        if [[ ! -d "$lambda_src" ]]; then
+            print_error "Lambda source directory not found: ${lambda_src}"
+            exit 1
+        fi
+
+        print_step "Building ${lambda_name}..."
+        (cd "$lambda_src" && zip -rq "$zip_file" .)
+
+        if [[ ! -f "$zip_file" ]]; then
+            print_error "Failed to create zip file: ${zip_file}"
+            exit 1
+        fi
+
+        print_step "Uploading ${lambda_name}.zip to S3..."
+        aws s3 cp "$zip_file" "s3://${LAMBDA_CODE_BUCKET}/${LAMBDA_CODE_PREFIX}/${lambda_name}.zip" --region "$REGION"
+
+        if [[ $? -eq 0 ]]; then
+            print_success "Uploaded ${lambda_name}.zip"
+        else
+            print_error "Failed to upload ${lambda_name}.zip"
+            exit 1
+        fi
+    done
+
     echo ""
-    echo "  cd infrastructure/lambda"
-    echo "  for fn in stream-processor email-sender customer-update scheduled-tasks; do"
-    echo "    (cd \$fn && zip -r ../\${fn}.zip .)"
-    echo "  done"
-    echo "  aws s3 cp . s3://${LAMBDA_CODE_BUCKET}/${LAMBDA_CODE_PREFIX}/ --recursive --exclude '*' --include '*.zip'"
-    echo ""
-    exit 1
 fi
 
 print_success "All Lambda packages found in S3:"
