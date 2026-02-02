@@ -18,6 +18,7 @@ import {
   Button,
   Input,
 } from "@/components/ui";
+import { getSession } from "@/lib/cognito";
 
 export default function TeamManagement({ initialUserId }) {
   const [loading, setLoading] = useState(true);
@@ -43,12 +44,27 @@ export default function TeamManagement({ initialUserId }) {
   // Resend invite state
   const [resendLoading, setResendLoading] = useState(null);
 
+  // Helper to get auth headers
+  const getAuthHeaders = async () => {
+    const session = await getSession();
+    if (!session?.idToken) {
+      throw new Error("Not authenticated");
+    }
+    return {
+      Authorization: `Bearer ${session.idToken}`,
+    };
+  };
+
   // Fetch team data
   const fetchTeamData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/portal/team");
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch("/api/portal/team", {
+        credentials: "include",
+        headers: authHeaders,
+      });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to fetch team data");
@@ -77,9 +93,11 @@ export default function TeamManagement({ initialUserId }) {
     setInviteError(null);
 
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/portal/team", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           action: "invite",
           email: inviteEmail,
@@ -115,9 +133,11 @@ export default function TeamManagement({ initialUserId }) {
     }
 
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/portal/team", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           action: "update_status",
           memberId,
@@ -145,9 +165,11 @@ export default function TeamManagement({ initialUserId }) {
     }
 
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/portal/team", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           type: "member",
           memberId,
@@ -172,9 +194,11 @@ export default function TeamManagement({ initialUserId }) {
     }
 
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/portal/team", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           type: "invite",
           inviteId,
@@ -204,9 +228,11 @@ export default function TeamManagement({ initialUserId }) {
 
     setRoleChangeLoading(memberId);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/portal/team", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           action: "update_role",
           memberId,
@@ -231,9 +257,11 @@ export default function TeamManagement({ initialUserId }) {
   const handleResendInvite = async (inviteId, email) => {
     setResendLoading(inviteId);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/portal/team", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           action: "resend_invite",
           inviteId,

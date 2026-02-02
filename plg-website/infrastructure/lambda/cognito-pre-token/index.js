@@ -122,9 +122,14 @@ export const handler = async (event, context) => {
       }
     }
 
-    // Build claims object - always include role, optionally include org_id
+    // Derive account_type from role
+    // owner/admin/member = business tier, individual = individual tier
+    const accountType = role === "individual" ? "individual" : "business";
+
+    // Build claims object - always include role and account_type, optionally include org_id
     const claims = {
       "custom:role": role,
+      "custom:account_type": accountType,
     };
     
     // Only add org_id if user has an organization
@@ -145,6 +150,7 @@ export const handler = async (event, context) => {
     log.info("complete", {
       userId,
       role,
+      accountType,
       orgId: orgId || "none",
     });
 

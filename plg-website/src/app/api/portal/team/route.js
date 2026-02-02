@@ -3,13 +3,42 @@
  *
  * Endpoints for managing team members and invites.
  * Requires business subscription with org admin permissions.
+ * Requires Authorization header with Cognito ID token.
  *
  * @see PLG Technical Specification v2 - Section 4.5
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { AUTH_NAMESPACE } from "@/lib/constants";
+
+// Cognito JWT verifier for ID tokens
+const idVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "id",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Verify Cognito ID token from Authorization header
+ */
+async function verifyAuthToken() {
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return await idVerifier.verify(token);
+  } catch (error) {
+    console.error("[Team] JWT verification failed:", error.message);
+    return null;
+  }
+}
 import {
   getOrgMembers,
   getOrgInvites,
@@ -33,15 +62,16 @@ import { sendEnterpriseInviteEmail } from "@/lib/ses";
  */
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = session.user;
-    const accountType = user[`${AUTH_NAMESPACE}/account_type`];
-    let orgId = user[`${AUTH_NAMESPACE}/org_id`];
-    const stripeCustomerId = user[`${AUTH_NAMESPACE}/stripe_customer_id`];
+    // Extract claims from token
+    const accountType = tokenPayload["custom:account_type"];
+    let orgId = tokenPayload["custom:org_id"];
+    const stripeCustomerId = tokenPayload["custom:stripe_customer_id"];
 
     // Check for business account
     if (accountType !== "business") {
@@ -121,15 +151,16 @@ export async function GET() {
  */
 export async function POST(request) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = session.user;
-    const accountType = user[`${AUTH_NAMESPACE}/account_type`];
-    const orgId = user[`${AUTH_NAMESPACE}/org_id`];
-    const userRole = user[`${AUTH_NAMESPACE}/org_role`];
+    // Extract claims from token
+    const accountType = tokenPayload["custom:account_type"];
+    const orgId = tokenPayload["custom:org_id"];
+    const userRole = tokenPayload["custom:role"];
 
     // Check for business account
     if (accountType !== "business") {
@@ -435,15 +466,16 @@ export async function POST(request) {
  */
 export async function DELETE(request) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = session.user;
-    const accountType = user[`${AUTH_NAMESPACE}/account_type`];
-    const orgId = user[`${AUTH_NAMESPACE}/org_id`];
-    const userRole = user[`${AUTH_NAMESPACE}/org_role`];
+    // Extract claims from token
+    const accountType = tokenPayload["custom:account_type"];
+    const orgId = tokenPayload["custom:org_id"];
+    const userRole = tokenPayload["custom:role"];
 
     // Check for business account
     if (accountType !== "business") {

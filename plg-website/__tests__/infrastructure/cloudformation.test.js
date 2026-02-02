@@ -218,6 +218,26 @@ describe("PLG CloudFormation Templates Validation", () => {
     expect(parsed.Outputs).toBeDefined();
   });
 
+  test("cognito template references required HIC layers", async () => {
+    const filePath = join(CF_DIR, "plg-cognito.yaml");
+    const content = await readFile(filePath, "utf8");
+
+    // Pre-token Lambda needs both base and dynamodb layers
+    expect(content).toContain("HicBaseLayerArn");
+    expect(content).toContain("HicDynamoDBLayerArn");
+  });
+
+  test("main-stack passes DynamoDB layer to CognitoStack", async () => {
+    const filePath = join(CF_DIR, "plg-main-stack.yaml");
+    const content = await readFile(filePath, "utf8");
+    const parsed = yaml.parse(content);
+
+    // CognitoStack must receive HicDynamoDBLayerArn parameter
+    const cognitoStack = parsed.Resources.CognitoStack;
+    expect(cognitoStack).toBeDefined();
+    expect(cognitoStack.Properties.Parameters.HicDynamoDBLayerArn).toBeDefined();
+  });
+
   test("monitoring template creates CloudWatch dashboard", async () => {
     const filePath = join(CF_DIR, "plg-monitoring.yaml");
     const content = await readFile(filePath, "utf8");

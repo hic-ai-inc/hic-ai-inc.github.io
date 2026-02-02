@@ -1,9 +1,9 @@
 # PLG Roadmap v6 — Final Sprint: Business RBAC → Launch
 
-**Document Version:** 6.2.0  
+**Document Version:** 6.3.0  
 **Date:** February 2, 2026  
 **Owner:** General Counsel  
-**Status:** ✅ PHASES 1, 2 (infra), 3, 4 COMPLETE — RBAC Cognito Groups + Pre-token Lambda + Role-based UI built (Feb 2)
+**Status:** ✅ PHASES 1, 2 (infra + APIs), 3, 4 COMPLETE — Full RBAC infrastructure + Organization APIs + Tier switching (Feb 2)
 
 ---
 
@@ -117,22 +117,32 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 
 ### 2.0 Implementation Summary (Feb 2, 2026)
 
-**What was built this morning:**
+**What was built today:**
 
 | Component | File/Resource | Purpose |
 |-----------|---------------|---------|
 | Cognito Groups | `plg-cognito.yaml` | mouse-owner, mouse-admin, mouse-member groups |
-| Pre-token Lambda | `plg-cognito-pretoken-staging` | Injects `org_role` claim into JWT |
+| Pre-token Lambda | `cognito-pre-token/index.js` | Injects `custom:role` + `custom:org_id` claims into JWT |
 | cognito-admin.js | `src/lib/cognito-admin.js` | `assignOwnerRole()`, `assignInvitedRole()`, `getUserRole()` |
 | hic-auth-layer | Lambda Layer v1.0.1 | Deployed to AWS for serverless functions |
 | Role-based nav | `PortalSidebar.js` | Hides Billing/Team for members |
 | Settings UI | `settings/page.js` | Members see "Leave Org", Owners see disabled delete |
 | Leave Org API | `leave-organization/route.js` | Members can self-remove from org |
+| **Tier Change API** | `api/portal/change-tier/route.js` | Individual↔Business switching with downgrade protection |
+| **Seat Management API** | `api/portal/seats/route.js` | GET/POST seat quantity for Business tier |
+| **Org Membership** | `getUserOrgMembership()` in dynamodb.js | Lookup user's organization for status/claims |
+| **Account Type Update** | `updateCustomerAccountType()` in dynamodb.js | Update customer tier in DynamoDB |
+| **Portal Status** | `api/portal/status/route.js` | Updated to support Business tier org members |
+
+**Key protection implemented:**
+- **Business → Individual downgrade**: Blocked if `seatsUsed > 1` (prevents orphaning team members)
+- **org_id claim injection**: Pre-token Lambda looks up DynamoDB for org membership, injects into JWT
 
 **What's pending (SES quota blocked until Feb 3):**
 - E2E test: Owner invite flow
 - E2E test: Member acceptance + role assignment
 - E2E test: Leave organization flow
+- E2E test: Tier change flow (Individual↔Business)
 
 ### 2.1 Role Definitions
 
@@ -165,24 +175,35 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 | Add CloudFormation template    | ✅ DONE | `plg-cognito.yaml` deployed    |
 | Test role claim in ID token    | ⬜ TODO | E2E test pending (SES throttled) |
 
-**Lambda Logic:**
+**Lambda Logic (updated Feb 2):**
 
 ```javascript
-// Pre-token generation trigger
+// Pre-token generation trigger - injects role + org_id claims
+import { DynamoDBClient, DynamoDBDocumentClient, QueryCommand } from "hic-dynamodb-layer";
+
 exports.handler = async (event) => {
+  const userId = event.userName;
   const groups = event.request.groupConfiguration?.groupsToOverride || [];
 
   // Determine role from group membership (first match wins)
-  let role = "individual"; // default for Individual tier
+  let role = "individual";
   if (groups.includes("mouse-owner")) role = "owner";
   else if (groups.includes("mouse-admin")) role = "admin";
   else if (groups.includes("mouse-member")) role = "member";
 
-  // Add to ID token claims
+  // For Business tier users, look up their org membership
+  let orgId = null;
+  if (role !== "individual") {
+    const membership = await getUserOrgMembership(userId);
+    if (membership) orgId = membership.orgId;
+  }
+
+  // Build claims - always include role, optionally include org_id
+  const claims = { "custom:role": role };
+  if (orgId) claims["custom:org_id"] = orgId;
+
   event.response.claimsOverrideDetails = {
-    claimsToAddOrOverride: {
-      "custom:role": role,
-    },
+    claimsToAddOrOverride: claims,
   };
 
   return event;
@@ -226,6 +247,38 @@ exports.handler = async (event) => {
 - Change organization settings
 - Delete account
 
+#### 2.2.6 Organization & Tier Management APIs (NEW — Feb 2)
+
+| Task                                              | Status  | Notes                                      |
+| ------------------------------------------------- | ------- | ------------------------------------------ |
+| `POST /api/portal/change-tier` — Tier switching   | ✅ DONE | Individual↔Business with proration         |
+| Business→Individual downgrade protection          | ✅ DONE | Blocked if seatsUsed > 1                   |
+| `GET /api/portal/seats` — Seat usage              | ✅ DONE | Returns seatLimit, seatsUsed, seatsAvailable |
+| `POST /api/portal/seats` — Update quantity        | ✅ DONE | Stripe subscription update with proration  |
+| `getUserOrgMembership()` — DynamoDB lookup        | ✅ DONE | Query GSI1 for USER#{userId}/ORG#          |
+| `updateCustomerAccountType()` — Tier update       | ✅ DONE | Updates accountType in USER#/PROFILE       |
+| Portal status API org member support              | ✅ DONE | Returns orgMembership context              |
+| Pre-token Lambda org_id injection                 | ✅ DONE | Injects custom:org_id from DynamoDB lookup |
+
+**Business → Individual Downgrade Protection:**
+
+```javascript
+// In change-tier/route.js
+if (currentTier === "business" && targetTier === "individual") {
+  const org = await getOrganizationByStripeCustomer(customer.stripeCustomerId);
+  if (org) {
+    const usage = await getOrgLicenseUsage(org.orgId);
+    if (usage.seatsUsed > 1) {
+      return NextResponse.json({
+        error: "Cannot downgrade to Individual with active team members",
+        details: `You have ${usage.seatsUsed} active members. Remove team members first.`,
+        seatsUsed: usage.seatsUsed,
+      }, { status: 400 });
+    }
+  }
+}
+```
+
 ### 2.3 Implementation Order
 
 1. **Owner experience first** — Full portal access, test all flows
@@ -234,17 +287,32 @@ exports.handler = async (event) => {
 
 ### 2.4 Testing Checklist
 
-| Scenario                              | Status |
-| ------------------------------------- | ------ |
-| Owner can access all portal sections  | ⬜     |
-| Owner can delete account              | ⬜     |
-| Owner can change member roles         | ⬜     |
-| Admin can access billing              | ⬜     |
-| Admin CANNOT delete account           | ⬜     |
-| Admin CANNOT change Owner role        | ⬜     |
-| Member sees dashboard only            | ⬜     |
-| Member gets 403 on /billing           | ⬜     |
-| Member sees "Contact admin" messaging | ⬜     |
+| Scenario                                        | Status |
+| ----------------------------------------------- | ------ |
+| **Role-Based Access**                           |        |
+| Owner can access all portal sections            | ⬜     |
+| Owner can delete account                        | ⬜     |
+| Owner can change member roles                   | ⬜     |
+| Admin can access billing                        | ⬜     |
+| Admin CANNOT delete account                     | ⬜     |
+| Admin CANNOT change Owner role                  | ⬜     |
+| Member sees dashboard only                      | ⬜     |
+| Member gets 403 on /billing                     | ⬜     |
+| Member sees "Contact admin" messaging           | ⬜     |
+| **Tier Change (NEW — Feb 2)**                   |        |
+| Individual → Business upgrade works             | ⬜     |
+| Business → Individual (solo) downgrade works    | ⬜     |
+| Business → Individual blocked when seatsUsed > 1| ⬜     |
+| Tier change API updates Stripe subscription     | ⬜     |
+| Tier change API updates DynamoDB accountType    | ⬜     |
+| **Seat Management (NEW — Feb 2)**               |        |
+| GET /api/portal/seats returns usage             | ⬜     |
+| POST /api/portal/seats updates quantity         | ⬜     |
+| Cannot reduce seats below seatsUsed             | ⬜     |
+| **Org Membership (NEW — Feb 2)**                |        |
+| Pre-token Lambda injects org_id claim           | ⬜     |
+| Portal status returns org membership context    | ⬜     |
+| getUserOrgMembership() returns active membership| ⬜     |
 
 ---
 
@@ -272,7 +340,7 @@ exports.handler = async (event) => {
 | 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**     |
 | 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —            |
 
-> **Latest Milestone (Feb 2, 2026):** RBAC infrastructure complete! Cognito Groups, Pre-token Lambda, role-based UI (PortalSidebar + Settings), Leave Organization API, cognito-admin.js helpers. 850 unit tests passing. E2E testing blocked by SES throttle until Feb 3.
+> **Latest Milestone (Feb 2, 2026):** RBAC infrastructure complete! Cognito Groups, Pre-token Lambda (with org_id injection), role-based UI, Tier Change API (`/api/portal/change-tier`), Seat Management API (`/api/portal/seats`), org membership lookup. **927 unit tests passing** (+77 new tests). E2E testing blocked by SES throttle until Feb 3.
 
 
 ## ✅ CI/CD Pipeline — COMPLETE
@@ -1047,16 +1115,20 @@ curl -X POST https://staging.mouse.hic-ai.com/api/admin/provision-test-license \
 | Concurrent session enforcement | ⬜     | Test with multiple machines     |
 | VSIX marketplace publish       | ⬜     | After all validations pass      |
 
-#### Phase F: Business/RBAC (After Individual Complete)
+#### Phase F: Business/RBAC ✅ INFRASTRUCTURE COMPLETE (Feb 2)
 
-| Task                                      | Status | Notes                              |
-| ----------------------------------------- | ------ | ---------------------------------- |
-| Cognito Groups for roles                  | ⬜     | Owner, Admin, Member               |
-| Owner account = Individual + Team page    | ⬜     | Nearly identical                   |
-| Admin account = Owner - Billing           | ⬜     | Subset of pages                    |
-| Member account = Dashboard + Devices only | ⬜     | Minimal pages                      |
-| Team seat management                      | ⬜     | Already built in TeamManagement.js |
-| Invite flow (already complete)            | ✅     | Working                            |
+| Task                                      | Status  | Notes                              |
+| ----------------------------------------- | ------- | ---------------------------------- |
+| Cognito Groups for roles                  | ✅ DONE | mouse-owner, mouse-admin, mouse-member |
+| Pre-token Lambda (role + org_id claims)   | ✅ DONE | Injects custom:role + custom:org_id |
+| Owner account = Individual + Team page    | ✅ DONE | Full portal access                   |
+| Admin account = Owner - Billing           | ✅ DONE | Role-based nav hiding               |
+| Member account = Dashboard + Devices only | ✅ DONE | Contact admin messaging             |
+| Team seat management API                  | ✅ DONE | `/api/portal/seats` GET/POST        |
+| Tier change API (Individual↔Business)     | ✅ DONE | `/api/portal/change-tier` with downgrade protection |
+| Organization membership lookup            | ✅ DONE | `getUserOrgMembership()` in dynamodb.js |
+| Portal status for org members             | ✅ DONE | Status API supports Business tier members |
+| Invite flow (already complete)            | ✅ DONE | Working                            |
 
 ---
 

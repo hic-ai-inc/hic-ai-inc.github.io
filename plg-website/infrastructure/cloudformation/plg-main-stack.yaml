@@ -255,6 +255,7 @@ Resources:
         LambdaCodeBucket: !Ref LambdaCodeBucket
         LambdaCodePrefix: !Ref LambdaCodePrefix
         HicBaseLayerArn: !Ref HicBaseLayerArn
+        HicDynamoDBLayerArn: !Ref HicDynamoDBLayerArn
       Tags:
         - Key: Environment
           Value: !Ref Environment
