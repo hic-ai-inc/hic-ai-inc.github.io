@@ -237,14 +237,14 @@ export async function POST(request) {
         }
 
         // Create invite
-        const invite = await createOrgInvite(orgId, email, role, user.sub);
+        const invite = await createOrgInvite(orgId, email, role, tokenPayload.sub);
 
         // Send invite email
         try {
           // Get inviter info for the email
-          const inviter = await getCustomerByUserId(user.sub);
+          const inviter = await getCustomerByUserId(tokenPayload.sub);
           const inviterName =
-            inviter?.name || user.name || user.email || "Your team";
+            inviter?.name || tokenPayload.name || tokenPayload.email || "Your team";
           const organizationName =
             inviter?.organizationName || "Your organization";
 
@@ -354,7 +354,7 @@ export async function POST(request) {
         }
 
         // Cannot change your own role (use another admin)
-        if (memberId === user.sub) {
+        if (memberId === tokenPayload.sub) {
           return NextResponse.json(
             { error: "Cannot change your own role. Contact another admin." },
             { status: 400 },
@@ -414,9 +414,9 @@ export async function POST(request) {
 
         // Resend the email
         try {
-          const inviter = await getCustomerByUserId(user.sub);
+          const inviter = await getCustomerByUserId(tokenPayload.sub);
           const inviterName =
-            inviter?.name || user.name || user.email || "Your team";
+            inviter?.name || tokenPayload.name || tokenPayload.email || "Your team";
           const organizationName =
             inviter?.organizationName || "Your organization";
 
@@ -533,7 +533,7 @@ export async function DELETE(request) {
         }
 
         // Cannot remove self
-        if (memberId === user.sub) {
+        if (memberId === tokenPayload.sub) {
           return NextResponse.json(
             { error: "Cannot remove yourself. Contact another admin." },
             { status: 400 },
