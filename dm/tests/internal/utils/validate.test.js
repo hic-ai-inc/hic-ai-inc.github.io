@@ -509,7 +509,8 @@ describe("validate.sh", () => {
         testDir,
         {
           mockCommands: {
-            jq: "exit 0", // Simple mock that always succeeds for valid JSON test
+            // Must consume stdin to avoid SIGPIPE with pipefail on Linux
+            jq: "cat > /dev/null; exit 0",
           },
         }
       );
@@ -543,7 +544,8 @@ describe("validate.sh", () => {
         testDir,
         {
           mockCommands: {
-            jq: "exit 1", // Simple mock that always fails for invalid JSON test
+            // Must consume stdin to avoid SIGPIPE with pipefail on Linux
+            jq: "cat > /dev/null; exit 1",
           },
         }
       );
