@@ -1,9 +1,9 @@
 # PLG Roadmap v6 — Final Sprint: Business RBAC → Launch
 
-**Document Version:** 6.5.0  
-**Date:** February 3, 2026  
+**Document Version:** 6.6.0  
+**Date:** February 2, 2026  
 **Owner:** General Counsel  
-**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management + Device Management + All Server APIs (903 tests)
+**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management E2E Verified + DynamoDB-based Auth (961 tests)
 
 ---
 
@@ -39,7 +39,7 @@ Business customers won't exist on day 1. Building RBAC now is building for a seg
 
 This document consolidates the final sprint to ship Mouse with full PLG self-service capability. v5 supersedes v4 with a **phase-based approach** for the remaining work.
 
-**Current State:** Individual flow **COMPLETE**. Full E2E testing validated Feb 1: real Stripe payment, Keygen license activation, DynamoDB records, portal pages all working. Multiple bugs discovered and fixed during E2E testing session.
+**Current State:** Individual flow **COMPLETE**. Business Team Management **E2E VERIFIED** (Feb 2). All portal APIs now use DynamoDB as source of truth for account data (no JWT claim dependency). 961 tests passing.
 
 ### Sprint Phases (New in v5)
 
@@ -138,7 +138,7 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 - **Business → Individual downgrade**: Blocked if `seatsUsed > 1` (prevents orphaning team members)
 - **org_id claim injection**: Pre-token Lambda looks up DynamoDB for org membership, injects into JWT
 
-**What's complete (Feb 2-3):**
+**What's complete (Feb 2):**
 - ✅ Owner invite flow (Team API tested)
 - ✅ Member acceptance + role assignment (invite accept route working)
 - ✅ Leave organization flow (API implemented)
@@ -146,6 +146,11 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 - ✅ Devices page uses DynamoDB heartbeat data — Fixed Feb 2 (removed Keygen fetch)
 - ✅ Team API tokenPayload fix — Fixed all `user.sub`/`user.email`/`user.name` refs Feb 2
 - ✅ Tier-switching API removed — Cancel+repurchase model Feb 2
+- ✅ **DynamoDB-based auth** — All portal APIs now fetch accountType from DynamoDB, not JWT claims (Feb 2 evening)
+- ✅ **Team page routing fix** — Page fetches from `/api/portal/status` instead of JWT claims (Feb 2)
+- ✅ **Sidebar Team link fix** — PortalSidebar fetches accountType from API (Feb 2)
+- ✅ **Owner seat counting fix** — `getOrgLicenseUsage()` counts owner from org details (Feb 2)
+- ✅ **Stripe webhook fix** — Adds owner as org member on Business purchase (Feb 2)
 
 ### 2.1 Role Definitions
 
@@ -328,7 +333,7 @@ exports.handler = async (event) => {
 | 11  | Deployment & Launch                | 🟡 **UNBLOCKED**            | 4-6h       | GC + Simon | **3, 9**     |
 | 12  | Support & Community                | ⬜ Not started              | 4-8h       | Simon      | —            |
 
-> **Latest Milestone (Feb 2-3, 2026):** RBAC infrastructure complete! Team UI E2E verified (invites, seats working). Devices page fixed (DynamoDB-only heartbeat). Team API tokenPayload fix. Tier-switching API removed. **903 unit tests passing**. All portal APIs working: `/api/portal/team`, `/api/portal/seats`, `/api/portal/status`, `/api/portal/devices`.
+> **Latest Milestone (Feb 2, 2026):** Team Management UI fully working! E2E tested with real Business account. All portal APIs (team, seats, status, devices) now fetch account data from DynamoDB instead of JWT claims. Owner properly counted in seat usage. Invite flow tested. **961 unit tests passing**.
 
 
 ## ✅ CI/CD Pipeline — COMPLETE
