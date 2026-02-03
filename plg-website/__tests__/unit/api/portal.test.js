@@ -601,3 +601,372 @@ describe("portal/stripe-session API logic", () => {
     });
   });
 });
+
+
+describe("portal/license API - org member license access", () => {
+  /**
+   * Tests for the org member shared license access feature.
+   *
+   * Business tier licenses are shared across all org members.
+   * When a member with no direct license calls the license API,
+   * they should get the org's shared license if they're a member.
+   */
+
+  // Helper to simulate org membership lookup
+  function getUserOrgMembership(userId, membershipData = null) {
+    if (!userId) return null;
+    return membershipData;
+  }
+
+  // Helper to simulate org lookup
+  function getOrganization(orgId, orgData = null) {
+    if (!orgId) return null;
+    return orgData;
+  }
+
+  // Helper to simulate customer lookup by userId
+  function getCustomerByUserId(userId, customerData = null) {
+    if (!userId) return null;
+    return customerData;
+  }
+
+  // Helper to determine license source for a user
+  function determineLicenseSource(customer, membership, org, orgOwner) {
+    // Direct license takes priority
+    if (customer?.keygenLicenseId) {
+      return {
+        source: "direct",
+        licenseHolder: customer,
+        orgContext: null,
+      };
+    }
+
+    // Check org membership for shared license
+    if (membership?.orgId && org?.ownerId && orgOwner?.keygenLicenseId) {
+      return {
+        source: "org",
+        licenseHolder: orgOwner,
+        orgContext: {
+          orgId: membership.orgId,
+          orgName: org.name || "Organization",
+          memberRole: membership.role || "member",
+          isSharedLicense: true,
+        },
+      };
+    }
+
+    // No license found
+    return {
+      source: "none",
+      licenseHolder: null,
+      orgContext: null,
+    };
+  }
+
+  describe("license source determination", () => {
+    it("should prefer direct license over org membership", () => {
+      const customer = {
+        email: "owner@example.com",
+        keygenLicenseId: "lic_direct_123",
+        accountType: "individual",
+      };
+      const membership = { orgId: "org_123", role: "owner" };
+      const org = { id: "org_123", name: "Test Org", ownerId: "user_owner" };
+      const orgOwner = { keygenLicenseId: "lic_org_456" };
+
+      const result = determineLicenseSource(customer, membership, org, orgOwner);
+
+      assert.strictEqual(result.source, "direct");
+      assert.strictEqual(result.licenseHolder.keygenLicenseId, "lic_direct_123");
+      assert.strictEqual(result.orgContext, null);
+    });
+
+    it("should use org license for member without direct license", () => {
+      const customer = { email: "member@example.com" }; // No keygenLicenseId
+      const membership = { orgId: "org_123", role: "member" };
+      const org = { id: "org_123", name: "Acme Corp", ownerId: "user_owner" };
+      const orgOwner = {
+        keygenLicenseId: "lic_shared_789",
+        accountType: "business",
+      };
+
+      const result = determineLicenseSource(customer, membership, org, orgOwner);
+
+      assert.strictEqual(result.source, "org");
+      assert.strictEqual(
+        result.licenseHolder.keygenLicenseId,
+        "lic_shared_789",
+      );
+      assert.strictEqual(result.orgContext.orgId, "org_123");
+      assert.strictEqual(result.orgContext.orgName, "Acme Corp");
+      assert.strictEqual(result.orgContext.memberRole, "member");
+      assert.strictEqual(result.orgContext.isSharedLicense, true);
+    });
+
+    it("should return no license for user without direct or org license", () => {
+      const customer = { email: "user@example.com" }; // No keygenLicenseId
+      const membership = null; // Not in any org
+      const org = null;
+      const orgOwner = null;
+
+      const result = determineLicenseSource(customer, membership, org, orgOwner);
+
+      assert.strictEqual(result.source, "none");
+      assert.strictEqual(result.licenseHolder, null);
+    });
+
+    it("should return no license for org member when org has no license", () => {
+      const customer = { email: "member@example.com" }; // No keygenLicenseId
+      const membership = { orgId: "org_123", role: "member" };
+      const org = { id: "org_123", name: "New Org", ownerId: "user_owner" };
+      const orgOwner = { email: "owner@example.com" }; // No keygenLicenseId yet
+
+      const result = determineLicenseSource(customer, membership, org, orgOwner);
+
+      assert.strictEqual(result.source, "none");
+      assert.strictEqual(result.licenseHolder, null);
+    });
+
+    it("should handle org without owner gracefully", () => {
+      const customer = { email: "member@example.com" };
+      const membership = { orgId: "org_123", role: "member" };
+      const org = { id: "org_123", name: "Orphan Org" }; // No ownerId
+      const orgOwner = null;
+
+      const result = determineLicenseSource(customer, membership, org, orgOwner);
+
+      assert.strictEqual(result.source, "none");
+    });
+
+    it("should use default org name when org.name is missing", () => {
+      const customer = { email: "member@example.com" };
+      const membership = { orgId: "org_123", role: "admin" };
+      const org = { id: "org_123", ownerId: "user_owner" }; // No name
+      const orgOwner = { keygenLicenseId: "lic_123" };
+
+      const result = determineLicenseSource(customer, membership, org, orgOwner);
+
+      assert.strictEqual(result.orgContext.orgName, "Organization");
+    });
+
+    it("should use default member role when role is missing", () => {
+      const customer = { email: "member@example.com" };
+      const membership = { orgId: "org_123" }; // No role
+      const org = { id: "org_123", name: "Test Org", ownerId: "user_owner" };
+      const orgOwner = { keygenLicenseId: "lic_123" };
+
+      const result = determineLicenseSource(customer, membership, org, orgOwner);
+
+      assert.strictEqual(result.orgContext.memberRole, "member");
+    });
+  });
+
+  describe("org membership lookup", () => {
+    it("should return null for missing userId", () => {
+      const membership = getUserOrgMembership(null, { orgId: "org_123" });
+      assert.strictEqual(membership, null);
+    });
+
+    it("should return null when user has no membership", () => {
+      const membership = getUserOrgMembership("user_123", null);
+      assert.strictEqual(membership, null);
+    });
+
+    it("should return membership data for valid user", () => {
+      const mockMembership = { orgId: "org_123", role: "member" };
+      const membership = getUserOrgMembership("user_123", mockMembership);
+      assert.deepStrictEqual(membership, mockMembership);
+    });
+  });
+
+  describe("organization lookup", () => {
+    it("should return null for missing orgId", () => {
+      const org = getOrganization(null, { name: "Test" });
+      assert.strictEqual(org, null);
+    });
+
+    it("should return null when org not found", () => {
+      const org = getOrganization("org_123", null);
+      assert.strictEqual(org, null);
+    });
+
+    it("should return org data for valid orgId", () => {
+      const mockOrg = { id: "org_123", name: "Acme Corp", ownerId: "user_owner" };
+      const org = getOrganization("org_123", mockOrg);
+      assert.deepStrictEqual(org, mockOrg);
+    });
+  });
+
+  describe("org owner customer lookup", () => {
+    it("should return null for missing userId", () => {
+      const customer = getCustomerByUserId(null, { email: "test@example.com" });
+      assert.strictEqual(customer, null);
+    });
+
+    it("should return null when owner not found", () => {
+      const customer = getCustomerByUserId("user_owner", null);
+      assert.strictEqual(customer, null);
+    });
+
+    it("should return customer data for valid userId", () => {
+      const mockCustomer = {
+        userId: "user_owner",
+        email: "owner@example.com",
+        keygenLicenseId: "lic_123",
+        accountType: "business",
+      };
+      const customer = getCustomerByUserId("user_owner", mockCustomer);
+      assert.deepStrictEqual(customer, mockCustomer);
+    });
+  });
+
+  describe("license response with org context", () => {
+    function formatLicenseWithOrg(licenseHolder, localLicense, keygenLicense, orgContext) {
+      const planName =
+        licenseHolder.accountType === "business" ? "Business" : "Individual";
+
+      const maskedKey = localLicense?.licenseKey
+        ? `${localLicense.licenseKey.slice(0, 8)}...${localLicense.licenseKey.slice(-4)}`
+        : null;
+
+      const response = {
+        license: {
+          id: licenseHolder.keygenLicenseId,
+          licenseKey: localLicense?.licenseKey,
+          maskedKey,
+          status: keygenLicense?.status || localLicense?.status || "unknown",
+          planType: licenseHolder.accountType,
+          planName,
+          expiresAt: keygenLicense?.expiresAt || localLicense?.expiresAt,
+          maxDevices: localLicense?.maxDevices || 3,
+          activatedDevices: localLicense?.activatedDevices || 0,
+          createdAt: localLicense?.createdAt,
+        },
+        subscription: {
+          status: licenseHolder.subscriptionStatus,
+          stripeCustomerId: licenseHolder.stripeCustomerId,
+        },
+      };
+
+      if (orgContext) {
+        response.organization = {
+          id: orgContext.orgId,
+          name: orgContext.orgName,
+          role: orgContext.memberRole,
+          isSharedLicense: orgContext.isSharedLicense,
+        };
+      }
+
+      return response;
+    }
+
+    it("should include org context for org member", () => {
+      const licenseHolder = {
+        keygenLicenseId: "lic_biz_123",
+        accountType: "business",
+        subscriptionStatus: "active",
+        stripeCustomerId: "cus_biz_456",
+      };
+
+      const localLicense = {
+        licenseKey: "BUSI-NESS-LICE-NSE0-1234",
+        status: "active",
+        maxDevices: 25,
+        activatedDevices: 5,
+        createdAt: "2025-01-01",
+        expiresAt: "2026-01-01",
+      };
+
+      const keygenLicense = {
+        status: "active",
+        expiresAt: "2026-01-01T00:00:00Z",
+      };
+
+      const orgContext = {
+        orgId: "org_123",
+        orgName: "Acme Corp",
+        memberRole: "member",
+        isSharedLicense: true,
+      };
+
+      const response = formatLicenseWithOrg(
+        licenseHolder,
+        localLicense,
+        keygenLicense,
+        orgContext,
+      );
+
+      // Verify license fields
+      assert.strictEqual(response.license.id, "lic_biz_123");
+      assert.strictEqual(response.license.licenseKey, "BUSI-NESS-LICE-NSE0-1234");
+      assert.strictEqual(response.license.planType, "business");
+      assert.strictEqual(response.license.planName, "Business");
+      assert.strictEqual(response.license.maxDevices, 25);
+
+      // Verify org context
+      assert.strictEqual(response.organization.id, "org_123");
+      assert.strictEqual(response.organization.name, "Acme Corp");
+      assert.strictEqual(response.organization.role, "member");
+      assert.strictEqual(response.organization.isSharedLicense, true);
+    });
+
+    it("should not include org context for direct license", () => {
+      const licenseHolder = {
+        keygenLicenseId: "lic_123",
+        accountType: "individual",
+        subscriptionStatus: "active",
+      };
+
+      const localLicense = {
+        licenseKey: "INDI-VIDU-ALLI-CENS-1234",
+        status: "active",
+      };
+
+      const response = formatLicenseWithOrg(
+        licenseHolder,
+        localLicense,
+        null,
+        null, // No org context
+      );
+
+      assert.strictEqual(response.license.planType, "individual");
+      assert.strictEqual(response.organization, undefined);
+    });
+
+    it("should include admin role for org admins", () => {
+      const licenseHolder = {
+        keygenLicenseId: "lic_biz_123",
+        accountType: "business",
+      };
+
+      const orgContext = {
+        orgId: "org_123",
+        orgName: "Acme Corp",
+        memberRole: "admin",
+        isSharedLicense: true,
+      };
+
+      const response = formatLicenseWithOrg(licenseHolder, {}, null, orgContext);
+
+      assert.strictEqual(response.organization.role, "admin");
+    });
+
+    it("should include owner role for org owners accessing as member", () => {
+      const licenseHolder = {
+        keygenLicenseId: "lic_biz_123",
+        accountType: "business",
+      };
+
+      const orgContext = {
+        orgId: "org_123",
+        orgName: "Acme Corp",
+        memberRole: "owner",
+        isSharedLicense: true,
+      };
+
+      const response = formatLicenseWithOrg(licenseHolder, {}, null, orgContext);
+
+      assert.strictEqual(response.organization.role, "owner");
+    });
+  });
+});
