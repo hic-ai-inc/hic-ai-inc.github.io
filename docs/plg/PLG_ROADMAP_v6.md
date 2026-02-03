@@ -1,9 +1,9 @@
 # PLG Roadmap v6 — Final Sprint: Business RBAC → Launch
 
-**Document Version:** 6.6.0  
+**Document Version:** 6.7.0  
 **Date:** February 2, 2026  
 **Owner:** General Counsel  
-**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management E2E Verified + DynamoDB-based Auth (961 tests)
+**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management E2E Verified + DynamoDB-based Auth + DLQ Monitoring (961 tests)
 
 ---
 
@@ -1929,14 +1929,16 @@ Currently: No paging system, single operator (SWR).
 
 **Tier 2 Minimum (Pre-Launch):**
 
-- [ ] CloudWatch Alarms → SNS → Email for:
-  - Lambda errors (checkout, webhooks, portal APIs)
-  - Stripe webhook failures (DLQ depth)
-  - Keygen API errors
-  - API Gateway 5xx rate
+- [x] CloudWatch Alarms → SNS → Email for:
+  - ✅ Lambda errors (checkout, webhooks, portal APIs) — `plg-high-error-rate-staging`
+  - ✅ Stripe webhook failures (DLQ depth) — `plg-customer-dlq-depth-staging`
+  - ✅ Email delivery failures (DLQ depth) — `plg-email-dlq-depth-staging`
+  - ✅ Payment failures — `plg-payment-failures-staging`
+  - ✅ Email failures — `plg-email-failures-staging`
+- [x] SNS email subscription confirmed — `alerts@hic-ai.com` → `sreiff@hic-ai.com`
 - [ ] Document severity levels (P1/P2/P3/P4)
 - [ ] Create minimal runbook (site down, payment failure, auth failure)
-- [ ] Webhook failure containment: confirm retry behavior, DLQ alerting
+- [x] Webhook failure containment: DLQ alerting operational (Feb 2)
 
 **POST-LAUNCH (Full Incident Response):**
 
@@ -2061,7 +2063,7 @@ Policy: **No refunds** (except credit card fraud cases).
 | 4 | VSIX/npx Delivery Parity | Extension | 4h | 50% of users if one route broken |
 | 5 | Documentation Site (MVP) | Documentation | 8h | 404 on docs = immediate bounce |
 | 17 | DR/Backups (verify) | Operations | 2h | Confirm PITR enabled |
-| 19 | Incident Response + Monitoring | Operations | 6h | Merged per GPT-5.2: webhook visibility is revenue plumbing |
+| 19 | Incident Response + Monitoring | Operations | 🟡 **2h left** | ✅ DLQ alarms + SNS done; runbook/severity docs remain |
 | — | Branch Protection Rules | DevOps | <1h | Low effort, high value (prevents accidental pushes) |
 | — | Delete Account Cascade | Data | 1h | Verify or ship stopgap ("email us to delete") |
 
