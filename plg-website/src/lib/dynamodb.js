@@ -1277,7 +1277,7 @@ export async function updateOrgMemberRole(orgId, memberId, role) {
 export async function getOrgLicenseUsage(orgId) {
   const logger = createLogger("getOrgLicenseUsage");
   try {
-    // Get org details for seat limit
+    // Get org details for seat limit and owner
     const orgResult = await dynamodb.send(
       new GetCommand({
         TableName: TABLE_NAME,
@@ -1306,16 +1306,21 @@ export async function getOrgLicenseUsage(orgId) {
     );
 
     const org = orgResult.Item || {};
-    const activeMembers = membersResult.Items?.length || 0;
+    const memberCount = membersResult.Items?.length || 0;
     const seatLimit = org.seatLimit || 0;
+    
+    // Owner always counts as 1 seat, plus any additional members
+    // (Owner may or may not have a MEMBER# record)
+    const hasOwner = !!org.ownerId;
+    const seatsUsed = hasOwner ? Math.max(1, memberCount) : memberCount;
 
     return {
       orgId,
       seatLimit,
-      seatsUsed: activeMembers,
-      seatsAvailable: Math.max(0, seatLimit - activeMembers),
+      seatsUsed,
+      seatsAvailable: Math.max(0, seatLimit - seatsUsed),
       utilizationPercent:
-        seatLimit > 0 ? Math.round((activeMembers / seatLimit) * 100) : 0,
+        seatLimit > 0 ? Math.round((seatsUsed / seatLimit) * 100) : 0,
     };
   } catch (error) {
     logger.error("Failed to get org license usage", {

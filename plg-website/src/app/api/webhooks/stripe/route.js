@@ -25,6 +25,7 @@ import {
   upsertOrganization,
   updateOrgSeatLimit,
   getOrganizationByStripeCustomer,
+  addOrgMember,
 } from "@/lib/dynamodb";
 import {
   suspendLicense,
@@ -304,20 +305,31 @@ async function handleCheckoutCompleted(session) {
     // Create organization record for Business plan
     // Uses stripeCustomerId as orgId for easy lookup from webhooks
     try {
+      const ownerId = existingCustomer?.userId || `email:${customer_email.toLowerCase()}`;
+      
       await upsertOrganization({
         orgId: customer, // Stripe customer ID
         name: `${customer_email.split("@")[0]}'s Organization`,
         seatLimit: seats,
-        ownerId: existingCustomer?.userId || `email:${customer_email.toLowerCase()}`,
+        ownerId,
         ownerEmail: customer_email,
         stripeCustomerId: customer,
         stripeSubscriptionId: subscription,
       });
       console.log(`Organization created for ${customer_email} with ${seats} seats`);
 
-      // Link the owner to the organization
+      // Add owner as a member of the organization (for seat counting)
+      await addOrgMember({
+        orgId: customer,
+        userId: ownerId,
+        email: customer_email,
+        name: customer_email.split("@")[0],
+        role: "owner",
+      });
+      console.log(`Owner ${ownerId} added as member to organization ${customer}`);
+
+      // Link the owner to the organization in their customer record
       // This enables the Team Management UI in the portal
-      const ownerId = existingCustomer?.userId || `email:${customer_email.toLowerCase()}`;
       await updateCustomerSubscription(ownerId, {
         orgId: customer, // Same as org's orgId (Stripe customer ID)
         orgRole: "owner",
