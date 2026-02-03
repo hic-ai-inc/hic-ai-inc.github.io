@@ -1,9 +1,9 @@
 # PLG Roadmap v6 — Final Sprint: Business RBAC → Launch
 
-**Document Version:** 6.8.0  
+**Document Version:** 6.8.1  
 **Date:** February 3, 2026  
 **Owner:** General Counsel  
-**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management + Org Member License Access + DLQ Monitoring (981 tests)
+**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management + Org Member License Access + Delete Account Cascade + DLQ Monitoring (981 tests)
 
 ---
 
@@ -94,7 +94,7 @@ This document consolidates the final sprint to ship Mouse with full PLG self-ser
 | **Settings**                       |         |                                           |
 | Display/update preferences         | ✅ DONE | JWT auth, DynamoDB                        |
 | Export data                        | ✅ DONE | Working                                   |
-| Delete account                     | ⬜ TODO | **TIER 2** — Verify cascade delete OR ship stopgap |
+| Delete account                     | ✅ DONE | Cascade delete with org dissolution (Feb 2) |
 
 ### 1.2 Success Criteria
 
@@ -289,10 +289,10 @@ exports.handler = async (event) => {
 | ----------------------------------------------- | ------ |
 | **Role-Based Access**                           |        |
 | Owner can access all portal sections            | ⬜     |
-| Owner can delete account                        | ⬜     |
+| Owner can delete account                        | ✅     |
 | Owner can change member roles                   | ⬜     |
 | Admin can access billing                        | ⬜     |
-| Admin CANNOT delete account                     | ⬜     |
+| Admin CANNOT delete account                     | ✅     |
 | Admin CANNOT change Owner role                  | ⬜     |
 | Member sees dashboard only                      | ⬜     |
 | Member gets 403 on /billing                     | ⬜     |
@@ -2068,7 +2068,7 @@ Policy: **No refunds** (except credit card fraud cases).
 | 17 | DR/Backups (verify) | Operations | 2h | Confirm PITR enabled |
 | 19 | Incident Response + Monitoring | Operations | 🟡 **2h left** | ✅ DLQ alarms + SNS done; runbook/severity docs remain |
 | — | Branch Protection Rules | DevOps | <1h | Low effort, high value (prevents accidental pushes) |
-| — | Delete Account Cascade | Data | 1h | Verify or ship stopgap ("email us to delete") |
+| — | ~~Delete Account Cascade~~ | ~~Data~~ | ~~1h~~ | ✅ DONE (Feb 2) — Org dissolution + graceful subscription cancel |
 
 ---
 
