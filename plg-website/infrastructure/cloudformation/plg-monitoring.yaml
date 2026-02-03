@@ -181,6 +181,14 @@ Resources:
       Protocol: email
       Endpoint: !Ref AlertEmail
 
+  AlertEmailSubscriptionStaging:
+    Type: AWS::SNS::Subscription
+    Condition: IsStaging
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
   # ═══════════════════════════════════════════════════════════════════════════
   # CLOUDWATCH ALARMS
   # ═══════════════════════════════════════════════════════════════════════════
@@ -229,6 +237,48 @@ Resources:
       EvaluationPeriods: 1
       Threshold: 10
       ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DLQ DEPTH ALARMS - Critical for webhook failure visibility
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  EmailDLQDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "plg-email-dlq-depth-${Environment}"
+      AlarmDescription: Messages in Email DLQ - indicates email delivery failures after retries
+      MetricName: ApproximateNumberOfMessages
+      Namespace: AWS/SQS
+      Dimensions:
+        - Name: QueueName
+          Value: !Sub "plg-email-dlq-${Environment}"
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  CustomerUpdateDLQDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "plg-customer-dlq-depth-${Environment}"
+      AlarmDescription: Messages in Customer Update DLQ - indicates Stripe webhook processing failures
+      MetricName: ApproximateNumberOfMessages
+      Namespace: AWS/SQS
+      Dimensions:
+        - Name: QueueName
+          Value: !Sub "plg-customer-update-dlq-${Environment}"
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
         - !Ref AlertTopic
       TreatMissingData: notBreaching
@@ -378,6 +428,7 @@ Resources:
 Conditions:
   HasKmsKey: !Not [!Equals [!Ref KmsMasterKeyId, ""]]
   IsProduction: !Equals [!Ref Environment, prod]
+  IsStaging: !Equals [!Ref Environment, staging]
 
 Outputs:
   DashboardName:

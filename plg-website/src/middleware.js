@@ -70,8 +70,6 @@ export async function middleware(request) {
   // For server components that need session data, we'll use API routes
   // that validate the Cognito access token.
   //
-  // TODO: Implement Cognito token validation in middleware when needed
-  // This would require decoding the JWT and verifying against Cognito JWKS
 
   return NextResponse.next();
 }

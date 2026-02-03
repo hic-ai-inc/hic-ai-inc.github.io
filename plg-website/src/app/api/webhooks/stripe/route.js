@@ -344,11 +344,11 @@ async function handleCheckoutCompleted(session) {
 
 /**
  * Handle new subscription created
+ * Note: License is already created by handleCheckoutCompleted.
+ * Status updates are handled by handleSubscriptionUpdated/Deleted.
  */
 async function handleSubscriptionCreated(subscription) {
   console.log("Subscription created:", subscription.id);
-
-  // TODO: Update license status in Keygen if needed
 }
 
 /**
