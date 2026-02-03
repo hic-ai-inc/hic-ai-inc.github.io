@@ -1,9 +1,9 @@
 # PLG Roadmap v6 — Final Sprint: Business RBAC → Launch
 
-**Document Version:** 6.7.0  
-**Date:** February 2, 2026  
+**Document Version:** 6.8.0  
+**Date:** February 3, 2026  
 **Owner:** General Counsel  
-**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management E2E Verified + DynamoDB-based Auth + DLQ Monitoring (961 tests)
+**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management + Org Member License Access + DLQ Monitoring (981 tests)
 
 ---
 
@@ -13,25 +13,26 @@
 
 | Decision | Choice | Implication |
 |----------|--------|-------------|
-| **Launch Posture** | Individual-only public launch | Business plan hidden/waitlist |
-| **Business Plan UI** | "Coming Soon" or Contact Sales | No checkout for Business tier |
-| **RBAC Status** | ✅ INFRASTRUCTURE COMPLETE | Ready for Business tier when demand exists |
-| **Downgrade Logic** | POST-LAUNCH (no Business customers yet) | Simplifies Tier 1 payments work |
+| **Launch Posture** | Individual + Business public launch | Full self-service for both tiers |
+| **Business Plan UI** | Full checkout enabled | Business tier fully operational |
+| **RBAC Status** | ✅ COMPLETE | Owner/Admin/Member roles, Team UI, shared license access |
+| **Downgrade Logic** | POST-LAUNCH | Simplifies Tier 1 payments work |
 
 ### What's Live at Launch
 
 ✅ **Individual tier** — Full self-service: signup → checkout → license → portal → extension  
-⬜ **Business tier** — Hidden. Page shows "Coming Soon — Join Waitlist" or "Contact Sales"
+✅ **Business tier** — Full self-service: signup → checkout → license → team management → shared license for members
 
 ### What This Unlocks
 
 - **RBAC Infrastructure** ✅ COMPLETE (Feb 2) — Cognito Groups, Pre-token Lambda, Role-based UI all built
+- **Org Member License Access** ✅ COMPLETE (Feb 3) — Members see shared org license key in Portal
 - **Business→Individual downgrade** moves from Tier 1 to POST-LAUNCH Medium
-- **Pre-deployment critical path** drops from ~46h to ~12h (RBAC done early, only E2E testing remains)
+- **Pre-deployment critical path** drops from ~46h to ~4-8h (all infrastructure complete)
 
 ### Why This Is Right
 
-Business customers won't exist on day 1. Building RBAC now is building for a segment that hasn't validated demand. Ship Individual, validate the flow, gather feedback, then build Business when there's a customer asking for it.
+Business tier is fully operational. Team management, invite flows, shared license access — all working. Both Individual and Business customers can self-serve from day 1.
 
 ---
 
@@ -1463,6 +1464,8 @@ Parallel workstreams (no dependencies):
 
 | Version | Date         | Changes                                                                                                                                                                                                                                           |
 | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **6.8.0** | Feb 3, 2026  | **Business Launch Ready.** Org member shared license access (members see org license key in Portal). Launch Contract updated: Business IS shipping. 981 tests. |
+| **6.7.0** | Feb 2, 2026  | **DLQ Monitoring.** Added EmailDLQDepthAlarm + CustomerUpdateDLQDepthAlarm. SNS alerts to alerts@hic-ai.com. Stale TODOs cleaned up. 961 tests. |
 | **6.5.0** | Feb 3, 2026  | **Team E2E Fixes.** Team API tokenPayload fix (5 `user.sub`/`email`/`name` refs → `tokenPayload`). Devices page fixed (removed Keygen fetch, DynamoDB-only heartbeat). Tier-switching API removed (248 lines deleted). Pricing FAQ updated. All portal APIs working. 903 tests. |
 | **6.0.0** | Feb 1, 2026  | **v6 — CLEANUP & CURRENT STATE.** Removed Auth0→Cognito migration history (replaced Auth0 with Cognito references). Condensed Section 3 (Auth) from 256→43 lines. Updated status items. Added 23 comprehensive TODOs. All references now reflect Cognito as the auth provider. |
 | **5.0.0** | Jan 30, 2026 | **v5 — PHASE-BASED RESTRUCTURE.** Added Phase 1 (Individual Validation) and Phase 2 (Business RBAC) sections. Standardized on "Owner" role (not "Billing Contact"). Added Pre-token Lambda trigger plan for role claims. Member experience: dashboard only with "Contact administrator" messaging. RBAC affects Portal only, not VS Code extension. Implementation order: Owner → Admin → Member. |
