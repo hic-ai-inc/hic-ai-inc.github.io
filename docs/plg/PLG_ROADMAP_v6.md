@@ -1,9 +1,9 @@
 # PLG Roadmap v6 — Final Sprint: Business RBAC → Launch
 
-**Document Version:** 6.8.1  
-**Date:** February 3, 2026  
+**Document Version:** 6.8.2  
+**Date:** February 4, 2026  
 **Owner:** General Counsel  
-**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management + Org Member License Access + Delete Account Cascade + DLQ Monitoring (981 tests)
+**Status:** ✅ PHASES 1-4 COMPLETE — Full RBAC + Team Management + Org Member License Access + Delete Account Cascade + DLQ Monitoring (986 tests)
 
 ---
 
@@ -40,7 +40,7 @@ Business tier is fully operational. Team management, invite flows, shared licens
 
 This document consolidates the final sprint to ship Mouse with full PLG self-service capability. v5 supersedes v4 with a **phase-based approach** for the remaining work.
 
-**Current State:** Individual flow **COMPLETE**. Business Team Management **E2E VERIFIED** (Feb 2). All portal APIs now use DynamoDB as source of truth for account data (no JWT claim dependency). 961 tests passing.
+**Current State:** Individual flow **COMPLETE**. Business Team Management **E2E VERIFIED** (Feb 2). All portal APIs now use DynamoDB as source of truth for account data (no JWT claim dependency). 986 tests passing.
 
 ### Sprint Phases (New in v5)
 
@@ -813,7 +813,7 @@ Per the [Auto-Update Addendum](https://github.com/SimonReiff/hic/blob/main/plg/d
 | ------- | ------------------------------------------------------------ | --------------------------------------------------- |
 | **B0**  | Fix user-to-license lookup (query by email only)             | ✅ **RESOLVED** (Feb 1) — Portal devices page fixed |
 | **B1**  | Add `VERSION#mouse` record to DynamoDB                       | ✅ **DONE** (verified in staging)                   |
-| **B2**  | Heartbeat returns `latestVersion`, `minVersion`, `updateUrl` | ✅ **DONE** (verified in staging)                   |
+| **B2**  | Heartbeat returns `latestVersion`, `releaseNotesUrl`, `updateUrl`, `readyVersion*` (no `minVersion`) | ✅ **DONE** (verified in staging)                   |
 | **B3**  | Deploy to staging.hic-ai.com                                 | ✅ **DONE** (verified in staging)                   |
 | **B4**  | Deploy to api.hic-ai.com (production)                        | ⬜ TODO                                             |
 
@@ -1464,6 +1464,7 @@ Parallel workstreams (no dependencies):
 
 | Version | Date         | Changes                                                                                                                                                                                                                                           |
 | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **6.8.2** | Feb 4, 2026  | **Daily-gated extension update payload.** Heartbeat contract removes `minVersion` entirely, always returns version payload (including `readyVersion*`), and scheduled job promotes `latestVersion` → `readyVersion` daily. 986 tests. |
 | **6.8.0** | Feb 3, 2026  | **Business Launch Ready.** Org member shared license access (members see org license key in Portal). Launch Contract updated: Business IS shipping. 981 tests. |
 | **6.7.0** | Feb 2, 2026  | **DLQ Monitoring.** Added EmailDLQDepthAlarm + CustomerUpdateDLQDepthAlarm. SNS alerts to alerts@hic-ai.com. Stale TODOs cleaned up. 961 tests. |
 | **6.5.0** | Feb 3, 2026  | **Team E2E Fixes.** Team API tokenPayload fix (5 `user.sub`/`email`/`name` refs → `tokenPayload`). Devices page fixed (removed Keygen fetch, DynamoDB-only heartbeat). Tier-switching API removed (248 lines deleted). Pricing FAQ updated. All portal APIs working. 903 tests. |
