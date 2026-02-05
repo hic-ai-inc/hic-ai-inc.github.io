@@ -1065,7 +1065,7 @@ curl -X POST https://staging.mouse.hic-ai.com/api/admin/provision-test-license \
 | Call test endpoint with real email         | ⬜     | Verify real Keygen license created |
 | Verify DynamoDB records created            | ⬜     | LICENSE# and USER# records         |
 | Verify stream-processor logs LICENSE event | ⬜     | CloudWatch logs                    |
-| Verify email-sender Lambda triggers        | ⬜     | CloudWatch logs                    |
+| Verify email-sender Lambda triggers        | ✅     | CloudWatch logs; DLQ path validated |
 | **Verify email arrives with license key**  | ⬜     | **Critical validation**            |
 | Test license key in VS Code extension      | ⬜     | Activate and remove trial          |
 
