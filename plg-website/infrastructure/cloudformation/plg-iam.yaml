@@ -200,6 +200,10 @@ Resources:
                 Condition:
                   StringLike:
                     ses:FromAddress: !Sub "*@${Environment}.hic-ai.com"
+              - Effect: Allow
+                Action:
+                  - ses:GetIdentityVerificationAttributes  # Check email verification status
+                Resource: "*"
         - PolicyName: DynamoDBAccess
           PolicyDocument:
             Version: "2012-10-17"
