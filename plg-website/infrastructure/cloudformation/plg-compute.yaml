@@ -214,6 +214,8 @@ Resources:
       EventSourceArn: !Ref EmailQueueArn
       BatchSize: 10
       MaximumBatchingWindowInSeconds: 5
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
 
   # ═══════════════════════════════════════════════════════════════════════════
   # LAMBDA FUNCTION: Customer Update

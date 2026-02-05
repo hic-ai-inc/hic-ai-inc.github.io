@@ -92,6 +92,7 @@ export const handler = async (event) => {
   log.info("start", { recordCount: event.Records.length });
 
   const results = [];
+  const batchItemFailures = [];
 
   for (const record of event.Records) {
     try {
@@ -228,6 +229,7 @@ export const handler = async (event) => {
       results.push({ success: true, emailAction, email });
     } catch (error) {
       log.error("email-failed", { error: error.message, record: record.messageId });
+      batchItemFailures.push({ itemIdentifier: record.messageId });
       results.push({ success: false, error: error.message });
       // Don't throw - continue processing other records
     }
@@ -244,11 +246,12 @@ export const handler = async (event) => {
     failed: failCount,
   });
 
-  // If all emails had actual errors (not just skipped for verification), throw to trigger SQS retry
-  // Skipped emails (unverified) should not trigger retry - retrying won't help
-  if (failCount > 0 && successCount === 0) {
-    throw new Error(`All ${failCount} emails failed to send`);
-  }
-
-  return { processed: results.length, success: successCount, skipped: skippedCount, failed: failCount };
+  // Partial batch response for SQS: only the messageIds listed below are retried/redriven.
+  return {
+    processed: results.length,
+    success: successCount,
+    skipped: skippedCount,
+    failed: failCount,
+    batchItemFailures,
+  };
 };

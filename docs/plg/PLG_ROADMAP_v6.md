@@ -812,9 +812,9 @@ Per the [Auto-Update Addendum](https://github.com/SimonReiff/hic/blob/main/plg/d
 | Blocker | Description                                                  | Status                                              |
 | ------- | ------------------------------------------------------------ | --------------------------------------------------- |
 | **B0**  | Fix user-to-license lookup (query by email only)             | ✅ **RESOLVED** (Feb 1) — Portal devices page fixed |
-| **B1**  | Add `VERSION#mouse` record to DynamoDB                       | ⬜ TODO                                             |
-| **B2**  | Heartbeat returns `latestVersion`, `minVersion`, `updateUrl` | ⬜ TODO                                             |
-| **B3**  | Deploy to staging.hic-ai.com                                 | ⬜ TODO                                             |
+| **B1**  | Add `VERSION#mouse` record to DynamoDB                       | ✅ **DONE** (verified in staging)                   |
+| **B2**  | Heartbeat returns `latestVersion`, `minVersion`, `updateUrl` | ✅ **DONE** (verified in staging)                   |
+| **B3**  | Deploy to staging.hic-ai.com                                 | ✅ **DONE** (verified in staging)                   |
 | **B4**  | Deploy to api.hic-ai.com (production)                        | ⬜ TODO                                             |
 
 Once B1-B4 are complete, client-side auto-update (C1-C7) can be implemented per the spec.
