@@ -12,7 +12,7 @@
  */
 
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { dirname, resolve as pathResolve } from "node:path";
+import { dirname, resolve as pathResolve, extname } from "node:path";
 import fs from "node:fs";
 
 // Constants
@@ -63,6 +63,29 @@ export async function resolve(specifier, context, nextResolve) {
     // Only intercept our custom layer aliases (hic-*-layer)
     if (specifier.startsWith("@aws-sdk/")) {
       return await nextResolve(specifier, context);
+    }
+
+    // Next.js ESM subpath compatibility for our test runner.
+    // Node's ESM resolver may not resolve extensionless subpaths like `next/server`.
+    if (specifier === "next/server") {
+      return await nextResolve("next/server.js", context);
+    }
+
+    // Next.js-style alias support for PLG website imports (e.g. `@/lib/keygen`).
+    // Next.js resolves this via jsconfig/tsconfig; the Node test runner needs help.
+    if (specifier.startsWith("@/")) {
+      const repoRoot = pathResolve(HERE, "../../..");
+      const plgSrc = pathResolve(repoRoot, "plg-website", "src");
+      const relative = specifier.slice(2); // drop "@/"
+
+      let targetPath = pathResolve(plgSrc, relative);
+
+      // ESM requires explicit extensions; match Next.js behavior by trying `.js`.
+      if (!extname(targetPath) && fs.existsSync(`${targetPath}.js`)) {
+        targetPath = `${targetPath}.js`;
+      }
+
+      return { url: pathToFileURL(targetPath).href, shortCircuit: true };
     }
 
     // Check if this is a layer import we need to redirect

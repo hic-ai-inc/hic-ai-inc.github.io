@@ -1027,11 +1027,15 @@ describe("dynamodb.js", () => {
           PK: "VERSION#mouse",
           SK: "CURRENT",
           latestVersion: "0.10.0",
-          minVersion: "0.9.0",
           updateUrl: {
             marketplace: "https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse",
           },
           releaseNotesUrl: "https://hic.ai/mouse/changelog",
+          readyVersion: "0.10.0",
+          readyReleaseNotesUrl: "https://hic.ai/mouse/changelog",
+          readyUpdateUrl:
+            "https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse",
+          readyUpdatedAt: "2026-02-05T00:00:00.000Z",
         },
       });
 
@@ -1039,7 +1043,9 @@ describe("dynamodb.js", () => {
 
       expect(result).not.toBeNull();
       expect(result.latestVersion).toBe("0.10.0");
-      expect(result.minVersion).toBe("0.9.0");
+      expect(result.releaseNotesUrl).toBe("https://hic.ai/mouse/changelog");
+      expect(result.readyVersion).toBe("0.10.0");
+      expect(result.readyUpdateUrl).toContain("marketplace.visualstudio.com");
       expect(result.updateUrl.marketplace).toContain("marketplace.visualstudio.com");
     });
 

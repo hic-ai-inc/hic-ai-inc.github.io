@@ -131,8 +131,13 @@ export async function POST(request) {
         nextHeartbeat: 900,
         // Auto-update fields (B2)
         latestVersion: versionConfig?.latestVersion || null,
-        minVersion: versionConfig?.minVersion || null,
+        releaseNotesUrl: versionConfig?.releaseNotesUrl || null,
         updateUrl: versionConfig?.updateUrl?.marketplace || null,
+        // Daily-gated notification fields (see scheduled task: mouse-version-notify)
+        readyVersion: versionConfig?.readyVersion || null,
+        readyReleaseNotesUrl: versionConfig?.readyReleaseNotesUrl || null,
+        readyUpdateUrl: versionConfig?.readyUpdateUrl || null,
+        readyUpdatedAt: versionConfig?.readyUpdatedAt || null,
       });
     }
 
@@ -182,6 +187,9 @@ export async function POST(request) {
 
     if (!license) {
       // License not in our database - might be valid in Keygen but not synced
+      // Still return version payload so the extension can prompt updates consistently.
+      const versionConfig = await getVersionConfig();
+
       return NextResponse.json({
         valid: true,
         status: "active",
@@ -189,6 +197,15 @@ export async function POST(request) {
         concurrentMachines: 1,
         maxMachines: null, // Unknown
         nextHeartbeat: 900,
+        // Auto-update fields (B2)
+        latestVersion: versionConfig?.latestVersion || null,
+        releaseNotesUrl: versionConfig?.releaseNotesUrl || null,
+        updateUrl: versionConfig?.updateUrl?.marketplace || null,
+        // Daily-gated notification fields (see scheduled task: mouse-version-notify)
+        readyVersion: versionConfig?.readyVersion || null,
+        readyReleaseNotesUrl: versionConfig?.readyReleaseNotesUrl || null,
+        readyUpdateUrl: versionConfig?.readyUpdateUrl || null,
+        readyUpdatedAt: versionConfig?.readyUpdatedAt || null,
       });
     }
 
@@ -243,8 +260,13 @@ export async function POST(request) {
         nextHeartbeat: 900,
         // Auto-update fields (B2)
         latestVersion: versionConfig?.latestVersion || null,
-        minVersion: versionConfig?.minVersion || null,
+        releaseNotesUrl: versionConfig?.releaseNotesUrl || null,
         updateUrl: versionConfig?.updateUrl?.marketplace || null,
+        // Daily-gated notification fields (see scheduled task: mouse-version-notify)
+        readyVersion: versionConfig?.readyVersion || null,
+        readyReleaseNotesUrl: versionConfig?.readyReleaseNotesUrl || null,
+        readyUpdateUrl: versionConfig?.readyUpdateUrl || null,
+        readyUpdatedAt: versionConfig?.readyUpdatedAt || null,
       },
       { headers: rateLimitHeaders },
     );

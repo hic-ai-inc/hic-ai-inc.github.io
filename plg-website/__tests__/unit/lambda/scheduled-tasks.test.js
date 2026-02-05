@@ -442,4 +442,58 @@ describe("Scheduled Tasks Lambda", () => {
       expect(result.failed).toBe(1);
     });
   });
+
+
+  describe("mouse-version-notify Job", () => {
+    test("updates readyVersion from latestVersion", async () => {
+      let sawUpdate = false;
+
+      dynamoSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "QueryCommand") {
+          return {
+            Items: [
+              {
+                PK: "VERSION#mouse",
+                SK: "CURRENT",
+                latestVersion: "1.2.3",
+                releaseNotesUrl: "https://example.com/release-notes",
+              },
+            ],
+          };
+        }
+        if (cmd.constructor.name === "UpdateCommand") {
+          sawUpdate = true;
+        }
+        return {};
+      };
+
+      const event = createEventBridgeEvent("mouse-version-notify");
+      const result = await handler(event);
+
+      expect(result.status).toBe("success");
+      expect(result.updated).toBe(true);
+      expect(result.readyVersion).toBe("1.2.3");
+      expect(sawUpdate).toBe(true);
+    });
+
+    test("skips when latestVersion is missing", async () => {
+      dynamoSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "QueryCommand") {
+          return { Items: [{}] };
+        }
+        if (cmd.constructor.name === "UpdateCommand") {
+          assert.fail("UpdateCommand should not be called");
+        }
+        return {};
+      };
+
+      const event = createEventBridgeEvent("mouse-version-notify");
+      const result = await handler(event);
+
+      expect(result.status).toBe("success");
+      expect(result.updated).toBe(false);
+      expect(result.reason).toBe("missing-latestVersion");
+    });
+  });
+
 });

@@ -54,6 +54,29 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt PendingEmailRetryRule.Arn
 
+  # Mouse Version Notify - Daily at 9 AM UTC
+  # Promotes latestVersion to readyVersion to avoid notifying immediately after release writes
+  MouseVersionNotifyRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "plg-mouse-version-notify-${Environment}"
+      Description: Daily promotion of latest Mouse version to readyVersion for notification gating
+      ScheduleExpression: "cron(0 9 * * ? *)" # 9 AM UTC daily
+      State: !If [IsDevelopment, DISABLED, ENABLED]
+      Targets:
+        - Id: ScheduledTasksLambda
+          Arn: !Ref ScheduledTasksFunctionArn
+          Input: '{"taskType": "mouse-version-notify"}'
+
+  MouseVersionNotifyPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScheduledTasksFunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt MouseVersionNotifyRule.Arn
+
+
   # Trial Reminder - Daily at 9 AM UTC
   TrialReminderRule:
     Type: AWS::Events::Rule
@@ -119,6 +142,7 @@ Resources:
 
 Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
+  IsDevelopment: !Equals [!Ref Environment, dev]
 
 Outputs:
   PendingEmailRetryRuleArn:
@@ -126,6 +150,13 @@ Outputs:
     Value: !GetAtt PendingEmailRetryRule.Arn
     Export:
       Name: !Sub "${AWS::StackName}-PendingEmailRetryRuleArn"
+
+
+  MouseVersionNotifyRuleArn:
+    Description: Mouse Version Notify EventBridge rule ARN
+    Value: !GetAtt MouseVersionNotifyRule.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-MouseVersionNotifyRuleArn"
 
   TrialReminderRuleArn:
     Description: Trial Reminder EventBridge rule ARN

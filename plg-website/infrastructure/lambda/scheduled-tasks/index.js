@@ -403,6 +403,72 @@ async function handlePendingEmailRetry(log) {
 
   log.info("pending-email-retry-complete", { sent, stillPending, failed, total: pendingUsers.length });
   return { sent, stillPending, failed };
+
+}
+
+/**
+ * Handle Mouse version notification gating job
+ *
+ * This job intentionally runs on a daily schedule to avoid notifying users
+ * immediately after CI/CD updates the latest version (Marketplace propagation lag).
+ *
+ * Strategy:
+ * - Read VERSION#mouse/CURRENT
+ * - Copy latestVersion (+ optional URLs) into readyVersion fields
+ * - Heartbeat can return readyVersion for the extension to notify on
+ */
+async function handleMouseVersionNotify(log) {
+  log.info("running-job", { job: "mouse-version-notify" });
+
+  const result = await dynamoClient.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: "PK = :pk AND SK = :sk",
+      ExpressionAttributeValues: {
+        ":pk": "VERSION#mouse",
+        ":sk": "CURRENT",
+      },
+      Limit: 1,
+    }),
+  );
+
+  const versionConfig = result.Items?.[0] || null;
+  const latestVersion = versionConfig?.latestVersion || null;
+
+  if (!latestVersion) {
+    log.warn("version-config-missing-latest", {
+      hasConfig: Boolean(versionConfig),
+    });
+    return { updated: false, reason: "missing-latestVersion" };
+  }
+
+  const now = new Date().toISOString();
+  const readyReleaseNotesUrl = versionConfig?.releaseNotesUrl || null;
+  const readyUpdateUrl = versionConfig?.updateUrl?.marketplace || null;
+
+  await dynamoClient.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: "VERSION#mouse",
+        SK: "CURRENT",
+      },
+      UpdateExpression:
+        "SET readyVersion = :v, readyReleaseNotesUrl = :r, readyUpdateUrl = :u, readyUpdatedAt = :t",
+      ExpressionAttributeValues: {
+        ":v": latestVersion,
+        ":r": readyReleaseNotesUrl,
+        ":u": readyUpdateUrl,
+        ":t": now,
+      },
+    }),
+  );
+
+  log.info("mouse-version-notify-complete", {
+    readyVersion: latestVersion,
+  });
+
+  return { updated: true, readyVersion: latestVersion };
 }
 
 /**
@@ -410,6 +476,7 @@ async function handlePendingEmailRetry(log) {
  */
 const TASK_HANDLERS = {
   "pending-email-retry": handlePendingEmailRetry,
+  "mouse-version-notify": handleMouseVersionNotify,
   "trial-reminder": handleTrialReminder,
   "winback-30": handleWinback30,
   "winback-90": handleWinback90,
