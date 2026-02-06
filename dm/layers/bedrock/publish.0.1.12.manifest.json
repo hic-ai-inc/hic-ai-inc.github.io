@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-bedrock-layer",
+  "version": "0.1.12",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-bedrock-layer/0.1.12/hic-bedrock-layer-0.1.12.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-bedrock-layer:10",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic-ai-inc.github.io/dm/dist/hic-bedrock-layer-0.1.12.zip",
+  "publishedAt": "2026-02-06T20:47:02Z"
+}

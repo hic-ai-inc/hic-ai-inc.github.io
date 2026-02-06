@@ -1,7 +1,7 @@
 {
   "layer": "hic-storage-layer",
-  "version": "0.1.7",
-  "contentHash": "3f37bcdc03f2b5d3ee7bbafb2d782ea6c9343b48bbcb7a82da6e85c238af14df",
+  "version": "0.1.8",
+  "contentHash": "15bf4d4423a38218b117480d4cdd4e19c8419947a1619a01a44c92b9da8a32fc",
   "exports": [
     "export * from \"@aws-sdk/client-s3\";",
     "export * from \"@aws-sdk/s3-request-presigner\";"
@@ -15,9 +15,10 @@
     "publish.0.1.4.manifest.json",
     "publish.0.1.5.manifest.json",
     "publish.0.1.6.manifest.json",
+    "publish.0.1.7.manifest.json",
     "publish.sh",
     "src\\index.js",
     "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2026-01-23T16:26:38.887Z"
+  "builtAt": "2026-02-06T21:02:54.336Z"
 }

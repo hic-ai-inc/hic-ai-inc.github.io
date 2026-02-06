@@ -1,16 +1,17 @@
 {
   "layer": "hic-auth-layer",
-  "version": "1.0.1",
-  "contentHash": "0fe38fc3abcd516bb76e702d9edfe7a99baefa6e608eebcd8e0e461317162596",
+  "version": "1.0.2",
+  "contentHash": "c1996c6fc974bdbd24f938edf7121258d8a5cbfb0eca0b804b25c626781de0ee",
   "exports": [
     "export {"
   ],
   "inputs": [
     "build.sh",
     "package.json",
+    "publish.1.0.1.manifest.json",
     "publish.sh",
     "src\\index.js",
     "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2026-02-02T15:18:05.555Z"
+  "builtAt": "2026-02-06T20:40:59.817Z"
 }

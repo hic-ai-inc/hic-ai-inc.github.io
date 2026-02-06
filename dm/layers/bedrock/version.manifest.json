@@ -1,7 +1,7 @@
 {
   "layer": "hic-bedrock-layer",
-  "version": "0.1.11",
-  "contentHash": "5277b2bf3d44cd53714f19b73d4adf46a768674ddb1de89f40ec42ca17ed8cb4",
+  "version": "0.1.12",
+  "contentHash": "dff43011459359962c823470c1638f606010b5ef35572cb0b455ef70fa5ff5b3",
   "exports": [
     "export * from \"@aws-sdk/client-bedrock\";",
     "export * from \"@aws-sdk/client-bedrock-runtime\";"
@@ -11,6 +11,7 @@
     "publish.0.1.0.manifest.json",
     "publish.0.1.1.manifest.json",
     "publish.0.1.10.manifest.json",
+    "publish.0.1.11.manifest.json",
     "publish.0.1.3.manifest.json",
     "publish.0.1.4.manifest.json",
     "publish.0.1.5.manifest.json",
@@ -20,5 +21,5 @@
     "src\\index.js",
     "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2026-01-23T16:23:46.785Z"
+  "builtAt": "2026-02-06T20:45:17.124Z"
 }

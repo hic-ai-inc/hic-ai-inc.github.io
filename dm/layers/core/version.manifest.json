@@ -1,7 +1,7 @@
 {
   "layer": "hic-core-layer",
-  "version": "0.1.1",
-  "contentHash": "4762b80c2e8efc82b4400816666097ed0159c21bbefbddfdf27fceab277d530b",
+  "version": "0.1.2",
+  "contentHash": "1ce6869766ccb0a52c4c9a4c1545898d569c9816296cc990e2e70140bdbefb3d",
   "exports": [
     "export * from \"@aws-sdk/client-dynamodb-streams\";",
     "export * from \"@aws-sdk/util-dynamodb\";",
@@ -14,9 +14,10 @@
   "inputs": [
     "build.sh",
     "publish.0.1.0.manifest.json",
+    "publish.0.1.1.manifest.json",
     "publish.sh",
     "src\\index.js",
     "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2026-01-23T16:25:09.973Z"
+  "builtAt": "2026-02-06T20:49:44.073Z"
 }

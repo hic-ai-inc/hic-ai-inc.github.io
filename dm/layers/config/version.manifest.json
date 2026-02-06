@@ -1,7 +1,7 @@
 {
   "layer": "hic-config-layer",
-  "version": "0.1.7",
-  "contentHash": "279f112b7d898736d0db0d8ce0d69ab28e335584bd61498360f3968a206ae1c6",
+  "version": "0.1.8",
+  "contentHash": "272618547102c3c93ad5c9bc69d9e0427ca98c633441969b3bc493004a330e2c",
   "exports": [
     "export * from \"@aws-sdk/client-secrets-manager\";",
     "export * from \"@aws-sdk/client-ssm\";"
@@ -15,9 +15,10 @@
     "publish.0.1.4.manifest.json",
     "publish.0.1.5.manifest.json",
     "publish.0.1.6.manifest.json",
+    "publish.0.1.7.manifest.json",
     "publish.sh",
     "src\\index.js",
     "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2026-01-23T16:22:14.731Z"
+  "builtAt": "2026-02-06T20:47:29.669Z"
 }

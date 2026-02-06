@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-auth-layer",
+  "version": "1.0.2",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-auth-layer/1.0.2/hic-auth-layer-1.0.2.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-auth-layer:2",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic-ai-inc.github.io/dm/dist/hic-auth-layer-1.0.2.zip",
+  "publishedAt": "2026-02-06T20:42:35Z"
+}
