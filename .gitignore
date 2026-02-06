@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Environment variables (never commit secrets)
+.env*
+!.env.example
+
 # Build output (for local dev - dist is tracked for GitHub Pages)
 # dist/
 

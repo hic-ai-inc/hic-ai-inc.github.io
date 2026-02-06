@@ -349,7 +349,7 @@ export default function TeamManagement({ initialUserId }) {
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full px-3 py-2 bg-card-bg border border-card-border rounded-lg text-frost-white focus:outline-none focus:border-cerulean-mist"
+                  className="w-full px-3 py-2 bg-card-bg border border-card-border rounded-lg text-frost-white focus:outline-none focus:border-cerulean-mist [&>option]:bg-midnight-navy [&>option]:text-frost-white"
                   disabled={inviteLoading}
                 >
                   <option value="member">Member</option>
@@ -486,7 +486,7 @@ export default function TeamManagement({ initialUserId }) {
                               handleRoleChange(member.id, e.target.value)
                             }
                             disabled={roleChangeLoading === member.id}
-                            className="bg-card-bg border border-card-border rounded px-2 py-1 text-xs font-medium text-frost-white focus:outline-none focus:border-cerulean-mist disabled:opacity-50"
+                            className="bg-card-bg border border-card-border rounded px-2 py-1 text-xs font-medium text-frost-white focus:outline-none focus:border-cerulean-mist disabled:opacity-50 [&>option]:bg-midnight-navy [&>option]:text-frost-white"
                           >
                             <option value="admin">Admin</option>
                             <option value="member">Member</option>
@@ -589,7 +589,7 @@ export default function TeamManagement({ initialUserId }) {
                           handleRoleChange(member.id, e.target.value)
                         }
                         disabled={roleChangeLoading === member.id}
-                        className="bg-midnight-navy border border-card-border rounded px-2 py-1 text-xs font-medium text-frost-white focus:outline-none focus:border-cerulean-mist disabled:opacity-50"
+                        className="bg-midnight-navy border border-card-border rounded px-2 py-1 text-xs font-medium text-frost-white focus:outline-none focus:border-cerulean-mist disabled:opacity-50 [&>option]:bg-midnight-navy [&>option]:text-frost-white"
                       >
                         <option value="admin">Admin</option>
                         <option value="member">Member</option>
