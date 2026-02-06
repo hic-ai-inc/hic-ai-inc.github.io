@@ -26,7 +26,7 @@ import {
 // Configuration
 // ═══════════════════════════════════════════════════════════════════
 
-const REGION = process.env.AWS_REGION || "us-east-1";
+const REGION = process.env.DYNAMODB_REGION || "us-east-1";
 
 // Environment detection: 'staging' or 'production'
 const ENVIRONMENT = process.env.NEXT_PUBLIC_APP_URL?.includes("staging")

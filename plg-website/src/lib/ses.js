@@ -23,7 +23,7 @@ import {
 import { HicLog } from "../../../dm/layers/base/src/index.js";
 
 const ses = new SESClient({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.DYNAMODB_REGION || "us-east-1",
 });
 
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || "noreply@hic-ai.com";

@@ -36,7 +36,7 @@ let cognitoClient = null;
 function getCognitoClient() {
   if (!cognitoClient) {
     cognitoClient = new CognitoIdentityProviderClient({
-      region: process.env.AWS_REGION || "us-east-1",
+      region: process.env.DYNAMODB_REGION || "us-east-1",
     });
   }
   return cognitoClient;

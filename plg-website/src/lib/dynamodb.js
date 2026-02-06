@@ -22,7 +22,7 @@ import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
 
 // Initialize DynamoDB client with HIC logging
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.DYNAMODB_REGION || "us-east-1",
 });
 
 // Service logger for all DynamoDB operations
