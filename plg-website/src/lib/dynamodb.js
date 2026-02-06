@@ -648,6 +648,9 @@ export async function addDeviceActivation({
   await dynamodb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
 
   // Increment activated devices count only for new devices
+
+
+  // Increment activated devices count only for new devices
   await dynamodb.send(
     new UpdateCommand({
       TableName: TABLE_NAME,
@@ -665,6 +668,22 @@ export async function addDeviceActivation({
   );
 
   return item;
+}
+
+/**
+ * Get active devices within concurrent window
+ * @param {string} keygenLicenseId - License ID
+ * @param {number} windowHours - Hours to consider device active (default: 24)
+ * @returns {Promise<Array>} Active devices within window
+ */
+export async function getActiveDevicesInWindow(keygenLicenseId, windowHours = 24) {
+  const devices = await getLicenseDevices(keygenLicenseId);
+  const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+  
+  return devices.filter(device => {
+    const lastActivity = new Date(device.lastSeenAt || device.createdAt);
+    return lastActivity > cutoffTime;
+  });
 }
 
 /**

@@ -37,6 +37,7 @@ import {
   addDeviceActivation,
   removeDeviceActivation,
   updateDeviceLastSeen,
+  getActiveDevicesInWindow,
   getOrgMembers,
   updateOrgMemberStatus,
   getOrgLicenseUsage,
@@ -519,6 +520,103 @@ describe("dynamodb.js", () => {
       expect(command.input.Key.PK).toBe("LICENSE#lic_123");
       expect(command.input.Key.SK).toBe("DEVICE#mach_123");
       expect(command.input.UpdateExpression).toContain("lastSeenAt");
+    });
+  });
+
+  describe("getActiveDevicesInWindow", () => {
+    it("should return only devices active within 24-hour window", async () => {
+      const now = Date.now();
+      const twentyHoursAgo = new Date(now - 20 * 60 * 60 * 1000).toISOString();
+      const thirtyHoursAgo = new Date(now - 30 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValue({
+        Items: [
+          { keygenMachineId: "mach_1", lastSeenAt: twentyHoursAgo },
+          { keygenMachineId: "mach_2", lastSeenAt: thirtyHoursAgo },
+          { keygenMachineId: "mach_3", lastSeenAt: new Date(now).toISOString() },
+        ],
+      });
+
+      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const result = await getActiveDevicesInWindow("lic_123", 24);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].keygenMachineId).toBe("mach_1");
+      expect(result[1].keygenMachineId).toBe("mach_3");
+    });
+
+    it("should filter out devices with lastSeenAt older than window", async () => {
+      const now = Date.now();
+      const fortyEightHoursAgo = new Date(now - 48 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValue({
+        Items: [
+          { keygenMachineId: "mach_old", lastSeenAt: fortyEightHoursAgo },
+        ],
+      });
+
+      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const result = await getActiveDevicesInWindow("lic_123", 24);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it("should use createdAt when lastSeenAt is missing", async () => {
+      const now = Date.now();
+      const tenHoursAgo = new Date(now - 10 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValue({
+        Items: [
+          { keygenMachineId: "mach_new", createdAt: tenHoursAgo },
+        ],
+      });
+
+      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const result = await getActiveDevicesInWindow("lic_123", 24);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].keygenMachineId).toBe("mach_new");
+    });
+
+    it("should accept custom window hours parameter", async () => {
+      const now = Date.now();
+      const tenHoursAgo = new Date(now - 10 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValue({
+        Items: [
+          { keygenMachineId: "mach_1", lastSeenAt: tenHoursAgo },
+        ],
+      });
+
+      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const result = await getActiveDevicesInWindow("lic_123", 8);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it("should return empty array when no devices active", async () => {
+      mockSend.mockResolvedValue({ Items: [] });
+
+      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const result = await getActiveDevicesInWindow("lic_123", 24);
+
+      expect(result).toEqual([]);
+    });
+
+    it("should handle devices at exact window boundary", async () => {
+      const now = Date.now();
+      const exactlyTwentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValue({
+        Items: [
+          { keygenMachineId: "mach_boundary", lastSeenAt: exactlyTwentyFourHoursAgo },
+        ],
+      });
+
+      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const result = await getActiveDevicesInWindow("lic_123", 24);
+
+      expect(result).toHaveLength(0);
     });
   });
 

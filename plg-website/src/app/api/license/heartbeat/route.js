@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { machineHeartbeat, getLicenseMachines } from "@/lib/keygen";
-import { updateDeviceLastSeen, getLicense, recordTrialHeartbeat, getVersionConfig } from "@/lib/dynamodb";
+import { updateDeviceLastSeen, getLicense, recordTrialHeartbeat, getVersionConfig, getActiveDevicesInWindow } from "@/lib/dynamodb";
 import {
   rateLimitMiddleware,
   getRateLimitHeaders,
@@ -216,28 +216,31 @@ export async function POST(request) {
       });
     }
 
-    // Get current machine count for concurrent device info
+    // Get active device count using time-based window
+    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 24;
     let concurrentMachines = 1;
     let maxMachines = license.maxDevices || null;
 
     if (license.keygenLicenseId) {
       try {
-        const machines = await getLicenseMachines(license.keygenLicenseId);
-        concurrentMachines = machines.length;
+        const activeDevices = await getActiveDevicesInWindow(license.keygenLicenseId, windowHours);
+        concurrentMachines = activeDevices.length;
       } catch (err) {
-        // Non-critical - continue with default
-        console.error("Failed to fetch machine count:", err);
+        console.error("Failed to fetch active device count:", err);
       }
     }
 
     // Check if device limit exceeded (for concurrent device enforcement)
-    if (maxMachines && concurrentMachines > maxMachines) {
+    const overLimit = maxMachines && concurrentMachines > maxMachines;
+
+    if (overLimit) {
       return NextResponse.json({
-        valid: false,
-        status: "device_limit_exceeded",
-        reason: `Maximum ${maxMachines} devices allowed`,
+        valid: true,
+        status: "over_limit",
+        reason: `You're using ${concurrentMachines} of ${maxMachines} allowed devices`,
         concurrentMachines,
         maxMachines,
+        message: "Consider upgrading your plan for more concurrent devices.",
       });
     }
 
@@ -253,10 +256,14 @@ export async function POST(request) {
     return NextResponse.json(
       {
         valid: true,
-        status: "active",
+        status: overLimit ? "over_limit" : "active",
         reason: "Heartbeat successful",
         concurrentMachines,
         maxMachines,
+        overLimit: overLimit,
+        message: overLimit
+          ? `You're using ${concurrentMachines} of ${maxMachines} allowed devices. Consider upgrading.`
+          : null,
         nextHeartbeat: 900,
         // Auto-update fields (B2)
         latestVersion: versionConfig?.latestVersion || null,

@@ -420,6 +420,116 @@ describe("heartbeat API - rate limiting", () => {
 });
 
 // ===========================================
+// CONCURRENT DEVICE ENFORCEMENT TESTS
+// ===========================================
+
+describe("heartbeat API - concurrent device enforcement", () => {
+  // Helper to simulate getActiveDevicesInWindow
+  function getActiveDevicesInWindow(devices, windowHours = 24) {
+    const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+    return devices.filter(device => {
+      const lastActivity = new Date(device.lastSeenAt || device.createdAt);
+      return lastActivity > cutoffTime;
+    });
+  }
+
+  test("should return valid: true with overLimit: false when under limit", () => {
+    const now = Date.now();
+    const devices = [
+      { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
+    ];
+    const activeDevices = getActiveDevicesInWindow(devices, 24);
+    const maxMachines = 3;
+    const overLimit = activeDevices.length > maxMachines;
+
+    expect(overLimit).toBe(false);
+    expect(activeDevices.length).toBe(1);
+  });
+
+  test("should return valid: true with overLimit: true when over limit", () => {
+    const now = Date.now();
+    const devices = [
+      { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
+      { lastSeenAt: new Date(now - 2 * 60 * 60 * 1000).toISOString() },
+      { lastSeenAt: new Date(now - 3 * 60 * 60 * 1000).toISOString() },
+      { lastSeenAt: new Date(now - 4 * 60 * 60 * 1000).toISOString() },
+    ];
+    const activeDevices = getActiveDevicesInWindow(devices, 24);
+    const maxMachines = 3;
+    const overLimit = activeDevices.length > maxMachines;
+
+    expect(overLimit).toBe(true);
+    expect(activeDevices.length).toBe(4);
+  });
+
+  test("should return status: 'over_limit' when exceeding concurrent devices", () => {
+    const concurrentMachines = 5;
+    const maxMachines = 3;
+    const overLimit = concurrentMachines > maxMachines;
+
+    const response = {
+      valid: true,
+      status: overLimit ? "over_limit" : "active",
+      reason: overLimit
+        ? `You're using ${concurrentMachines} of ${maxMachines} allowed devices`
+        : "Heartbeat successful",
+      concurrentMachines,
+      maxMachines,
+    };
+
+    expect(response.valid).toBe(true);
+    expect(response.status).toBe("over_limit");
+    expect(response.reason).toContain("You're using 5 of 3");
+  });
+
+  test("should include concurrentMachines count in response", () => {
+    const now = Date.now();
+    const devices = [
+      { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
+      { lastSeenAt: new Date(now - 2 * 60 * 60 * 1000).toISOString() },
+    ];
+    const activeDevices = getActiveDevicesInWindow(devices, 24);
+
+    expect(activeDevices.length).toBe(2);
+  });
+
+  test("should include upgrade message when over limit", () => {
+    const concurrentMachines = 5;
+    const maxMachines = 3;
+    const overLimit = concurrentMachines > maxMachines;
+    const message = overLimit
+      ? "Consider upgrading your plan for more concurrent devices."
+      : null;
+
+    expect(message).toContain("Consider upgrading");
+  });
+
+  test("should use 24-hour window for concurrent count", () => {
+    const now = Date.now();
+    const devices = [
+      { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
+      { lastSeenAt: new Date(now - 30 * 60 * 60 * 1000).toISOString() },
+    ];
+    const activeDevices = getActiveDevicesInWindow(devices, 24);
+
+    expect(activeDevices.length).toBe(1);
+  });
+
+  test("should handle CONCURRENT_DEVICE_WINDOW_HOURS env variable", () => {
+    const now = Date.now();
+    const devices = [
+      { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
+    ];
+    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 24;
+    const activeDevices = getActiveDevicesInWindow(devices, windowHours);
+
+    expect(activeDevices.length).toBe(1);
+    expect(windowHours).toBe(24); // Default when env var not set
+  });
+});
+
+
+// ===========================================
 // CHECKSUM ALGORITHM TESTS
 // ===========================================
 

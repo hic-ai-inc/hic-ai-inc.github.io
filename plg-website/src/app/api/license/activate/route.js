@@ -14,6 +14,7 @@ import { validateLicense, activateDevice, getLicense, getLicenseMachines } from 
 import {
   addDeviceActivation,
   getLicense as getDynamoLicense,
+  getActiveDevicesInWindow,
 } from "@/lib/dynamodb";
 
 export async function POST(request) {
@@ -93,25 +94,10 @@ export async function POST(request) {
     // Get full license details
     const license = await getLicense(validation.license.id);
 
-    // Check if device limit reached (if maxMachines is set)
-    if (license.maxMachines) {
-      const dynamoLicense = await getDynamoLicense(license.id);
-      if (
-        dynamoLicense &&
-        dynamoLicense.activatedDevices >= license.maxMachines
-      ) {
-        return NextResponse.json(
-          {
-            error: "Device limit reached",
-            code: "DEVICE_LIMIT_REACHED",
-            detail: `Maximum ${license.maxMachines} devices allowed. Please deactivate a device first.`,
-            maxDevices: license.maxMachines,
-            activatedDevices: dynamoLicense.activatedDevices,
-          },
-          { status: 403 },
-        );
-      }
-    }
+    // Check concurrent device count (24-hour window)
+    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 24;
+    const activeDevices = await getActiveDevicesInWindow(license.id, windowHours);
+    const overLimit = license.maxMachines && activeDevices.length >= license.maxMachines;
 
     // Activate device with Keygen
     const machine = await activateDevice({
@@ -133,14 +119,8 @@ export async function POST(request) {
       platform: machine.platform,
     });
 
-    // Get current device count after activation
-    let deviceCount = 1;
-    try {
-      const machines = await getLicenseMachines(license.id);
-      deviceCount = machines.length;
-    } catch (err) {
-      console.error("Failed to get machine count:", err);
-    }
+    // Get current device count after activation (time-based)
+    let deviceCount = activeDevices.length + 1;
 
     return NextResponse.json({
       success: true,
@@ -148,6 +128,10 @@ export async function POST(request) {
       activationId: machine.id,
       deviceCount,
       maxDevices: license.maxMachines,
+      overLimit: overLimit,
+      message: overLimit
+        ? `You're using ${deviceCount} of ${license.maxMachines} allowed devices. Consider upgrading for more concurrent devices.`
+        : null,
       machine: {
         id: machine.id,
         name: machine.name,

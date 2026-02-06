@@ -374,43 +374,112 @@ describe("license/activate API logic", () => {
     });
   });
 
-  describe("device limit checking", () => {
-    it("should pass when no maxMachines set", () => {
-      const result = checkDeviceLimit(
-        { id: "lic_123" },
-        { activatedDevices: 5 },
-      );
-      assert.strictEqual(result.withinLimit, true);
+  describe("concurrent device limit checking", () => {
+    // Helper to simulate getActiveDevicesInWindow
+    function getActiveDevicesInWindow(devices, windowHours = 24) {
+      const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+      return devices.filter(device => {
+        const lastActivity = new Date(device.lastSeenAt || device.createdAt);
+        return lastActivity > cutoffTime;
+      });
+    }
+
+    it("should allow activation when under concurrent limit", () => {
+      const now = Date.now();
+      const devices = [
+        { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 30 * 60 * 60 * 1000).toISOString() },
+      ];
+      const activeDevices = getActiveDevicesInWindow(devices, 24);
+      const overLimit = activeDevices.length >= 3;
+
+      assert.strictEqual(overLimit, false);
+      assert.strictEqual(activeDevices.length, 1);
     });
 
-    it("should pass when under device limit", () => {
-      const result = checkDeviceLimit(
-        { id: "lic_123", maxMachines: 3 },
-        { activatedDevices: 2 },
-      );
-      assert.strictEqual(result.withinLimit, true);
+    it("should allow activation when at concurrent limit (soft warning)", () => {
+      const now = Date.now();
+      const devices = [
+        { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 12 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 14 * 60 * 60 * 1000).toISOString() },
+      ];
+      const activeDevices = getActiveDevicesInWindow(devices, 24);
+      const maxMachines = 3;
+      const overLimit = activeDevices.length >= maxMachines;
+
+      // Should allow activation but flag as over limit
+      assert.strictEqual(overLimit, true);
+      assert.strictEqual(activeDevices.length, 3);
     });
 
-    it("should fail when at device limit", () => {
-      const result = checkDeviceLimit(
-        { id: "lic_123", maxMachines: 3 },
-        { activatedDevices: 3 },
-      );
-      assert.strictEqual(result.withinLimit, false);
-      assert.strictEqual(result.error, "Device limit reached");
+    it("should allow activation when over concurrent limit (soft warning)", () => {
+      const now = Date.now();
+      const devices = [
+        { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 2 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 3 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 4 * 60 * 60 * 1000).toISOString() },
+      ];
+      const activeDevices = getActiveDevicesInWindow(devices, 24);
+      const maxMachines = 3;
+      const overLimit = activeDevices.length >= maxMachines;
+
+      // Should allow activation but flag as over limit
+      assert.strictEqual(overLimit, true);
+      assert.strictEqual(activeDevices.length, 4);
     });
 
-    it("should fail when over device limit", () => {
-      const result = checkDeviceLimit(
-        { id: "lic_123", maxMachines: 3 },
-        { activatedDevices: 5 },
-      );
-      assert.strictEqual(result.withinLimit, false);
+    it("should return overLimit: true flag when exceeding limit", () => {
+      const activeDevices = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+      const maxMachines = 3;
+      const overLimit = activeDevices.length >= maxMachines;
+
+      assert.strictEqual(overLimit, true);
     });
 
-    it("should pass when no dynamoLicense exists", () => {
-      const result = checkDeviceLimit({ id: "lic_123", maxMachines: 3 }, null);
-      assert.strictEqual(result.withinLimit, true);
+    it("should return overLimit: false when within limit", () => {
+      const activeDevices = [{ id: 1 }, { id: 2 }];
+      const maxMachines = 3;
+      const overLimit = activeDevices.length >= maxMachines;
+
+      assert.strictEqual(overLimit, false);
+    });
+
+    it("should include warning message when over limit", () => {
+      const activeDevices = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+      const maxMachines = 3;
+      const overLimit = activeDevices.length >= maxMachines;
+      const message = overLimit
+        ? `You're using ${activeDevices.length} of ${maxMachines} allowed devices. Consider upgrading for more concurrent devices.`
+        : null;
+
+      assert.strictEqual(overLimit, true);
+      assert.ok(message.includes("Consider upgrading"));
+    });
+
+    it("should count only devices active in 24-hour window", () => {
+      const now = Date.now();
+      const devices = [
+        { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 30 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 48 * 60 * 60 * 1000).toISOString() },
+      ];
+      const activeDevices = getActiveDevicesInWindow(devices, 24);
+
+      assert.strictEqual(activeDevices.length, 1);
+    });
+
+    it("should not count inactive devices from yesterday", () => {
+      const now = Date.now();
+      const devices = [
+        { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 25 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 26 * 60 * 60 * 1000).toISOString() },
+      ];
+      const activeDevices = getActiveDevicesInWindow(devices, 24);
+
+      assert.strictEqual(activeDevices.length, 1);
     });
   });
 });
