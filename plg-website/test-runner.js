@@ -16,7 +16,7 @@
 
 import { run } from "node:test";
 import { spec } from "node:test/reporters";
-import { glob } from "glob";
+import { glob } from "node:fs/promises";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 
@@ -118,7 +118,10 @@ async function findTestFiles(options) {
   }
 
   const pattern = `${searchRoot}/**/*.test.js`;
-  let files = await glob(pattern);
+  let files = [];
+  for await (const file of glob(pattern)) {
+    files.push(file);
+  }
 
   if (options.pattern) {
     files = files.filter((f) =>
