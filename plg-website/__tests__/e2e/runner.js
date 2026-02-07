@@ -16,8 +16,8 @@
 
 import { run } from "node:test";
 import { spec } from "node:test/reporters";
-import { glob } from "glob";
-import { dirname, join, resolve } from "path";
+import { readdir } from "node:fs/promises";
+import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 import {
@@ -175,42 +175,40 @@ Examples:
 // ============================================================================
 
 async function discoverTestFiles(options) {
-  const patterns = [];
-
-  // Use forward slashes for glob (works on Windows too)
-  const baseDir = __dirname.replace(/\\/g, '/');
-
-  if (options.file) {
-    // Specific file by pattern - search in both directories
-    const filePattern = options.file.toLowerCase();
-    patterns.push(`${baseDir}/journeys/*${filePattern}*.test.js`);
-    patterns.push(`${baseDir}/contracts/*${filePattern}*.test.js`);
-  } else if (options.journey) {
-    // Specific journey
-    const journeyId = options.journey.toLowerCase();
-    patterns.push(`${baseDir}/journeys/${journeyId}-*.test.js`);
-    patterns.push(`${baseDir}/journeys/*${journeyId}*.test.js`);
-  } else if (options.contract) {
-    // Specific contract
-    patterns.push(`${baseDir}/contracts/*${options.contract}*.test.js`);
-  } else if (options.all) {
-    // All tests
-    patterns.push(`${baseDir}/journeys/*.test.js`);
-    patterns.push(`${baseDir}/contracts/*.test.js`);
-  } else {
-    // Default: run journeys only (contracts are more detailed)
-    patterns.push(`${baseDir}/journeys/*.test.js`);
-  }
-
   const files = [];
-  for (const pattern of patterns) {
-    const matches = await glob(pattern, { absolute: true });
-    files.push(...matches);
+
+  // Determine which directories to scan
+  const dirsToScan = [];
+  if (options.journey || options.file || (!options.contract && !options.all)) {
+    dirsToScan.push(join(__dirname, "journeys"));
+  }
+  if (options.contract || options.file || options.all) {
+    dirsToScan.push(join(__dirname, "contracts"));
   }
 
-  // Deduplicate and sort
-  const unique = [...new Set(files)].sort();
-  return unique;
+  // Scan directories
+  for (const dir of dirsToScan) {
+    try {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith(".test.js")) continue;
+
+        const fileName = entry.name.toLowerCase();
+        const filePath = join(dir, entry.name);
+
+        // Apply filters
+        if (options.file && !fileName.includes(options.file.toLowerCase())) continue;
+        if (options.journey && !fileName.startsWith(options.journey.toLowerCase())) continue;
+        if (options.contract && !fileName.includes(options.contract.toLowerCase())) continue;
+
+        files.push(filePath);
+      }
+    } catch (error) {
+      // Directory doesn't exist, skip
+    }
+  }
+
+  return files.sort();
 }
 
 // ============================================================================
