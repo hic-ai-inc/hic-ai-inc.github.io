@@ -1377,7 +1377,7 @@ function generateInviteToken() {
  * @param {string} invitedBy - User ID of inviter
  * @returns {Promise<Object>} Created invite record
  */
-export async function createOrgInvite(orgId, email, role, invitedBy) {
+export async function createOrgInvite(orgId, email, role, invitedBy, metadata = {}) {
   const logger = createLogger("createOrgInvite");
   const normalizedEmail = email.toLowerCase();
   const inviteId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -1404,6 +1404,8 @@ export async function createOrgInvite(orgId, email, role, invitedBy) {
       invitedBy,
       createdAt: now,
       expiresAt,
+      eventType: "TEAM_INVITE_CREATED",
+      ...metadata,
     };
 
     await dynamodb.send(

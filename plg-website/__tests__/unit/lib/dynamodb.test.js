@@ -50,6 +50,7 @@ import {
   getOrganization,
   getOrganizationByStripeCustomer,
   getUserOrgMembership,
+  createOrgInvite,
 } from "../../../src/lib/dynamodb.js";
 
 describe("dynamodb.js", () => {
@@ -700,6 +701,41 @@ describe("dynamodb.js", () => {
       expect(result.seatsUsed).toBe(0);
       expect(result.seatsAvailable).toBe(0);
       expect(result.utilizationPercent).toBe(0);
+    });
+  });
+
+
+  describe("createOrgInvite", () => {
+    it("should include eventType field in created invite", async () => {
+      mockSend.mockResolvedValueOnce({}); // PutCommand success
+
+      const result = await createOrgInvite("org_123", "user@example.com", "admin", "inviter_123");
+
+      expect(result.eventType).toBe("TEAM_INVITE_CREATED");
+      expect(result.email).toBe("user@example.com");
+      expect(result.role).toBe("admin");
+    });
+
+    it("should include metadata fields when provided", async () => {
+      mockSend.mockResolvedValueOnce({}); // PutCommand success
+
+      const result = await createOrgInvite("org_123", "user@example.com", "member", "inviter_123", {
+        organizationName: "Test Corp",
+        inviterName: "Test User"
+      });
+
+      expect(result.organizationName).toBe("Test Corp");
+      expect(result.inviterName).toBe("Test User");
+      expect(result.eventType).toBe("TEAM_INVITE_CREATED");
+    });
+
+    it("should accept metadata parameter with default empty object", async () => {
+      mockSend.mockResolvedValueOnce({}); // PutCommand success
+
+      const result = await createOrgInvite("org_123", "user@example.com", "admin", "inviter_123");
+
+      expect(result).toBeDefined();
+      expect(result.eventType).toBe("TEAM_INVITE_CREATED");
     });
   });
 

@@ -820,4 +820,5 @@ export const EVENT_TYPE_TO_TEMPLATE = {
   SUBSCRIPTION_REACTIVATED: "reactivation",
   PAYMENT_FAILED: "paymentFailed",
   TRIAL_ENDING: "trialEnding",
+  TEAM_INVITE_CREATED: "enterpriseInvite",
 };

@@ -387,5 +387,99 @@ describe("Email Sender Lambda", async () => {
       expect(maskedEmail).toBe("te***@example.com");
       expect(maskedEmail).not.toContain("testuser");
     });
+
+  });
+
+  describe("TEAM_INVITE_CREATED event", () => {
+    test("should extract inviterName and inviteToken from newImage", async () => {
+      sesSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
+          return {
+            VerificationAttributes: {
+              "invitee@example.com": { VerificationStatus: "Success" }
+            }
+          };
+        }
+        return {};
+      };
+
+      const event = {
+        Records: [
+          createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {
+            organizationName: { S: "Test Corp" },
+            inviterName: { S: "Test User" },
+            token: { S: "invite_token_123" }
+          })
+        ]
+      };
+
+      const result = await handler(event);
+
+      expect(result.success).toBe(1);
+      expect(sesCalls.length).toBeGreaterThan(0);
+      
+      const sendEmailCall = sesCalls.find(c => c.command === "SendEmailCommand");
+      expect(sendEmailCall).toBeDefined();
+      expect(sendEmailCall.input.Message.Body.Html.Data).toContain("Test Corp");
+      expect(sendEmailCall.input.Message.Body.Html.Data).toContain("Test User");
+    });
+
+    test("should process TEAM_INVITE_CREATED event type", async () => {
+      sesSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
+          return {
+            VerificationAttributes: {
+              "invitee@example.com": { VerificationStatus: "Success" }
+            }
+          };
+        }
+        return {};
+      };
+
+      const event = {
+        Records: [
+          createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {
+            organizationName: { S: "Test Corp" },
+            inviterName: { S: "Test User" },
+            token: { S: "invite_token_123" }
+          })
+        ]
+      };
+
+      const result = await handler(event);
+
+      expect(result.success).toBe(1);
+      expect(result.failed).toBe(0);
+    });
+
+    test("should include inviteToken in template data", async () => {
+      sesSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
+          return {
+            VerificationAttributes: {
+              "invitee@example.com": { VerificationStatus: "Success" }
+            }
+          };
+        }
+        return {};
+      };
+
+      const event = {
+        Records: [
+          createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {
+            token: { S: "invite_token_abc123" }
+          })
+        ]
+      };
+
+      const result = await handler(event);
+
+      expect(result.success).toBe(1);
+      
+      const sendEmailCall = sesCalls.find(c => c.command === "SendEmailCommand");
+      expect(sendEmailCall).toBeDefined();
+      expect(sendEmailCall.input.Message.Body.Html.Data).toContain("invite_token_abc123");
+    });
+
   });
 });

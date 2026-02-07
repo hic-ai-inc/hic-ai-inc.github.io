@@ -24,6 +24,9 @@ Parameters:
     Default: dev
     Description: Deployment environment
 
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
   TemplatesBucket:
     Type: String
     Description: S3 bucket containing nested CloudFormation templates
@@ -184,7 +187,10 @@ Resources:
         CustomerUpdateRoleArn: !GetAtt IAMStack.Outputs.CustomerUpdateRoleArn
         ScheduledTasksRoleArn: !GetAtt IAMStack.Outputs.ScheduledTasksRoleArn
         CognitoPostConfirmationRoleArn: !GetAtt IAMStack.Outputs.CognitoPostConfirmationRoleArn
-        SESFromEmail: !Sub "noreply@${Environment}.${EmailDomain}"
+        SESFromEmail: !If
+          - IsProduction
+          - !Sub "noreply@${EmailDomain}"
+          - !Sub "noreply@${Environment}.${EmailDomain}"
         VpcSubnetIds: !Join [",", !Ref VpcSubnetIds]
         VpcSecurityGroupIds: !Join [",", !Ref VpcSecurityGroupIds]
         LambdaCodeBucket: !Ref LambdaCodeBucket

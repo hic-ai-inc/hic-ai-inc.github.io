@@ -162,6 +162,11 @@ describe("Email Templates", () => {
       expect(EVENT_TYPE_TO_TEMPLATE.TRIAL_ENDING).toBe("trialEnding");
     });
 
+    test("should map TEAM_INVITE_CREATED to enterpriseInvite", () => {
+      expect(EVENT_TYPE_TO_TEMPLATE.TEAM_INVITE_CREATED).toBe("enterpriseInvite");
+    });
+
+
     test("all mappings should reference valid templates", () => {
       Object.values(EVENT_TYPE_TO_TEMPLATE).forEach((templateName) => {
         expect(TEMPLATE_NAMES).toContain(templateName);

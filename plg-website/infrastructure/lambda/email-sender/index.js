@@ -133,6 +133,8 @@ export const handler = async (event) => {
         attemptCount: getField(newImage, "attemptCount"),
         retryDate: getField(newImage, "retryDate"),
         organizationName: getField(newImage, "organizationName"),
+        inviterName: getField(newImage, "inviterName"),
+        inviteToken: getField(newImage, "token"),
         daysRemaining: getField(newImage, "daysRemaining"),
       };
 

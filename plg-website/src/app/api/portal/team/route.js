@@ -53,6 +53,7 @@ import {
   getUserOrgMembership,
   resendOrgInvite,
   getOrganizationByStripeCustomer,
+  getOrganization,
 } from "@/lib/dynamodb";
 import { sendEnterpriseInviteEmail } from "@/lib/ses";
 
@@ -264,28 +265,17 @@ export async function POST(request) {
           );
         }
 
-        // Create invite
-        const invite = await createOrgInvite(orgId, email, role, tokenPayload.sub);
+        // Get org and inviter info for email metadata
+        const org = await getOrganization(orgId);
+        const inviter = await getCustomerByUserId(tokenPayload.sub);
+        const inviterName = inviter?.name || tokenPayload.name || tokenPayload.email || "Your team";
+        const organizationName = org?.name || inviter?.organizationName || "Your organization";
 
-        // Send invite email
-        try {
-          // Get inviter info for the email
-          const inviter = await getCustomerByUserId(tokenPayload.sub);
-          const inviterName =
-            inviter?.name || tokenPayload.name || tokenPayload.email || "Your team";
-          const organizationName =
-            inviter?.organizationName || "Your organization";
-
-          await sendEnterpriseInviteEmail(
-            email,
-            organizationName,
-            inviterName,
-            invite.token,
-          );
-        } catch (emailError) {
-          // Log but don't fail the invite creation
-          console.error("Failed to send invite email:", emailError);
-        }
+        // Create invite with email metadata (event-driven flow handles email)
+        const invite = await createOrgInvite(orgId, email, role, tokenPayload.sub, {
+          organizationName,
+          inviterName,
+        });
 
         return NextResponse.json({
           success: true,
