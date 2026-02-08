@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/cognito-provider";
@@ -10,13 +10,15 @@ export default function AcceptInvitePage() {
   const router = useRouter();
   const token = params.token;
 
-  const { user, isLoading: authLoading, isAuthenticated, login } = useAuth();
+  const { isLoading: authLoading, isAuthenticated, login } = useAuth();
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [accepting, setAccepting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const acceptAttempted = useRef(false);
 
+  // Fetch invite details (public endpoint, no auth needed)
   useEffect(() => {
     async function fetchInvite() {
       try {
@@ -41,16 +43,10 @@ export default function AcceptInvitePage() {
     }
   }, [token]);
 
-  // Redirect to sign-in, preserving the invite URL as returnTo
-  const handleSignIn = () => {
-    login(`/invite/${token}`);
-  };
-
-  const handleAccept = async () => {
-    if (!isAuthenticated) {
-      handleSignIn();
-      return;
-    }
+  // Accept the invite via API — stable callback for useEffect dependency
+  const acceptInvite = useCallback(async () => {
+    if (acceptAttempted.current) return;
+    acceptAttempted.current = true;
 
     setAccepting(true);
     setError(null);
@@ -63,49 +59,73 @@ export default function AcceptInvitePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        // If session expired mid-flow, redirect to sign-in
         if (response.status === 401) {
-          handleSignIn();
+          // Session not established on server yet — reset and let user retry
+          acceptAttempted.current = false;
+          setAccepting(false);
+          setError("Session not ready. Please click the button to try again.");
           return;
         }
         setError(data.error || "Failed to accept invite");
+        setAccepting(false);
         return;
       }
 
       setSuccess(true);
-      // Redirect to team page after short delay
-      setTimeout(() => {
-        router.push(data.redirectTo || "/portal/team");
-      }, 2000);
+      // Redirect immediately — no delay
+      router.push(data.redirectTo || "/portal/team");
     } catch (err) {
       setError("Failed to accept invite");
-    } finally {
       setAccepting(false);
+      acceptAttempted.current = false;
     }
+  }, [token, router]);
+
+  // Auto-accept: once authenticated AND invite loaded, accept immediately.
+  // This fires after returning from Cognito sign-in redirect.
+  useEffect(() => {
+    if (
+      isAuthenticated &&
+      invite &&
+      !acceptAttempted.current &&
+      !success &&
+      !error
+    ) {
+      acceptInvite();
+    }
+  }, [isAuthenticated, invite, success, error, acceptInvite]);
+
+  // Redirect to Cognito sign-in, preserving invite URL as returnTo
+  const handleSignIn = () => {
+    login(`/invite/${token}`);
   };
 
-  // Auto-accept after returning from sign-in (user is authenticated and invite is loaded)
-  const [autoAcceptAttempted, setAutoAcceptAttempted] = useState(false);
-  useEffect(() => {
-    if (isAuthenticated && invite && !autoAcceptAttempted && !success && !accepting) {
-      setAutoAcceptAttempted(true);
-      handleAccept();
-    }
-  }, [isAuthenticated, invite, autoAcceptAttempted, success, accepting]);
+  // Manual retry for authenticated users if auto-accept failed
+  const handleRetryAccept = () => {
+    acceptAttempted.current = false;
+    setError(null);
+    acceptInvite();
+  };
 
-  // Loading state (wait for both invite data and auth state)
-  if (loading || authLoading) {
+  // ————————————————————————————————————————————————————————————————
+  // Render states
+  // ————————————————————————————————————————————————————————————————
+
+  // Loading auth or invite data, or actively accepting — show spinner
+  if (loading || authLoading || accepting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading invite details...</p>
+          <p className="mt-4 text-gray-600">
+            {accepting ? "Joining the team..." : "Loading invite details..."}
+          </p>
         </div>
       </div>
     );
   }
 
-  // Error state
+  // Error with no invite data — fatal
   if (error && !invite) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -140,7 +160,7 @@ export default function AcceptInvitePage() {
     );
   }
 
-  // Success state
+  // Success — brief confirmation before redirect
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -174,7 +194,48 @@ export default function AcceptInvitePage() {
     );
   }
 
-  // Invite details
+  // ————————————————————————————————————————————————————————————————
+  // Authenticated user with an error (e.g., 401 or accept failure)
+  // Show error + retry — they should NOT have to re-accept
+  // ————————————————————————————————————————————————————————————————
+  if (isAuthenticated && error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg
+              className="w-8 h-8 text-yellow-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">
+            Something went wrong
+          </h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={handleRetryAccept}
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ————————————————————————————————————————————————————————————————
+  // Unauthenticated user — show invite details + Sign in to Accept
+  // Authenticated users never reach here (auto-accept fires above)
+  // ————————————————————————————————————————————————————————————————
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
@@ -225,60 +286,23 @@ export default function AcceptInvitePage() {
           </dl>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-4">
-            {error}
-          </div>
-        )}
-
         <div className="space-y-3">
           <button
-            onClick={isAuthenticated ? handleAccept : handleSignIn}
-            disabled={accepting}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleSignIn}
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors"
           >
-            {accepting ? (
-              <span className="flex items-center justify-center">
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Joining...
-              </span>
-            ) : isAuthenticated ? (
-              "Accept Invite"
-            ) : (
-              "Sign in to Accept"
-            )}
+            Sign in to Accept
           </button>
 
-          {!isAuthenticated && (
-            <p className="text-sm text-gray-500 text-center">
-              Don&apos;t have an account?{" "}
-              <button
-                onClick={handleSignIn}
-                className="text-blue-600 hover:underline"
-              >
-                Sign up here
-              </button>
-            </p>
-          )}
+          <p className="text-sm text-gray-500 text-center">
+            Don&apos;t have an account?{" "}
+            <button
+              onClick={handleSignIn}
+              className="text-blue-600 hover:underline"
+            >
+              Sign up here
+            </button>
+          </p>
 
           <Link
             href="/"
