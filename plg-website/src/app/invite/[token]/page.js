@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/cognito-provider";
+import { getSession } from "@/lib/cognito";
 
 export default function AcceptInvitePage() {
   const params = useParams();
@@ -52,8 +53,19 @@ export default function AcceptInvitePage() {
     setError(null);
 
     try {
+      const session = await getSession();
+      if (!session?.idToken) {
+        acceptAttempted.current = false;
+        setAccepting(false);
+        setError("Please sign in to accept this invite.");
+        return;
+      }
+
       const response = await fetch(`/api/portal/invite/${token}`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.idToken}`,
+        },
       });
 
       const data = await response.json();

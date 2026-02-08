@@ -264,6 +264,16 @@ export async function POST(request) {
           );
         }
 
+        // Check if invitee already has a Mouse account with an active license
+        const existingCustomer = await getCustomerByEmail(email);
+        if (existingCustomer?.keygenLicenseId || existingCustomer?.subscriptionStatus === "active") {
+          return NextResponse.json(
+            { error: "This individual already has a Mouse account. Please contact support for account merging." },
+            { status: 400 },
+          );
+        }
+
+
         // Get org and inviter info for email metadata
         const org = await getOrganization(orgId);
         const inviter = await getCustomerByUserId(tokenPayload.sub);

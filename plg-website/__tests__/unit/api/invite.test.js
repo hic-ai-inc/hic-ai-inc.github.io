@@ -156,11 +156,26 @@ describe("Invite API - GET Validation", () => {
 // ============================================================================
 
 /**
- * Extracted from route.js POST handler.
- * Validates session, invite, and email match before accepting.
+ * Simulates JWT token payload from CognitoJwtVerifier.
+ * The actual route.js now uses verifyAuthToken() which returns a JWT payload
+ * (with .sub, .email, etc.) instead of getSession() which returned .user wrapper.
  */
-function validateInviteAcceptance(session, token, invite, customer) {
-  if (!session?.user) {
+function createMockTokenPayload(overrides = {}) {
+  return {
+    sub: "cognito|user123",
+    email: "invited@example.com",
+    email_verified: true,
+    ...overrides,
+  };
+}
+
+/**
+ * Extracted from route.js POST handler (updated to JWT auth pattern).
+ * Validates token payload, invite, and email match before accepting.
+ * Note: orgId check was removed — invitees ARE joining this org.
+ */
+function validateInviteAcceptance(tokenPayload, token, invite) {
+  if (!tokenPayload) {
     return { error: "Please sign in to accept this invite", status: 401 };
   }
 
@@ -187,7 +202,7 @@ function validateInviteAcceptance(session, token, invite, customer) {
   }
 
   // Verify email matches (case-insensitive)
-  const userEmail = session.user.email?.toLowerCase();
+  const userEmail = tokenPayload.email?.toLowerCase();
   const inviteEmail = invite.email?.toLowerCase();
 
   if (userEmail !== inviteEmail) {
@@ -197,113 +212,97 @@ function validateInviteAcceptance(session, token, invite, customer) {
     };
   }
 
-  // Check if user is already in an organization
-  if (customer?.orgId) {
-    return {
-      error:
-        "You are already a member of an organization. Please leave your current organization first.",
-      status: 400,
-    };
-  }
-
   return {
     valid: true,
-    userId: session.user.sub,
+    userId: tokenPayload.sub,
     status: 200,
   };
 }
 
 describe("Invite API - POST Acceptance Validation", () => {
-  it("returns 401 when no session", () => {
+  it("returns 401 when no token payload (unauthenticated)", () => {
     const invite = createMockInvite();
-    const result = validateInviteAcceptance(null, "token", invite, null);
+    const result = validateInviteAcceptance(null, "token", invite);
     assert.strictEqual(result.status, 401);
     assert.match(result.error, /sign in/i);
   });
 
-  it("returns 401 when session has no user", () => {
+  it("returns 401 when token payload is undefined", () => {
     const invite = createMockInvite();
-    const result = validateInviteAcceptance({}, "token", invite, null);
+    const result = validateInviteAcceptance(undefined, "token", invite);
     assert.strictEqual(result.status, 401);
   });
 
   it("returns 400 for missing token", () => {
-    const session = createMockSession();
-    const result = validateInviteAcceptance(session, null, null, null);
+    const payload = createMockTokenPayload();
+    const result = validateInviteAcceptance(payload, null, null);
     assert.strictEqual(result.status, 400);
     assert.strictEqual(result.error, "Invalid invite link");
   });
 
   it("returns 404 when invite not found", () => {
-    const session = createMockSession();
-    const result = validateInviteAcceptance(session, "token", null, null);
+    const payload = createMockTokenPayload();
+    const result = validateInviteAcceptance(payload, "token", null);
     assert.strictEqual(result.status, 404);
   });
 
   it("returns 400 for non-pending invite", () => {
-    const session = createMockSession();
+    const payload = createMockTokenPayload();
     const invite = createMockInvite({ status: "accepted" });
-    const result = validateInviteAcceptance(session, "token", invite, null);
+    const result = validateInviteAcceptance(payload, "token", invite);
     assert.strictEqual(result.status, 400);
     assert.match(result.error, /already been used/i);
   });
 
   it("returns 400 for expired invite", () => {
-    const session = createMockSession();
+    const payload = createMockTokenPayload();
     const invite = createMockInvite({ expiresAt: "2020-01-01T00:00:00.000Z" });
-    const result = validateInviteAcceptance(session, "token", invite, null);
+    const result = validateInviteAcceptance(payload, "token", invite);
     assert.strictEqual(result.status, 400);
     assert.match(result.error, /expired/i);
   });
 
   it("returns 403 when email does not match", () => {
-    const session = createMockSession({ email: "different@example.com" });
+    const payload = createMockTokenPayload({ email: "different@example.com" });
     const invite = createMockInvite({ email: "invited@example.com" });
-    const result = validateInviteAcceptance(session, "token", invite, null);
+    const result = validateInviteAcceptance(payload, "token", invite);
     assert.strictEqual(result.status, 403);
     assert.ok(result.error.includes("invited@example.com"));
   });
 
   it("email match is case-insensitive", () => {
-    const session = createMockSession({ email: "INVITED@Example.COM" });
+    const payload = createMockTokenPayload({ email: "INVITED@Example.COM" });
     const invite = createMockInvite({ email: "invited@example.com" });
-    const result = validateInviteAcceptance(session, "token", invite, null);
+    const result = validateInviteAcceptance(payload, "token", invite);
     assert.strictEqual(result.valid, true);
     assert.strictEqual(result.status, 200);
   });
 
-  it("returns 400 when user already in an organization", () => {
-    const session = createMockSession();
+  it("allows acceptance when no customer record exists (new signup)", () => {
+    const payload = createMockTokenPayload();
     const invite = createMockInvite();
-    const customer = { orgId: "org_existing" };
-    const result = validateInviteAcceptance(session, "token", invite, customer);
-    assert.strictEqual(result.status, 400);
-    assert.match(result.error, /already a member/i);
-  });
-
-  it("allows acceptance when customer has no orgId", () => {
-    const session = createMockSession();
-    const invite = createMockInvite();
-    const customer = { email: "invited@example.com" }; // no orgId
-    const result = validateInviteAcceptance(session, "token", invite, customer);
-    assert.strictEqual(result.valid, true);
-    assert.strictEqual(result.status, 200);
-  });
-
-  it("allows acceptance when no customer record exists", () => {
-    const session = createMockSession();
-    const invite = createMockInvite();
-    const result = validateInviteAcceptance(session, "token", invite, null);
+    const result = validateInviteAcceptance(payload, "token", invite);
     assert.strictEqual(result.valid, true);
     assert.strictEqual(result.userId, "cognito|user123");
   });
 
   it("returns the user sub on successful validation", () => {
-    const session = createMockSession({ sub: "cognito|abc999" });
+    const payload = createMockTokenPayload({ sub: "cognito|abc999" });
     const invite = createMockInvite();
-    const result = validateInviteAcceptance(session, "token", invite, null);
+    const result = validateInviteAcceptance(payload, "token", invite);
     assert.strictEqual(result.valid, true);
     assert.strictEqual(result.userId, "cognito|abc999");
+  });
+
+  it("does NOT reject users who are joining an org (orgId check removed)", () => {
+    // Previously the route checked customer?.orgId and rejected.
+    // Now that check is removed — invitees ARE joining this org.
+    // The validateInviteAcceptance function no longer takes a customer param.
+    const payload = createMockTokenPayload();
+    const invite = createMockInvite();
+    const result = validateInviteAcceptance(payload, "token", invite);
+    assert.strictEqual(result.valid, true);
+    assert.strictEqual(result.status, 200);
   });
 });
 
@@ -502,3 +501,103 @@ describe("Invite Page - Accept Auth Guard", () => {
     assert.strictEqual(resolveAcceptAction(true, 200), "success");
   });
 });
+
+// ============================================================================
+// JWT Bearer Auth — Client sends Authorization header
+// ============================================================================
+
+/**
+ * Extracted from page.js acceptInvite callback.
+ * Determines whether the client-side session is ready to make the POST.
+ */
+function canSendAcceptRequest(session) {
+  return Boolean(session?.idToken);
+}
+
+/**
+ * Extracted from page.js acceptInvite callback.
+ * Builds the headers for the invite acceptance POST request.
+ */
+function buildAcceptHeaders(session) {
+  if (!session?.idToken) return {};
+  return { Authorization: `Bearer ${session.idToken}` };
+}
+
+describe("Invite Page - JWT Bearer Auth", () => {
+  it("cannot send accept request without session", () => {
+    assert.strictEqual(canSendAcceptRequest(null), false);
+  });
+
+  it("cannot send accept request without idToken", () => {
+    assert.strictEqual(canSendAcceptRequest({}), false);
+    assert.strictEqual(canSendAcceptRequest({ user: {} }), false);
+  });
+
+  it("can send accept request with valid idToken", () => {
+    assert.strictEqual(canSendAcceptRequest({ idToken: "jwt.token.here" }), true);
+  });
+
+  it("builds Authorization header with Bearer prefix", () => {
+    const headers = buildAcceptHeaders({ idToken: "my-jwt-token" });
+    assert.strictEqual(headers.Authorization, "Bearer my-jwt-token");
+  });
+
+  it("returns empty headers when no idToken", () => {
+    const headers = buildAcceptHeaders(null);
+    assert.deepStrictEqual(headers, {});
+  });
+
+  it("returns empty headers when session has no idToken", () => {
+    const headers = buildAcceptHeaders({ user: {} });
+    assert.deepStrictEqual(headers, {});
+  });
+});
+
+// ============================================================================
+// Server-side JWT Verification — Authorization header parsing
+// ============================================================================
+
+/**
+ * Extracted from route.js verifyAuthToken logic.
+ * Parses Authorization header and extracts the token.
+ */
+function extractBearerToken(authHeader) {
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+  return authHeader.slice(7);
+}
+
+describe("Invite API - JWT Token Extraction", () => {
+  it("extracts token from valid Bearer header", () => {
+    assert.strictEqual(extractBearerToken("Bearer abc123"), "abc123");
+  });
+
+  it("returns null for missing header", () => {
+    assert.strictEqual(extractBearerToken(null), null);
+    assert.strictEqual(extractBearerToken(undefined), null);
+  });
+
+  it("returns null for empty string header", () => {
+    assert.strictEqual(extractBearerToken(""), null);
+  });
+
+  it("returns null for non-Bearer auth scheme", () => {
+    assert.strictEqual(extractBearerToken("Basic abc123"), null);
+  });
+
+  it("returns null for 'Bearer' without space and token", () => {
+    assert.strictEqual(extractBearerToken("Bearertoken"), null);
+  });
+
+  it("handles token with dots (JWT format)", () => {
+    const jwt = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9.signature";
+    assert.strictEqual(extractBearerToken(`Bearer ${jwt}`), jwt);
+  });
+
+  it("handles Bearer with empty token after space", () => {
+    // "Bearer " with just a space — returns empty string (valid parse, verifier will reject)
+    assert.strictEqual(extractBearerToken("Bearer "), "");
+  });
+});
+

@@ -6,14 +6,41 @@
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   getInviteByToken,
   acceptOrgInvite,
-  getCustomerByUserId,
 } from "@/lib/dynamodb";
 // Cognito admin operations for RBAC group assignment
 import { assignInvitedRole } from "@/lib/cognito-admin";
+
+// Cognito JWT verifier for ID tokens
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+  tokenUse: "id",
+  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+});
+
+/**
+ * Verify Cognito ID token from Authorization header
+ */
+async function verifyAuthToken() {
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return await verifier.verify(token);
+  } catch (error) {
+    console.error("[Invite] JWT verification failed:", error.message);
+    return null;
+  }
+}
 
 /**
  * GET - Retrieve invite details for the acceptance page
@@ -75,8 +102,9 @@ export async function GET(request, { params }) {
  */
 export async function POST(request, { params }) {
   try {
-    const session = await getSession();
-    if (!session?.user) {
+    // Verify JWT from Authorization header (client-side auth, same pattern as portal APIs)
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
       return NextResponse.json(
         { error: "Please sign in to accept this invite" },
         { status: 401 },
@@ -118,7 +146,7 @@ export async function POST(request, { params }) {
     }
 
     // Verify email matches (case-insensitive)
-    const userEmail = session.user.email?.toLowerCase();
+    const userEmail = tokenPayload.email?.toLowerCase();
     const inviteEmail = invite.email?.toLowerCase();
 
     if (userEmail !== inviteEmail) {
@@ -130,30 +158,18 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user is already in an organization
-    const customer = await getCustomerByUserId(session.user.sub);
-    if (customer?.orgId) {
-      return NextResponse.json(
-        {
-          error:
-            "You are already a member of an organization. Please leave your current organization first.",
-        },
-        { status: 400 },
-      );
-    }
-
     // Accept the invite (updates DynamoDB org membership)
-    await acceptOrgInvite(token, session.user.sub);
+    await acceptOrgInvite(token, tokenPayload.sub);
 
     // RBAC: Assign Cognito group based on invited role (admin or member)
     // This ensures the user's ID token includes the correct custom:role claim
     try {
-      await assignInvitedRole(session.user.sub, invite.role);
-      console.log(`Assigned ${invite.role} role to ${session.user.sub} via Cognito group`);
+      await assignInvitedRole(tokenPayload.sub, invite.role);
+      console.log(`Assigned ${invite.role} role to ${tokenPayload.sub} via Cognito group`);
     } catch (error) {
       // Log but don't fail the invite accept - DynamoDB membership is the source of truth
       // User might need to re-login to get updated token claims
-      console.error(`Failed to assign Cognito group for ${session.user.sub}:`, error.message);
+      console.error(`Failed to assign Cognito group for ${tokenPayload.sub}:`, error.message);
     }
 
     return NextResponse.json({

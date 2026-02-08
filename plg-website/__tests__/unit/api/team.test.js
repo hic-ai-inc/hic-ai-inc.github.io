@@ -349,6 +349,95 @@ describe("Team API Logic", () => {
     });
   });
 
+  // POST endpoint logic tests - License Holder Guard
+  describe("POST /api/portal/team - License Holder Guard", () => {
+    /**
+     * Extracted from route.js invite case.
+     * Checks if the invitee already has a Mouse account with an active license.
+     * If so, the invite must be rejected to prevent inconsistent license state.
+     */
+    function checkExistingLicense(customer) {
+      if (!customer) return { hasLicense: false };
+      if (customer.keygenLicenseId || customer.subscriptionStatus === "active") {
+        return {
+          hasLicense: true,
+          error: "This individual already has a Mouse account. Please contact support for account merging.",
+        };
+      }
+      return { hasLicense: false };
+    }
+
+    it("allows invite when no customer record exists", () => {
+      const result = checkExistingLicense(null);
+      assert.strictEqual(result.hasLicense, false);
+    });
+
+    it("allows invite when customer has no license", () => {
+      const result = checkExistingLicense({ email: "user@example.com" });
+      assert.strictEqual(result.hasLicense, false);
+    });
+
+    it("allows invite when customer has no active subscription", () => {
+      const result = checkExistingLicense({
+        email: "user@example.com",
+        subscriptionStatus: "cancelled",
+      });
+      assert.strictEqual(result.hasLicense, false);
+    });
+
+    it("rejects invite when customer has a Keygen license ID", () => {
+      const result = checkExistingLicense({
+        email: "user@example.com",
+        keygenLicenseId: "lic_abc123",
+      });
+      assert.strictEqual(result.hasLicense, true);
+      assert.match(result.error, /already has a Mouse account/i);
+    });
+
+    it("rejects invite when customer has active subscription", () => {
+      const result = checkExistingLicense({
+        email: "user@example.com",
+        subscriptionStatus: "active",
+      });
+      assert.strictEqual(result.hasLicense, true);
+      assert.match(result.error, /already has a Mouse account/i);
+    });
+
+    it("rejects invite when customer has both license and active subscription", () => {
+      const result = checkExistingLicense({
+        email: "user@example.com",
+        keygenLicenseId: "lic_abc123",
+        subscriptionStatus: "active",
+      });
+      assert.strictEqual(result.hasLicense, true);
+    });
+
+    it("includes support contact guidance in error message", () => {
+      const result = checkExistingLicense({
+        keygenLicenseId: "lic_abc123",
+      });
+      assert.match(result.error, /contact support/i);
+    });
+
+    it("allows invite when subscription is past_due (not active)", () => {
+      const result = checkExistingLicense({
+        email: "user@example.com",
+        subscriptionStatus: "past_due",
+      });
+      assert.strictEqual(result.hasLicense, false);
+    });
+
+    it("allows invite when subscription is trialing (not active)", () => {
+      const result = checkExistingLicense({
+        email: "user@example.com",
+        subscriptionStatus: "trialing",
+      });
+      assert.strictEqual(result.hasLicense, false);
+    });
+  });
+
+
+
   // POST endpoint logic tests - Update Status
   describe("POST /api/portal/team - Update Status", () => {
     function validateStatusUpdate(memberId, status) {
