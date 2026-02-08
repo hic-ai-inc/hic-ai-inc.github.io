@@ -399,10 +399,10 @@ export default function TeamManagement({ initialUserId }) {
           </div>
           <p className="mt-2 text-sm text-slate-grey">
             {usage.availableSeats} seats available.{" "}
-            {invites.length > 0 && (
+            {invites.filter(i => i.status === "pending").length > 0 && (
               <span className="text-slate-grey">
-                ({invites.length} pending invite
-                {invites.length !== 1 ? "s" : ""}){" "}
+                ({invites.filter(i => i.status === "pending").length} pending invite
+                {invites.filter(i => i.status === "pending").length !== 1 ? "s" : ""}){" "}
               </span>
             )}
             <a
@@ -651,10 +651,10 @@ export default function TeamManagement({ initialUserId }) {
           </div>
         </CardContent>
       </Card>
-      {/* Pending Invitations */}
+      {/* Invitations */}
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Pending Invitations</CardTitle>
+          <CardTitle>Invitations</CardTitle>
         </CardHeader>
         <CardContent>
           {invites.length > 0 ? (
@@ -664,13 +664,17 @@ export default function TeamManagement({ initialUserId }) {
                 return (
                   <div
                     key={invite.id}
-                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-card-bg rounded-lg border ${expired ? "border-red-500/50" : "border-card-border"}`}
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-card-bg rounded-lg border ${expired && invite.status !== "accepted" ? "border-red-500/50" : "border-card-border"}`}
                   >
                     <div className="mb-2 sm:mb-0">
                       <p className="text-frost-white">{invite.email}</p>
                       <p className="text-sm text-slate-grey">
                         Invited as {invite.role} •{" "}
-                        {expired ? (
+                        {invite.status === "accepted" ? (
+                          <span className="text-green-400">
+                            Accepted{invite.acceptedAt ? ` ${new Date(invite.acceptedAt).toLocaleDateString()}` : ""}
+                          </span>
+                        ) : expired ? (
                           <span className="text-red-400">Expired</span>
                         ) : invite.expiresAt ? (
                           `Expires ${new Date(invite.expiresAt).toLocaleDateString()}`
@@ -680,23 +684,29 @@ export default function TeamManagement({ initialUserId }) {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          handleResendInvite(invite.id, invite.email)
-                        }
-                        disabled={resendLoading === invite.id}
-                      >
-                        {resendLoading === invite.id ? "Sending..." : "Resend"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleCancelInvite(invite.id)}
-                      >
-                        Cancel
-                      </Button>
+                      {invite.status === "accepted" ? (
+                        <Badge variant="success">Accepted</Badge>
+                      ) : (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleResendInvite(invite.id, invite.email)
+                            }
+                            disabled={resendLoading === invite.id}
+                          >
+                            {resendLoading === invite.id ? "Sending..." : "Resend"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancelInvite(invite.id)}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -704,7 +714,7 @@ export default function TeamManagement({ initialUserId }) {
             </div>
           ) : (
             <p className="text-slate-grey text-center py-4">
-              No pending invitations
+              No invitations
             </p>
           )}
         </CardContent>

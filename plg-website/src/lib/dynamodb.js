@@ -95,9 +95,10 @@ export async function getCustomerByEmail(email) {
     new QueryCommand({
       TableName: TABLE_NAME,
       IndexName: "GSI2",
-      KeyConditionExpression: "GSI2PK = :pk",
+      KeyConditionExpression: "GSI2PK = :pk AND GSI2SK = :sk",
       ExpressionAttributeValues: {
         ":pk": `EMAIL#${email.toLowerCase()}`,
+        ":sk": "USER",
       },
     }),
   );
@@ -1440,7 +1441,7 @@ export async function getOrgInvites(orgId) {
       new QueryCommand({
         TableName: TABLE_NAME,
         KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
-        FilterExpression: "#status = :pending",
+        FilterExpression: "#status IN (:pending, :accepted)",
         ExpressionAttributeNames: {
           "#status": "status",
         },
@@ -1448,6 +1449,7 @@ export async function getOrgInvites(orgId) {
           ":pk": `ORG#${orgId}`,
           ":sk": "INVITE#",
           ":pending": "pending",
+          ":accepted": "accepted",
         },
       }),
     );

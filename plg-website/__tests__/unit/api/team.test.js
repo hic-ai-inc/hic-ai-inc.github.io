@@ -188,9 +188,10 @@ describe("Team API Logic", () => {
         id: i.inviteId,
         email: i.email,
         role: i.role,
-        status: "pending",
+        status: i.status,
         invitedAt: i.createdAt,
         expiresAt: i.expiresAt,
+        ...(i.acceptedAt && { acceptedAt: i.acceptedAt }),
       }));
     }
 
@@ -225,7 +226,7 @@ describe("Team API Logic", () => {
       assert.strictEqual(formatted[0].name, "Unknown");
     });
 
-    it("should format invites correctly", () => {
+    it("should format pending invites correctly", () => {
       const invites = [
         createMockInvite({ inviteId: "inv_1", email: "a@test.com" }),
         createMockInvite({ inviteId: "inv_2", email: "b@test.com" }),
@@ -237,6 +238,66 @@ describe("Team API Logic", () => {
       assert.strictEqual(formatted[0].id, "inv_1");
       assert.strictEqual(formatted[0].status, "pending");
       assert.strictEqual(formatted[1].email, "b@test.com");
+      assert.strictEqual(formatted[1].status, "pending");
+    });
+
+    it("should format accepted invites with actual status", () => {
+      const invites = [
+        createMockInvite({
+          inviteId: "inv_1",
+          email: "accepted@test.com",
+          status: "accepted",
+          acceptedAt: "2026-02-08T12:00:00.000Z",
+        }),
+      ];
+
+      const formatted = formatInvitesResponse(invites);
+
+      assert.strictEqual(formatted.length, 1);
+      assert.strictEqual(formatted[0].status, "accepted");
+      assert.strictEqual(formatted[0].acceptedAt, "2026-02-08T12:00:00.000Z");
+    });
+
+    it("should include acceptedAt only when present", () => {
+      const invites = [
+        createMockInvite({ inviteId: "inv_pending", status: "pending" }),
+        createMockInvite({
+          inviteId: "inv_accepted",
+          status: "accepted",
+          acceptedAt: "2026-02-08T00:00:00.000Z",
+        }),
+      ];
+
+      const formatted = formatInvitesResponse(invites);
+
+      // Pending invite should NOT have acceptedAt property
+      assert.strictEqual(formatted[0].acceptedAt, undefined);
+      assert.strictEqual("acceptedAt" in formatted[0], false);
+
+      // Accepted invite should have acceptedAt
+      assert.strictEqual(formatted[1].acceptedAt, "2026-02-08T00:00:00.000Z");
+    });
+
+    it("should handle mixed pending and accepted invites", () => {
+      const invites = [
+        createMockInvite({ inviteId: "inv_1", status: "pending" }),
+        createMockInvite({
+          inviteId: "inv_2",
+          status: "accepted",
+          email: "joined@test.com",
+          acceptedAt: "2026-02-07T00:00:00.000Z",
+        }),
+        createMockInvite({ inviteId: "inv_3", status: "pending" }),
+      ];
+
+      const formatted = formatInvitesResponse(invites);
+
+      assert.strictEqual(formatted.length, 3);
+      const pending = formatted.filter((i) => i.status === "pending");
+      const accepted = formatted.filter((i) => i.status === "accepted");
+      assert.strictEqual(pending.length, 2);
+      assert.strictEqual(accepted.length, 1);
+      assert.strictEqual(accepted[0].email, "joined@test.com");
     });
 
     it("should format usage correctly", () => {

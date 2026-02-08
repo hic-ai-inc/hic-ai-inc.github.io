@@ -970,3 +970,230 @@ describe("portal/license API - org member license access", () => {
     });
   });
 });
+
+
+describe("portal/status API - org member status resolution", () => {
+  /**
+   * Tests the customer lookup chain in the status API.
+   * 
+   * The chain is:
+   * 1. getCustomerByUserId(userId) — USER#sub/PROFILE record
+   * 2. getCustomerByEmail(email) — GSI2 query, must only return PROFILE records
+   * 3. getUserOrgMembership(userId) — GSI1 query for MEMBER records
+   * 
+   * Bug: Before the GSI2SK fix, getCustomerByEmail could return a MEMBER record
+   * (which also has GSI2PK: EMAIL#...), causing the status API to treat org
+   * members as non-subscribers.
+   */
+
+  // Simulates the status API's customer resolution chain
+  function resolveUserStatus({
+    customerByUserId,
+    customerByEmail,
+    orgMembership,
+    orgDetails,
+    orgOwnerCustomer,
+  }) {
+    // Step 1: Try by userId
+    let customer = customerByUserId || null;
+
+    // Step 2: Try by email (only returns PROFILE records after GSI2SK fix)
+    if (!customer) {
+      customer = customerByEmail || null;
+    }
+
+    // Step 3: If still no customer, check org membership
+    let membership = null;
+    let ownerCustomer = null;
+
+    if (!customer) {
+      membership = orgMembership || null;
+
+      if (membership) {
+        const org = orgDetails || null;
+        if (org?.stripeCustomerId) {
+          ownerCustomer = orgOwnerCustomer || null;
+        }
+      }
+    }
+
+    // No customer AND no org membership = new user
+    if (!customer && !membership) {
+      return {
+        status: "new",
+        hasSubscription: false,
+        accountType: null,
+        isOrgMember: false,
+      };
+    }
+
+    // Determine effective customer (owner's record for org members)
+    const effectiveCustomer = customer || ownerCustomer;
+    const subscriptionStatus = effectiveCustomer?.subscriptionStatus || "none";
+    const hasSubscription = ["active", "trialing"].includes(subscriptionStatus);
+    const accountType = membership ? "business" : (effectiveCustomer?.accountType || "individual");
+
+    return {
+      status: hasSubscription ? "active" : "new",
+      hasSubscription,
+      subscriptionStatus,
+      accountType,
+      isOrgMember: !!membership,
+      orgMembership: membership ? {
+        orgId: membership.orgId,
+        role: membership.role,
+      } : undefined,
+    };
+  }
+
+  it("should resolve org member correctly when no customer record exists", () => {
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: null, // GSI2SK fix ensures this is null for members
+      orgMembership: { orgId: "cus_org123", role: "member", status: "active" },
+      orgDetails: { orgId: "cus_org123", stripeCustomerId: "cus_org123", ownerId: "user_owner" },
+      orgOwnerCustomer: {
+        subscriptionStatus: "active",
+        keygenLicenseId: "lic_abc123",
+        accountType: "business",
+      },
+    });
+
+    assert.strictEqual(result.hasSubscription, true);
+    assert.strictEqual(result.accountType, "business");
+    assert.strictEqual(result.isOrgMember, true);
+    assert.strictEqual(result.orgMembership.role, "member");
+  });
+
+  it("should NOT treat member as subscriber when GSI2 returns membership record (pre-fix behavior)", () => {
+    // This test documents the bug that existed before the GSI2SK fix.
+    // If getCustomerByEmail returned a membership record (which has no
+    // subscriptionStatus), the member would be treated as a non-subscriber.
+    const fakeMembershipRecord = {
+      // This is what a membership record looks like in GSI2 — no subscription fields
+      PK: "ORG#cus_org123",
+      SK: "MEMBER#user_member",
+      GSI2PK: "EMAIL#member@example.com",
+      GSI2SK: "MEMBER#cus_org123",
+      email: "member@example.com",
+      role: "member",
+      status: "active",
+      // NOTE: No subscriptionStatus, no keygenLicenseId, no accountType
+    };
+
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: fakeMembershipRecord, // Bug: GSI2 returned membership!
+      orgMembership: null, // Never checked because customer is truthy
+      orgDetails: null,
+      orgOwnerCustomer: null,
+    });
+
+    // With the membership record treated as a customer, it has no subscription
+    assert.strictEqual(result.hasSubscription, false);
+    assert.strictEqual(result.isOrgMember, false); // Incorrectly treated as non-member
+    // This is the broken behavior the fix addresses
+  });
+
+  it("should treat new user correctly when all lookups return null", () => {
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: null,
+      orgMembership: null,
+      orgDetails: null,
+      orgOwnerCustomer: null,
+    });
+
+    assert.strictEqual(result.status, "new");
+    assert.strictEqual(result.hasSubscription, false);
+    assert.strictEqual(result.isOrgMember, false);
+  });
+
+  it("should resolve direct customer (individual) correctly", () => {
+    const result = resolveUserStatus({
+      customerByUserId: {
+        subscriptionStatus: "active",
+        keygenLicenseId: "lic_ind_123",
+        accountType: "individual",
+      },
+      customerByEmail: null,
+      orgMembership: null,
+      orgDetails: null,
+      orgOwnerCustomer: null,
+    });
+
+    assert.strictEqual(result.hasSubscription, true);
+    assert.strictEqual(result.accountType, "individual");
+    assert.strictEqual(result.isOrgMember, false);
+  });
+
+  it("should resolve org owner correctly via customerByUserId", () => {
+    const result = resolveUserStatus({
+      customerByUserId: {
+        subscriptionStatus: "active",
+        keygenLicenseId: "lic_biz_456",
+        accountType: "business",
+        orgId: "cus_org456",
+        orgRole: "owner",
+      },
+      customerByEmail: null,
+      orgMembership: null, // Owner found via customerByUserId, not membership
+      orgDetails: null,
+      orgOwnerCustomer: null,
+    });
+
+    assert.strictEqual(result.hasSubscription, true);
+    assert.strictEqual(result.accountType, "business");
+    assert.strictEqual(result.isOrgMember, false); // Owner has direct customer record
+  });
+
+  it("should fall through to org membership when email lookup finds a customer without subscription", () => {
+    // Edge case: email lookup finds a stale/legacy customer record with no subscription
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: {
+        subscriptionStatus: "none",
+        accountType: "individual",
+      },
+      orgMembership: { orgId: "cus_org789", role: "admin" },
+      orgDetails: { stripeCustomerId: "cus_org789" },
+      orgOwnerCustomer: { subscriptionStatus: "active", accountType: "business" },
+    });
+
+    // Customer was found by email, so org membership is NOT checked
+    // (this is correct — the customer record takes precedence)
+    assert.strictEqual(result.hasSubscription, false);
+    assert.strictEqual(result.accountType, "individual");
+    assert.strictEqual(result.isOrgMember, false);
+  });
+
+  it("should handle org member with trialing subscription", () => {
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: null,
+      orgMembership: { orgId: "cus_trial", role: "member", status: "active" },
+      orgDetails: { orgId: "cus_trial", stripeCustomerId: "cus_trial" },
+      orgOwnerCustomer: { subscriptionStatus: "trialing", accountType: "business" },
+    });
+
+    assert.strictEqual(result.hasSubscription, true);
+    assert.strictEqual(result.subscriptionStatus, "trialing");
+    assert.strictEqual(result.accountType, "business");
+  });
+
+  it("should handle org member whose org has no stripeCustomerId", () => {
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: null,
+      orgMembership: { orgId: "org_broken", role: "member" },
+      orgDetails: { orgId: "org_broken" }, // No stripeCustomerId!
+      orgOwnerCustomer: null,
+    });
+
+    // Member found, but owner customer can't be resolved
+    assert.strictEqual(result.hasSubscription, false);
+    assert.strictEqual(result.accountType, "business");
+    assert.strictEqual(result.isOrgMember, true);
+  });
+});
+

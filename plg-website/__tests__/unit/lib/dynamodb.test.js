@@ -51,6 +51,8 @@ import {
   getOrganizationByStripeCustomer,
   getUserOrgMembership,
   createOrgInvite,
+  getOrgInvites,
+  acceptOrgInvite,
 } from "../../../src/lib/dynamodb.js";
 
 describe("dynamodb.js", () => {
@@ -131,20 +133,75 @@ describe("dynamodb.js", () => {
   });
 
   describe("getCustomerByEmail", () => {
-    it("should query GSI2 with lowercased email", async () => {
+    it("should query GSI2 with lowercased email and GSI2SK filter", async () => {
       mockSend.mockResolvedValue({
-        Items: [{ email: "test@example.com" }],
+        Items: [{ email: "test@example.com", SK: "PROFILE" }],
       });
 
       const result = await getCustomerByEmail("Test@Example.COM");
 
-      expect(result).toEqual({ email: "test@example.com" });
+      expect(result).toEqual({ email: "test@example.com", SK: "PROFILE" });
 
       const command = mockSend.calls[0][0];
       expect(command.input.IndexName).toBe("GSI2");
+      expect(command.input.KeyConditionExpression).toBe(
+        "GSI2PK = :pk AND GSI2SK = :sk",
+      );
       expect(command.input.ExpressionAttributeValues[":pk"]).toBe(
         "EMAIL#test@example.com",
       );
+      expect(command.input.ExpressionAttributeValues[":sk"]).toBe("USER");
+    });
+
+    it("should NOT return org membership records (GSI2 collision fix)", async () => {
+      // After the GSI2SK filter, membership records (GSI2SK: MEMBER#orgId)
+      // are excluded at the DynamoDB query level. This test verifies the
+      // KeyConditionExpression includes the GSI2SK = USER constraint.
+      mockSend.mockResolvedValue({ Items: [] });
+
+      const result = await getCustomerByEmail("member@example.com");
+
+      expect(result).toBe(null);
+
+      const command = mockSend.calls[0][0];
+      // The key assertion: GSI2SK must be constrained to "USER"
+      expect(command.input.KeyConditionExpression).toContain("GSI2SK = :sk");
+      expect(command.input.ExpressionAttributeValues[":sk"]).toBe("USER");
+    });
+
+    it("should return null when no customer found", async () => {
+      mockSend.mockResolvedValue({ Items: [] });
+
+      const result = await getCustomerByEmail("nobody@example.com");
+
+      expect(result).toBe(null);
+    });
+
+    it("should prefer customer with keygenLicenseId when multiple exist", async () => {
+      mockSend.mockResolvedValue({
+        Items: [
+          { email: "user@example.com", userId: "old" },
+          { email: "user@example.com", userId: "licensed", keygenLicenseId: "lic_123" },
+        ],
+      });
+
+      const result = await getCustomerByEmail("user@example.com");
+
+      expect(result.userId).toBe("licensed");
+      expect(result.keygenLicenseId).toBe("lic_123");
+    });
+
+    it("should return first item when none have keygenLicenseId", async () => {
+      mockSend.mockResolvedValue({
+        Items: [
+          { email: "user@example.com", userId: "first" },
+          { email: "user@example.com", userId: "second" },
+        ],
+      });
+
+      const result = await getCustomerByEmail("user@example.com");
+
+      expect(result.userId).toBe("first");
     });
   });
 
@@ -704,6 +761,63 @@ describe("dynamodb.js", () => {
     });
   });
 
+
+  describe("getOrgInvites", () => {
+    it("should return both pending and accepted invites", async () => {
+      mockSend.mockResolvedValue({
+        Items: [
+          { inviteId: "inv_1", status: "pending", email: "a@test.com" },
+          { inviteId: "inv_2", status: "accepted", email: "b@test.com", acceptedAt: "2026-02-08T00:00:00Z" },
+        ],
+      });
+
+      const result = await getOrgInvites("org_123");
+
+      expect(result).toHaveLength(2);
+      expect(result[0].status).toBe("pending");
+      expect(result[1].status).toBe("accepted");
+    });
+
+    it("should query with IN filter for pending and accepted statuses", async () => {
+      mockSend.mockResolvedValue({ Items: [] });
+
+      await getOrgInvites("org_123");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.KeyConditionExpression).toBe(
+        "PK = :pk AND begins_with(SK, :sk)",
+      );
+      expect(command.input.FilterExpression).toBe(
+        "#status IN (:pending, :accepted)",
+      );
+      expect(command.input.ExpressionAttributeValues[":pk"]).toBe("ORG#org_123");
+      expect(command.input.ExpressionAttributeValues[":sk"]).toBe("INVITE#");
+      expect(command.input.ExpressionAttributeValues[":pending"]).toBe("pending");
+      expect(command.input.ExpressionAttributeValues[":accepted"]).toBe("accepted");
+    });
+
+    it("should NOT return cancelled or expired invites", async () => {
+      // The filter only allows pending and accepted, so cancelled/expired
+      // records are excluded by DynamoDB. Verify by checking filter expression.
+      mockSend.mockResolvedValue({ Items: [] });
+
+      await getOrgInvites("org_123");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.FilterExpression).toBe(
+        "#status IN (:pending, :accepted)",
+      );
+      // Cancelled and expired are not in the IN list
+    });
+
+    it("should return empty array when no invites exist", async () => {
+      mockSend.mockResolvedValue({ Items: undefined });
+
+      const result = await getOrgInvites("org_empty");
+
+      expect(result).toEqual([]);
+    });
+  });
 
   describe("createOrgInvite", () => {
     it("should include eventType field in created invite", async () => {

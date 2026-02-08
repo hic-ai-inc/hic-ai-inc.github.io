@@ -135,9 +135,10 @@ export async function GET() {
       id: i.inviteId,
       email: i.email,
       role: i.role,
-      status: "pending",
+      status: i.status,
       invitedAt: i.createdAt,
       expiresAt: i.expiresAt,
+      ...(i.acceptedAt && { acceptedAt: i.acceptedAt }),
     }));
 
     return NextResponse.json({
