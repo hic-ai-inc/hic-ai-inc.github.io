@@ -55,7 +55,6 @@ import {
   getOrganizationByStripeCustomer,
   getOrganization,
 } from "@/lib/dynamodb";
-import { sendEnterpriseInviteEmail } from "@/lib/ses";
 
 /**
  * GET /api/portal/team
@@ -430,23 +429,7 @@ export async function POST(request) {
         // Refresh the invite expiration
         const updatedInvite = await resendOrgInvite(orgId, inviteId);
 
-        // Resend the email
-        try {
-          const inviter = await getCustomerByUserId(tokenPayload.sub);
-          const inviterName =
-            inviter?.name || tokenPayload.name || tokenPayload.email || "Your team";
-          const organizationName =
-            inviter?.organizationName || "Your organization";
-
-          await sendEnterpriseInviteEmail(
-            invite.email,
-            organizationName,
-            inviterName,
-            invite.token,
-          );
-        } catch (emailError) {
-          console.error("Failed to resend invite email:", emailError);
-        }
+        // Email sent via event-driven pipeline (DDB Stream → SNS → SQS → EmailSender)
 
         return NextResponse.json({
           success: true,

@@ -17,7 +17,8 @@
     "test:coverage": "node --loader ../dm/facade/utils/test-loader.js test-runner.js --coverage",
     "test:debug": "bash scripts/debug-tests.sh",
     "test:e2e": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js",
-    "test:e2e:staging": "E2E_ENV=staging node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js",
+    "test:e2e:staging": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js",
+    "test:e2e:arch": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js --arch",
     "test:e2e:journey": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js --journey",
     "test:e2e:all": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js --all"
   },

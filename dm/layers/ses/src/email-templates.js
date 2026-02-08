@@ -682,7 +682,7 @@ Unsubscribe: ${APP_URL}/unsubscribe?email=${encodeURIComponent(email)}`,
     </p>
     
     <div style="margin: 32px 0;">
-      <a href="${APP_URL}/invite/accept?token=${inviteToken}" 
+      <a href="${APP_URL}/invite/${inviteToken}" 
          style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
         Accept Invitation
       </a>
@@ -709,7 +709,7 @@ ${PRODUCT_NAME} provides precision editing tools for AI coding agents in VS Code
 
 Accept this invitation to get your license key and start using ${PRODUCT_NAME} — your organization has you covered.
 
-Accept invitation: ${APP_URL}/invite/accept?token=${inviteToken}
+Accept invitation: ${APP_URL}/invite/${inviteToken}
 
 This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
 
@@ -821,4 +821,5 @@ export const EVENT_TYPE_TO_TEMPLATE = {
   PAYMENT_FAILED: "paymentFailed",
   TRIAL_ENDING: "trialEnding",
   TEAM_INVITE_CREATED: "enterpriseInvite",
+  TEAM_INVITE_RESENT: "enterpriseInvite",
 };

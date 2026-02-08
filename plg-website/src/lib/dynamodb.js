@@ -1479,12 +1479,13 @@ export async function resendOrgInvite(orgId, inviteId) {
           SK: `INVITE#${inviteId}`,
         },
         UpdateExpression:
-          "SET expiresAt = :expiresAt, resentAt = :now, resentCount = if_not_exists(resentCount, :zero) + :one",
+          "SET expiresAt = :expiresAt, resentAt = :now, resentCount = if_not_exists(resentCount, :zero) + :one, eventType = :eventType",
         ExpressionAttributeValues: {
           ":expiresAt": newExpiresAt,
           ":now": new Date().toISOString(),
           ":zero": 0,
           ":one": 1,
+          ":eventType": "TEAM_INVITE_RESENT",
         },
         ReturnValues: "ALL_NEW",
       }),

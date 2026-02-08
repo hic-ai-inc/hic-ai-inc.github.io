@@ -389,7 +389,7 @@ describe("Email Templates", () => {
 
       expect(result.html).toContain("Acme Corp");
       expect(result.html).toContain("Jane Smith");
-      expect(result.html).toContain("token=inv_xyz789");
+      expect(result.html).toContain("/invite/inv_xyz789");
     });
 
     test("disputeAlert template should format amount correctly", () => {

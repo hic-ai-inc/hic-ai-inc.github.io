@@ -10,6 +10,7 @@
  *   E2E_ENV=staging npm run test:e2e:staging
  *   npm run test:e2e -- --journey j1
  *   npm run test:e2e -- --contract license
+ *   npm run test:e2e -- --arch
  *
  * @see 20260129_E2E_BACKEND_VALIDATION_SPEC.md
  */
@@ -73,6 +74,7 @@ function parseArgs() {
   const options = {
     journey: null, // Specific journey: j1, j2, etc.
     contract: null, // Specific contract: license, checkout, etc.
+    arch: false, // Architecture tests
     file: null, // Specific test file by name/pattern
     test: null, // Specific test name pattern (passed to node:test)
     all: false, // Run all tests
@@ -92,6 +94,10 @@ function parseArgs() {
       case "--contract":
       case "-c":
         options.contract = args[++i];
+        break;
+      case "--arch":
+      case "--architecture":
+        options.arch = true;
         break;
       case "--file":
       case "-f":
@@ -135,9 +141,10 @@ Usage:
 Options:
   -j, --journey <id>    Run specific journey test (j1, j2, j3, etc.)
   -c, --contract <name> Run specific contract tests (license, checkout, webhook, portal)
+  --arch                Run architecture validation tests
   -f, --file <pattern>  Run test file matching pattern (e.g., "j1-trial", "license-api")
   -t, --test <name>     Run only tests matching name pattern (regex supported)
-  -a, --all             Run all E2E tests (journeys + contracts)
+  -a, --all             Run all E2E tests (journeys + contracts + architecture)
   -v, --verbose         Enable verbose logging
   --skip-cleanup        Don't clean up test data after run
   -h, --help            Show this help message
@@ -153,8 +160,11 @@ Examples:
   # Run all journeys against local (default)
   npm run test:e2e
 
-  # Run all tests (journeys + contracts) against staging
+  # Run all tests (journeys + contracts + architecture) against staging
   E2E_ENV=staging npm run test:e2e -- --all
+
+  # Run architecture tests only
+  npm run test:e2e:arch
 
   # Run journey 1 only
   npm run test:e2e -- -j j1
@@ -179,11 +189,24 @@ async function discoverTestFiles(options) {
 
   // Determine which directories to scan
   const dirsToScan = [];
-  if (options.journey || options.file || (!options.contract && !options.all)) {
+  
+  if (options.arch) {
+    dirsToScan.push(join(__dirname, "architecture"));
+  } else if (options.all) {
     dirsToScan.push(join(__dirname, "journeys"));
-  }
-  if (options.contract || options.file || options.all) {
     dirsToScan.push(join(__dirname, "contracts"));
+    dirsToScan.push(join(__dirname, "architecture"));
+  } else if (options.contract) {
+    dirsToScan.push(join(__dirname, "contracts"));
+  } else if (options.journey || options.file) {
+    dirsToScan.push(join(__dirname, "journeys"));
+    if (options.file) {
+      dirsToScan.push(join(__dirname, "contracts"));
+      dirsToScan.push(join(__dirname, "architecture"));
+    }
+  } else {
+    // Default: journeys only
+    dirsToScan.push(join(__dirname, "journeys"));
   }
 
   // Scan directories
@@ -288,9 +311,13 @@ async function main() {
     if (options.contract) {
       console.log(`   Looking for contract: ${options.contract}`);
     }
+    if (options.arch) {
+      console.log(`   Looking for architecture tests`);
+    }
     console.log("");
     console.log("   Available journeys: j1, j2, j3, j4, j5, j6, j7, j8");
     console.log("   Available contracts: license, checkout, webhook, portal");
+    console.log("   Available architecture: dynamo-sns-propagation, event-ordering, webhook-lambda-flow");
     process.exit(0);
   }
 
