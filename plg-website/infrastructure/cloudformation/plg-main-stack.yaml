@@ -24,9 +24,6 @@ Parameters:
     Default: dev
     Description: Deployment environment
 
-
-Conditions:
-  IsProduction: !Equals [!Ref Environment, prod]
   TemplatesBucket:
     Type: String
     Description: S3 bucket containing nested CloudFormation templates
@@ -99,6 +96,9 @@ Conditions:
   UserPoolId:
     Type: String
     Description: Cognito User Pool ID (e.g., us-east-1_MDTi26EOf)
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
 
 Resources:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -187,6 +187,10 @@ Resources:
         CustomerUpdateRoleArn: !GetAtt IAMStack.Outputs.CustomerUpdateRoleArn
         ScheduledTasksRoleArn: !GetAtt IAMStack.Outputs.ScheduledTasksRoleArn
         CognitoPostConfirmationRoleArn: !GetAtt IAMStack.Outputs.CognitoPostConfirmationRoleArn
+        AppUrl: !If
+          - IsProduction
+          - !Sub "https://${EmailDomain}"
+          - !Sub "https://${Environment}.${EmailDomain}"
         SESFromEmail: !If
           - IsProduction
           - !Sub "noreply@${EmailDomain}"

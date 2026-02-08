@@ -61,7 +61,8 @@ export function getSesClientInstance() {
 // ============================================================================
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || "noreply@hic-ai.com";
-const APP_URL = process.env.APP_URL || "https://mouse.hic-ai.com";
+const ENVIRONMENT = process.env.ENVIRONMENT || "staging";
+const APP_URL = process.env.APP_URL || `https://${ENVIRONMENT === "prod" ? "" : ENVIRONMENT + "."}hic-ai.com`;
 
 // Initialize templates from hic-ses-layer (single source of truth)
 const emailTemplates = createTemplates({

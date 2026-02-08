@@ -67,6 +67,10 @@ Parameters:
     Type: String
     Description: ARN of Cognito Post-Confirmation IAM role
 
+  AppUrl:
+    Type: String
+    Description: Application URL for email links (e.g. https://staging.hic-ai.com)
+
   SESFromEmail:
     Type: String
     Default: noreply@hic-ai.com
@@ -193,6 +197,7 @@ Resources:
           ENVIRONMENT: !Ref Environment
           SES_FROM_EMAIL: !Ref SESFromEmail
           DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          APP_URL: !Ref AppUrl
       Code:
         S3Bucket: !Ref LambdaCodeBucket
         S3Key: !Sub "${LambdaCodePrefix}/email-sender.zip"
@@ -286,6 +291,7 @@ Resources:
           ENVIRONMENT: !Ref Environment
           DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
           SES_FROM_EMAIL: !Ref SESFromEmail
+          APP_URL: !Ref AppUrl
       Code:
         S3Bucket: !Ref LambdaCodeBucket
         S3Key: !Sub "${LambdaCodePrefix}/scheduled-tasks.zip"
