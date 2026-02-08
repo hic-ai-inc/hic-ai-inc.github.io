@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/lib/cognito-provider";
 
 export default function AcceptInvitePage() {
   const params = useParams();
   const router = useRouter();
   const token = params.token;
 
+  const { user, isLoading: authLoading, isAuthenticated, login } = useAuth();
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,7 +41,17 @@ export default function AcceptInvitePage() {
     }
   }, [token]);
 
+  // Redirect to sign-in, preserving the invite URL as returnTo
+  const handleSignIn = () => {
+    login(`/invite/${token}`);
+  };
+
   const handleAccept = async () => {
+    if (!isAuthenticated) {
+      handleSignIn();
+      return;
+    }
+
     setAccepting(true);
     setError(null);
 
@@ -51,11 +63,9 @@ export default function AcceptInvitePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        // If unauthorized, redirect to sign-in
+        // If session expired mid-flow, redirect to sign-in
         if (response.status === 401) {
-          // Store return URL and redirect to sign in
-          const returnUrl = encodeURIComponent(`/invite/${token}`);
-          router.push(`/auth/login?returnTo=${returnUrl}`);
+          handleSignIn();
           return;
         }
         setError(data.error || "Failed to accept invite");
@@ -74,8 +84,17 @@ export default function AcceptInvitePage() {
     }
   };
 
-  // Loading state
-  if (loading) {
+  // Auto-accept after returning from sign-in (user is authenticated and invite is loaded)
+  const [autoAcceptAttempted, setAutoAcceptAttempted] = useState(false);
+  useEffect(() => {
+    if (isAuthenticated && invite && !autoAcceptAttempted && !success && !accepting) {
+      setAutoAcceptAttempted(true);
+      handleAccept();
+    }
+  }, [isAuthenticated, invite, autoAcceptAttempted, success, accepting]);
+
+  // Loading state (wait for both invite data and auth state)
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -214,7 +233,7 @@ export default function AcceptInvitePage() {
 
         <div className="space-y-3">
           <button
-            onClick={handleAccept}
+            onClick={isAuthenticated ? handleAccept : handleSignIn}
             disabled={accepting}
             className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -242,10 +261,24 @@ export default function AcceptInvitePage() {
                 </svg>
                 Joining...
               </span>
-            ) : (
+            ) : isAuthenticated ? (
               "Accept Invite"
+            ) : (
+              "Sign in to Accept"
             )}
           </button>
+
+          {!isAuthenticated && (
+            <p className="text-sm text-gray-500 text-center">
+              Don&apos;t have an account?{" "}
+              <button
+                onClick={handleSignIn}
+                className="text-blue-600 hover:underline"
+              >
+                Sign up here
+              </button>
+            </p>
+          )}
 
           <Link
             href="/"
