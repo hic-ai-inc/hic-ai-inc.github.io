@@ -237,6 +237,75 @@ update_lambda() {
         --region "$REGION"
     
     print_success "${function_name} is ready"
+
+    # ── Layer Version Update ──────────────────────────────────────────────────
+    # Parse layer dependencies from source file and update to latest versions
+    print_step "Checking layer versions for ${function_name}..."
+
+    local layer_deps
+    layer_deps=$(grep "Layer Dependencies:" "$source_dir/index.js" 2>/dev/null | sed 's/.*Layer Dependencies: //' | tr ',' '\n' | tr -d ' ')
+
+    if [[ -n "$layer_deps" ]]; then
+        local layer_arns=""
+        local layers_updated=false
+
+        # Get current layers on the function
+        local current_layers
+        current_layers=$(aws lambda get-function-configuration \
+            --function-name "$function_name" \
+            --region "$REGION" \
+            --query "Layers[*].Arn" \
+            --output text 2>/dev/null)
+
+        for layer_name in $layer_deps; do
+            # Get latest version ARN for this layer
+            local latest_arn
+            latest_arn=$(aws lambda list-layer-versions \
+                --layer-name "$layer_name" \
+                --region "$REGION" \
+                --query "LayerVersions[0].LayerVersionArn" \
+                --output text 2>/dev/null)
+
+            if [[ -z "$latest_arn" || "$latest_arn" == "None" ]]; then
+                print_warning "Layer ${layer_name} not found, skipping"
+                continue
+            fi
+
+            layer_arns="${layer_arns} ${latest_arn}"
+
+            # Check if current version differs
+            if ! echo "$current_layers" | grep -q "$latest_arn"; then
+                layers_updated=true
+                local version_num
+                version_num=$(echo "$latest_arn" | grep -o '[0-9]*$')
+                echo "    ⬆️  ${layer_name} -> v${version_num}"
+            fi
+        done
+
+        if [[ "$layers_updated" == "true" ]]; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+                print_warning "DRY RUN: Would update layers for ${function_name}"
+            else
+                print_step "Updating layers for ${function_name}..."
+                # shellcheck disable=SC2086
+                aws lambda update-function-configuration \
+                    --function-name "$function_name" \
+                    --layers $layer_arns \
+                    --region "$REGION" \
+                    --output text \
+                    --query "LastModified" > /dev/null
+
+                aws lambda wait function-updated \
+                    --function-name "$function_name" \
+                    --region "$REGION"
+                print_success "Layers updated for ${function_name}"
+            fi
+        else
+            echo "    ✅ All layers at latest versions"
+        fi
+    else
+        echo "    ℹ️  No layer dependencies declared"
+    fi
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
