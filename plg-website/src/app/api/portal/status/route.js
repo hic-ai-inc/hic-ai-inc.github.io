@@ -125,21 +125,19 @@ export async function GET(request) {
     const planConfig = PRICING[accountType];
     const maxDevices = planConfig?.maxConcurrentMachinesPerSeat || planConfig?.maxConcurrentMachines || 3;
     
-    // Get device count - for org members, don't show org license devices (member has their own seat)
-    // Individual users see their own device count from the org license
+    // licenseId at function scope — used in device count AND response body
+    const licenseId = effectiveCustomer?.keygenLicenseId;
+
+    // Get device count — org members get 0 (they don't own the license)
     let activatedDevices = 0;
-    if (!orgMembership) {
-      const licenseId = effectiveCustomer?.keygenLicenseId;
-      if (licenseId) {
-        try {
-          const devices = await getLicenseDevices(licenseId);
-          activatedDevices = devices.length;
-        } catch (error) {
-          console.error("[Portal Status] Failed to get device count:", error.message);
-        }
+    if (!orgMembership && licenseId) {
+      try {
+        const devices = await getLicenseDevices(licenseId);
+        activatedDevices = devices.length;
+      } catch (error) {
+        console.error("[Portal Status] Failed to get device count:", error.message);
       }
     }
-    // For org members: activatedDevices stays 0 (per-member device tracking is future enhancement)
 
     // Build response with org info for members
     const response = {
