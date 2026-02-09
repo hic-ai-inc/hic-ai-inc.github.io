@@ -1002,11 +1002,12 @@ describe("portal/status API - org member status resolution", () => {
       customer = customerByEmail || null;
     }
 
-    // Step 3: If still no customer, check org membership
+    // Step 3: If no customer with a subscription, check org membership
+    // Members may have a bare profile (from PostConfirmation) but no subscription
     let membership = null;
     let ownerCustomer = null;
 
-    if (!customer) {
+    if (!customer?.subscriptionStatus) {
       membership = orgMembership || null;
 
       if (membership) {
@@ -1147,24 +1148,29 @@ describe("portal/status API - org member status resolution", () => {
     assert.strictEqual(result.isOrgMember, false); // Owner has direct customer record
   });
 
-  it("should fall through to org membership when email lookup finds a customer without subscription", () => {
-    // Edge case: email lookup finds a stale/legacy customer record with no subscription
+  it("should fall through to org membership when email lookup finds a bare profile without subscription", () => {
+    // Real scenario: simon.reiff@gmail.com has a bare USER/PROFILE from PostConfirmation
+    // (no subscriptionStatus) and is also an org member. The status API must
+    // check org membership even though a customer record was found.
     const result = resolveUserStatus({
       customerByUserId: null,
       customerByEmail: {
-        subscriptionStatus: "none",
-        accountType: "individual",
+        // Bare profile from PostConfirmation — no subscription fields
+        email: "simon.reiff@gmail.com",
+        name: "Simon",
+        userId: "google_114165355764132910587",
+        // No subscriptionStatus, no keygenLicenseId
       },
-      orgMembership: { orgId: "cus_org789", role: "admin" },
+      orgMembership: { orgId: "cus_org789", role: "admin", status: "active" },
       orgDetails: { stripeCustomerId: "cus_org789" },
-      orgOwnerCustomer: { subscriptionStatus: "active", accountType: "business" },
+      orgOwnerCustomer: { subscriptionStatus: "active", accountType: "business", keygenLicenseId: "lic_shared" },
     });
 
-    // Customer was found by email, so org membership is NOT checked
-    // (this is correct — the customer record takes precedence)
-    assert.strictEqual(result.hasSubscription, false);
-    assert.strictEqual(result.accountType, "individual");
-    assert.strictEqual(result.isOrgMember, false);
+    // Bare profile has no subscriptionStatus, so org membership IS checked
+    assert.strictEqual(result.hasSubscription, true);
+    assert.strictEqual(result.accountType, "business");
+    assert.strictEqual(result.isOrgMember, true);
+    assert.strictEqual(result.orgMembership.role, "admin");
   });
 
   it("should handle org member with trialing subscription", () => {
@@ -1194,6 +1200,170 @@ describe("portal/status API - org member status resolution", () => {
     assert.strictEqual(result.hasSubscription, false);
     assert.strictEqual(result.accountType, "business");
     assert.strictEqual(result.isOrgMember, true);
+  });
+
+  it("should NOT fall through to org membership when customer has active subscription", () => {
+    // Regression guard: a customer with an active subscription should never
+    // have their org membership checked — they are already a known subscriber
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: {
+        subscriptionStatus: "active",
+        accountType: "individual",
+        keygenLicenseId: "lic_direct",
+      },
+      orgMembership: { orgId: "cus_should_not_reach", role: "member", status: "active" },
+      orgDetails: { stripeCustomerId: "cus_should_not_reach" },
+      orgOwnerCustomer: { subscriptionStatus: "active", accountType: "business" },
+    });
+
+    // Customer has active subscription — org membership is NOT checked
+    assert.strictEqual(result.hasSubscription, true);
+    assert.strictEqual(result.accountType, "individual"); // NOT business
+    assert.strictEqual(result.isOrgMember, false); // NOT org member
+  });
+
+  it("should treat bare profile with no org membership as new user", () => {
+    // A user who signed up via Google login but hasn't subscribed and
+    // hasn't been invited to any org — they're a new user
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: {
+        email: "newuser@example.com",
+        name: "New User",
+        userId: "google_12345",
+        // No subscriptionStatus — bare profile
+      },
+      orgMembership: null,
+      orgDetails: null,
+      orgOwnerCustomer: null,
+    });
+
+    // Bare profile + no org membership = still treated as new user
+    // (the bare profile alone doesn't count as a "customer")
+    assert.strictEqual(result.status, "new");
+    assert.strictEqual(result.hasSubscription, false);
+    assert.strictEqual(result.isOrgMember, false);
+  });
+
+  it("should fall through when customer has explicit subscriptionStatus of none", () => {
+    // Edge case: what if a customer record has subscriptionStatus explicitly
+    // set to 'none' (e.g., expired/reset) but user is also an org member?
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: {
+        subscriptionStatus: "none",
+        email: "expired@example.com",
+      },
+      orgMembership: { orgId: "cus_rescue", role: "member", status: "active" },
+      orgDetails: { stripeCustomerId: "cus_rescue" },
+      orgOwnerCustomer: { subscriptionStatus: "active", accountType: "business" },
+    });
+
+    // subscriptionStatus 'none' is falsy-ish but truthy string — however
+    // the check is !customer?.subscriptionStatus. 'none' is truthy, so
+    // the org membership lookup is NOT performed. This documents current behavior.
+    assert.strictEqual(result.hasSubscription, false);
+    assert.strictEqual(result.isOrgMember, false);
+    assert.strictEqual(result.subscriptionStatus, "none");
+  });
+
+  it("should handle GSI2 membership record correctly after bare profile fix", () => {
+    // Even if the pre-GSI2SK-fix scenario occurred AND the membership record
+    // leaked through as customerByEmail, the bare profile fix catches it because
+    // membership records have no subscriptionStatus
+    const leakedMemberRecord = {
+      PK: "ORG#cus_org123",
+      SK: "MEMBER#user_member",
+      GSI2PK: "EMAIL#member@example.com",
+      GSI2SK: "MEMBER#cus_org123",
+      email: "member@example.com",
+      role: "member",
+      status: "active",
+      // No subscriptionStatus — so falls through
+    };
+
+    const result = resolveUserStatus({
+      customerByUserId: null,
+      customerByEmail: leakedMemberRecord,
+      orgMembership: { orgId: "cus_org123", role: "member", status: "active" },
+      orgDetails: { stripeCustomerId: "cus_org123" },
+      orgOwnerCustomer: { subscriptionStatus: "active", accountType: "business" },
+    });
+
+    // With bare profile fix, lack of subscriptionStatus causes fall-through
+    // to org membership — double defense against GSI2 collisions
+    assert.strictEqual(result.hasSubscription, true);
+    assert.strictEqual(result.accountType, "business");
+    assert.strictEqual(result.isOrgMember, true);
+  });
+});
+
+// ============================================================================
+// Settings Page - isOrgMember Role Derivation Tests
+// ============================================================================
+
+describe("settings page - isOrgMember role derivation", () => {
+  /**
+   * Tests the settings page role derivation logic:
+   *   const isOrgMember = isBusinessAccount && orgRole !== "owner";
+   *
+   * This determines:
+   * - isOrgMember=true → "Leave Organization" shown (Danger Zone)
+   * - isOrgMember=false → "Delete Account" shown (Danger Zone)
+   *
+   * The fix changed: orgRole === "member" → orgRole !== "owner"
+   * so that Admin users also see "Leave Organization" instead of
+   * getting the Owner-only "Delete Account" action.
+   */
+
+  function deriveOrgMemberStatus(accountType, orgRole) {
+    const isBusinessAccount = accountType === "business";
+    const isOrgOwner = isBusinessAccount && orgRole === "owner";
+    const isOrgMember = isBusinessAccount && orgRole !== "owner";
+    return { isBusinessAccount, isOrgOwner, isOrgMember };
+  }
+
+  it("should identify owner as NOT isOrgMember", () => {
+    const result = deriveOrgMemberStatus("business", "owner");
+    assert.strictEqual(result.isOrgOwner, true);
+    assert.strictEqual(result.isOrgMember, false);
+    // Owner sees "Delete Account" in Danger Zone
+  });
+
+  it("should identify admin as isOrgMember", () => {
+    const result = deriveOrgMemberStatus("business", "admin");
+    assert.strictEqual(result.isOrgOwner, false);
+    assert.strictEqual(result.isOrgMember, true);
+    // Admin sees "Leave Organization" in Danger Zone (the fix!)
+  });
+
+  it("should identify member as isOrgMember", () => {
+    const result = deriveOrgMemberStatus("business", "member");
+    assert.strictEqual(result.isOrgOwner, false);
+    assert.strictEqual(result.isOrgMember, true);
+    // Member sees "Leave Organization" in Danger Zone
+  });
+
+  it("should NOT treat individual account as org member regardless of role", () => {
+    const result = deriveOrgMemberStatus("individual", "member");
+    assert.strictEqual(result.isBusinessAccount, false);
+    assert.strictEqual(result.isOrgOwner, false);
+    assert.strictEqual(result.isOrgMember, false);
+  });
+
+  it("should handle missing orgRole (defaults to member)", () => {
+    // In settings/page.js, orgRole defaults: cognitoUser?.[...] || "member"
+    const result = deriveOrgMemberStatus("business", "member");
+    assert.strictEqual(result.isOrgMember, true);
+    assert.strictEqual(result.isOrgOwner, false);
+  });
+
+  it("should handle null accountType", () => {
+    const result = deriveOrgMemberStatus(null, "admin");
+    assert.strictEqual(result.isBusinessAccount, false);
+    assert.strictEqual(result.isOrgMember, false);
+    assert.strictEqual(result.isOrgOwner, false);
   });
 });
 

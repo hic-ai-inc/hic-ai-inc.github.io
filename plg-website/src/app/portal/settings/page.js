@@ -63,7 +63,7 @@ export default function SettingsPage() {
   const orgRole = cognitoUser?.[`${AUTH_NAMESPACE}/org_role`] || "member";
   const isBusinessAccount = accountType === "business";
   const isOrgOwner = isBusinessAccount && orgRole === "owner";
-  const isOrgMember = isBusinessAccount && orgRole === "member";
+  const isOrgMember = isBusinessAccount && orgRole !== "owner";
 
   // Load profile from API (DynamoDB) and Cognito, fetch preferences from API with auth token
   useEffect(() => {

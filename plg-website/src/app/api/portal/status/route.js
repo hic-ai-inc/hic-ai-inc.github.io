@@ -72,12 +72,13 @@ export async function GET(request) {
       customer = await getCustomerByEmail(user.email);
     }
 
-    // If still no customer, check if user is a Business tier member
-    // Members don't have their own CUSTOMER# record - they share the org's license
+    // If no customer with a subscription, check if user is a Business tier member
+    // Members may have a bare profile (from PostConfirmation) but no subscription -
+    // they share the org's license via their membership record
     let orgMembership = null;
     let orgOwnerCustomer = null;
     
-    if (!customer) {
+    if (!customer?.subscriptionStatus) {
       orgMembership = await getUserOrgMembership(user.userId);
       
       if (orgMembership) {
