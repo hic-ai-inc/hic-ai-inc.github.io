@@ -19,8 +19,8 @@ import {
   PORTAL_NAV_BUSINESS,
 } from "@/lib/constants";
 
-// Nav items restricted to admin/owner only (business accounts)
-const ADMIN_ONLY_PATHS = ["/portal/billing", "/portal/team"];
+// Nav items restricted to owner only (billing is owner-only even for admins)
+const OWNER_ONLY_PATHS = ["/portal/billing"];
 
 export default function PortalSidebar() {
   const pathname = usePathname();
@@ -62,9 +62,9 @@ export default function PortalSidebar() {
   let navItems =
     accountType === "business" ? PORTAL_NAV_BUSINESS : PORTAL_NAV;
 
-  // For business accounts, filter out admin-only pages for regular members
-  if (accountType === "business" && orgRole === "member") {
-    navItems = navItems.filter((item) => !ADMIN_ONLY_PATHS.includes(item.href));
+  // For business accounts, filter out owner-only pages for non-owners (admins and members)
+  if (accountType === "business" && orgRole !== "owner") {
+    navItems = navItems.filter((item) => !OWNER_ONLY_PATHS.includes(item.href));
   }
 
   return (

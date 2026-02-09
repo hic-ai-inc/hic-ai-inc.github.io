@@ -70,6 +70,11 @@ export default function BillingPage() {
 
       if (!billingRes.ok) {
         const errorData = await billingRes.json().catch(() => ({}));
+        // Redirect non-owners back to portal dashboard
+        if (billingRes.status === 403) {
+          router.replace("/portal");
+          return;
+        }
         throw new Error(errorData.error || "Failed to fetch billing information");
       }
 

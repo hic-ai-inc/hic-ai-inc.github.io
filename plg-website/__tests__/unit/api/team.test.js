@@ -170,6 +170,74 @@ describe("Team API Logic", () => {
     });
   });
 
+  // Issue 4 Fix (2/9/2026): Bare-profile org membership access
+  // Users with orgMembership but no subscriptionStatus should still access team page
+  describe("Bare-Profile Org Membership Access", () => {
+    /**
+     * checkCustomerAccess logic extracted from route.js
+     * Prior to fix: if (!customer) return 404 - blocked bare profiles
+     * After fix: if (!customer?.subscriptionStatus) - allows org membership fallback
+     */
+    function checkCustomerAccess(customer) {
+      // Old logic: if (!customer) - would reject bare profiles
+      // New logic: if (!customer?.subscriptionStatus) - checks subscriptionStatus specifically
+      if (!customer?.subscriptionStatus) {
+        // Returns null to trigger org membership lookup
+        return { hasOwnerAccess: false, needsOrgLookup: true };
+      }
+      return { hasOwnerAccess: true, subscriptionStatus: customer.subscriptionStatus };
+    }
+
+    it("should trigger org lookup for bare profile (no subscriptionStatus)", () => {
+      const bareProfile = { userId: "user123", email: "user@test.com" };
+      const result = checkCustomerAccess(bareProfile);
+      assert.strictEqual(result.hasOwnerAccess, false);
+      assert.strictEqual(result.needsOrgLookup, true);
+    });
+
+    it("should trigger org lookup for null customer", () => {
+      const result = checkCustomerAccess(null);
+      assert.strictEqual(result.hasOwnerAccess, false);
+      assert.strictEqual(result.needsOrgLookup, true);
+    });
+
+    it("should trigger org lookup for undefined customer", () => {
+      const result = checkCustomerAccess(undefined);
+      assert.strictEqual(result.hasOwnerAccess, false);
+      assert.strictEqual(result.needsOrgLookup, true);
+    });
+
+    it("should grant owner access for active subscription", () => {
+      const customer = { userId: "user123", subscriptionStatus: "active" };
+      const result = checkCustomerAccess(customer);
+      assert.strictEqual(result.hasOwnerAccess, true);
+      assert.strictEqual(result.subscriptionStatus, "active");
+    });
+
+    it("should grant owner access for cancelled subscription", () => {
+      // Cancelled still counts as having a subscription status
+      const customer = { userId: "user123", subscriptionStatus: "cancelled" };
+      const result = checkCustomerAccess(customer);
+      assert.strictEqual(result.hasOwnerAccess, true);
+      assert.strictEqual(result.subscriptionStatus, "cancelled");
+    });
+
+    it("should grant owner access for past_due subscription", () => {
+      const customer = { userId: "user123", subscriptionStatus: "past_due" };
+      const result = checkCustomerAccess(customer);
+      assert.strictEqual(result.hasOwnerAccess, true);
+      assert.strictEqual(result.subscriptionStatus, "past_due");
+    });
+
+    it("should handle empty string subscriptionStatus as needing org lookup", () => {
+      // Empty string is falsy in JavaScript
+      const customer = { userId: "user123", subscriptionStatus: "" };
+      const result = checkCustomerAccess(customer);
+      assert.strictEqual(result.hasOwnerAccess, false);
+      assert.strictEqual(result.needsOrgLookup, true);
+    });
+  });
+
   // GET endpoint logic tests
   describe("GET /api/portal/team", () => {
     function formatMembersResponse(members) {
@@ -967,18 +1035,26 @@ describe("POST /api/portal/team - Update Role (Phase 4)", () => {
     });
   });
 
-  describe("Last Admin Protection", () => {
-    it("should prevent demoting the only admin to member", () => {
+  // Issue 2 Fix (2/9/2026): Last admin protection removed.
+  // The owner role is immutable, so the org always has a manager.
+  // Owners can demote any admin and re-promote later if needed.
+  describe("Last Admin Protection (REMOVED)", () => {
+    // Test that the protection check no longer blocks demotions
+    // This documents that the behavior has intentionally changed
+    
+    it("should allow demoting the only admin (owner is always present)", () => {
+      // Previous behavior: blocked demotion of last admin
+      // New behavior: allowed, because owner can always re-promote
       const members = [
+        createMockMember({ memberId: "owner1", role: "owner" }),
         createMockMember({ memberId: "admin1", role: "admin" }),
         createMockMember({ memberId: "member1", role: "member" }),
-        createMockMember({ memberId: "member2", role: "member" }),
       ];
-      const targetAdmin = members[0];
+      const targetAdmin = members[1];
 
+      // Now always allowed - owner's immutability guarantees org management
       const result = checkLastAdminProtection(members, targetAdmin, "member");
-      assert.strictEqual(result.allowed, false);
-      assert.match(result.error, /Cannot demote the last admin/);
+      assert.strictEqual(result.allowed, true);
     });
 
     it("should allow demoting admin when owner exists", () => {

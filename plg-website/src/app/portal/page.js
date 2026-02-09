@@ -266,6 +266,11 @@ function ActiveUserDashboard({
   const maxDevices = portalStatus?.maxDevices || (accountType === "business" ? 5 : 3);
   const activatedDevices = portalStatus?.activatedDevices || 0;
 
+  // Check if user is org owner (for billing access)
+  const isOrgMember = portalStatus?.isOrgMember || false;
+  const orgRole = portalStatus?.orgMembership?.role;
+  const isOrgOwner = !isOrgMember || orgRole === "owner";
+
   return (
     <div className="max-w-6xl">
       {/* Welcome Header */}
@@ -320,24 +325,32 @@ function ActiveUserDashboard({
           </CardContent>
         </Card>
 
-        {/* Billing */}
-        <Card>
+        {/* Billing - Only accessible to subscription owners */}
+        <Card className={!isOrgOwner ? "opacity-60" : ""}>
           <CardHeader>
             <CardTitle>Billing</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-slate-grey text-sm mb-4">
-              {subscriptionStatus === "active" ||
-              subscriptionStatus === "trialing"
-                ? "Subscription active"
-                : "No active subscription"}
+              {!isOrgOwner
+                ? "Managed by subscription owner"
+                : subscriptionStatus === "active" ||
+                    subscriptionStatus === "trialing"
+                  ? "Subscription active"
+                  : "No active subscription"}
             </p>
-            <Link
-              href="/portal/billing"
-              className="text-cerulean-mist hover:text-frost-white text-sm"
-            >
-              Manage billing →
-            </Link>
+            {isOrgOwner ? (
+              <Link
+                href="/portal/billing"
+                className="text-cerulean-mist hover:text-frost-white text-sm"
+              >
+                Manage billing →
+              </Link>
+            ) : (
+              <span className="text-slate-grey/50 text-sm cursor-not-allowed">
+                Billing access restricted
+              </span>
+            )}
           </CardContent>
         </Card>
       </div>

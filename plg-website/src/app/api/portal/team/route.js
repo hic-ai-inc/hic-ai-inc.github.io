@@ -79,7 +79,7 @@ export async function GET() {
 
     // Check for org membership (Business tier members)
     let orgMembership = null;
-    if (!customer) {
+    if (!customer?.subscriptionStatus) {
       orgMembership = await getUserOrgMembership(tokenPayload.sub);
     }
 
@@ -182,7 +182,7 @@ export async function POST(request) {
 
     // Check for org membership (Business tier members)
     let orgMembership = null;
-    if (!customer) {
+    if (!customer?.subscriptionStatus) {
       orgMembership = await getUserOrgMembership(tokenPayload.sub);
     }
 
@@ -273,7 +273,6 @@ export async function POST(request) {
             { status: 400 },
           );
         }
-
 
         // Get org and inviter info for email metadata
         const org = await getOrganization(orgId);
@@ -389,20 +388,6 @@ export async function POST(request) {
           );
         }
 
-        // "Last admin" protection: prevent demoting the last admin to member
-        if (targetMember.role === "admin" && role === "member") {
-          const adminCount = members.filter(
-            (m) => m.role === "admin" || m.role === "owner",
-          ).length;
-          if (adminCount <= 1) {
-            return NextResponse.json(
-              {
-                error:
-                  "Cannot demote the last admin. Promote another member first.",
-              },
-              { status: 400 },
-            );
-          }
         }
 
         const updated = await updateOrgMemberRole(orgId, memberId, role);
@@ -492,7 +477,7 @@ export async function DELETE(request) {
 
     // Check for org membership (Business tier members)
     let orgMembership = null;
-    if (!customer) {
+    if (!customer?.subscriptionStatus) {
       orgMembership = await getUserOrgMembership(tokenPayload.sub);
     }
 

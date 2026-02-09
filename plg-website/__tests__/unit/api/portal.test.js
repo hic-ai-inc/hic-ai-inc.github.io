@@ -241,6 +241,90 @@ describe("portal/license API logic", () => {
   });
 });
 
+// Issue 3 Fix (2/9/2026): Device count isolation for org members
+// Org members should see their own device count (0), not the owner's
+describe("portal/status - Org Member Device Isolation", () => {
+  /**
+   * checkDeviceCountLogic extracted from status route.js
+   * Prior to fix: Org members saw the owner's activatedDevices count
+   * After fix: if (orgMembership) skip device count fetch, return 0
+   */
+  function getDeviceCountForUser(customer, orgMembership) {
+    // If user is an org member, they don't have their own devices to count
+    // (Business tier devices are managed at org level, not per-member)
+    if (orgMembership) {
+      return { activatedDevices: 0, reason: "org_member" };
+    }
+    
+    // For individual users or org owners, fetch actual device count
+    if (customer?.activatedDevices !== undefined) {
+      return { activatedDevices: customer.activatedDevices, reason: "customer_record" };
+    }
+    
+    return { activatedDevices: 0, reason: "no_data" };
+  }
+
+  it("should return 0 devices for org members", () => {
+    const customer = { activatedDevices: 5 }; // Owner's device count (should be ignored)
+    const orgMembership = { orgId: "org123", role: "member", ownerId: "owner456" };
+    
+    const result = getDeviceCountForUser(customer, orgMembership);
+    assert.strictEqual(result.activatedDevices, 0);
+    assert.strictEqual(result.reason, "org_member");
+  });
+
+  it("should return 0 devices for org admins (non-owners)", () => {
+    const customer = { activatedDevices: 3 };
+    const orgMembership = { orgId: "org123", role: "admin", ownerId: "owner456" };
+    
+    const result = getDeviceCountForUser(customer, orgMembership);
+    assert.strictEqual(result.activatedDevices, 0);
+    assert.strictEqual(result.reason, "org_member");
+  });
+
+  it("should return actual device count for individual users", () => {
+    const customer = { activatedDevices: 2 };
+    const orgMembership = null; // Individual user, not an org member
+    
+    const result = getDeviceCountForUser(customer, orgMembership);
+    assert.strictEqual(result.activatedDevices, 2);
+    assert.strictEqual(result.reason, "customer_record");
+  });
+
+  it("should return customer device count when no org membership", () => {
+    const customer = { activatedDevices: 5 };
+    
+    const result = getDeviceCountForUser(customer, undefined);
+    assert.strictEqual(result.activatedDevices, 5);
+    assert.strictEqual(result.reason, "customer_record");
+  });
+
+  it("should return 0 when no customer data and no org membership", () => {
+    const result = getDeviceCountForUser(null, null);
+    assert.strictEqual(result.activatedDevices, 0);
+    assert.strictEqual(result.reason, "no_data");
+  });
+
+  it("should return 0 if customer has no activatedDevices property", () => {
+    const customer = { email: "user@test.com" };
+    
+    const result = getDeviceCountForUser(customer, null);
+    assert.strictEqual(result.activatedDevices, 0);
+    assert.strictEqual(result.reason, "no_data");
+  });
+
+  it("should isolate even when org owner's customer record is passed", () => {
+    // Edge case: The customer object might be the owner's record
+    // But if we have orgMembership, we return 0 regardless
+    const ownerCustomer = { activatedDevices: 10, userId: "owner456" };
+    const memberOrgMembership = { orgId: "org123", role: "member", ownerId: "owner456" };
+    
+    const result = getDeviceCountForUser(ownerCustomer, memberOrgMembership);
+    assert.strictEqual(result.activatedDevices, 0);
+    assert.strictEqual(result.reason, "org_member");
+  });
+});
+
 describe("portal/devices API logic", () => {
   function requireAuth(session) {
     if (!session?.user) {

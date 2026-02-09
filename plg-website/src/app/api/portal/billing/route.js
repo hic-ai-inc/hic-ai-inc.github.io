@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { getStripeClient } from "@/lib/stripe";
-import { getCustomerByEmail } from "@/lib/dynamodb";
+import { getCustomerByEmail, getCustomerByUserId, getUserOrgMembership } from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
 
 // Cognito JWT verifier for ID tokens
@@ -49,8 +49,26 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get customer by email from verified token
-    const customer = await getCustomerByEmail(tokenPayload.email);
+    // Check for org membership - only owners can access billing
+    // First check if user has a customer record with subscriptionStatus
+    let customer = await getCustomerByUserId(tokenPayload.sub);
+    if (!customer && tokenPayload.email) {
+      customer = await getCustomerByEmail(tokenPayload.email);
+    }
+
+    // Check if user is an org member (admin or regular member)
+    let orgMembership = null;
+    if (!customer?.subscriptionStatus) {
+      orgMembership = await getUserOrgMembership(tokenPayload.sub);
+    }
+
+    // Non-owners cannot access billing information
+    if (orgMembership && orgMembership.role !== "owner") {
+      return NextResponse.json(
+        { error: "Only the subscription owner can access billing information" },
+        { status: 403 }
+      );
+    }
     if (!customer?.stripeCustomerId) {
       return NextResponse.json({
         subscription: null,
