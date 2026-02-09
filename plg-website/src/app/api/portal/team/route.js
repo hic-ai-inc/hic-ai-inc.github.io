@@ -84,7 +84,9 @@ export async function GET() {
     }
 
     // Determine account type from DynamoDB
-    const accountType = orgMembership ? "business" : (customer?.accountType || "individual");
+    const accountType = orgMembership
+      ? "business"
+      : customer?.accountType || "individual";
 
     // Check for business account
     if (accountType !== "business") {
@@ -96,9 +98,10 @@ export async function GET() {
 
     // Get orgId from membership or customer record
     let orgId = orgMembership?.orgId || customer?.orgId;
-    
+
     // Fallback: If no org_id, try to find org by stripeCustomerId
-    const stripeCustomerId = customer?.stripeCustomerId || tokenPayload["custom:stripe_customer_id"];
+    const stripeCustomerId =
+      customer?.stripeCustomerId || tokenPayload["custom:stripe_customer_id"];
     if (!orgId && stripeCustomerId) {
       const org = await getOrganizationByStripeCustomer(stripeCustomerId);
       if (org) {
@@ -187,7 +190,9 @@ export async function POST(request) {
     }
 
     // Determine account type and org role from DynamoDB
-    const accountType = orgMembership ? "business" : (customer?.accountType || "individual");
+    const accountType = orgMembership
+      ? "business"
+      : customer?.accountType || "individual";
     const orgId = orgMembership?.orgId || customer?.orgId;
     const userRole = orgMembership?.role || customer?.orgRole || "member";
 
@@ -267,9 +272,15 @@ export async function POST(request) {
 
         // Check if invitee already has a Mouse account with an active license
         const existingCustomer = await getCustomerByEmail(email);
-        if (existingCustomer?.keygenLicenseId || existingCustomer?.subscriptionStatus === "active") {
+        if (
+          existingCustomer?.keygenLicenseId ||
+          existingCustomer?.subscriptionStatus === "active"
+        ) {
           return NextResponse.json(
-            { error: "This individual already has a Mouse account. Please contact support for account merging." },
+            {
+              error:
+                "This individual already has a Mouse account. Please contact support for account merging.",
+            },
             { status: 400 },
           );
         }
@@ -277,14 +288,25 @@ export async function POST(request) {
         // Get org and inviter info for email metadata
         const org = await getOrganization(orgId);
         const inviter = await getCustomerByUserId(tokenPayload.sub);
-        const inviterName = inviter?.name || tokenPayload.name || tokenPayload.email || "Your team";
-        const organizationName = org?.name || inviter?.organizationName || "Your organization";
+        const inviterName =
+          inviter?.name ||
+          tokenPayload.name ||
+          tokenPayload.email ||
+          "Your team";
+        const organizationName =
+          org?.name || inviter?.organizationName || "Your organization";
 
         // Create invite with email metadata (event-driven flow handles email)
-        const invite = await createOrgInvite(orgId, email, role, tokenPayload.sub, {
-          organizationName,
-          inviterName,
-        });
+        const invite = await createOrgInvite(
+          orgId,
+          email,
+          role,
+          tokenPayload.sub,
+          {
+            organizationName,
+            inviterName,
+          },
+        );
 
         return NextResponse.json({
           success: true,
@@ -388,8 +410,6 @@ export async function POST(request) {
           );
         }
 
-        }
-
         const updated = await updateOrgMemberRole(orgId, memberId, role);
 
         return NextResponse.json({
@@ -482,7 +502,9 @@ export async function DELETE(request) {
     }
 
     // Determine account type and org role from DynamoDB
-    const accountType = orgMembership ? "business" : (customer?.accountType || "individual");
+    const accountType = orgMembership
+      ? "business"
+      : customer?.accountType || "individual";
     const orgId = orgMembership?.orgId || customer?.orgId;
     const userRole = orgMembership?.role || customer?.orgRole || "member";
 
