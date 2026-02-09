@@ -117,6 +117,22 @@ export const handler = async (event) => {
         continue;
       }
 
+      // Guard 1: Skip MODIFY/REMOVE events for initial-creation email types
+      // Our DDB update (clearing emailPendingVerification) triggers a MODIFY stream
+      // event which would re-enter this pipeline and send duplicate emails
+      if (eventName !== "INSERT" && eventType === "CUSTOMER_CREATED") {
+        log.debug("skip-non-insert", { eventName, eventType });
+        continue;
+      }
+
+      // Guard 2: Check emailsSent map — if this eventType was already sent, skip
+      // Belt-and-suspenders dedup: newImage is in DynamoDB JSON format (M/S types)
+      const emailsSentMap = newImage?.emailsSent?.M;
+      if (emailsSentMap?.[eventType]) {
+        log.debug("already-sent", { eventType });
+        continue;
+      }
+
       // Get email address from the record
       const email = getField(newImage, "email");
       if (!email) {

@@ -1029,7 +1029,8 @@ describe("portal/status API - org member status resolution", () => {
     }
 
     // Determine effective customer (owner's record for org members)
-    const effectiveCustomer = customer || ownerCustomer;
+    // When org membership is found, prefer ownerCustomer (bare profile has no subscription)
+    const effectiveCustomer = membership ? (ownerCustomer || customer) : customer;
     const subscriptionStatus = effectiveCustomer?.subscriptionStatus || "none";
     const hasSubscription = ["active", "trialing"].includes(subscriptionStatus);
     const accountType = membership ? "business" : (effectiveCustomer?.accountType || "individual");
@@ -1296,6 +1297,97 @@ describe("portal/status API - org member status resolution", () => {
     assert.strictEqual(result.hasSubscription, true);
     assert.strictEqual(result.accountType, "business");
     assert.strictEqual(result.isOrgMember, true);
+  });
+});
+
+// ============================================================================
+// effectiveCustomer Priority Tests (bare profile vs orgOwnerCustomer)
+// ============================================================================
+
+describe("effectiveCustomer priority - org member with bare profile", () => {
+  // These tests validate that when org membership is found, the org owner's
+  // customer record (orgOwnerCustomer) takes priority over the bare profile.
+  // Before the fix: effectiveCustomer = customer || orgOwnerCustomer
+  //   → bare profile (truthy) was always picked, so subscriptionStatus was "none"
+  // After the fix: effectiveCustomer = membership ? (orgOwnerCustomer || customer) : customer
+  //   → org owner's record is preferred when membership exists
+
+  // Simulates the FIXED status API effectiveCustomer resolution
+  function resolveEffectiveCustomer({ customer, orgOwnerCustomer, membership }) {
+    return membership ? (orgOwnerCustomer || customer) : customer;
+  }
+
+  it("should prefer orgOwnerCustomer over bare profile when org membership exists", () => {
+    const bareProfile = { email: "user@test.com", name: "User", userId: "google_123" };
+    const orgOwner = { subscriptionStatus: "active", accountType: "business", keygenLicenseId: "lic_org" };
+    const membership = { orgId: "cus_org1", role: "member" };
+
+    const effective = resolveEffectiveCustomer({ customer: bareProfile, orgOwnerCustomer: orgOwner, membership });
+
+    assert.strictEqual(effective, orgOwner);
+    assert.strictEqual(effective.subscriptionStatus, "active");
+  });
+
+  it("should fall back to bare profile when orgOwnerCustomer is null (broken org)", () => {
+    const bareProfile = { email: "user@test.com", name: "User", userId: "google_123" };
+    const membership = { orgId: "org_broken", role: "member" };
+
+    const effective = resolveEffectiveCustomer({ customer: bareProfile, orgOwnerCustomer: null, membership });
+
+    // Falls back to bare profile — no subscriptionStatus, so hasSubscription = false
+    assert.strictEqual(effective, bareProfile);
+    assert.strictEqual(effective.subscriptionStatus, undefined);
+  });
+
+  it("should use customer directly when no org membership exists (individual user)", () => {
+    const customer = { subscriptionStatus: "active", accountType: "individual", keygenLicenseId: "lic_ind" };
+    const orgOwner = { subscriptionStatus: "active", accountType: "business" };
+
+    const effective = resolveEffectiveCustomer({ customer, orgOwnerCustomer: orgOwner, membership: null });
+
+    // No membership → use customer directly, ignore orgOwnerCustomer
+    assert.strictEqual(effective, customer);
+    assert.strictEqual(effective.accountType, "individual");
+  });
+
+  it("should use orgOwnerCustomer even when bare profile has some fields", () => {
+    // Bare profile may have email, name, userId but no subscription fields
+    const bareProfile = {
+      email: "simon@test.com",
+      name: "Simon",
+      userId: "google_99999",
+      createdAt: "2026-02-01T00:00:00Z",
+    };
+    const orgOwner = {
+      subscriptionStatus: "trialing",
+      accountType: "business",
+      keygenLicenseId: "lic_trial",
+      currentPeriodEnd: "2026-03-01T00:00:00Z",
+    };
+    const membership = { orgId: "cus_trial_org", role: "admin" };
+
+    const effective = resolveEffectiveCustomer({ customer: bareProfile, orgOwnerCustomer: orgOwner, membership });
+
+    assert.strictEqual(effective, orgOwner);
+    assert.strictEqual(effective.subscriptionStatus, "trialing");
+    assert.strictEqual(effective.keygenLicenseId, "lic_trial");
+  });
+
+  it("should handle null customer with valid orgOwnerCustomer (no bare profile)", () => {
+    const orgOwner = { subscriptionStatus: "active", accountType: "business" };
+    const membership = { orgId: "cus_org2", role: "member" };
+
+    const effective = resolveEffectiveCustomer({ customer: null, orgOwnerCustomer: orgOwner, membership });
+
+    assert.strictEqual(effective, orgOwner);
+  });
+
+  it("should return null when both customer and orgOwnerCustomer are null with membership", () => {
+    const membership = { orgId: "cus_orphan", role: "member" };
+
+    const effective = resolveEffectiveCustomer({ customer: null, orgOwnerCustomer: null, membership });
+
+    assert.strictEqual(effective, null);
   });
 });
 

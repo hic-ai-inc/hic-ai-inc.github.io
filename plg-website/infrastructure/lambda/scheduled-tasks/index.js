@@ -360,6 +360,22 @@ async function handlePendingEmailRetry(log) {
       continue;
     }
 
+    // Check if this email was already sent (dedup guard)
+    if (wasEmailSent(user, user.eventType)) {
+      log.debug("already-sent", { userId: user.userId, eventType: user.eventType });
+      // Clear the pending flag since email was already sent
+      await dynamoClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: { PK: `USER#${user.userId}`, SK: "PROFILE" },
+          UpdateExpression: "SET emailPendingVerification = :false",
+          ExpressionAttributeValues: { ":false": false },
+        }),
+      );
+      sent++;
+      continue;
+    }
+
     // Email is now verified - determine which email template to send
     const templateName = EVENT_TYPE_TO_TEMPLATE[user.eventType];
     if (!templateName) {

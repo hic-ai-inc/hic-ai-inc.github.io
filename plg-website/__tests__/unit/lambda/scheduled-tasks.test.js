@@ -444,6 +444,234 @@ describe("Scheduled Tasks Lambda", () => {
   });
 
 
+  describe("pending-email-retry Job", () => {
+    test("should send welcome email when SES verification succeeds", async () => {
+      let updateCalled = false;
+
+      dynamoSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "ScanCommand") {
+          return {
+            Items: [
+              {
+                PK: "USER#google_12345",
+                SK: "PROFILE",
+                userId: "google_12345",
+                email: "newuser@example.com",
+                eventType: "CUSTOMER_CREATED",
+                emailPendingVerification: true,
+                emailsSent: {},
+              },
+            ],
+          };
+        }
+        if (cmd.constructor.name === "UpdateCommand") {
+          updateCalled = true;
+        }
+        return {};
+      };
+
+      sesSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
+          return {
+            VerificationAttributes: {
+              "newuser@example.com": { VerificationStatus: "Success" },
+            },
+          };
+        }
+        return { MessageId: "ses-msg-welcome" };
+      };
+
+      const event = createEventBridgeEvent("pending-email-retry");
+      const result = await handler(event);
+
+      expect(result.sent).toBe(1);
+      expect(result.stillPending).toBe(0);
+      expect(updateCalled).toBe(true);
+    });
+
+    test("should skip users whose email is not yet SES-verified", async () => {
+      dynamoSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "ScanCommand") {
+          return {
+            Items: [
+              {
+                PK: "USER#google_67890",
+                SK: "PROFILE",
+                userId: "google_67890",
+                email: "unverified@example.com",
+                eventType: "CUSTOMER_CREATED",
+                emailPendingVerification: true,
+                emailsSent: {},
+              },
+            ],
+          };
+        }
+        return {};
+      };
+
+      sesSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
+          return {
+            VerificationAttributes: {
+              "unverified@example.com": { VerificationStatus: "Pending" },
+            },
+          };
+        }
+        return {};
+      };
+
+      const event = createEventBridgeEvent("pending-email-retry");
+      const result = await handler(event);
+
+      expect(result.sent).toBe(0);
+      expect(result.stillPending).toBe(1);
+      // No SES send call should be made
+      const sendCalls = sesCalls.filter(c => 
+        c.arguments[0]?.constructor?.name === "SendEmailCommand"
+      );
+      expect(sendCalls.length).toBe(0);
+    });
+
+    test("should skip users who already had their email sent (wasEmailSent guard)", async () => {
+      // This test verifies the new dedup guard added to handlePendingEmailRetry:
+      // if emailsSent[eventType] already exists, skip sending and just clear the flag
+      let updateKeys = [];
+
+      dynamoSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "ScanCommand") {
+          return {
+            Items: [
+              {
+                PK: "USER#google_already",
+                SK: "PROFILE",
+                userId: "google_already",
+                email: "already-sent@example.com",
+                eventType: "CUSTOMER_CREATED",
+                emailPendingVerification: true,
+                emailsSent: { CUSTOMER_CREATED: "2026-02-09T01:00:00Z" },
+              },
+            ],
+          };
+        }
+        if (cmd.constructor.name === "UpdateCommand") {
+          updateKeys.push(cmd.input?.Key);
+        }
+        return {};
+      };
+
+      // SES verification would succeed, but we shouldn't even reach the send
+      sesSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
+          return {
+            VerificationAttributes: {
+              "already-sent@example.com": { VerificationStatus: "Success" },
+            },
+          };
+        }
+        return {};
+      };
+
+      const event = createEventBridgeEvent("pending-email-retry");
+      const result = await handler(event);
+
+      // Should count as "sent" (flag cleared) but no actual SES email send
+      expect(result.sent).toBe(1);
+      expect(result.stillPending).toBe(0);
+
+      // Should have called UpdateCommand to clear the pending flag
+      expect(updateKeys.length).toBe(1);
+      expect(updateKeys[0].PK).toBe("USER#google_already");
+
+      // No SES SendEmailCommand should have been called
+      const sendEmailCalls = sesCalls.filter(c =>
+        c.arguments[0]?.constructor?.name === "SendEmailCommand"
+      );
+      expect(sendEmailCalls.length).toBe(0);
+    });
+
+    test("should handle mix of already-sent and fresh pending users", async () => {
+      let updateCount = 0;
+      let sesEmailCount = 0;
+
+      dynamoSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "ScanCommand") {
+          return {
+            Items: [
+              // User 1: already sent (dedup guard should catch)
+              {
+                PK: "USER#user_dup",
+                SK: "PROFILE",
+                userId: "user_dup",
+                email: "dup@example.com",
+                eventType: "CUSTOMER_CREATED",
+                emailPendingVerification: true,
+                emailsSent: { CUSTOMER_CREATED: "2026-02-08T12:00:00Z" },
+              },
+              // User 2: fresh, needs to be sent
+              {
+                PK: "USER#user_fresh",
+                SK: "PROFILE",
+                userId: "user_fresh",
+                email: "fresh@example.com",
+                eventType: "CUSTOMER_CREATED",
+                emailPendingVerification: true,
+                emailsSent: {},
+              },
+            ],
+          };
+        }
+        if (cmd.constructor.name === "UpdateCommand") {
+          updateCount++;
+        }
+        return {};
+      };
+
+      sesSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
+          const attrs = {};
+          for (const email of cmd.input.Identities) {
+            attrs[email] = { VerificationStatus: "Success" };
+          }
+          return { VerificationAttributes: attrs };
+        }
+        if (cmd.constructor.name === "SendEmailCommand") {
+          sesEmailCount++;
+          return { MessageId: `msg-${sesEmailCount}` };
+        }
+        return {};
+      };
+
+      const event = createEventBridgeEvent("pending-email-retry");
+      const result = await handler(event);
+
+      // Both should count as "sent" (one via dedup guard, one via actual send)
+      expect(result.sent).toBe(2);
+      expect(result.stillPending).toBe(0);
+
+      // Only 1 actual SES email should be sent (for fresh user)
+      expect(sesEmailCount).toBe(1);
+
+      // Both should have UpdateCommand calls (dedup clears flag, fresh updates emailsSent)
+      expect(updateCount).toBe(2);
+    });
+
+    test("should return zeros when no pending users found", async () => {
+      dynamoSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "ScanCommand") {
+          return { Items: [] };
+        }
+        return {};
+      };
+
+      const event = createEventBridgeEvent("pending-email-retry");
+      const result = await handler(event);
+
+      expect(result.sent).toBe(0);
+      expect(result.stillPending).toBe(0);
+      expect(result.failed).toBe(0);
+    });
+  });
+
   describe("mouse-version-notify Job", () => {
     test("updates readyVersion from latestVersion", async () => {
       let sawUpdate = false;

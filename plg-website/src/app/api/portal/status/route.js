@@ -109,7 +109,8 @@ export async function GET(request) {
 
     // Determine subscription state
     // For org members, use the org owner's subscription status
-    const effectiveCustomer = customer || orgOwnerCustomer;
+    // When org membership is found, prefer orgOwnerCustomer (bare profile has no subscription)
+    const effectiveCustomer = orgMembership ? (orgOwnerCustomer || customer) : customer;
     const subscriptionStatus = effectiveCustomer?.subscriptionStatus || "none";
     const hasActiveSubscription = ["active", "trialing"].includes(
       subscriptionStatus,

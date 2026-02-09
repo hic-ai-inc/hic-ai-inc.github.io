@@ -390,6 +390,138 @@ describe("Email Sender Lambda", async () => {
 
   });
 
+  describe("Feedback Loop Prevention", () => {
+    test("should skip MODIFY events for CUSTOMER_CREATED eventType", async () => {
+      // This is the primary guard against the email feedback loop:
+      // email-sender updates DDB after sending → triggers MODIFY stream event →
+      // re-enters pipeline → would send again without this guard
+      const event = createSqsEvent([
+        createSqsRecord("CUSTOMER_CREATED", "newuser@example.com", {
+          userId: { S: "google_12345" },
+        }, "MODIFY"),  // MODIFY, not INSERT
+      ]);
+
+      const result = await handler(event);
+
+      // No SES calls should be made — MODIFY is skipped for CUSTOMER_CREATED
+      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+      expect(sendCall).toBeFalsy();
+      expect(result.processed).toBe(0);
+    });
+
+    test("should process INSERT events for CUSTOMER_CREATED normally", async () => {
+      const event = createSqsEvent([
+        createSqsRecord("CUSTOMER_CREATED", "newuser@example.com", {
+          userId: { S: "google_12345" },
+        }, "INSERT"),
+      ]);
+
+      const result = await handler(event);
+
+      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+      expect(sendCall).toBeTruthy();
+      expect(result.success).toBe(1);
+    });
+
+    test("should skip REMOVE events for CUSTOMER_CREATED eventType", async () => {
+      const event = createSqsEvent([
+        createSqsRecord("CUSTOMER_CREATED", "removed@example.com", {
+          userId: { S: "google_99999" },
+        }, "REMOVE"),
+      ]);
+
+      const result = await handler(event);
+
+      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+      expect(sendCall).toBeFalsy();
+      expect(result.processed).toBe(0);
+    });
+
+    test("should skip records when emailsSent map already contains the eventType", async () => {
+      // Belt-and-suspenders dedup: even if eventName filter misses,
+      // the emailsSent map check catches already-sent emails
+      const event = createSqsEvent([
+        createSqsRecord("LICENSE_CREATED", "already-sent@example.com", {
+          licenseKey: { S: "KEY-DUP" },
+          emailsSent: { M: { LICENSE_CREATED: { S: "2026-02-09T00:00:00Z" } } },
+        }, "INSERT"),
+      ]);
+
+      const result = await handler(event);
+
+      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+      expect(sendCall).toBeFalsy();
+      expect(result.processed).toBe(0);
+    });
+
+    test("should process records when emailsSent map exists but does NOT contain this eventType", async () => {
+      // A user can receive different email types — only skip if THIS type was sent
+      const event = createSqsEvent([
+        createSqsRecord("LICENSE_CREATED", "multi-email@example.com", {
+          licenseKey: { S: "KEY-NEW" },
+          planName: { S: "PRO" },
+          emailsSent: { M: { CUSTOMER_CREATED: { S: "2026-02-08T00:00:00Z" } } },
+        }, "INSERT"),
+      ]);
+
+      const result = await handler(event);
+
+      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+      expect(sendCall).toBeTruthy();
+      expect(result.success).toBe(1);
+    });
+
+    test("should process records when emailsSent map is empty", async () => {
+      const event = createSqsEvent([
+        createSqsRecord("LICENSE_CREATED", "fresh@example.com", {
+          licenseKey: { S: "KEY-FRESH" },
+          planName: { S: "PRO" },
+          emailsSent: { M: {} },
+        }, "INSERT"),
+      ]);
+
+      const result = await handler(event);
+
+      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+      expect(sendCall).toBeTruthy();
+      expect(result.success).toBe(1);
+    });
+
+    test("should allow MODIFY events for non-CUSTOMER_CREATED event types", async () => {
+      // Other event types (e.g., LICENSE_CREATED) may legitimately need
+      // MODIFY processing for status transitions
+      const event = createSqsEvent([
+        createSqsRecord("LICENSE_CREATED", "updated@example.com", {
+          licenseKey: { S: "KEY-UPD" },
+          planName: { S: "PRO" },
+        }, "MODIFY"),
+      ]);
+
+      const result = await handler(event);
+
+      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+      expect(sendCall).toBeTruthy();
+      expect(result.success).toBe(1);
+    });
+
+    test("should apply BOTH guards: MODIFY + emailsSent for double protection", async () => {
+      // Even when eventName is INSERT, if emailsSent already has the type, skip
+      const event = createSqsEvent([
+        createSqsRecord("CUSTOMER_CREATED", "double-guard@example.com", {
+          userId: { S: "google_44444" },
+          emailsSent: { M: { CUSTOMER_CREATED: { S: "2026-02-09T01:00:00Z" } } },
+        }, "INSERT"),
+      ]);
+
+      const result = await handler(event);
+
+      // emailsSent guard catches it even though eventName is INSERT
+      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+      expect(sendCall).toBeFalsy();
+      expect(result.processed).toBe(0);
+    });
+  });
+
   describe("TEAM_INVITE_CREATED event", () => {
     test("should extract inviterName and inviteToken from newImage", async () => {
       sesSendImpl = async (cmd) => {
