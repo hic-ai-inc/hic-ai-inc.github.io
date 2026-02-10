@@ -15,7 +15,6 @@ import { headers } from "next/headers";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   getCustomerByEmail,
-  getCustomerByUserId,
   getLicense,
   getUserOrgMembership,
   getOrganization,
@@ -73,9 +72,9 @@ export async function GET() {
       // User is a member of an org - get the org's shared license
       const org = await getOrganization(membership.orgId);
 
-      if (org?.ownerId) {
+      if (org?.ownerEmail) {
         // Get the org owner's customer record (which has the license)
-        const orgOwner = await getCustomerByUserId(org.ownerId);
+        const orgOwner = await getCustomerByEmail(org.ownerEmail);
 
         if (orgOwner?.keygenLicenseId) {
           return buildLicenseResponse(orgOwner, {
