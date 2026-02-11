@@ -68,6 +68,8 @@ Request SES production access (exit sandbox). In production mode, only the sende
 
 **Update (2/9/2026 5:00 PM EST):** AWS Support opened a ticket requesting additional information about our SES use case, bounce/complaint handling, recipient list maintenance, and email content. We supplied a detailed response addressing all points. Awaiting further update on whether our application is approved or if additional information is required.
 
+**Update (2/11/2026 7:00 AM EST):** Excellent news — AWS approved our request to exit SES sandbox mode and move to production. This includes a significant quota increase to 50,000 outgoing messages per day, well above our current needs. Option B is now fully enabled.
+
 ### Secondary Issue: No emailsSent Dedup for Invites
 
 After sending, `email-sender` tries to update `USER#${userId}/PROFILE` with the `emailsSent` timestamp. But invite records have `PK=ORG#orgId` and no `userId` field. The `if (TABLE_NAME && userId)` guard prevents the update, so no dedup marker is written. This is non-blocking for now (the invite SQS message is consumed and won't re-trigger), but should be addressed for completeness.
