@@ -344,6 +344,8 @@ Before implementing multi-seat, consider whether the current Keygen policy setti
 
 The trade-off: dead machines count against the `maxMachines` limit. A user who truly abandons a machine would consume a slot until manually deactivated. This is manageable for Individual (2-3 machines) and for Business (portal provides deactivation UI).
 
+> **V2 Decision (2026-02-11):** After review, this recommendation was **not adopted**. The current policies (`DEACTIVATE_DEAD` + `NO_REVIVE`) are retained. The Implementation Plan V2 addresses the re-activation churn at the extension level (heartbeat + expiry-bug fix in Phase 0/Phase 3) rather than changing Keygen's deactivation behavior. The `heartbeatDuration` extension to 3600s (also recommended above) _was_ adopted.
+
 ---
 
 ## 8. Architecture Decision: PER_LICENSE vs PER_USER Leasing Strategy

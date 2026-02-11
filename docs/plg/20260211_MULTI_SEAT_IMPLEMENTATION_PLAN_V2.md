@@ -4,12 +4,15 @@
 **Author:** GC (Copilot)
 **Status:** FINAL — Approved for Implementation
 **Supersedes:** [v1](20260211_MULTI_SEAT_IMPLEMENTATION_PLAN.md) — this version incorporates all decisions made during the 2026-02-11 working session
-**Prerequisites:** D2 (heartbeatDuration) and D3 (App Client) decisions remain open; all others resolved
+**Prerequisites:** All decisions resolved (D1 through D3). Ready for implementation.
 **Reference Documents:**
 
 - [20260210_GC_TECH_SPEC_MULTI_SEAT_DEVICE_MANAGEMENT.md](20260210_GC_TECH_SPEC_MULTI_SEAT_DEVICE_MANAGEMENT.md) — Original specification
 - [20260211_ADDENDUM_TO_MULTI_SEAT_DEVICE_MANAGEMENT_SPECIFICATION_V2.md](20260211_ADDENDUM_TO_MULTI_SEAT_DEVICE_MANAGEMENT_SPECIFICATION_V2.md) — Infrastructure audit & recommendations (v2)
 - [20260211_REPORT_ON_KEYGEN_INVESTIGATION.md](20260211_REPORT_ON_KEYGEN_INVESTIGATION.md) — Keygen API findings & PER_LICENSE vs PER_USER analysis
+
+
+> **Reading Order:** This Implementation Plan V2 is the **definitive, self-sufficient** document for all phasing, task ordering, and implementation decisions. The companion Tech Spec (20260210) provides architectural context and rationale but its phasing structure (3 phases, 7 workstreams) is **superseded** by this document's 6-phase structure. The Addendum V2 and Keygen Investigation Report are reference material. When in doubt, this document governs.
 
 ---
 
@@ -31,12 +34,14 @@ These decisions gate the implementation. Work cannot proceed until resolved.
 | #   | Decision                                                           | Options                                                                       | Recommendation                               |
 | --- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------- | -------------------------------------------- |
 | D1  | Change heartbeat strategy to KEEP_DEAD + ALWAYS_REVIVE?            | **A:** Yes **B:** No, retain DEACTIVATE_DEAD + NO_REVIVE and build re-activation | **RESOLVED: B** — DEACTIVATE_DEAD retained; extension handles transparent re-activation. With ALWAYS_ALLOW_OVERAGE, re-activation always succeeds. |
-| D2  | Extend `heartbeatDuration` from 900s to 3600s?                     | **A:** Yes **B:** Keep 900s                                                   | A — reduces churn during normal laptop sleep |
-| D3  | Add `vscode://` callback to existing App Client or create new one? | **A:** Existing (recommended) **B:** New client                               | A — less infrastructure                      |
+| D2  | Extend `heartbeatDuration` from 900s to 3600s?                     | **A:** Yes **B:** Keep 900s                                                   | **RESOLVED: A** — heartbeatDuration extended to 3600s (1 hour). Reduces machine deletion churn during normal laptop sleep. |
+| D3  | Add `vscode://` callback to existing App Client or create new one? | **A:** Existing (recommended) **B:** New client                               | **RESOLVED: A** — Add `vscode://hic-ai.mouse/callback` to the existing `mouse-staging-web` App Client. Same JWT verifier config, no new env vars needed. |
 
 > **Resolved:** Individual `maxMachines` is **3**. This was a prior business decision reflected in `plg-website/src/lib/constants.js` (`maxConcurrentMachines: 3`) and throughout the implementation. The Keygen Individual policy currently has `maxMachines: 2`, which is incorrect and will be corrected in Phase 0, Step 0.2. Note: with `ALWAYS_ALLOW_OVERAGE`, `maxMachines` is decorative (dashboard visibility only) — Keygen does not enforce it.
 
-> **Resolved: Concurrency Model.** Concurrency is defined by a **2-hour sliding window** in DynamoDB: devices whose `lastHeartbeat > now - 2 hours` count as concurrent (controlled by `CONCURRENT_DEVICE_WINDOW_HOURS` env var, default: 2). Keygen's `maxMachines` is decorative under `ALWAYS_ALLOW_OVERAGE` and does not participate in enforcement. Answers to sub-questions: (1) When a container stops, its slot frees automatically after the 2-hour window expires — no manual deactivation needed. Under DEACTIVATE_DEAD, Keygen also auto-cleans the machine record after `heartbeatDuration` (15 min). (2) Keygen's heartbeat lifecycle is orthogonal to enforcement — DEACTIVATE_DEAD provides operational hygiene (auto-cleanup) while DynamoDB provides concurrency enforcement. (3) A developer who overuses on Day One can use Mouse normally after their excess devices’ `lastHeartbeat` ages past the 2-hour window.
+> **Resolved: Concurrency Model.** Concurrency is defined by a **2-hour sliding window** in DynamoDB: devices whose `lastHeartbeat > now - 2 hours` count as concurrent (controlled by `CONCURRENT_DEVICE_WINDOW_HOURS` env var, default: 2). Keygen's `maxMachines` is decorative under `ALWAYS_ALLOW_OVERAGE` and does not participate in enforcement. Answers to sub-questions: (1) When a container stops, its slot frees automatically after the 2-hour window expires — no manual deactivation needed. Under DEACTIVATE_DEAD, Keygen also auto-cleans the machine record after `heartbeatDuration` (1 hour, per D2 resolution). (2) Keygen's heartbeat lifecycle is orthogonal to enforcement — DEACTIVATE_DEAD provides operational hygiene (auto-cleanup) while DynamoDB provides concurrency enforcement. (3) A developer who overuses on Day One can use Mouse normally after their excess devices’ `lastHeartbeat` ages past the 2-hour window.
+
+> **⚠️ IMPLEMENTATION AUDIT REQUIRED: Concurrent Device Window.** The `CONCURRENT_DEVICE_WINDOW_HOURS` value was changed from 24 hours to **2 hours** as a business decision on 2026-02-11. The codebase may still reference the old 24-hour default in various places. During implementation and testing, **audit all references** to `CONCURRENT_DEVICE_WINDOW_HOURS`, the 24-hour window, or any hardcoded time-window values to ensure the 2-hour sliding-window strategy is adopted uniformly across the activation route, heartbeat route, DynamoDB query functions, portal device display, and any constants files. This is a cross-cutting concern that touches both repos.
 
 ---
 
@@ -123,16 +128,18 @@ Content-Type: application/vnd.api+json
 { "data": { "type": "policies", "attributes": { "maxMachines": 3 } } }
 ```
 
-#### Step 0.3: Consider heartbeatDuration Extension
+#### Step 0.3: Extend heartbeatDuration to 3600s (1 Hour)
 
-Pending D2 decision. If yes:
+**RESOLVED (D2 = A).** Execute two API calls (one per policy):
 
 ```
 PATCH /v1/accounts/{accountId}/policies/{policyId}
 { "data": { "type": "policies", "attributes": { "heartbeatDuration": 3600 } } }
 ```
 
-Apply to both policies.
+Apply to both Individual and Business policies. This extends the heartbeat window from 15 minutes to 1 hour, significantly reducing machine deletion churn during normal laptop sleep/idle cycles. The extension's 10-minute heartbeat interval now has a 50-minute buffer instead of a 5-minute buffer.
+
+> **Note on heartbeat duration vs. concurrency window interaction (clarification for item g):** With `heartbeatDuration: 3600` (1 hour), Keygen deletes a dead machine after 1 hour of no heartbeats. The DynamoDB concurrency window is 2 hours. This means a machine can be dead on Keygen (deleted after 1 hour) while still counting as "concurrent" in DynamoDB for up to 1 additional hour. This is by design — the DynamoDB window intentionally prevents rapid slot-recycling regardless of Keygen's machine lifecycle. The 1-hour heartbeat duration provides a comfortable buffer for laptop sleep without requiring re-activation for any idle period under 1 hour, while the 2-hour concurrency window prevents abuse via rapid container cycling.
 
 #### ✅ Gate 0: Verify Keygen Policy State
 
@@ -144,7 +151,7 @@ Apply to both policies.
 - [ ] `strict: false` on both (must remain false for ALWAYS_ALLOW_OVERAGE to work)
 - [ ] `maxMachines: 3` on Individual policy (corrected from 2)
 - [ ] `maxMachines: 5` on Business policy (unchanged)
-- [ ] `heartbeatDuration` matches the D2 decision on both
+- [ ] `heartbeatDuration: 3600` on both (extended from 900)
 - [ ] All other attributes unchanged
 
 **🔍 E2E Assessment:** The expiry bug (UJ-4) is **not** mitigated by Phase 0 alone — DEACTIVATE_DEAD is retained, so machines are still deleted after heartbeat expiry. Full UJ-4 resolution requires Phase 3 extension changes (transparent re-activation). Phase 0 enables this by ensuring `ALWAYS_ALLOW_OVERAGE` so re-activation will always succeed.
@@ -268,11 +275,12 @@ cd plg-website && npm test
 
 **File:** `plg-website/src/lib/dynamodb.js`
 
-Extend the function to accept optional `userId` and `userEmail` parameters. When present, store them in the device record. When absent (backward compatibility), omit them.
+Extend the function to accept required `userId` and `userEmail` parameters. These are always present for activated devices — activation is not possible without authentication.
 
 ```javascript
 // Before: addDeviceActivation(keygenLicenseId, keygenMachineId, fingerprint, name, platform, metadata)
 // After:  addDeviceActivation(keygenLicenseId, keygenMachineId, fingerprint, name, platform, metadata, userId, userEmail)
+// Note: userId and userEmail are REQUIRED — activation without authentication is a system error.
 ```
 
 The DynamoDB item gains two new attributes:
@@ -305,12 +313,12 @@ cd plg-website && npm run test:lib
 ```
 
 - [ ] All existing `__tests__/unit/lib/dynamodb.test.js` tests pass (no regression)
-- [ ] Existing `addDeviceActivation` tests still pass (backward compatible — userId/userEmail are optional)
+- [ ] Existing `addDeviceActivation` tests still pass (updated to require userId/userEmail)
 
 **📋 New tests to write (in `dynamodb.test.js`):**
 
 - [ ] `addDeviceActivation` with userId/userEmail — verify DynamoDB PutItem includes new attributes
-- [ ] `addDeviceActivation` without userId/userEmail — verify backward compatibility (attributes omitted)
+- [ ] `addDeviceActivation` without userId/userEmail — verify it throws an error (userId is required for all activations)
 - [ ] `getUserDevices` — returns only devices for specified userId within a license
 - [ ] `getUserDevices` — returns empty array when no devices match userId
 - [ ] `getUserDevices` — does not return devices belonging to other users on same license
@@ -327,9 +335,9 @@ cd plg-website && npm run test:lib
 **Expected system state after Phase 2:**
 
 - DynamoDB layer can store and query per-user device records
-- Existing device operations are unchanged (backward compatible)
-- No endpoints modified yet — these functions are available but not called with user identity
-- Extension still works exactly as before
+- Existing device query operations are unchanged
+- New functions are available and ready for Phase 3 wiring
+- Extension still works exactly as before (trial mode unaffected)
 
 ---
 
@@ -375,12 +383,21 @@ Also register a `vscode.window.registerUriHandler` to capture the OAuth callback
 Activation flow becomes:
 
 ```
-1. User: Mouse: Enter License Key → inputBox for key
-2. Extension: getSession() or createSession() → idToken
+1. User: Mouse → Enter License Key → inputBox for key
+2. Extension: getSession() → idToken (if no session or token expired → redirect to sign-in)
 3. Extension: activateLicense(key, fingerprint, deviceName, platform, idToken)
-4. Server: verify JWT, extract userId/email, activate with per-user tracking
-5. Extension: save userId/email to license.json state
+4. Server: verify JWT → 401 if invalid/expired → extension treats as "no session"
+5. Server: extract userId/email, activate with per-user tracking
+6. Extension: save userId/email to license.json state
 ```
+
+**Error Handling & Auth Failure UX (items i, k):**
+
+- **Expired token:** Treat identically to "no session" — redirect user to the VS Code sign-in flow. No special messaging beyond the standard sign-in prompt.
+- **Server returns 401/403 during activation:** Dismiss the activation flow gracefully, restore prior extension state (trial, expired, or whatever it was), display an appropriate status-bar message (e.g., "Sign-in required to activate").
+- **Server error (5xx) or network failure:** Dismiss activation, restore prior state, show transient notification ("Activation failed — please try again").
+- **No broken intermediate state:** If activation fails for any reason, the extension MUST NOT enter a half-activated state. The user's prior license state is preserved exactly.
+- _Implementation detail deferred to Phase 3 coding; these are behavioral requirements, not UI wireframes._
 
 #### Step 3.3: Fix Startup Flow (Expiry Bug)
 
@@ -399,7 +416,7 @@ With DEACTIVATE_DEAD + NO_REVIVE (retained) and ALWAYS_ALLOW_OVERAGE (from Phase
    a. Transparently re-activate by calling the activation endpoint
    b. Update `license.json` with the new `machineId`
    c. Start heartbeat on the new machine
-   d. Update DynamoDB device record (same fingerprint, new Keygen machineId)
+   d. Update DynamoDB device record: look up the existing record by fingerprint within the license partition and update its `keygenMachineId` to the new value (do NOT create a new record). This preserves the full lifecycle history of the physical device and avoids accumulating duplicate records. The DynamoDB SK (`DEVICE#<machineId>`) will need to be updated, which in DynamoDB requires a delete-and-put of the item (atomic via TransactWriteItems or sequential with error handling).
 3. If validation succeeds → machine is alive → set LICENSED, start heartbeat
 4. EXPIRED only if the license/subscription itself is truly revoked or expired
 5. Never write EXPIRED for a recoverable "machine deleted" state
@@ -432,8 +449,8 @@ cd mouse-vscode && npm test
 In `licensing/tests/`:
 
 - [ ] `auth-provider.test.js` — PKCE generation, token storage, session lifecycle (mock VS Code APIs)
-- [ ] `commands.test.js` — extend: activate with idToken option, activate without idToken (backward compat)
-- [ ] `http-client.test.js` (new file — currently missing!) — activateLicense with/without auth header, sendHeartbeat with/without userId, HTTPS enforcement, timeout behavior
+- [ ] `commands.test.js` — extend: activate with idToken (required); activate without idToken should fail with error
+- [ ] `http-client.test.js` (new file — currently missing!) — activateLicense with auth header (required), activateLicense without auth header (must fail), sendHeartbeat with userId (required), HTTPS enforcement, timeout behavior
 - [ ] `heartbeat.test.js` — extend: heartbeat includes userId when present in state
 - [ ] `state.test.js` — extend: userId/userEmail storage and retrieval
 
@@ -468,7 +485,7 @@ However, full E2E requires the backend changes (Step 3.5+) to process the JWT. D
 - Import shared `verifyAuthToken()` from Phase 1
 - Extract `userId` and `userEmail` from verified JWT
 - Pass to `addDeviceActivation()` (Phase 2)
-- **Backward compatibility:** If no Authorization header present, activate without userId (supports existing non-authenticated clients during migration)
+- **Authentication required:** If no Authorization header present, return HTTP 401 Unauthorized. Activation without authentication is not permitted and constitutes a system error. There are no unauthenticated clients to support — all existing data is test-only and will be cleared before launch. This constraint must be considered in phasing: the extension must ship authentication support before (or simultaneously with) the backend enforcement.
 
 #### Step 3.6: Add Per-Seat Enforcement to Activation
 
@@ -482,9 +499,11 @@ For authenticated requests on Business licenses:
 2. If active devices ≥ per-seat limit → HTTP 403 with meaningful error (hard reject)
 3. If under limit → proceed with Keygen activation + DynamoDB record
 
-For Individual licenses or unauthenticated requests:
+For Individual licenses:
 
 - Enforce via DynamoDB 2-hour sliding window (same as Business, but using per-license limit instead of per-seat limit). With `ALWAYS_ALLOW_OVERAGE`, Keygen does not enforce `maxMachines` — DynamoDB is the sole enforcement layer for all license types.
+
+> **Note:** There is no unauthenticated activation path. All activations require a valid JWT with userId. Requests without authorization are rejected with HTTP 401.
 
 #### Step 3.7: Add User-Scoped Heartbeat Processing
 
@@ -493,7 +512,7 @@ For Individual licenses or unauthenticated requests:
 **File:** `plg-website/src/app/api/license/heartbeat/route.js`
 
 - If heartbeat payload contains `userId`: update the device record with `lastHeartbeat` per-user
-- If no `userId` (backward compat): use existing per-license behavior
+- If no `userId`: return HTTP 401 — heartbeat from an unauthenticated client is a system error post-implementation. During the transition, if legacy heartbeats are received without userId, log a warning and apply per-license behavior, but plan to remove this fallback path promptly.
 - Fix status code: respond with `concurrent_limit` instead of `over_limit` (or fix extension to accept `over_limit`)
 
 #### ✅ Gate 3b: Full Integration Tests Pass
@@ -513,13 +532,13 @@ cd plg-website && npm test
 In `__tests__/unit/api/`:
 
 - [ ] `license.test.js` — extend: activation with valid JWT → userId stored in DynamoDB
-- [ ] `license.test.js` — extend: activation without JWT → backward-compatible (no userId)
+- [ ] `license.test.js` — extend: activation without JWT → HTTP 401 rejected (authentication required)
 - [ ] `license.test.js` — extend: activation with invalid/expired JWT → 401
 - [ ] `license.test.js` — extend: Business license, per-seat limit exceeded → 403 with meaningful error
 - [ ] `license.test.js` — extend: Business license, per-seat limit not exceeded → 200 success
 - [ ] `license.test.js` — extend: Individual license → DynamoDB-based device limit enforcement (2-hour sliding window)
 - [ ] `heartbeat.test.js` — extend: heartbeat with userId → device record updated with userId
-- [ ] `heartbeat.test.js` — extend: heartbeat without userId → backward-compatible behavior
+- [ ] `heartbeat.test.js` — extend: heartbeat without userId → warning logged + per-license fallback (transitional only)
 - [ ] `heartbeat.test.js` — extend: status code mismatch fixed (consistent response format)
 - [ ] All new tests pass
 
@@ -544,7 +563,7 @@ In `__tests__/unit/api/`:
 - Per-seat enforcement blocks over-limit Business activations with meaningful errors
 - Heartbeat includes userId for per-user tracking
 - Sleep/wake recovery works without user intervention
-- Existing unauthenticated clients continue to work (migration path)
+- All activations require authentication — unauthenticated activation returns HTTP 401
 - All unit tests pass in both repos
 - E2E validated against staging
 
@@ -627,9 +646,9 @@ cd plg-website && npm test
 
 ---
 
-### Phase 5: Hardening & Nag-Before-Block Enforcement (Backend)
+### Phase 5: Hardening & Status Code Alignment (Backend)
 
-**Goal:** Harden the DynamoDB-based enforcement with a nag-before-block pattern and align status codes. Optionally sync Keygen's `maxMachines` for dashboard visibility.
+**Goal:** Align status codes between backend and extension, and optionally sync Keygen's `maxMachines` for dashboard visibility.
 
 **Environment:** 🔧 W (plg-website)
 
@@ -649,23 +668,7 @@ When seats change (add/remove via portal):
 
 This step is **nice-to-have**, not enforcement-critical. Can be deferred if time is constrained.
 
-#### Step 5.2: Nag-Before-Block Enforcement Gradient
-
-**Files:**
-
-- `plg-website/src/app/api/license/activate/route.js`
-- `plg-website/src/app/api/license/heartbeat/route.js`
-
-All enforcement is via DynamoDB's 2-hour sliding window. The DynamoDB check must happen **before** calling Keygen's `activateDevice` — if over the hard limit, return HTTP 403 without creating a machine on Keygen.
-
-Implement two thresholds (calculated against 2-hour sliding window active device count):
-
-- **Soft limit** (e.g., 80% of per-seat max): respond with `status: "approaching_limit"` + upgrade nudge metadata. Activation succeeds.
-- **Hard limit** (100% of per-seat max): respond with HTTP 403 + meaningful error.
-
-The soft limit metadata flows through to the extension, which can show a non-blocking notification.
-
-#### Step 5.3: Fix Status Code Alignment
+#### Step 5.2: Fix Status Code Alignment
 
 Ensure the heartbeat status codes are consistent between backend and extension:
 
@@ -679,17 +682,16 @@ Ensure the heartbeat status codes are consistent between backend and extension:
 
 - [ ] `keygen.test.js` — (optional) createLicense with Business policy sets per-license maxMachines for dashboard visibility
 - [ ] `keygen.test.js` — (optional) updateLicenseSeats updates maxMachines proportionally for dashboard visibility
-- [ ] Activation at 80% capacity (DynamoDB 2-hour sliding window) → `approaching_limit` status + success
-- [ ] Activation at 100% capacity (DynamoDB 2-hour sliding window) → HTTP 403 + error message
+- [ ] Activation at 100% capacity (DynamoDB 2-hour sliding window) → HTTP 403 + meaningful error message
 - [ ] Heartbeat status codes match extension's expected set
 - [ ] All tests pass, CI passes
 
-**🔍 E2E Assessment:** Yes — validate that a Business license with 2 seats enforces via DynamoDB's 2-hour sliding window. Activate 4 devices (same user) → no nag. Activate 5th → nag. Attempt 6th → hard block (HTTP 403 from DynamoDB check, Keygen is never called).
+**🔍 E2E Assessment:** Yes — validate that a Business license with 2 seats enforces via DynamoDB's 2-hour sliding window. Activate 5 devices (same user, per-seat max) → all succeed. Attempt 6th → hard block (HTTP 403 from DynamoDB check, Keygen is never called).
 
 **Expected system state after Phase 5:**
 
 - (Optional) Keygen's `maxMachines` reflects seat count for dashboard visibility
-- Nag-before-block (via DynamoDB 2-hour sliding window) provides upgrade nudge without blocking
+- Hard device limit enforcement via DynamoDB 2-hour sliding window
 - Status codes are aligned across all layers
 - System is production-ready for multi-seat scenarios
 
@@ -743,20 +745,20 @@ Phase 0 (Keygen config)
     │
     ├──→ Phase 1 (Cognito + auth extract)    [independent of Phase 0 result]
     │         │
-    │         └──→ Phase 2 (DynamoDB functions)
-    │                   │
-    │                   └──→ Phase 3 (Auth + activation + heartbeat)
-    │                             │
-    │                             ├──→ Phase 4 (Portal UI)
-    │                             │
-    │                             └──→ Phase 5 (Hardening + nag-before-block)
+    │         │
+    ├──→ Phase 2 (DynamoDB functions)         [independent of Phase 1]
+    │         │
+    │         └──┬──→ Phase 3 (Auth + activation + heartbeat)  [depends on Phase 1 AND Phase 2]
+    │            │             │
+    │            │             ├──→ Phase 4 (Portal UI)
+    │            │             │
+    │            │             └──→ Phase 5 (Hardening + status alignment)
     │
     └──→ Phase 3, Step 3.3 (Expiry bug fix)  [depends on Phase 0 policy change]
 ```
 
-- Phase 0 and Phase 1 can be done in parallel (different environments)
-- Phase 2 depends on Phase 1 (shared auth utility needed)
-- Phase 3 depends on Phase 0 (heartbeat strategy) and Phase 2 (DynamoDB functions)
+- Phase 0, Phase 1, and Phase 2 can all be done in parallel (different environments, no interdependencies)
+- Phase 3 depends on Phase 0 (heartbeat strategy), Phase 1 (auth utility), AND Phase 2 (DynamoDB functions)
 - Phases 4 and 5 depend on Phase 3 but are independent of each other
 
 ---
@@ -785,9 +787,9 @@ Phase 3 is the critical path. It contains the highest-complexity work (Authentic
 | Auth extraction breaks portal routes                             | Pure refactor; identical behavior; test every route                                                      | 1     |
 | PKCE implementation complexity                                   | Reference VS Code GitHub auth provider; mock Cognito for unit tests                                      | 3     |
 | `vscode://` URI handler inconsistency across OS                  | Test on Windows, macOS, Linux; VS Code has good cross-platform support                                   | 3     |
-| Extension + backend version mismatch during rollout              | Backward compatibility: backend accepts both authenticated and unauthenticated requests during migration | 3     |
+| Extension + backend version mismatch during rollout              | Extension must ship authentication support before or simultaneously with backend enforcement. Coordinate via feature branches in both repos. | 3     |
 | Token refresh race during heartbeat                              | Catch 401 → refresh → retry pattern; test with mock expired tokens                                       | 3     |
-| DynamoDB device record churn (DEACTIVATE_DEAD retained) | Extension handles transparent re-activation; DynamoDB correlates by fingerprint. Machine ID churn on Keygen is accepted. | 3     |
+| DynamoDB device record churn (DEACTIVATE_DEAD retained) | Extension handles transparent re-activation; DynamoDB updates existing record by fingerprint (not creating new records). Machine ID churn on Keygen is accepted; DynamoDB maintains lifecycle continuity per physical device. | 3     |
 
 ---
 
@@ -802,8 +804,7 @@ The multi-seat implementation is complete when:
 - [ ] A Business license with 2 seats correctly limits each user to 5 devices
 - [ ] The portal shows per-user device views for Business licenses
 - [ ] Sleep/wake recovery works without user intervention (UJ-4)
-- [ ] Unauthenticated legacy clients still work (backward compatibility)
-- [ ] Nag-before-block messaging works at 80% device capacity (via DynamoDB 2-hour sliding window)
+- [ ] Unauthenticated activation attempts are rejected with HTTP 401
 - [ ] No hardcoded secrets; all credentials from SSM/SecretStorage
 - [ ] Documentation updated with API contract for authenticated activation
 

@@ -3,6 +3,9 @@
 **Date:** 2026-02-10
 **Author:** GC (Copilot)
 **Status:** REVISED — Incorporating SWR Review (2026-02-11)
+
+> **Note:** The phasing and task ordering in this specification is **superseded** by the [Multi-Seat Implementation Plan V2](20260211_MULTI_SEAT_IMPLEMENTATION_PLAN_V2.md). This document remains the authoritative _architectural_ reference; see the Implementation Plan V2 for current sequencing, decisions, and phase definitions.
+
 **Repos:** `hic` (Mouse extension + licensing core), `hic-ai-inc.github.io` (website + backend)
 **References:**
 
@@ -176,7 +179,7 @@ userEmail: string            ← NEW (for display — always present for activat
 **Cognito requirements:**
 
 - Same Cognito User Pool as website portal (SWR-approved — no duplication)
-- New App Client (or updated existing) with `vscode://hic-ai.mouse/callback` as allowed callback
+- Existing App Client (D3 resolved: use existing, not new) with `vscode://hic-ai.mouse/callback` as allowed callback
 - Authorization Code flow with PKCE (no client secret — public client)
 - Scopes: `openid email profile`
 - Hosted UI (SWR-approved) — supports email/password and Google federation (Gmail SSO)
@@ -411,7 +414,7 @@ const result = await licenseChecker.activateLicense(key, session.accessToken);
 - `POST /api/license/heartbeat`: if `userId` is present in body:
   - Enforce via `getActiveUserDevicesInWindow(licenseId, userId)` instead of `getActiveDevicesInWindow(licenseId)`
   - Return `concurrentMachines` and `maxMachines` scoped to the user (5 per seat)
-- If `userId` is absent: fall back to existing per-license enforcement (backward compat)
+- If `userId` is absent: reject with `401 Unauthorized` (authentication required — no backward compat; see Implementation Plan V2, decision D1/D3)
 
 **Files:**
 
