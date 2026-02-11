@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-11
 **Author:** GC (Copilot)
-**Status:** DRAFT — Awaiting SWR Approval
+**Status:** SUPERSEDED by [Implementation Plan V2](20260211_MULTI_SEAT_IMPLEMENTATION_PLAN_V2.md). Phase 0 completed 2026-02-11 (see V2 for details).
 **Prerequisites:** SWR decisions on Keygen heartbeat policy change and heartbeat duration
 **Reference Documents:**
 

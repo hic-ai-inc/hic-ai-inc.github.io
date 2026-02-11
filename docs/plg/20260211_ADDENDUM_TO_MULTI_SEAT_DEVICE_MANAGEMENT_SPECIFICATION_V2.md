@@ -78,7 +78,7 @@ All values confirmed via direct Keygen REST API queries using the Product Token 
 | overageStrategy | **ALWAYS_ALLOW_OVERAGE** | **ALWAYS_ALLOW_OVERAGE** | Keygen never blocks activations; DynamoDB enforces |
 | machineLeasingStrategy | PER_LICENSE | PER_LICENSE | All users share the pool |
 | requireHeartbeat | `true` | `true` | Heartbeat is mandatory |
-| heartbeatDuration | **900** (15 min) | **900** (15 min) | Code interval is 10 min (5 min buffer) |
+| heartbeatDuration | **3600** (1 hour) | **3600** (1 hour) | Extended from 900 in Phase 0 (2026-02-11); reduces machine deletion churn |
 | heartbeatCullStrategy | **DEACTIVATE_DEAD** | **DEACTIVATE_DEAD** | ⚠️ Dead machines are permanently deleted |
 | heartbeatResurrectionStrategy | **NO_REVIVE** | **NO_REVIVE** | ⚠️ Revival by heartbeat is impossible |
 | heartbeatBasis | FROM_FIRST_PING | FROM_FIRST_PING | Timer starts at first heartbeat |
@@ -89,7 +89,7 @@ All values confirmed via direct Keygen REST API queries using the Product Token 
 #### 2.3.1 Discrepancies Discovered and Resolved
 
 **1. maxMachines Mismatch (Individual: 2 vs. 3) — RESOLVED**
-Keygen had `maxMachines: 2` but the business decision is 3 (`plg-website/src/lib/constants.js`: `maxConcurrentMachines: 3`). Keygen will be corrected to 3 in Phase 0. With `ALWAYS_ALLOW_OVERAGE`, this value is decorative (dashboard visibility only) — Keygen does not enforce it.
+Keygen had `maxMachines: 2` but the business decision is 3 (`plg-website/src/lib/constants.js`: `maxConcurrentMachines: 3`). ✅ Keygen corrected to 3 in Phase 0 (completed 2026-02-11). With `ALWAYS_ALLOW_OVERAGE`, this value is decorative (dashboard visibility only) — Keygen does not enforce it.
 
 **2. Heartbeat Strategy Is the Opposite of Code Assumptions — RETAINED**
 The code assumed KEEP_DEAD + ALWAYS_REVIVE but Keygen is configured as **DEACTIVATE_DEAD + NO_REVIVE** — dead machines are permanently deleted and cannot be revived. After analysis, this configuration is being **retained** because: (a) with `ALWAYS_ALLOW_OVERAGE`, re-activation always succeeds, (b) DEACTIVATE_DEAD auto-cleans dead machines (operational hygiene), and (c) the extension will handle transparent re-activation for laptops waking from sleep. See Section 9 for the license expiry bug fix.
@@ -292,7 +292,7 @@ The implementation costs are accepted:
 
 ### 5.7 maxMachines Correction (Individual: 2 → 3) — RESOLVED
 
-The Individual policy will be corrected from `maxMachines: 2` to `maxMachines: 3` to match the business decision reflected in `constants.js`. With `ALWAYS_ALLOW_OVERAGE`, this value is decorative (Keygen does not enforce it), but it should be accurate for dashboard visibility.
+The Individual policy was corrected from `maxMachines: 2` to `maxMachines: 3` (completed in Phase 0, 2026-02-11) to match the business decision reflected in `constants.js`. With `ALWAYS_ALLOW_OVERAGE`, this value is decorative (Keygen does not enforce it), but it should be accurate for dashboard visibility.
 
 ---
 
@@ -424,7 +424,7 @@ Since DEACTIVATE_DEAD + NO_REVIVE is being retained (see Section 5.6), the exten
 
 **Additional hardening:**
 - Consolidate to a single `LicenseStateManager` instance shared across validate, heartbeat, and license checker
-- Consider extending `heartbeatDuration` to 3600 (1 hour) or longer to reduce the frequency of machine death during normal laptop sleep
+- ✅ `heartbeatDuration` extended to 3600 (1 hour) in Phase 0 (2026-02-11) to reduce the frequency of machine death during normal laptop sleep
 - Ensure `clearLicenseKey()` is never called as a side effect of a recoverable state — only for genuine revocation or user-initiated deactivation
 
 ### Impact on Multi-Seat Plan

@@ -617,7 +617,7 @@ Under this configuration, Keygen becomes a **machine registry and heartbeat trac
 
 With enforcement decoupled, **DEACTIVATE_DEAD becomes more attractive** because the downside (re-activation after sleep) can be handled transparently by the extension — detect "machine not found," call activate, resume heartbeat — and there's no accumulation of zombie machine records on Keygen.
 
-### 9.7 Practical Keygen Configuration Changes (Phase 0)
+### 9.7 Practical Keygen Configuration Changes (Phase 0) — ✅ COMPLETED 2026-02-11
 
 Both policies require the following update:
 
@@ -668,7 +668,7 @@ The Keygen API investigation revealed three critical findings, and a subsequent 
 
 **Initial findings (Sections 3–7):**
 
-1. **maxMachines mismatch** — Individual policy allows 2, code advertises 3. **Resolved:** 3 is the correct business decision; Keygen will be corrected in Phase 0.
+1. **maxMachines mismatch** — Individual policy allows 2, code advertises 3. **Resolved:** 3 is the correct business decision; ✅ Keygen corrected in Phase 0 (2026-02-11).
 2. **Heartbeat strategy inversion** — DEACTIVATE_DEAD + NO_REVIVE is the opposite of what the code assumes, causing the reported license expiry bug.
 3. **maxMachines must scale with seats** — Business licenses need per-license `maxMachines` overrides that update dynamically when seats change. **Superseded:** With ALWAYS_ALLOW_OVERAGE, `maxMachines` is decorative and no longer needs dynamic management for enforcement purposes.
 
@@ -678,11 +678,14 @@ The Keygen API investigation revealed three critical findings, and a subsequent 
 5. **`overageStrategy: ALWAYS_ALLOW_OVERAGE`** — Keygen enforcement fully decoupled (Section 9). All concurrency limits enforced via a **2-hour DynamoDB sliding window** (`CONCURRENT_DEVICE_WINDOW_HOURS`). Keygen becomes a machine registry and heartbeat tracker, never blocking activations. `maxMachines` retained for dashboard visibility only.
 6. **Heartbeat strategy D1 recalculation** — With enforcement decoupled, DEACTIVATE_DEAD + NO_REVIVE (the current setting) becomes more attractive than KEEP_DEAD + ALWAYS_REVIVE. Dead machines self-clean; the extension handles transparent re-activation for laptops waking from sleep. No zombie accumulation problem.
 
-**Phase 0 Keygen changes required:**
+**Phase 0 Keygen changes — ✅ ALL COMPLETED (2026-02-11):**
 
-- Set `overageStrategy: ALWAYS_ALLOW_OVERAGE` on both policies
-- Correct Individual `maxMachines` from 2 → 3 (decorative, for dashboard accuracy)
-- D1 (heartbeat strategy) and D2 (heartbeat duration) remain open decisions but are now lower-stakes since they affect only machine record lifecycle, not enforcement
+- ✅ Set `overageStrategy: ALWAYS_ALLOW_OVERAGE` on both policies
+- ✅ Correct Individual `maxMachines` from 2 → 3 (decorative, for dashboard accuracy)
+- ✅ Extended `heartbeatDuration` from 900 → 3600 on both policies (reduces machine deletion churn)
+- D1 (heartbeat strategy: DEACTIVATE_DEAD + NO_REVIVE) retained as-is — the extension will handle transparent re-activation in Phase 3
+
+All changes verified via scripted Gate 0 checks and E2E smoke test (SWR, `hic-e2e-clean` Codespace).
 
 ---
 
