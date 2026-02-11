@@ -4,6 +4,7 @@
 **Author:** GC (Copilot)
 **Status:** FINAL — Approved for Implementation
 **Supersedes:** [v1](20260211_MULTI_SEAT_IMPLEMENTATION_PLAN.md) — this version incorporates all decisions made during the 2026-02-11 working session
+**Revision (2026-02-11 PM):** Resequenced phases per SWR direction — Portal UI scoping (formerly Phase 4) merged into Phase 3 so that E2E testing at Gate 3b validates the full stack with portal aligned to backend. Former Phase 5 (Hardening) renumbered to Phase 4. Total phase count reduced from 6 to 5 (Phases 0–4).
 **Prerequisites:** All decisions resolved (D1 through D3). Ready for implementation.
 **Reference Documents:**
 
@@ -12,7 +13,7 @@
 - [20260211_REPORT_ON_KEYGEN_INVESTIGATION.md](20260211_REPORT_ON_KEYGEN_INVESTIGATION.md) — Keygen API findings & PER_LICENSE vs PER_USER analysis
 
 
-> **Reading Order:** This Implementation Plan V2 is the **definitive, self-sufficient** document for all phasing, task ordering, and implementation decisions. The companion Tech Spec (20260210) provides architectural context and rationale but its phasing structure (3 phases, 7 workstreams) is **superseded** by this document's 6-phase structure. The Addendum V2 and Keygen Investigation Report are reference material. When in doubt, this document governs.
+> **Reading Order:** This Implementation Plan V2 is the **definitive, self-sufficient** document for all phasing, task ordering, and implementation decisions. The companion Tech Spec (20260210) provides architectural context and rationale but its phasing structure (3 phases, 7 workstreams) is **superseded** by this document's 5-phase structure (Phases 0–4). The Addendum V2 and Keygen Investigation Report are reference material. When in doubt, this document governs.
 
 ---
 
@@ -56,9 +57,9 @@ These journeys define the end-state we are building towards. Each phase below sp
 | **UJ-3**  | Device limit hit        | User attempts to exceed per-seat device limit, gets meaningful error + upgrade nudge     | Phase 3    |
 | **UJ-4**  | Sleep/wake recovery     | User's laptop sleeps for 1 hour, wakes up, Mouse works without intervention              | Phase 1    |
 | **UJ-5**  | Business team member    | Team admin shares license key, member authenticates with own Cognito identity, activates | Phase 3    |
-| **UJ-6**  | Business device scoping | Team member sees only their own devices in portal, not other team members'               | Phase 4    |
+| **UJ-6**  | Business device scoping | Team member sees only their own devices in portal, not other team members'               | Phase 3    |
 | **UJ-7**  | Seat limit enforcement  | Business license with 2 seats, 3rd user tries to activate, gets "contact admin" message  | Phase 3    |
-| **UJ-8**  | Device deactivation     | User deactivates a device from portal, freeing a slot for a new device                   | Phase 4    |
+| **UJ-8**  | Device deactivation     | User deactivates a device from portal, freeing a slot for a new device                   | Phase 3    |
 | **UJ-9**  | Heartbeat with identity | Heartbeat payload includes userId, server tracks per-user device activity                | Phase 3    |
 | **UJ-10** | Offline grace           | User is offline for 48 hours, Mouse still works using cached validation                  | All phases |
 
@@ -341,9 +342,9 @@ cd plg-website && npm run test:lib
 
 ---
 
-### Phase 3: Authenticated Activation & Per-Seat Enforcement (Backend + Extension)
+### Phase 3: Authenticated Activation, Per-Seat Enforcement & Portal Alignment (Backend + Extension + Frontend)
 
-**Goal:** This is the critical phase. Wire up authentication in the VS Code extension, make the activation endpoint require and verify identity, enforce per-seat device limits, and fix the startup flow. Both repos are modified.
+**Goal:** This is the critical phase. Wire up authentication in the VS Code extension, make the activation endpoint require and verify identity, enforce per-seat device limits, fix the startup flow, and align the portal UI with the new per-user device model. Portal UI scoping is included in this phase (moved from the former Phase 4) so that E2E testing at Gate 3b validates the full stack — backend enforcement and portal are aligned before E2E. Both repos are modified.
 
 **Environment:** 🔧 E (hic) then 🔧 W (plg-website), interleaved
 
@@ -515,7 +516,43 @@ For Individual licenses:
 - If no `userId`: return HTTP 401 — heartbeat from an unauthenticated client is a system error post-implementation. During the transition, if legacy heartbeats are received without userId, log a warning and apply per-license behavior, but plan to remove this fallback path promptly.
 - Fix status code: respond with `concurrent_limit` instead of `over_limit` (or fix extension to accept `over_limit`)
 
-#### ✅ Gate 3b: Full Integration Tests Pass
+#### Step 3.8: Scope Portal Devices GET to Current User
+
+**Environment:** 🔧 W
+
+**File:** `plg-website/src/app/api/portal/devices/route.js`
+
+For authenticated requests:
+
+- Extract `userId` from JWT
+- For Business licenses: call `getUserDevices(licenseId, userId)` → return only this user's devices
+- For Individual licenses: return all devices (single user owns all of them)
+
+#### Step 3.9: Fix Portal Devices DELETE
+
+**Environment:** 🔧 W
+
+**File:** `plg-website/src/app/api/portal/devices/route.js`
+
+Ensure DELETE:
+
+- Verifies the requesting user owns the device they're trying to deactivate (authorization)
+- Calls Keygen to deactivate the machine
+- Removes/updates the DynamoDB device record
+
+#### Step 3.10: Update Devices Page UI Copy
+
+**Environment:** 🔧 W
+
+**File:** `plg-website/src/app/portal/devices/page.js`
+
+Minor copy updates:
+
+- "Your active installations" (instead of generic "Active devices")
+- Show user email next to each device for Business admins who can view all devices
+- Show per-seat usage: "3 of 5 devices used"
+
+#### ✅ Gate 3b: Full Integration + Portal Tests Pass
 
 **📋 Tests to run:**
 
@@ -542,19 +579,30 @@ In `__tests__/unit/api/`:
 - [ ] `heartbeat.test.js` — extend: status code mismatch fixed (consistent response format)
 - [ ] All new tests pass
 
+In `__tests__/unit/api/` (Portal):
+
+- [ ] `portal.test.js` — extend: Portal devices GET with Business license → returns only current user's devices
+- [ ] `portal.test.js` — extend: Portal devices GET with Individual license → returns all devices
+- [ ] `portal.test.js` — extend: Portal devices DELETE → deactivates on Keygen + updates DynamoDB
+- [ ] `portal.test.js` — extend: Portal devices DELETE → cannot delete another user's device (authorization)
+- [ ] All new tests pass
+
 **📋 CI/CD:**
 
 - [ ] Push both repos to feature branches, CI passes on both
 - [ ] Open PRs to `development` on both repos
 
-**🔍 E2E Assessment:** Yes — this is the first point where full end-to-end validation is practicable and **strongly recommended**.
+**🔍 E2E Assessment:** Yes — this is the first point where full end-to-end validation is practicable and **strongly recommended**. Portal UI changes are included in this gate to ensure the frontend is aligned with backend enforcement during E2E testing.
 
 **E2E Test Plan:**
 
 1. **UJ-1 (Solo activation):** Install locally-built VSIX. Enter license key. Cognito Hosted UI opens. Log in. Activation succeeds. `license.json` contains userId/userEmail. DynamoDB device record contains userId/userEmail.
-2. **UJ-4 (Sleep/wake recovery):** Activate. Close VS Code. Wait 20 minutes (exceeds old 15-min window). Reopen. Expect Mouse shows LICENSED (not Expired). Heartbeat revived the dead machine.
-3. **UJ-10 (Offline grace):** Activate. Disconnect from network. Close VS Code. Wait 1 hour. Reconnect. Reopen. Expect Mouse shows LICENSED (within 72h grace).
-4. **Portal check:** Log into `staging.hic-ai.com` portal → Devices page → confirm device shows with user identity.
+2. **UJ-2 (Multi-device):** Activate on two devices. Portal shows both. Deactivate one. Portal shows one.
+3. **UJ-4 (Sleep/wake recovery):** Activate. Close VS Code. Wait 20 minutes (exceeds old 15-min window). Reopen. Expect Mouse shows LICENSED (not Expired). Heartbeat revived the dead machine.
+4. **UJ-6 (Business device scoping):** Activate with User A identity on Device 1. Activate with User B identity on Device 2 (same license key). User A logs into portal → sees only Device 1. User B logs into portal → sees only Device 2.
+5. **UJ-8 (Deactivation):** User deactivates a device from portal. Device count decreases. User can activate on a new device.
+6. **UJ-10 (Offline grace):** Activate. Disconnect from network. Close VS Code. Wait 1 hour. Reconnect. Reopen. Expect Mouse shows LICENSED (within 72h grace).
+7. **Portal check:** Log into `staging.hic-ai.com` portal → Devices page → confirm device shows with user identity, per-seat usage, and correct scoping.
 
 **Expected system state after Phase 3:**
 
@@ -564,95 +612,22 @@ In `__tests__/unit/api/`:
 - Heartbeat includes userId for per-user tracking
 - Sleep/wake recovery works without user intervention
 - All activations require authentication — unauthenticated activation returns HTTP 401
+- Portal shows per-user device views for Business licenses
+- Device deactivation works end-to-end from portal
+- Business team members see only their own installations
 - All unit tests pass in both repos
+- All user journeys UJ-1 through UJ-10 are operational
 - E2E validated against staging
 
 ---
 
-### Phase 4: Portal UI Scoping & Device Deactivation (Backend + Frontend)
-
-**Goal:** Make the portal device management page user-aware: Business users see only their own devices, Individual users see all their devices. Fix deactivation.
-
-**Environment:** 🔧 W (plg-website)
-
-#### Step 4.1: Scope Portal Devices GET to Current User
-
-**File:** `plg-website/src/app/api/portal/devices/route.js`
-
-For authenticated requests:
-
-- Extract `userId` from JWT
-- For Business licenses: call `getUserDevices(licenseId, userId)` → return only this user's devices
-- For Individual licenses: return all devices (single user owns all of them)
-
-#### Step 4.2: Fix Portal Devices DELETE
-
-**File:** `plg-website/src/app/api/portal/devices/route.js`
-
-Ensure DELETE:
-
-- Verifies the requesting user owns the device they're trying to deactivate (authorization)
-- Calls Keygen to deactivate the machine
-- Removes/updates the DynamoDB device record
-
-#### Step 4.3: Update Devices Page UI Copy
-
-**File:** `plg-website/src/app/portal/devices/page.js`
-
-Minor copy updates:
-
-- "Your active installations" (instead of generic "Active devices")
-- Show user email next to each device for Business admins who can view all devices
-- Show per-seat usage: "3 of 5 devices used"
-
-#### ✅ Gate 4: Portal Tests Pass
-
-**📋 Tests to run:**
-
-```bash
-cd plg-website && npm test
-```
-
-- [ ] All existing tests pass
-- [ ] `__tests__/unit/api/portal.test.js` passes
-
-**📋 New tests to write:**
-
-- [ ] Portal devices GET with Business license → returns only current user's devices
-- [ ] Portal devices GET with Individual license → returns all devices
-- [ ] Portal devices DELETE → deactivates on Keygen + updates DynamoDB
-- [ ] Portal devices DELETE → cannot delete another user's device (authorization)
-- [ ] All new tests pass
-
-**📋 CI/CD:**
-
-- [ ] Push to feature branch, CI passes
-- [ ] Merge to `development`
-
-**🔍 E2E Assessment:** Yes — full E2E recommended.
-
-**E2E Test Plan:**
-
-1. **UJ-6 (Business device scoping):** Activate with User A identity on Device 1. Activate with User B identity on Device 2 (same license key). User A logs into portal → sees only Device 1. User B logs into portal → sees only Device 2.
-2. **UJ-8 (Deactivation):** User deactivates a device from portal. Device count decreases. User can activate on a new device.
-3. **UJ-2 (Multi-device):** Activate on two devices. Portal shows both. Deactivate one. Portal shows one.
-
-**Expected system state after Phase 4:**
-
-- Portal shows per-user device views
-- Device deactivation works end-to-end
-- Business team members see only their own installations
-- All user journeys UJ-1 through UJ-10 are operational
-
----
-
-### Phase 5: Hardening & Status Code Alignment (Backend)
+### Phase 4: Hardening & Status Code Alignment (Backend)
 
 **Goal:** Align status codes between backend and extension, and optionally sync Keygen's `maxMachines` for dashboard visibility.
 
 **Environment:** 🔧 W (plg-website)
 
-#### Step 5.1: (Optional) Sync `maxMachines` for Dashboard Visibility
+#### Step 4.1: (Optional) Sync `maxMachines` for Dashboard Visibility
 
 **File:** `plg-website/src/lib/keygen.js`
 
@@ -668,7 +643,7 @@ When seats change (add/remove via portal):
 
 This step is **nice-to-have**, not enforcement-critical. Can be deferred if time is constrained.
 
-#### Step 5.2: Fix Status Code Alignment
+#### Step 4.2: Fix Status Code Alignment
 
 Ensure the heartbeat status codes are consistent between backend and extension:
 
@@ -676,7 +651,7 @@ Ensure the heartbeat status codes are consistent between backend and extension:
 - **Extension:** `VALID_HEARTBEAT_STATUSES` matches exactly
 - Document the contract
 
-#### ✅ Gate 5: Hardening Tests Pass
+#### ✅ Gate 4: Hardening Tests Pass
 
 **📋 New tests:**
 
@@ -688,7 +663,7 @@ Ensure the heartbeat status codes are consistent between backend and extension:
 
 **🔍 E2E Assessment:** Yes — validate that a Business license with 2 seats enforces via DynamoDB's 2-hour sliding window. Activate 5 devices (same user, per-seat max) → all succeed. Attempt 6th → hard block (HTTP 403 from DynamoDB check, Keygen is never called).
 
-**Expected system state after Phase 5:**
+**Expected system state after Phase 4:**
 
 - (Optional) Keygen's `maxMachines` reflects seat count for dashboard visibility
 - Hard device limit enforcement via DynamoDB 2-hour sliding window
@@ -705,7 +680,7 @@ Ensure the heartbeat status codes are consistent between backend and extension:
 | --------------- | ------------------------------------------------- | -------------------------------------------------------- | -------------------------------------- |
 | **Unit**        | Individual functions, classes, modules            | `node:test` + HIC helpers (W) / `node:test` + assert (E) | After every step                       |
 | **Integration** | API route handlers with mocked dependencies       | `node:test` + mocked DynamoDB/Keygen                     | After steps that change route behavior |
-| **E2E**         | Full user journeys against staging infrastructure | Manual + `test:e2e:journey` scripts (W)                  | At major gates (3b, 4, 5)              |
+| **E2E**         | Full user journeys against staging infrastructure | Manual + `test:e2e:journey` scripts (W)                  | At major gates (3b, 4)                 |
 | **Smoke**       | Quick manual verification                         | Manual                                                   | After Keygen/Cognito config changes    |
 
 ### Test File Mapping
@@ -748,18 +723,17 @@ Phase 0 (Keygen config)
     │         │
     ├──→ Phase 2 (DynamoDB functions)         [independent of Phase 1]
     │         │
-    │         └──┬──→ Phase 3 (Auth + activation + heartbeat)  [depends on Phase 1 AND Phase 2]
+    │         └──┬──→ Phase 3 (Auth + activation + heartbeat + portal UI)  [depends on Phase 1 AND Phase 2]
     │            │             │
-    │            │             ├──→ Phase 4 (Portal UI)
-    │            │             │
-    │            │             └──→ Phase 5 (Hardening + status alignment)
+    │            │             └──→ Phase 4 (Hardening + status alignment)
     │
     └──→ Phase 3, Step 3.3 (Expiry bug fix)  [depends on Phase 0 policy change]
 ```
 
 - Phase 0, Phase 1, and Phase 2 can all be done in parallel (different environments, no interdependencies)
 - Phase 3 depends on Phase 0 (heartbeat strategy), Phase 1 (auth utility), AND Phase 2 (DynamoDB functions)
-- Phases 4 and 5 depend on Phase 3 but are independent of each other
+- Phase 3 now includes Portal UI scoping (formerly Phase 4) so that E2E testing at Gate 3b validates the full stack — backend enforcement and portal are aligned before E2E
+- Phase 4 (hardening) depends on Phase 3
 
 ---
 
@@ -770,12 +744,11 @@ Phase 0 (Keygen config)
 | Phase 0   | K           | 0.5 day           | 0.5 day       |
 | Phase 1   | A + W       | 1 day             | 1.5 days      |
 | Phase 2   | W           | 1 day             | 2.5 days      |
-| Phase 3   | E + W       | 4–5 days          | 6.5–7.5 days  |
-| Phase 4   | W           | 1–2 days          | 7.5–9.5 days  |
-| Phase 5   | W           | 1–2 days          | 8.5–11.5 days |
+| Phase 3   | E + W       | 5–7 days          | 7.5–9.5 days  |
+| Phase 4   | W           | 1–2 days          | 8.5–11.5 days |
 | **Total** |             | **8.5–11.5 days** |               |
 
-Phase 3 is the critical path. It contains the highest-complexity work (AuthenticationProvider, PKCE, startup flow fix) and requires both repos to evolve in lockstep.
+Phase 3 is the critical path. It contains the highest-complexity work (AuthenticationProvider, PKCE, startup flow fix, portal UI alignment) and requires both repos to evolve in lockstep. Portal UI scoping (formerly Phase 4) is included in Phase 3 so that the E2E gate at Gate 3b validates the full stack — backend enforcement and portal are aligned before E2E testing.
 
 ---
 

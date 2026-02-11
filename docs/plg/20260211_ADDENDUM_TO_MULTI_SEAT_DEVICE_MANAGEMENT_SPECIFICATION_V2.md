@@ -4,6 +4,7 @@
 **Author:** GC (Copilot)
 **Status:** FINAL — Infrastructure Audit & Implementation Recommendations
 **Supersedes:** [v1](20260211_ADDENDUM_TO_MULTI_SEAT_DEVICE_MANAGEMENT_SPECIFICATION.md) — this version incorporates all decisions made during the 2026-02-11 working session
+**Revision (2026-02-11 PM):** Sections 6 and 7 updated to reflect resequenced phasing — Portal UI scoping merged into Phase 2 (Extension Changes) per SWR direction, so E2E testing validates the full stack with portal aligned to backend.
 **Parent Document:** [20260210_GC_TECH_SPEC_MULTI_SEAT_DEVICE_MANAGEMENT.md](20260210_GC_TECH_SPEC_MULTI_SEAT_DEVICE_MANAGEMENT.md)
 **Repos:** `hic` (Mouse extension + licensing core), `hic-ai-inc.github.io` (website + backend)
 **Companion Document:** [20260211_REPORT_ON_KEYGEN_INVESTIGATION.md](20260211_REPORT_ON_KEYGEN_INVESTIGATION.md) — Full Keygen API query results and policy attribute tables
@@ -311,7 +312,9 @@ The Individual policy will be corrected from `maxMachines: 2` to `maxMachines: 3
 | 8   | **WS-2:** Add per-seat enforcement logic (Business: hard reject at ≥5 active devices/user)  | Same file                                            | Medium     | New enforcement path for Business licenses     |
 | 9   | **Bug fix:** Fix missing `getCustomerLicensesByEmail` import in portal devices DELETE       | `plg-website/src/app/api/portal/devices/route.js`    | Trivial    | Pre-existing bug                               |
 
-### Phase 2: Extension Changes (3–4 days, requires Phase 1)
+### Phase 2: Extension Changes + Portal UI Alignment (5–7 days, requires Phase 1)
+
+> **Revision (2026-02-11 PM):** Portal UI scoping (formerly a separate Phase 3) is merged into this phase so that E2E testing at the end validates the full stack — backend enforcement and portal are aligned before E2E. Extension and backend work are interleaved.
 
 | #   | Task                                                                                | Files                                                        | Difficulty | Notes                                                        |
 | --- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------ | ---------- | ------------------------------------------------------------ |
@@ -323,27 +326,24 @@ The Individual policy will be corrected from `maxMachines: 2` to `maxMachines: 3
 | 15  | **WS-1:** Add `userId`/`userEmail` to `LicenseState` schema                         | `licensing/state.js`                                         | Low        | Persist after successful activation                          |
 | 16  | **WS-4:** Add `userId` to heartbeat payload (extension side)                        | `licensing/http-client.js`, `licensing/heartbeat.js`         | Low        | Read from state, include in POST                             |
 | 17  | **WS-4:** User-scoped enforcement in heartbeat route (backend)                      | `plg-website/src/app/api/license/heartbeat/route.js`         | Medium     | Conditional: userId present → per-seat; absent → per-license |
+| 18  | **WS-5:** Modify portal devices GET to use `getUserDevices()` for Business           | `plg-website/src/app/api/portal/devices/route.js`            | Low        | Use userId from JWT for scoping                               |
+| 19  | **WS-5:** Fix portal devices DELETE with ownership authorization                     | `plg-website/src/app/api/portal/devices/route.js`            | Low        | Verify user owns device before deactivation                   |
+| 20  | **WS-5:** Minor copy update on devices page                                         | `plg-website/src/app/portal/devices/page.js`                 | Trivial    | "Your active installations", per-seat usage                   |
 
-### Phase 3: Portal UI (1–2 days, requires Phase 2)
-
-| #   | Task                                                                       | Files                                             | Difficulty | Notes                           |
-| --- | -------------------------------------------------------------------------- | ------------------------------------------------- | ---------- | ------------------------------- |
-| 18  | **WS-5:** Modify portal devices GET to use `getUserDevices()` for Business | `plg-website/src/app/api/portal/devices/route.js` | Low        | Use userId from JWT for scoping |
-| 19  | **WS-5:** Minor copy update on devices page                                | `plg-website/src/app/portal/devices/page.js`      | Trivial    | "Your active installations"     |
-
-**Total: 19 discrete tasks, estimated 7–10 days.**
+**Total: 20 discrete tasks, estimated 8.5–11.5 days.**
 
 ---
 
 ## 7. Suggested Execution Order
+
+> **Revision (2026-02-11 PM):** Resequenced per SWR direction. Portal UI scoping (WS-5) is now done alongside WS-1/WS-4 so that E2E testing validates the full stack with portal aligned to backend.
 
 1. **WS-6 first** — Add `vscode://` callback URL to Cognito App Client (1 CLI command, unblocks all extension work)
 2. **Extract `verifyAuthToken()` utility** — Pure refactor, no risk, simplifies everything downstream
 3. **WS-3** — DynamoDB functions (`addDeviceActivation` update, `getUserDevices`, `getActiveUserDevicesInWindow`) — additive, no breaking changes
 4. **WS-2** — Authenticated activation endpoint — depends on WS-3 functions and shared verifier
 5. **WS-1** — VS Code `AuthenticationProvider` — this is the critical path and highest complexity item; build with mock Cognito endpoints for testability
-6. **WS-4** — Heartbeat with userId — straightforward once WS-1 and WS-2 are proven
-7. **WS-5** — Portal UI scoping — straightforward once backend is done
+6. **WS-4 + WS-5** — Heartbeat with userId + Portal UI scoping — done together so that E2E testing at the gate validates the full stack (backend enforcement, heartbeat identity, portal device views, and device deactivation all aligned)
 
 The `verifyAuthToken` extraction and the portal devices DELETE bug fix can be shipped immediately as a preparatory PR since they are pure refactors with no behavioral changes.
 
