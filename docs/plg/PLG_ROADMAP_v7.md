@@ -343,7 +343,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 |-----------|-------|-------------|--------|------|
 | **Phase 0** | Keygen Policy Configuration | Keygen API | ✅ COMPLETE | 0.5 day |
 | **Phase 1** | Cognito Config + Auth Extraction | AWS + Website | ✅ COMPLETE | 1 day |
-| **Phase 2** | DynamoDB Schema & Functions | Website | ⬜ NOT STARTED | 1 day |
+| **Phase 2** | DynamoDB Schema & Functions | Website | ✅ COMPLETE | 1 day |
 | **Phase 3** | Auth Activation + Enforcement + Portal UI | Both repos | ⬜ NOT STARTED | 5-7 days |
 | **Phase 4** | Hardening & Status Code Alignment | Website | ⬜ NOT STARTED | 1-2 days |
 

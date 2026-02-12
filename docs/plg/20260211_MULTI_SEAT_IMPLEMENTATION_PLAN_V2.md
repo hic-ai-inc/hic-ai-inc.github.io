@@ -315,6 +315,8 @@ New function: combines the user filter with the time-window filter (2 hours, con
 
 Evaluate whether a GSI on `userId` is needed for efficient queries. Currently, device records use `PK: LICENSE#{id}, SK: DEVICE#{machineId}`. A query within a license partition filtered by `userId` should be efficient enough for most cases (devices per license is small). Document the decision.
 
+> **✅ Decision (2026-02-11): No GSI.** Partition-level filtering is sufficient. Mouse licenses support 1–5 seats; even at 10 seats × 3 devices = 30 items per partition, in-memory filtering is negligible cost. Every call path (activation, heartbeat, portal) already has `keygenLicenseId` in context, so we never need a cross-license "all devices for user X" query. A GSI would add write replication cost, CloudFormation complexity, eventual consistency (vs. strong consistency for enforcement decisions), and wouldn't index pre-Phase 2 device records that lack `userId`. **Revisit trigger:** if we need a cross-license admin dashboard query ("show all of user X's devices across their org").
+
 #### ✅ Gate 2: DynamoDB Functions Tested
 
 **📋 Tests to run:**
@@ -323,23 +325,23 @@ Evaluate whether a GSI on `userId` is needed for efficient queries. Currently, d
 cd plg-website && npm run test:lib
 ```
 
-- [ ] All existing `__tests__/unit/lib/dynamodb.test.js` tests pass (no regression)
-- [ ] Existing `addDeviceActivation` tests still pass (updated to require userId/userEmail)
+- [x] All existing `__tests__/unit/lib/dynamodb.test.js` tests pass (no regression)
+- [x] Existing `addDeviceActivation` tests still pass (updated to require userId/userEmail)
 
 **📋 New tests to write (in `dynamodb.test.js`):**
 
-- [ ] `addDeviceActivation` with userId/userEmail — verify DynamoDB PutItem includes new attributes
-- [ ] `addDeviceActivation` without userId/userEmail — verify it succeeds without them (optional in Phase 2; Phase 3 makes mandatory)
-- [ ] `getUserDevices` — returns only devices for specified userId within a license
-- [ ] `getUserDevices` — returns empty array when no devices match userId
-- [ ] `getUserDevices` — does not return devices belonging to other users on same license
-- [ ] `getActiveUserDevicesInWindow` — filters by both userId and time window
-- [ ] `getActiveUserDevicesInWindow` — excludes stale devices outside window
-- [ ] All new tests pass
+- [x] `addDeviceActivation` with userId/userEmail — verify DynamoDB PutItem includes new attributes
+- [x] `addDeviceActivation` without userId/userEmail — verify it succeeds without them (optional in Phase 2; Phase 3 makes mandatory)
+- [x] `getUserDevices` — returns only devices for specified userId within a license
+- [x] `getUserDevices` — returns empty array when no devices match userId
+- [x] `getUserDevices` — does not return devices belonging to other users on same license
+- [x] `getActiveUserDevicesInWindow` — filters by both userId and time window
+- [x] `getActiveUserDevicesInWindow` — excludes stale devices outside window
+- [x] All new tests pass (19 new tests, 1217 total)
 
 **📋 CI/CD:**
 
-- [ ] Push to feature branch, CI passes
+- [x] Push to development, CI passes (commit `263280d`, merged to main 2026-02-11)
 
 **🔍 E2E Assessment:** Not yet practicable. No endpoint consumes these functions with userId yet. The functions are additive and unused by production code paths until Phase 3 wires them into the activate and heartbeat routes.
 
@@ -753,7 +755,7 @@ Phase 0 (Keygen config)
 | --------- | ----------- | ----------------- | ------------- |
 | Phase 0   | K           | 0.5 day           | 0.5 day       | ✅ Done 2026-02-11 |
 | Phase 1   | A + W       | 1 day             | 1.5 days      | ✅ Done 2026-02-11 |
-| Phase 2   | W           | 1 day             | 2.5 days      |
+| Phase 2   | W           | 1 day             | 2.5 days      | ✅ Done 2026-02-11 |
 | Phase 3   | E + W       | 5–7 days          | 7.5–9.5 days  |
 | Phase 4   | W           | 1–2 days          | 8.5–11.5 days |
 | **Total** |             | **8.5–11.5 days** |               |
