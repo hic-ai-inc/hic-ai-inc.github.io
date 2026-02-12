@@ -38,6 +38,8 @@ import {
   removeDeviceActivation,
   updateDeviceLastSeen,
   getActiveDevicesInWindow,
+  getUserDevices,
+  getActiveUserDevicesInWindow,
   getOrgMembers,
   updateOrgMemberStatus,
   getOrgLicenseUsage,
@@ -1328,6 +1330,350 @@ describe("dynamodb.js", () => {
       expect(consoleSpy.calls[0][0]).toBe("Failed to get version config:");
       expect(consoleSpy.calls[0][1]).toBe("DynamoDB error");
       consoleSpy.mockRestore();
+    });
+  });
+
+  // ===========================================
+  // PHASE 2: PER-USER DEVICE TRACKING
+  // ===========================================
+
+  describe("addDeviceActivation with userId/userEmail", () => {
+    it("should include userId and userEmail in new device record", async () => {
+      // Mock getLicenseDevices to return empty (no existing devices)
+      mockSend.mockResolvedValueOnce({ Items: [] });
+      // Mock PutCommand and UpdateCommand
+      mockSend.mockResolvedValue({});
+
+      const result = await addDeviceActivation({
+        keygenLicenseId: "lic_123",
+        keygenMachineId: "mach_new",
+        fingerprint: "abc123fingerprint",
+        name: "MacBook Pro",
+        platform: "darwin",
+        userId: "cognito|user-456",
+        userEmail: "user@example.com",
+      });
+
+      expect(result.userId).toBe("cognito|user-456");
+      expect(result.userEmail).toBe("user@example.com");
+      expect(result.fingerprint).toBe("abc123fingerprint");
+      expect(result.keygenMachineId).toBe("mach_new");
+
+      // Verify PutCommand includes userId/userEmail in the item
+      const putCommand = mockSend.calls[1][0];
+      expect(putCommand.input.Item.userId).toBe("cognito|user-456");
+      expect(putCommand.input.Item.userEmail).toBe("user@example.com");
+    });
+
+    it("should include userId and userEmail when updating existing device", async () => {
+      // Mock getLicenseDevices to return existing device with same fingerprint
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            PK: "LICENSE#lic_123",
+            SK: "DEVICE#mach_old",
+            keygenMachineId: "mach_old",
+            fingerprint: "abc123fingerprint",
+            name: "Old Name",
+            platform: "darwin",
+          },
+        ],
+      });
+      // Mock UpdateCommand
+      mockSend.mockResolvedValue({});
+
+      const result = await addDeviceActivation({
+        keygenLicenseId: "lic_123",
+        keygenMachineId: "mach_new",
+        fingerprint: "abc123fingerprint",
+        name: "MacBook Pro",
+        platform: "darwin",
+        userId: "cognito|user-789",
+        userEmail: "updated@example.com",
+      });
+
+      expect(result.userId).toBe("cognito|user-789");
+      expect(result.userEmail).toBe("updated@example.com");
+      expect(result.keygenMachineId).toBe("mach_new");
+
+      // Verify UpdateCommand includes userId/userEmail in expression
+      const updateCommand = mockSend.calls[1][0];
+      expect(updateCommand.input.UpdateExpression).toContain("userId");
+      expect(updateCommand.input.UpdateExpression).toContain("userEmail");
+      expect(updateCommand.input.ExpressionAttributeValues[":userId"]).toBe("cognito|user-789");
+      expect(updateCommand.input.ExpressionAttributeValues[":userEmail"]).toBe("updated@example.com");
+    });
+
+    it("should succeed without userId/userEmail (optional in Phase 2)", async () => {
+      // Mock getLicenseDevices to return empty
+      mockSend.mockResolvedValueOnce({ Items: [] });
+      // Mock PutCommand and UpdateCommand
+      mockSend.mockResolvedValue({});
+
+      const result = await addDeviceActivation({
+        keygenLicenseId: "lic_123",
+        keygenMachineId: "mach_no_user",
+        fingerprint: "nouser_fingerprint",
+        name: "Anonymous Device",
+        platform: "linux",
+      });
+
+      // Should succeed — no userId/userEmail in result
+      expect(result.keygenMachineId).toBe("mach_no_user");
+      expect(result.userId).toBeUndefined();
+      expect(result.userEmail).toBeUndefined();
+
+      // Verify PutCommand does NOT include userId/userEmail
+      const putCommand = mockSend.calls[1][0];
+      expect(putCommand.input.Item.userId).toBeUndefined();
+      expect(putCommand.input.Item.userEmail).toBeUndefined();
+    });
+
+    it("should not include userId/userEmail in update expression when not provided", async () => {
+      // Mock getLicenseDevices with existing device
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            PK: "LICENSE#lic_123",
+            SK: "DEVICE#mach_existing",
+            keygenMachineId: "mach_existing",
+            fingerprint: "existing_fp",
+            name: "Existing",
+            platform: "win32",
+          },
+        ],
+      });
+      // Mock UpdateCommand
+      mockSend.mockResolvedValue({});
+
+      await addDeviceActivation({
+        keygenLicenseId: "lic_123",
+        keygenMachineId: "mach_updated",
+        fingerprint: "existing_fp",
+        name: "Updated Name",
+        platform: "win32",
+      });
+
+      // UpdateExpression should NOT contain userId or userEmail
+      const updateCommand = mockSend.calls[1][0];
+      expect(updateCommand.input.UpdateExpression).not.toContain("userId");
+      expect(updateCommand.input.UpdateExpression).not.toContain("userEmail");
+    });
+  });
+
+  describe("getUserDevices", () => {
+    it("should return only devices belonging to specified userId", async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_1", userId: "user-A", name: "MacBook" },
+          { keygenMachineId: "mach_2", userId: "user-B", name: "Windows PC" },
+          { keygenMachineId: "mach_3", userId: "user-A", name: "Linux Server" },
+        ],
+      });
+
+      const result = await getUserDevices("lic_123", "user-A");
+
+      expect(result).toHaveLength(2);
+      expect(result[0].keygenMachineId).toBe("mach_1");
+      expect(result[1].keygenMachineId).toBe("mach_3");
+    });
+
+    it("should return empty array when no devices match userId", async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_1", userId: "user-B", name: "Other Device" },
+        ],
+      });
+
+      const result = await getUserDevices("lic_123", "user-A");
+
+      expect(result).toHaveLength(0);
+    });
+
+    it("should not return devices without userId attribute", async () => {
+      // Pre-Phase 2 devices have no userId — they should not match any user query
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_legacy", name: "Legacy Device" },
+          { keygenMachineId: "mach_new", userId: "user-A", name: "New Device" },
+        ],
+      });
+
+      const result = await getUserDevices("lic_123", "user-A");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].keygenMachineId).toBe("mach_new");
+    });
+
+    it("should return empty array when licenseId is missing", async () => {
+      const result = await getUserDevices(null, "user-A");
+      expect(result).toHaveLength(0);
+      // Should not call DynamoDB
+      expect(mockSend.callCount).toBe(0);
+    });
+
+    it("should return empty array when userId is missing", async () => {
+      const result = await getUserDevices("lic_123", null);
+      expect(result).toHaveLength(0);
+      expect(mockSend.callCount).toBe(0);
+    });
+
+    it("should return empty array when both params are missing", async () => {
+      const result = await getUserDevices(null, null);
+      expect(result).toHaveLength(0);
+      expect(mockSend.callCount).toBe(0);
+    });
+
+    it("should isolate devices between users on same license", async () => {
+      const allDevices = [
+        { keygenMachineId: "mach_1", userId: "user-A", name: "A's MacBook" },
+        { keygenMachineId: "mach_2", userId: "user-B", name: "B's Windows" },
+        { keygenMachineId: "mach_3", userId: "user-C", name: "C's Linux" },
+        { keygenMachineId: "mach_4", userId: "user-A", name: "A's iPad" },
+      ];
+
+      // Query for user-B
+      mockSend.mockResolvedValueOnce({ Items: allDevices });
+      const userB = await getUserDevices("lic_shared", "user-B");
+      expect(userB).toHaveLength(1);
+      expect(userB[0].name).toBe("B's Windows");
+
+      // Query for user-A
+      mockSend.mockResolvedValueOnce({ Items: allDevices });
+      const userA = await getUserDevices("lic_shared", "user-A");
+      expect(userA).toHaveLength(2);
+    });
+  });
+
+  describe("getActiveUserDevicesInWindow", () => {
+    it("should return only user's devices within the time window", async () => {
+      const now = Date.now();
+      const oneHourAgo = new Date(now - 1 * 60 * 60 * 1000).toISOString();
+      const threeHoursAgo = new Date(now - 3 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_1", userId: "user-A", lastSeenAt: oneHourAgo },
+          { keygenMachineId: "mach_2", userId: "user-A", lastSeenAt: threeHoursAgo },
+          { keygenMachineId: "mach_3", userId: "user-B", lastSeenAt: oneHourAgo },
+        ],
+      });
+
+      // Default window is 2 hours
+      const result = await getActiveUserDevicesInWindow("lic_123", "user-A");
+
+      // Only mach_1 — user-A's device within 2-hour window
+      // mach_2 is user-A but outside window, mach_3 is user-B
+      expect(result).toHaveLength(1);
+      expect(result[0].keygenMachineId).toBe("mach_1");
+    });
+
+    it("should default to 2-hour window", async () => {
+      const now = Date.now();
+      const ninetyMinutesAgo = new Date(now - 90 * 60 * 1000).toISOString();
+      const threeHoursAgo = new Date(now - 3 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_recent", userId: "user-A", lastSeenAt: ninetyMinutesAgo },
+          { keygenMachineId: "mach_stale", userId: "user-A", lastSeenAt: threeHoursAgo },
+        ],
+      });
+
+      // No windowHours param — should use 2-hour default
+      const result = await getActiveUserDevicesInWindow("lic_123", "user-A");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].keygenMachineId).toBe("mach_recent");
+    });
+
+    it("should accept custom window hours", async () => {
+      const now = Date.now();
+      const fiveHoursAgo = new Date(now - 5 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_1", userId: "user-A", lastSeenAt: fiveHoursAgo },
+        ],
+      });
+
+      // 8-hour window should include device from 5 hours ago
+      const result = await getActiveUserDevicesInWindow("lic_123", "user-A", 8);
+      expect(result).toHaveLength(1);
+
+      // Reset mock for 4-hour window test
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_1", userId: "user-A", lastSeenAt: fiveHoursAgo },
+        ],
+      });
+
+      // 4-hour window should exclude device from 5 hours ago
+      const result2 = await getActiveUserDevicesInWindow("lic_123", "user-A", 4);
+      expect(result2).toHaveLength(0);
+    });
+
+    it("should use createdAt when lastSeenAt is missing", async () => {
+      const now = Date.now();
+      const oneHourAgo = new Date(now - 1 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_1", userId: "user-A", createdAt: oneHourAgo },
+        ],
+      });
+
+      const result = await getActiveUserDevicesInWindow("lic_123", "user-A");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].keygenMachineId).toBe("mach_1");
+    });
+
+    it("should exclude stale devices outside window", async () => {
+      const now = Date.now();
+      const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_stale", userId: "user-A", lastSeenAt: twentyFourHoursAgo },
+        ],
+      });
+
+      // Default 2-hour window — 24 hours ago is well outside
+      const result = await getActiveUserDevicesInWindow("lic_123", "user-A");
+
+      expect(result).toHaveLength(0);
+    });
+
+    it("should return empty array when licenseId is missing", async () => {
+      const result = await getActiveUserDevicesInWindow(null, "user-A");
+      expect(result).toHaveLength(0);
+      expect(mockSend.callCount).toBe(0);
+    });
+
+    it("should return empty array when userId is missing", async () => {
+      const result = await getActiveUserDevicesInWindow("lic_123", null);
+      expect(result).toHaveLength(0);
+      expect(mockSend.callCount).toBe(0);
+    });
+
+    it("should not include other users' active devices", async () => {
+      const now = Date.now();
+      const tenMinutesAgo = new Date(now - 10 * 60 * 1000).toISOString();
+
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          { keygenMachineId: "mach_1", userId: "user-A", lastSeenAt: tenMinutesAgo },
+          { keygenMachineId: "mach_2", userId: "user-B", lastSeenAt: tenMinutesAgo },
+          { keygenMachineId: "mach_3", userId: "user-C", lastSeenAt: tenMinutesAgo },
+        ],
+      });
+
+      const result = await getActiveUserDevicesInWindow("lic_123", "user-B");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].keygenMachineId).toBe("mach_2");
+      expect(result[0].userId).toBe("user-B");
     });
   });
 });

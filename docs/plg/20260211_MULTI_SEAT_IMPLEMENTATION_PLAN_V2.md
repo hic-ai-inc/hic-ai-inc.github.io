@@ -279,18 +279,19 @@ cd plg-website && npm test
 
 **File:** `plg-website/src/lib/dynamodb.js`
 
-Extend the function to accept required `userId` and `userEmail` parameters. These are always present for activated devices — activation is not possible without authentication.
+Extend the function to accept `userId` and `userEmail` parameters. These are stored in the DynamoDB device record when provided.
 
 ```javascript
 // Before: addDeviceActivation(keygenLicenseId, keygenMachineId, fingerprint, name, platform, metadata)
 // After:  addDeviceActivation(keygenLicenseId, keygenMachineId, fingerprint, name, platform, metadata, userId, userEmail)
-// Note: userId and userEmail are REQUIRED — activation without authentication is a system error.
 ```
 
 The DynamoDB item gains two new attributes:
 
 - `userId` — Cognito sub (stable unique identifier)
 - `userEmail` — human-readable, for display
+
+> **⚠️ Implementation Note (2026-02-11):** `userId` and `userEmail` are added as **optional** parameters in Phase 2. The only production caller (`license/activate/route.js`) does not yet pass these values — that wiring happens in Phase 3 when the activation endpoint requires JWT authentication. Making them required now would break the existing unauthenticated activation flow. **Phase 3 must make these parameters mandatory** once the caller is updated to extract userId/userEmail from the verified JWT payload.
 
 #### Step 2.2: Add `getUserDevices()` Function
 
@@ -303,6 +304,12 @@ New function: given a `keygenLicenseId` and `userId`, return only that user's de
 **File:** `plg-website/src/lib/dynamodb.js`
 
 New function: combines the user filter with the time-window filter (2 hours, controlled by `CONCURRENT_DEVICE_WINDOW_HOURS` env var) to return only a specific user's concurrent devices.
+
+> **⚠️ Implementation Note (2026-02-11): Concurrent Device Window Defaults.**
+>
+> - The **new** `getActiveUserDevicesInWindow()` defaults to **2 hours**, matching the agreed business decision.
+> - The **existing** `getActiveDevicesInWindow()` retains its **24-hour** default. However, this default is effectively unused — both production callers (`license/activate/route.js` and `license/heartbeat/route.js`) compute the window explicitly via `parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 24` and pass it as a parameter. The function's default value is never reached.
+> - **Phase 3 must update both callers' fallback values** from `|| 24` to `|| 2` to align with the 2-hour sliding window strategy. This is a behavioral change that belongs alongside the per-seat enforcement wiring, not in the additive Phase 2.
 
 #### Step 2.4: Consider GSI for User-Based Queries
 
@@ -322,7 +329,7 @@ cd plg-website && npm run test:lib
 **📋 New tests to write (in `dynamodb.test.js`):**
 
 - [ ] `addDeviceActivation` with userId/userEmail — verify DynamoDB PutItem includes new attributes
-- [ ] `addDeviceActivation` without userId/userEmail — verify it throws an error (userId is required for all activations)
+- [ ] `addDeviceActivation` without userId/userEmail — verify it succeeds without them (optional in Phase 2; Phase 3 makes mandatory)
 - [ ] `getUserDevices` — returns only devices for specified userId within a license
 - [ ] `getUserDevices` — returns empty array when no devices match userId
 - [ ] `getUserDevices` — does not return devices belonging to other users on same license

@@ -593,6 +593,8 @@ export async function addDeviceActivation({
   name,
   platform,
   metadata = {},
+  userId,
+  userEmail,
 }) {
   const now = new Date().toISOString();
 
@@ -612,7 +614,9 @@ export async function addDeviceActivation({
           SK: existingDevice.SK,
         },
         UpdateExpression:
-          "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen",
+          "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen" +
+          (userId ? ", userId = :userId" : "") +
+          (userEmail ? ", userEmail = :userEmail" : ""),
         ExpressionAttributeNames: {
           "#name": "name",
         },
@@ -621,6 +625,8 @@ export async function addDeviceActivation({
           ":name": name,
           ":platform": platform,
           ":lastSeen": now,
+          ...(userId && { ":userId": userId }),
+          ...(userEmail && { ":userEmail": userEmail }),
         },
       }),
     );
@@ -630,6 +636,8 @@ export async function addDeviceActivation({
       name,
       platform,
       lastSeenAt: now,
+      ...(userId && { userId }),
+      ...(userEmail && { userEmail }),
     };
   }
 
@@ -643,6 +651,8 @@ export async function addDeviceActivation({
     platform,
     lastSeenAt: now,
     ...metadata,
+    ...(userId && { userId }),
+    ...(userEmail && { userEmail }),
     createdAt: now,
   };
 
@@ -682,6 +692,55 @@ export async function getActiveDevicesInWindow(keygenLicenseId, windowHours = 24
   const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
   
   return devices.filter(device => {
+    const lastActivity = new Date(device.lastSeenAt || device.createdAt);
+    return lastActivity > cutoffTime;
+  });
+}
+
+/**
+ * Get devices for a specific user within a license
+ *
+ * Returns only devices belonging to the specified userId.
+ * Used for per-seat device display and enforcement.
+ *
+ * @param {string} keygenLicenseId - License ID
+ * @param {string} userId - Cognito sub (user identifier)
+ * @returns {Promise<Array>} Devices belonging to this user
+ */
+export async function getUserDevices(keygenLicenseId, userId) {
+  if (!keygenLicenseId || !userId) {
+    return [];
+  }
+
+  const devices = await getLicenseDevices(keygenLicenseId);
+  return devices.filter((device) => device.userId === userId);
+}
+
+/**
+ * Get active devices for a specific user within the concurrent device window
+ *
+ * Combines user filtering with time-window filtering to return only
+ * a specific user's concurrent devices. This is the function used
+ * at activation time to enforce per-seat device limits.
+ *
+ * @param {string} keygenLicenseId - License ID
+ * @param {string} userId - Cognito sub (user identifier)
+ * @param {number} windowHours - Hours to consider device active (default: 2)
+ * @returns {Promise<Array>} Active devices for this user within window
+ */
+export async function getActiveUserDevicesInWindow(
+  keygenLicenseId,
+  userId,
+  windowHours = 2,
+) {
+  if (!keygenLicenseId || !userId) {
+    return [];
+  }
+
+  const userDevices = await getUserDevices(keygenLicenseId, userId);
+  const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+  return userDevices.filter((device) => {
     const lastActivity = new Date(device.lastSeenAt || device.createdAt);
     return lastActivity > cutoffTime;
   });
