@@ -22,36 +22,32 @@ const docsContent = {
 - **VS Code 1.85+** or compatible editor (Cursor, Windsurf, etc.)
 - A 14-day free trial starts automatically — no account or credit card required
 
-## Installation Methods
+## Install Mouse
 
-### VS Code Marketplace (Recommended)
+### From VS Code (Recommended)
 
 1. Open VS Code
 2. Go to Extensions (**Ctrl+Shift+X** on Windows, **Cmd+Shift+X** on Mac)
-3. Search for **"Mouse by HIC AI"**
+3. Search for **Mouse by HIC AI**
 4. Click **Install**
 
-### Terminal / CLI Installation
+Mouse is also available on [Open VSX](https://open-vsx.org/) for Cursor, Windsurf, and other compatible editors.
 
-Download the \`.vsix\` file and install from the command line:
+### From the Terminal
 
-\`\`\`bash
-code --install-extension mouse-*.vsix
-\`\`\`
-
-For example, to install version 0.10.5:
+You can install Mouse directly from the command line:
 
 \`\`\`bash
-code --install-extension mouse-0.10.5.vsix
+code --install-extension hic-ai.mouse
 \`\`\`
+
+This downloads and installs the latest version automatically from the VS Code Marketplace.
 
 ## Post-Installation Setup
 
-After installing Mouse, follow these steps to get started:
-
-1. **Initialize your workspace** — Open the Command Palette (**Ctrl+Shift+P** on Windows, **Cmd+Shift+P** on Mac) and select **Mouse: Initialize Workspace**
+1. **Initialize your workspace** — Open the Command Palette (**Ctrl+Shift+P** on Windows, **Cmd+Shift+P** on Mac) and select \`Mouse: Initialize Workspace\`
 2. **Select your coding assistant** — Choose your AI assistant (e.g., GitHub Copilot, Amazon Q Developer) from the dropdown list. Mouse will automatically configure the correct MCP settings.
-3. **Refresh your editor** — Open the Command Palette again and select **Developer: Reload Window**, or restart your IDE.
+3. **Refresh your editor** — Open the Command Palette again and select \`Developer: Reload Window\`, or restart your IDE.
 4. **Start using Mouse!** — Mouse is now ready. Your AI coding assistant will automatically have access to Mouse's precision editing tools.
 
 > **Note for VS Code users with GitHub Copilot:** You may need to manually start the MCP server by clicking the **Start** button in the MCP configuration panel. Open \`.vscode/mcp.json\` in your workspace and click **Start** next to the Mouse server entry.
@@ -438,13 +434,13 @@ function formatContent(content) {
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
     .replace(
-      /`([^`]+)`/g,
-      '<code class="bg-frost-white/10 px-1.5 py-0.5 rounded text-cerulean-mist text-sm">$1</code>',
-    )
-    .replace(
       /```(\w+)?\n([\s\S]*?)```/g,
       (_, lang, code) =>
         `<pre class="bg-frost-white/5 border border-frost-white/10 rounded-lg p-4 overflow-x-auto my-4"><code class="text-sm">${code.trim()}</code></pre>`,
+    )
+    .replace(
+      /`([^`]+)`/g,
+      '<code class="bg-frost-white/10 px-1.5 py-0.5 rounded text-cerulean-mist text-sm">$1</code>',
     )
     .replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
