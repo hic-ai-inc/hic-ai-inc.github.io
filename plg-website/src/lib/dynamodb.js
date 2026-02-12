@@ -684,10 +684,10 @@ export async function addDeviceActivation({
 /**
  * Get active devices within concurrent window
  * @param {string} keygenLicenseId - License ID
- * @param {number} windowHours - Hours to consider device active (default: 24)
+ * @param {number} windowHours - Hours to consider device active (default: 2)
  * @returns {Promise<Array>} Active devices within window
  */
-export async function getActiveDevicesInWindow(keygenLicenseId, windowHours = 24) {
+export async function getActiveDevicesInWindow(keygenLicenseId, windowHours = 2) {
   const devices = await getLicenseDevices(keygenLicenseId);
   const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
   
@@ -778,8 +778,11 @@ export async function removeDeviceActivation(keygenLicenseId, keygenMachineId) {
 
 /**
  * Update device last seen timestamp
+ * @param {string} keygenLicenseId - License ID
+ * @param {string} keygenMachineId - Machine ID
+ * @param {string} [userId] - Optional Cognito user ID to bind device to user
  */
-export async function updateDeviceLastSeen(keygenLicenseId, keygenMachineId) {
+export async function updateDeviceLastSeen(keygenLicenseId, keygenMachineId, userId) {
   await dynamodb.send(
     new UpdateCommand({
       TableName: TABLE_NAME,
@@ -787,9 +790,10 @@ export async function updateDeviceLastSeen(keygenLicenseId, keygenMachineId) {
         PK: `LICENSE#${keygenLicenseId}`,
         SK: `DEVICE#${keygenMachineId}`,
       },
-      UpdateExpression: "SET lastSeenAt = :now",
+      UpdateExpression: "SET lastSeenAt = :now" + (userId ? ", userId = :userId" : ""),
       ExpressionAttributeValues: {
         ":now": new Date().toISOString(),
+        ...(userId && { ":userId": userId }),
       },
     }),
   );

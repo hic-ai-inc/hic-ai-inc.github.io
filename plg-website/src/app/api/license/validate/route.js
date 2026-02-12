@@ -23,6 +23,7 @@ import {
   updateDeviceLastSeen,
   getTrialByFingerprint,
   createTrial,
+  getLicenseDevices,
 } from "@/lib/dynamodb";
 
 // Trial duration in days
@@ -209,11 +210,31 @@ export async function POST(request) {
       });
     }
 
+    // Look up device record to include userId/userEmail in response
+    // (enables extension polling to discover user identity after browser-delegated activation)
+    let deviceUserId = null;
+    let deviceUserEmail = null;
+    if (result.valid && result.license?.id) {
+      try {
+        const devices = await getLicenseDevices(result.license.id);
+        const deviceRecord = devices.find((d) => d.fingerprint === fingerprint);
+        if (deviceRecord) {
+          deviceUserId = deviceRecord.userId || null;
+          deviceUserEmail = deviceRecord.userEmail || null;
+        }
+      } catch (err) {
+        // Non-critical — proceed without user identity
+        console.error("Device lookup for userId failed:", err);
+      }
+    }
+
     // Return validation result
     return NextResponse.json({
       valid: result.valid,
       code: result.code,
       detail: result.detail,
+      userId: deviceUserId,
+      userEmail: deviceUserEmail,
       license: result.license
         ? {
             status: result.license.status,

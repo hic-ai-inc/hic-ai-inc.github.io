@@ -504,13 +504,13 @@ describe("heartbeat API - concurrent device enforcement", () => {
     expect(message).toContain("Consider upgrading");
   });
 
-  test("should use 24-hour window for concurrent count", () => {
+  test("should use 2-hour window for concurrent count", () => {
     const now = Date.now();
     const devices = [
-      { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
-      { lastSeenAt: new Date(now - 30 * 60 * 60 * 1000).toISOString() },
+      { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
+      { lastSeenAt: new Date(now - 3 * 60 * 60 * 1000).toISOString() },
     ];
-    const activeDevices = getActiveDevicesInWindow(devices, 24);
+    const activeDevices = getActiveDevicesInWindow(devices, 2);
 
     expect(activeDevices.length).toBe(1);
   });
@@ -518,13 +518,13 @@ describe("heartbeat API - concurrent device enforcement", () => {
   test("should handle CONCURRENT_DEVICE_WINDOW_HOURS env variable", () => {
     const now = Date.now();
     const devices = [
-      { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
+      { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
     ];
-    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 24;
+    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 2;
     const activeDevices = getActiveDevicesInWindow(devices, windowHours);
 
     expect(activeDevices.length).toBe(1);
-    expect(windowHours).toBe(24); // Default when env var not set
+    expect(windowHours).toBe(2); // Default when env var not set
   });
 });
 

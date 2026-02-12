@@ -16,11 +16,31 @@ import {
   getLicense as getDynamoLicense,
   getActiveDevicesInWindow,
 } from "@/lib/dynamodb";
+import { verifyAuthToken } from "@/lib/auth-verify";
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const { licenseKey, fingerprint, deviceName, platform } = body;
+
+    // Optional JWT authentication (Phase 3B)
+    // If Authorization header is present, verify it and extract user identity.
+    // No header = backward-compatible unauthenticated activation (transitional).
+    // Invalid/expired header = 401 rejection (bad token ≠ no token).
+    let userId = null;
+    let userEmail = null;
+    const authHeader = request.headers.get("authorization");
+    if (authHeader) {
+      const tokenPayload = await verifyAuthToken();
+      if (!tokenPayload) {
+        return NextResponse.json(
+          { error: "Unauthorized", detail: "Invalid or expired authentication token" },
+          { status: 401 },
+        );
+      }
+      userId = tokenPayload.sub;
+      userEmail = tokenPayload.email;
+    }
 
     // Validate required fields
     if (!licenseKey) {
@@ -94,8 +114,8 @@ export async function POST(request) {
     // Get full license details
     const license = await getLicense(validation.license.id);
 
-    // Check concurrent device count (24-hour window)
-    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 24;
+    // Check concurrent device count (2-hour sliding window)
+    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 2;
     const activeDevices = await getActiveDevicesInWindow(license.id, windowHours);
     const overLimit = license.maxMachines && activeDevices.length >= license.maxMachines;
 
@@ -110,13 +130,15 @@ export async function POST(request) {
       },
     });
 
-    // Store in DynamoDB
+    // Store in DynamoDB (must complete before returning HTTP 200)
     await addDeviceActivation({
       keygenLicenseId: license.id,
       keygenMachineId: machine.id,
       fingerprint,
       name: machine.name,
       platform: machine.platform,
+      userId,
+      userEmail,
     });
 
     // Get current device count after activation (time-based)
@@ -126,6 +148,8 @@ export async function POST(request) {
       success: true,
       activated: true,
       activationId: machine.id,
+      userId,
+      userEmail,
       deviceCount,
       maxDevices: license.maxMachines,
       overLimit: overLimit,

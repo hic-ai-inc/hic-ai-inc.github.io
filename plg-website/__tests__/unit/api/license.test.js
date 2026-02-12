@@ -376,7 +376,7 @@ describe("license/activate API logic", () => {
 
   describe("concurrent device limit checking", () => {
     // Helper to simulate getActiveDevicesInWindow
-    function getActiveDevicesInWindow(devices, windowHours = 24) {
+    function getActiveDevicesInWindow(devices, windowHours = 2) {
       const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
       return devices.filter(device => {
         const lastActivity = new Date(device.lastSeenAt || device.createdAt);
@@ -387,10 +387,10 @@ describe("license/activate API logic", () => {
     it("should allow activation when under concurrent limit", () => {
       const now = Date.now();
       const devices = [
-        { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 30 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 3 * 60 * 60 * 1000).toISOString() },
       ];
-      const activeDevices = getActiveDevicesInWindow(devices, 24);
+      const activeDevices = getActiveDevicesInWindow(devices, 2);
       const overLimit = activeDevices.length >= 3;
 
       assert.strictEqual(overLimit, false);
@@ -400,11 +400,11 @@ describe("license/activate API logic", () => {
     it("should allow activation when at concurrent limit (soft warning)", () => {
       const now = Date.now();
       const devices = [
-        { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 12 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 14 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 30 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 90 * 60 * 1000).toISOString() },
       ];
-      const activeDevices = getActiveDevicesInWindow(devices, 24);
+      const activeDevices = getActiveDevicesInWindow(devices, 2);
       const maxMachines = 3;
       const overLimit = activeDevices.length >= maxMachines;
 
@@ -416,12 +416,12 @@ describe("license/activate API logic", () => {
     it("should allow activation when over concurrent limit (soft warning)", () => {
       const now = Date.now();
       const devices = [
-        { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 2 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 3 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 4 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 15 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 30 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 45 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 60 * 60 * 1000).toISOString() },
       ];
-      const activeDevices = getActiveDevicesInWindow(devices, 24);
+      const activeDevices = getActiveDevicesInWindow(devices, 2);
       const maxMachines = 3;
       const overLimit = activeDevices.length >= maxMachines;
 
@@ -458,26 +458,26 @@ describe("license/activate API logic", () => {
       assert.ok(message.includes("Consider upgrading"));
     });
 
-    it("should count only devices active in 24-hour window", () => {
+    it("should count only devices active in 2-hour window", () => {
       const now = Date.now();
       const devices = [
-        { lastSeenAt: new Date(now - 10 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 30 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 48 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 3 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 5 * 60 * 60 * 1000).toISOString() },
       ];
-      const activeDevices = getActiveDevicesInWindow(devices, 24);
+      const activeDevices = getActiveDevicesInWindow(devices, 2);
 
       assert.strictEqual(activeDevices.length, 1);
     });
 
-    it("should not count inactive devices from yesterday", () => {
+    it("should not count inactive devices outside window", () => {
       const now = Date.now();
       const devices = [
         { lastSeenAt: new Date(now - 1 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 25 * 60 * 60 * 1000).toISOString() },
-        { lastSeenAt: new Date(now - 26 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 3 * 60 * 60 * 1000).toISOString() },
+        { lastSeenAt: new Date(now - 5 * 60 * 60 * 1000).toISOString() },
       ];
-      const activeDevices = getActiveDevicesInWindow(devices, 24);
+      const activeDevices = getActiveDevicesInWindow(devices, 2);
 
       assert.strictEqual(activeDevices.length, 1);
     });

@@ -89,7 +89,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { machineId, sessionId, licenseKey, fingerprint } = body;
+    const { machineId, sessionId, licenseKey, fingerprint, userId } = body;
 
     // Validate required fields - fingerprint is always required
     // Each container/device must have a unique fingerprint for concurrent session tracking
@@ -210,14 +210,15 @@ export async function POST(request) {
     }
 
     // Update device last seen in DynamoDB (fire and forget)
+    // When userId is present, include it in the update for device-user binding
     if (license.keygenLicenseId) {
-      updateDeviceLastSeen(license.keygenLicenseId, machineId).catch((err) => {
+      updateDeviceLastSeen(license.keygenLicenseId, machineId, userId).catch((err) => {
         console.error("Device last seen update failed:", err);
       });
     }
 
-    // Get active device count using time-based window
-    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 24;
+    // Get active device count using time-based window (2-hour sliding window)
+    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 2;
     let concurrentMachines = 1;
     let maxMachines = license.maxDevices || null;
 
