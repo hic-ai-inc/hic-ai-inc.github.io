@@ -16,7 +16,7 @@
 | **Launch Posture** | Individual + Business public launch | Full self-service for both tiers |
 | **Business Plan UI** | Full checkout enabled | Business tier fully operational |
 | **RBAC Status** | ✅ COMPLETE | Owner/Admin/Member roles, Team UI, shared license access |
-| **Multi-Seat Device Mgmt** | 🔴 TIER 1 BLOCKER | Per-user device binding, OAuth PKCE, concurrent enforcement |
+| **Multi-Seat Device Mgmt** | 🔴 TIER 1 BLOCKER | Per-user device binding, browser-delegated activation, concurrent enforcement |
 | **Distribution** | VSIX-only (Marketplace) | npm/npx deprecated; CLI commands ship via VSIX |
 | **Update Mechanism** | 🔴 TIER 1 BLOCKER | Heartbeat-driven version notification + `Mouse: Update Version` command |
 | **Downgrade Logic** | POST-LAUNCH | Simplifies Tier 1 payments work |
@@ -34,7 +34,7 @@
 
 | Phase | Focus | Status | Est. |
 |-------|-------|--------|------|
-| **5** | Multi-Seat Device Management | 🔴 NOT STARTED | 8.5-11.5 days |
+| **5** | Multi-Seat Device Management | 🔴 NOT STARTED | 6-8.5 days |
 | **6** | Version Updates & Distribution | 🔴 NOT STARTED | TBD |
 | **7** | Security Audit & Launch Prep | 🔴 NOT STARTED | TBD |
 | **8** | Launch | 🔴 BLOCKED on 5-7 | TBD |
@@ -322,11 +322,11 @@ exports.handler = async (event) => {
 
 ## 🔧 PHASE 5: Multi-Seat Device Management (NEW in v7)
 
-**Goal:** Implement per-user device tracking with OAuth PKCE authentication at activation, per-seat concurrent device enforcement, and portal alignment for Business tier multi-user scenarios.  
+**Goal:** Implement per-user device tracking with browser-delegated activation (extension opens browser → website handles Cognito auth → extension polls for completion), per-seat concurrent device enforcement, and portal alignment for Business tier multi-user scenarios.  
 **Status:** 🔴 NOT STARTED  
-**Est. Time:** 8.5-11.5 days  
-**Authoritative Document:** [20260211_MULTI_SEAT_IMPLEMENTATION_PLAN_V2.md](20260211_MULTI_SEAT_IMPLEMENTATION_PLAN_V2.md)  
-**Reference Documents:** [Keygen Investigation Report](20260211_REPORT_ON_KEYGEN_INVESTIGATION.md), [Multi-Seat Tech Spec](20260210_GC_TECH_SPEC_MULTI_SEAT_DEVICE_MANAGEMENT.md)
+**Est. Time:** 6-8.5 days (revised down from 8.5-11.5 — browser-delegated activation eliminates ~450 LOC and 1 subphase)  
+**Authoritative Document:** [20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md](20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md)  
+**Reference Documents:** [Browser-Delegated Activation Proposal](20260212_GC_PROPOSAL_BROWSER_DELEGATED_ACTIVATION.md), [Subphase Plan V2](20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V2.md), [Multi-Seat Tech Spec](20260210_GC_TECH_SPEC_MULTI_SEAT_DEVICE_MANAGEMENT.md)
 
 ### 5.0 Context
 
@@ -344,11 +344,17 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 | **Phase 0** | Keygen Policy Configuration | Keygen API | ✅ COMPLETE | 0.5 day |
 | **Phase 1** | Cognito Config + Auth Extraction | AWS + Website | ✅ COMPLETE | 1 day |
 | **Phase 2** | DynamoDB Schema & Functions | Website | ✅ COMPLETE | 1 day |
-| **Phase 3** | Auth Activation + Enforcement + Portal UI | Both repos | ⬜ NOT STARTED | 4.5-7 days (6 subphases) |
+| **Phase 3** | Browser-Delegated Activation + Enforcement + Portal UI | Both repos | ⬜ NOT STARTED | 2.5-4 days (5 subphases) |
 | **Phase 4** | Hardening & Status Code Alignment | Website | ⬜ NOT STARTED | 1-2 days |
 
 > **Phases 0, 1, 2 can be executed in parallel.** Phase 3 depends on all three. Phase 4 depends on Phase 3.
-> **Phase 3 subphased:** See [Proposed Subphase Plan for Phase 3](./20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md) for the 6 independently-deployable subphases (3A–3F).
+> **Phase 3 subphased:** See [Proposed Subphase Plan for Phase 3 V2](./20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V2.md) for the 5 independently-deployable subphases (3A–3B, 3D–3F; 3C eliminated by browser-delegated model).
+
+
+> **Deferred cleanup from Phases 0–2 (explicitly scheduled):**
+> - **3B:** `CONCURRENT_DEVICE_WINDOW_HOURS` fallbacks `|| 24` → `|| 2` in activate/heartbeat routes + test + function default (6 locations)
+> - **3E:** `addDeviceActivation()` userId/userEmail guard — throw if not provided (prevents silent unbound device records)
+> - **Phase 4:** Remove vestigial `vscode://hic-ai.mouse/callback` from Cognito App Client (Phase 1 artifact, harmless but should be cleaned up)
 
 ### 5.2 Key Architecture Decisions (All Resolved)
 
@@ -356,7 +362,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 |---|----------|------------|
 | D1 | Heartbeat strategy | DEACTIVATE_DEAD + NO_REVIVE retained; extension handles transparent re-activation |
 | D2 | heartbeatDuration | Extended 900s → 3600s (1 hour) to reduce churn during laptop sleep |
-| D3 | OAuth callback client | Add `vscode://hic-ai.mouse/callback` to existing `mouse-staging-web` App Client |
+| D3 | ~~OAuth callback client~~ | ~~Add `vscode://hic-ai.mouse/callback`~~ — **Eliminated** by browser-delegated activation (no OAuth in extension) |
 | — | Concurrency model | 2-hour sliding window in DynamoDB (`CONCURRENT_DEVICE_WINDOW_HOURS` env var) |
 | — | Overage strategy | ALWAYS_ALLOW_OVERAGE — Keygen `maxMachines` is decorative; DynamoDB enforces |
 
@@ -379,7 +385,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 
 - [ ] All user journeys UJ-1 through UJ-10 pass E2E against staging
 - [ ] All unit tests pass in both repos with >80% coverage on modified files
-- [ ] Extension authenticates users via Cognito OAuth PKCE before activation
+- [ ] Extension authenticates users via browser-delegated activation (opens browser → website handles Cognito auth → extension polls for completion)
 - [ ] Per-seat device limits enforced via DynamoDB 2-hour sliding window
 - [ ] Portal shows per-user device views for Business licenses
 - [ ] Sleep/wake recovery works without user intervention
@@ -1917,15 +1923,15 @@ Policy: **No refunds** (except credit card fraud cases).
 
 **Priority:** 🔴 TIER 1 — Deployment Blocker (Phase 5)  
 **Category:** Licensing / Multi-Seat  
-**Est. Hours:** 8.5-11.5 days (per Multi-Seat Implementation Plan V2)  
-**Reference:** [MULTI_SEAT_IMPLEMENTATION_PLAN_V2.md](./20260211_MULTI_SEAT_IMPLEMENTATION_PLAN_V2.md)
+**Est. Hours:** 6-8.5 days (per Multi-Seat Implementation Plan V3 — revised down from 8.5-11.5 via browser-delegated activation)  
+**Reference:** [MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md](./20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md)
 
 Complete multi-seat device management per the 5-phase plan:
 
 - [x] **Phase 0:** Keygen policy corrections (maxMachines=3, ALWAYS_ALLOW_OVERAGE, heartbeatDuration=3600s) — ✅ Done 2026-02-11
 - [x] **Phase 1:** Cognito auth extract + shared verifyAuthToken across 14 routes — ✅ Done 2026-02-11
 - [x] **Phase 2:** DynamoDB device schema + 2-hour concurrent sliding window — ✅ Done 2026-02-11
-- [ ] **Phase 3:** Auth-gated activation, server-side enforcement, portal UI — 4.5-7 days (6 subphases, see [subphase plan](./20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md))
+- [ ] **Phase 3:** Browser-delegated activation, server-side enforcement, portal UI — 2.5-4 days (5 subphases, see [subphase plan V2](./20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V2.md))
 - [ ] **Phase 4:** Hardening, edge cases, monitoring — 1-2 days
 
 ### TODO 25: Version Update Wire-up (NEW — v7)

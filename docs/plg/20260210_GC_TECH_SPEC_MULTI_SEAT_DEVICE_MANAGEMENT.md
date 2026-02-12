@@ -4,7 +4,9 @@
 **Author:** GC (Copilot)
 **Status:** REVISED — Incorporating SWR Review (2026-02-11)
 
-> **Note:** The phasing and task ordering in this specification is **superseded** by the [Multi-Seat Implementation Plan V2](20260211_MULTI_SEAT_IMPLEMENTATION_PLAN_V2.md). This document remains the authoritative _architectural_ reference; see the Implementation Plan V2 for current sequencing, decisions, and phase definitions.
+> **Note:** The phasing and task ordering in this specification is **superseded** by the [Multi-Seat Implementation Plan V3](20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md). This document remains the authoritative _architectural_ reference; see the Implementation Plan V3 for current sequencing, decisions, and phase definitions.
+>
+> **Note (2026-02-12):** Section 3.5 (AuthenticationProvider + OAuth PKCE) is **superseded** by the [Browser-Delegated Activation model](20260212_GC_PROPOSAL_BROWSER_DELEGATED_ACTIVATION.md), approved by SWR on 2026-02-12. The extension no longer implements an OAuth client; authentication is delegated to the browser via the website's existing Cognito session. See the proposal for the rationale and revised architecture. Section 8, Decision #1 is also revised accordingly.
 
 **Repos:** `hic` (Mouse extension + licensing core), `hic-ai-inc.github.io` (website + backend)
 **References:**
@@ -165,7 +167,9 @@ userId: string              ← NEW (Cognito sub — always present for activate
 userEmail: string            ← NEW (for display — always present for activated devices)
 ```
 
-### 3.5 Authentication Approach: VS Code AuthenticationProvider + OAuth PKCE
+### 3.5 Authentication Approach: VS Code AuthenticationProvider + OAuth PKCE — SUPERSEDED
+
+> **⚠️ SUPERSEDED (2026-02-12):** This section describes the original AuthenticationProvider + PKCE approach. It has been replaced by the [Browser-Delegated Activation model](20260212_GC_PROPOSAL_BROWSER_DELEGATED_ACTIVATION.md). The extension no longer implements PKCE, SecretStorage token management, or a `vscode://` URI handler. Instead, the extension opens the browser to the website's `/activate` page, and the browser handles authentication via the existing Cognito session. The historical content below is preserved for reference.
 
 **Decided approach (SWR-approved):** Implement a custom `AuthenticationProvider` registered as `hic-cognito`. This is the standard VS Code pattern used by GitHub, Azure, and other first-party extensions.
 
@@ -552,7 +556,7 @@ Required for Keygen integration (per the deprecated J4 test file — requires Ke
 
 ## 8. Resolved Decisions (SWR Review — 2026-02-11)
 
-1. **AuthenticationProvider vs. browser-poll:** ✅ **AuthenticationProvider** — provides first-class VS Code Accounts menu integration and automatic token refresh. Standard pattern used by GitHub, Azure, etc.
+1. **AuthenticationProvider vs. browser-poll:** ~~✅ **AuthenticationProvider**~~ → **✅ REVISED (2026-02-12): Browser-Delegated Activation** — the original AuthenticationProvider decision was reversed in favor of the browser-delegated model. The extension opens the browser for authentication rather than implementing an OAuth client. See [Browser-Delegated Activation Proposal](20260212_GC_PROPOSAL_BROWSER_DELEGATED_ACTIVATION.md) for the full rationale. Key benefits: zero local credential storage, elimination of ~250 LOC of PKCE crypto, reliable operation in remote/container/WSL environments.
 
 2. **Cognito Hosted UI vs. embedded login:** ✅ **Hosted UI** — already configured. Handles email/password and Google federation (Gmail SSO) out of the box.
 
