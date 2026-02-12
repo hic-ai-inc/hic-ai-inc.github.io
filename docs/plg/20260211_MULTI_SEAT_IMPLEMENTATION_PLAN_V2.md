@@ -356,265 +356,51 @@ cd plg-website && npm run test:lib
 
 ### Phase 3: Authenticated Activation, Per-Seat Enforcement & Portal Alignment (Backend + Extension + Frontend)
 
-**Goal:** This is the critical phase. Wire up authentication in the VS Code extension, make the activation endpoint require and verify identity, enforce per-seat device limits, fix the startup flow, and align the portal UI with the new per-user device model. Portal UI scoping is included in this phase (moved from the former Phase 4) so that E2E testing at Gate 3b validates the full stack — backend enforcement and portal are aligned before E2E. Both repos are modified.
+**Goal:** Wire up authentication in the VS Code extension, make the activation endpoint require and verify identity, enforce per-seat device limits, fix the startup flow, and align the portal UI with the new per-user device model.
 
-**Environment:** 🔧 E (hic) then 🔧 W (plg-website), interleaved
+**Environment:** 🔧 E (hic) + 🔧 W (plg-website), interleaved
 
-This phase has sub-steps that must be done in order because the extension and backend must evolve together.
+> **📄 Detailed Plan:** Phase 3 is broken into 6 independently deployable subphases (3A–3F) to reduce risk and enable incremental testing. See [20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md](20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md) for the full subphase plan with per-subphase gates, dependency graph, and effort estimates.
 
-#### Step 3.1: Implement `HicCognitoAuthProvider` in Extension
+#### Subphase Summary
 
-**Environment:** 🔧 E
+| Subphase | Focus | Env | Risk | Key Change |
+|----------|-------|-----|------|------------|
+| **3A** | Extension auth provider | E | Zero | Build `HicCognitoAuthProvider` with PKCE. No behavioral change. |
+| **3B** | Backend accepts optional JWT | W | Near zero | If JWT present → verify + store userId. If absent → existing behavior. Backward compatible. |
+| **3C** | Extension sends idToken | E | Low | Wire auth into activation. Graceful degradation if auth fails (3B handles both paths). |
+| **3D** | Fix startup flow / expiry bug | E | Low | Heartbeat-first startup. Dead machine revival. Independent of auth — can parallel with 3A–3C. |
+| **3E** | Require auth + per-seat enforcement | W | Low | Flip the switch: JWT required, per-seat limits enforced. Low risk because Mouse is pre-Marketplace (no stale extension versions). |
+| **3F** | Portal scoping + UI | W | Low | Scope devices to current user. Fix DELETE authorization. UI copy updates. |
 
-**Files:**
-
-- `mouse-vscode/src/licensing/auth-provider.js` (new, ~200-250 LOC)
-- `mouse-vscode/package.json` — add `authentication` contribution point
-- `mouse-vscode/src/extension.js` — register provider, add UriHandler
-
-Implements `vscode.AuthenticationProvider`:
-
-- `createSession()` — opens Cognito Hosted UI with PKCE, handles `vscode://` callback
-- `getSessions()` — returns cached session from SecretStorage
-- `removeSession()` — clears stored tokens
-- Token refresh via Cognito refresh token
-- PKCE code verifier/challenge generation
-
-Also register a `vscode.window.registerUriHandler` to capture the OAuth callback.
-
-#### Step 3.2: Thread `idToken` Through Activation Flow
-
-**Environment:** 🔧 E
-
-**Files:**
-
-- `licensing/commands/activate.js` — accept `idToken` option
-- `licensing/http-client.js` — `activateLicense()` sends `Authorization: Bearer {idToken}` header
-- `licensing/state.js` — add `userId`, `userEmail` to LicenseState schema
-- `mouse-vscode/src/extension.js` — modify `mouse.enterLicenseKey` command to: authenticate → get idToken → then activate
-
-Activation flow becomes:
+#### Subphase Dependencies
 
 ```
-1. User: Mouse → Enter License Key → inputBox for key
-2. Extension: getSession() → idToken (if no session or token expired → redirect to sign-in)
-3. Extension: activateLicense(key, fingerprint, deviceName, platform, idToken)
-4. Server: verify JWT → 401 if invalid/expired → extension treats as "no session"
-5. Server: extract userId/email, activate with per-user tracking
-6. Extension: save userId/email to license.json state
+3A (ext: auth provider)  ───────────┐
+                                     ├──→ 3C (ext: sends idToken)
+3B (backend: optional JWT) ─────────┘            │
+                                                  ├──→ 3E (backend: require auth + enforce)
+3D (ext: startup fix) ──── independent ──────────┘            │
+                                                               └──→ 3F (portal scoping + UI)
 ```
 
-**Error Handling & Auth Failure UX (items i, k):**
+**Parallel opportunities:** 3A and 3B can be done in parallel (different repos). 3D can be done in parallel with 3A–3C (isolated to startup logic).
 
-- **Expired token:** Treat identically to "no session" — redirect user to the VS Code sign-in flow. No special messaging beyond the standard sign-in prompt.
-- **Server returns 401/403 during activation:** Dismiss the activation flow gracefully, restore prior extension state (trial, expired, or whatever it was), display an appropriate status-bar message (e.g., "Sign-in required to activate").
-- **Server error (5xx) or network failure:** Dismiss activation, restore prior state, show transient notification ("Activation failed — please try again").
-- **No broken intermediate state:** If activation fails for any reason, the extension MUST NOT enter a half-activated state. The user's prior license state is preserved exactly.
-- _Implementation detail deferred to Phase 3 coding; these are behavioral requirements, not UI wireframes._
+> **Pre-Marketplace note:** Mouse has not yet been published to the VS Code Marketplace. All testing uses locally-built VSIX files. This eliminates any concern about auto-update windows or stale extension versions — 3C and 3E can be deployed on the same day.
 
-#### Step 3.3: Fix Startup Flow (Expiry Bug)
+#### ✅ Gate 3 (after all subphases): Full E2E Validation
 
-**Environment:** 🔧 E
+After all 6 subphases are complete, the following E2E validation applies:
 
-**Files:**
+1. **UJ-1 (Solo activation):** Install VSIX → enter license key → Cognito sign-in → activation succeeds → `license.json` has userId → DynamoDB has userId
+2. **UJ-2 (Multi-device):** Activate on two devices → portal shows both → deactivate one → portal shows one
+3. **UJ-4 (Sleep/wake recovery):** Activate → close VS Code → wait 20 min → reopen → still LICENSED
+4. **UJ-6 (Business device scoping):** User A activates Device 1, User B activates Device 2 (same license) → each sees only their own device in portal
+5. **UJ-8 (Deactivation):** Deactivate from portal → device count decreases → can activate new device
+6. **UJ-10 (Offline grace):** Activate → disconnect → close VS Code → wait 1 hour → reconnect → reopen → LICENSED (within 72h grace)
+7. **Portal check:** `staging.hic-ai.com` → Devices page → user identity, per-seat usage, correct scoping
 
-- `mouse-vscode/src/extension.js` — reorder: heartbeat first, then validate
-- `mouse-vscode/src/licensing/license-checker.js` — handle "dead machine revived by heartbeat" path
-- `licensing/state.js` — consolidate to singleton pattern (or document why multiple instances are acceptable)
-
-With DEACTIVATE_DEAD + NO_REVIVE (retained) and ALWAYS_ALLOW_OVERAGE (from Phase 0), the fix is:
-
-1. On startup, if `license.json` has a `licenseKey`, validate the license
-2. If validation returns "machine not found" but license/subscription is still active:
-   a. Transparently re-activate by calling the activation endpoint
-   b. Update `license.json` with the new `machineId`
-   c. Start heartbeat on the new machine
-   d. Update DynamoDB device record: look up the existing record by fingerprint within the license partition and update its `keygenMachineId` to the new value (do NOT create a new record). This preserves the full lifecycle history of the physical device and avoids accumulating duplicate records. The DynamoDB SK (`DEVICE#<machineId>`) will need to be updated, which in DynamoDB requires a delete-and-put of the item (atomic via TransactWriteItems or sequential with error handling).
-3. If validation succeeds → machine is alive → set LICENSED, start heartbeat
-4. EXPIRED only if the license/subscription itself is truly revoked or expired
-5. Never write EXPIRED for a recoverable "machine deleted" state
-
-With `ALWAYS_ALLOW_OVERAGE`, re-activation is guaranteed to succeed on Keygen — there is no risk of hitting a device limit error during this transparent recovery.
-
-#### Step 3.4: Add `userId` to Heartbeat Payload
-
-**Environment:** 🔧 E
-
-**Files:**
-
-- `licensing/http-client.js` — `sendHeartbeat()` accepts and sends `userId`
-- `licensing/heartbeat.js` — reads `userId` from state, passes to `sendHeartbeat()`
-
-#### ✅ Gate 3a: Extension Unit Tests Pass
-
-**📋 Tests to run:**
-
-```bash
-cd licensing && npm test
-cd mouse-vscode && npm test
-```
-
-- [ ] All existing `licensing/tests/*.test.js` pass
-- [ ] All existing `mouse-vscode/tests/*.test.js` pass
-
-**📋 New tests to write:**
-
-In `licensing/tests/`:
-
-- [ ] `auth-provider.test.js` — PKCE generation, token storage, session lifecycle (mock VS Code APIs)
-- [ ] `commands.test.js` — extend: activate with idToken (required); activate without idToken should fail with error
-- [ ] `http-client.test.js` (new file — currently missing!) — activateLicense with auth header (required), activateLicense without auth header (must fail), sendHeartbeat with userId (required), HTTPS enforcement, timeout behavior
-- [ ] `heartbeat.test.js` — extend: heartbeat includes userId when present in state
-- [ ] `state.test.js` — extend: userId/userEmail storage and retrieval
-
-In `mouse-vscode/tests/`:
-
-- [ ] `licensing.test.js` — extend: startup flow (heartbeat-first), dead machine revival path
-- [ ] `heartbeat.test.js` — extend: revival scenario (dead → alive after heartbeat)
-
-- [ ] All new tests pass
-
-**📋 CI/CD:**
-
-- [ ] Push to feature branch on `hic` repo, CI passes (`quality-gates.yml`, `cicd.yml`)
-
-**🔍 E2E Assessment (Extension only):** Partial. The auth provider can be tested manually by:
-
-1. Building the VSIX locally (`npm run package`)
-2. Installing in VS Code
-3. Running `Mouse: Enter License Key`
-4. Confirming the Cognito Hosted UI opens in browser
-5. Completing login → confirming the callback returns to VS Code
-6. Checking that `~/.hic/license.json` now contains `userId` and `userEmail`
-
-However, full E2E requires the backend changes (Step 3.5+) to process the JWT. Defer full E2E to Gate 3b.
-
-#### Step 3.5: Add JWT Verification to Activation Endpoint
-
-**Environment:** 🔧 W
-
-**File:** `plg-website/src/app/api/license/activate/route.js`
-
-- Import shared `verifyAuthToken()` from Phase 1
-- Extract `userId` and `userEmail` from verified JWT
-- Pass to `addDeviceActivation()` (Phase 2)
-- **Authentication required:** If no Authorization header present, return HTTP 401 Unauthorized. Activation without authentication is not permitted and constitutes a system error. There are no unauthenticated clients to support — all existing data is test-only and will be cleared before launch. This constraint must be considered in phasing: the extension must ship authentication support before (or simultaneously with) the backend enforcement.
-
-#### Step 3.6: Add Per-Seat Enforcement to Activation
-
-**Environment:** 🔧 W
-
-**File:** `plg-website/src/app/api/license/activate/route.js`
-
-For authenticated requests on Business licenses:
-
-1. Call `getActiveUserDevicesInWindow(licenseId, userId)` (Phase 2)
-2. If active devices ≥ per-seat limit → HTTP 403 with meaningful error (hard reject)
-3. If under limit → proceed with Keygen activation + DynamoDB record
-
-For Individual licenses:
-
-- Enforce via DynamoDB 2-hour sliding window (same as Business, but using per-license limit instead of per-seat limit). With `ALWAYS_ALLOW_OVERAGE`, Keygen does not enforce `maxMachines` — DynamoDB is the sole enforcement layer for all license types.
-
-> **Note:** There is no unauthenticated activation path. All activations require a valid JWT with userId. Requests without authorization are rejected with HTTP 401.
-
-#### Step 3.7: Add User-Scoped Heartbeat Processing
-
-**Environment:** 🔧 W
-
-**File:** `plg-website/src/app/api/license/heartbeat/route.js`
-
-- If heartbeat payload contains `userId`: update the device record with `lastHeartbeat` per-user
-- If no `userId`: return HTTP 401 — heartbeat from an unauthenticated client is a system error post-implementation. During the transition, if legacy heartbeats are received without userId, log a warning and apply per-license behavior, but plan to remove this fallback path promptly.
-- Fix status code: respond with `concurrent_limit` instead of `over_limit` (or fix extension to accept `over_limit`)
-
-#### Step 3.8: Scope Portal Devices GET to Current User
-
-**Environment:** 🔧 W
-
-**File:** `plg-website/src/app/api/portal/devices/route.js`
-
-For authenticated requests:
-
-- Extract `userId` from JWT
-- For Business licenses: call `getUserDevices(licenseId, userId)` → return only this user's devices
-- For Individual licenses: return all devices (single user owns all of them)
-
-#### Step 3.9: Fix Portal Devices DELETE
-
-**Environment:** 🔧 W
-
-**File:** `plg-website/src/app/api/portal/devices/route.js`
-
-Ensure DELETE:
-
-- Verifies the requesting user owns the device they're trying to deactivate (authorization)
-- Calls Keygen to deactivate the machine
-- Removes/updates the DynamoDB device record
-
-#### Step 3.10: Update Devices Page UI Copy
-
-**Environment:** 🔧 W
-
-**File:** `plg-website/src/app/portal/devices/page.js`
-
-Minor copy updates:
-
-- "Your active installations" (instead of generic "Active devices")
-- Show user email next to each device for Business admins who can view all devices
-- Show per-seat usage: "3 of 5 devices used"
-
-#### ✅ Gate 3b: Full Integration + Portal Tests Pass
-
-**📋 Tests to run:**
-
-```bash
-cd plg-website && npm test
-```
-
-- [ ] All existing tests pass
-- [ ] Specifically: `__tests__/unit/api/heartbeat.test.js` passes
-- [ ] Specifically: `__tests__/unit/api/license.test.js` passes
-
-**📋 New tests to write:**
-
-In `__tests__/unit/api/`:
-
-- [ ] `license.test.js` — extend: activation with valid JWT → userId stored in DynamoDB
-- [ ] `license.test.js` — extend: activation without JWT → HTTP 401 rejected (authentication required)
-- [ ] `license.test.js` — extend: activation with invalid/expired JWT → 401
-- [ ] `license.test.js` — extend: Business license, per-seat limit exceeded → 403 with meaningful error
-- [ ] `license.test.js` — extend: Business license, per-seat limit not exceeded → 200 success
-- [ ] `license.test.js` — extend: Individual license → DynamoDB-based device limit enforcement (2-hour sliding window)
-- [ ] `heartbeat.test.js` — extend: heartbeat with userId → device record updated with userId
-- [ ] `heartbeat.test.js` — extend: heartbeat without userId → warning logged + per-license fallback (transitional only)
-- [ ] `heartbeat.test.js` — extend: status code mismatch fixed (consistent response format)
-- [ ] All new tests pass
-
-In `__tests__/unit/api/` (Portal):
-
-- [ ] `portal.test.js` — extend: Portal devices GET with Business license → returns only current user's devices
-- [ ] `portal.test.js` — extend: Portal devices GET with Individual license → returns all devices
-- [ ] `portal.test.js` — extend: Portal devices DELETE → deactivates on Keygen + updates DynamoDB
-- [ ] `portal.test.js` — extend: Portal devices DELETE → cannot delete another user's device (authorization)
-- [ ] All new tests pass
-
-**📋 CI/CD:**
-
-- [ ] Push both repos to feature branches, CI passes on both
-- [ ] Open PRs to `development` on both repos
-
-**🔍 E2E Assessment:** Yes — this is the first point where full end-to-end validation is practicable and **strongly recommended**. Portal UI changes are included in this gate to ensure the frontend is aligned with backend enforcement during E2E testing.
-
-**E2E Test Plan:**
-
-1. **UJ-1 (Solo activation):** Install locally-built VSIX. Enter license key. Cognito Hosted UI opens. Log in. Activation succeeds. `license.json` contains userId/userEmail. DynamoDB device record contains userId/userEmail.
-2. **UJ-2 (Multi-device):** Activate on two devices. Portal shows both. Deactivate one. Portal shows one.
-3. **UJ-4 (Sleep/wake recovery):** Activate. Close VS Code. Wait 20 minutes (exceeds old 15-min window). Reopen. Expect Mouse shows LICENSED (not Expired). Heartbeat revived the dead machine.
-4. **UJ-6 (Business device scoping):** Activate with User A identity on Device 1. Activate with User B identity on Device 2 (same license key). User A logs into portal → sees only Device 1. User B logs into portal → sees only Device 2.
-5. **UJ-8 (Deactivation):** User deactivates a device from portal. Device count decreases. User can activate on a new device.
-6. **UJ-10 (Offline grace):** Activate. Disconnect from network. Close VS Code. Wait 1 hour. Reconnect. Reopen. Expect Mouse shows LICENSED (within 72h grace).
-7. **Portal check:** Log into `staging.hic-ai.com` portal → Devices page → confirm device shows with user identity, per-seat usage, and correct scoping.
+See the [subphase plan](20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md) for per-subphase gates (3A–3F).
 
 **Expected system state after Phase 3:**
 
@@ -728,23 +514,28 @@ These should be updated as part of each phase's test expansion, not rewritten.
 ## 6. Dependency Graph
 
 ```
-Phase 0 (Keygen config)
+Phase 0 (Keygen config) ✅
     │
-    ├──→ Phase 1 (Cognito + auth extract)    [independent of Phase 0 result]
-    │         │
-    │         │
-    ├──→ Phase 2 (DynamoDB functions)         [independent of Phase 1]
-    │         │
-    │         └──┬──→ Phase 3 (Auth + activation + heartbeat + portal UI)  [depends on Phase 1 AND Phase 2]
-    │            │             │
-    │            │             └──→ Phase 4 (Hardening + status alignment)
+    ├──→ Phase 1 (Cognito + auth extract) ✅
     │
-    └──→ Phase 3, Step 3.3 (Expiry bug fix)  [depends on Phase 0 policy change]
+    ├──→ Phase 2 (DynamoDB functions) ✅
+    │
+    ├──→ Phase 3 (6 subphases — see subphase plan)
+    │         │
+    │         │    3A (ext: auth provider)  ───────────┐
+    │         │                                        ├──→ 3C (ext: sends idToken)
+    │         │    3B (backend: optional JWT) ─────────┘            │
+    │         │                                                     ├──→ 3E (require auth + enforce)
+    │         │    3D (ext: startup fix) ──── independent ──────────┘            │
+    │         │                                                                  └──→ 3F (portal + UI)
+    │         │
+    │         └──→ Phase 4 (Hardening + status alignment)
 ```
 
-- Phase 0, Phase 1, and Phase 2 can all be done in parallel (different environments, no interdependencies)
-- Phase 3 depends on Phase 0 (heartbeat strategy), Phase 1 (auth utility), AND Phase 2 (DynamoDB functions)
-- Phase 3 now includes Portal UI scoping (formerly Phase 4) so that E2E testing at Gate 3b validates the full stack — backend enforcement and portal are aligned before E2E
+- Phase 0, Phase 1, and Phase 2 are all complete (different environments, no interdependencies)
+- Phase 3 depends on Phase 0 (heartbeat strategy), Phase 1 (auth utility), AND Phase 2 (DynamoDB functions) — all satisfied
+- Phase 3 is broken into 6 subphases (3A–3F) for incremental deployment and testing — see [subphase plan](20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md)
+- Phase 3 includes Portal UI scoping so that E2E testing validates the full stack
 - Phase 4 (hardening) depends on Phase 3
 
 ---
@@ -756,11 +547,11 @@ Phase 0 (Keygen config)
 | Phase 0   | K           | 0.5 day           | 0.5 day       | ✅ Done 2026-02-11 |
 | Phase 1   | A + W       | 1 day             | 1.5 days      | ✅ Done 2026-02-11 |
 | Phase 2   | W           | 1 day             | 2.5 days      | ✅ Done 2026-02-11 |
-| Phase 3   | E + W       | 5–7 days          | 7.5–9.5 days  |
-| Phase 4   | W           | 1–2 days          | 8.5–11.5 days |
-| **Total** |             | **8.5–11.5 days** |               |
+| Phase 3   | E + W       | 4.5–7 days        | 7–9.5 days    | ← 6 subphases (3A–3F) |
+| Phase 4   | W           | 1–2 days          | 8–11.5 days   |
+| **Total** |             | **8–11.5 days**   |               |
 
-Phase 3 is the critical path. It contains the highest-complexity work (AuthenticationProvider, PKCE, startup flow fix, portal UI alignment) and requires both repos to evolve in lockstep. Portal UI scoping (formerly Phase 4) is included in Phase 3 so that the E2E gate at Gate 3b validates the full stack — backend enforcement and portal are aligned before E2E testing.
+Phase 3 is the critical path but is now decomposed into 6 independently deployable subphases (3A–3F), each with its own gate. See [subphase plan](20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md) for per-subphase effort estimates.
 
 ---
 
@@ -772,7 +563,7 @@ Phase 3 is the critical path. It contains the highest-complexity work (Authentic
 | Auth extraction breaks portal routes                             | Pure refactor; identical behavior; test every route                                                      | 1     |
 | PKCE implementation complexity                                   | Reference VS Code GitHub auth provider; mock Cognito for unit tests                                      | 3     |
 | `vscode://` URI handler inconsistency across OS                  | Test on Windows, macOS, Linux; VS Code has good cross-platform support                                   | 3     |
-| Extension + backend version mismatch during rollout              | Extension must ship authentication support before or simultaneously with backend enforcement. Coordinate via feature branches in both repos. | 3     |
+| Extension + backend version mismatch during rollout              | Subphases 3A–3C deploy auth incrementally; 3B provides backward compatibility; 3E requires auth only after extension is sending tokens. No Marketplace stale-version risk (Mouse is pre-Marketplace; VSIX install is controlled). | 3     |
 | Token refresh race during heartbeat                              | Catch 401 → refresh → retry pattern; test with mock expired tokens                                       | 3     |
 | DynamoDB device record churn (DEACTIVATE_DEAD retained) | Extension handles transparent re-activation; DynamoDB updates existing record by fingerprint (not creating new records). Machine ID churn on Keygen is accepted; DynamoDB maintains lifecycle continuity per physical device. | 3     |
 

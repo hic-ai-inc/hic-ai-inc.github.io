@@ -344,10 +344,11 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 | **Phase 0** | Keygen Policy Configuration | Keygen API | ✅ COMPLETE | 0.5 day |
 | **Phase 1** | Cognito Config + Auth Extraction | AWS + Website | ✅ COMPLETE | 1 day |
 | **Phase 2** | DynamoDB Schema & Functions | Website | ✅ COMPLETE | 1 day |
-| **Phase 3** | Auth Activation + Enforcement + Portal UI | Both repos | ⬜ NOT STARTED | 5-7 days |
+| **Phase 3** | Auth Activation + Enforcement + Portal UI | Both repos | ⬜ NOT STARTED | 4.5-7 days (6 subphases) |
 | **Phase 4** | Hardening & Status Code Alignment | Website | ⬜ NOT STARTED | 1-2 days |
 
 > **Phases 0, 1, 2 can be executed in parallel.** Phase 3 depends on all three. Phase 4 depends on Phase 3.
+> **Phase 3 subphased:** See [Proposed Subphase Plan for Phase 3](./20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md) for the 6 independently-deployable subphases (3A–3F).
 
 ### 5.2 Key Architecture Decisions (All Resolved)
 
@@ -1923,8 +1924,8 @@ Complete multi-seat device management per the 5-phase plan:
 
 - [x] **Phase 0:** Keygen policy corrections (maxMachines=3, ALWAYS_ALLOW_OVERAGE, heartbeatDuration=3600s) — ✅ Done 2026-02-11
 - [x] **Phase 1:** Cognito auth extract + shared verifyAuthToken across 14 routes — ✅ Done 2026-02-11
-- [ ] **Phase 2:** DynamoDB device schema + 2-hour concurrent sliding window — 1 day
-- [ ] **Phase 3:** Auth-gated activation, server-side enforcement, portal UI — 5-7 days
+- [x] **Phase 2:** DynamoDB device schema + 2-hour concurrent sliding window — ✅ Done 2026-02-11
+- [ ] **Phase 3:** Auth-gated activation, server-side enforcement, portal UI — 4.5-7 days (6 subphases, see [subphase plan](./20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md))
 - [ ] **Phase 4:** Hardening, edge cases, monitoring — 1-2 days
 
 ### TODO 25: Version Update Wire-up (NEW — v7)
