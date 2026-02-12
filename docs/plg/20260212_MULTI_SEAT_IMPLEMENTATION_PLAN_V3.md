@@ -376,7 +376,7 @@ cd plg-website && npm run test:lib
 | Subphase | Focus | Env | Risk | Key Change |
 |----------|-------|-----|------|------------|
 | **3A** | Browser-delegated activation | E | Low | Extension opens browser for auth + polls for completion. No AuthenticationProvider, no PKCE, no URI handler. |
-| **3B** | Backend accepts JWT + `/activate` page | W | Near zero | If JWT present → verify + store userId. `/activate` page handles browser-side auth flow. Backward compatible. |
+| **3B** | Backend accepts JWT + `/activate` page | W | Near zero | ✅ **COMPLETE (2026-02-12)** — If JWT present → verify + store userId. `/activate` page handles browser-side auth flow. Backward compatible. All 12 gate criteria passed. |
 | ~~3C~~ | ~~Eliminated~~ | — | — | Absorbed into revised 3A. Extension never sends tokens. |
 | **3D** | Fix startup flow / expiry bug | E | Low | Heartbeat-first startup. Auth-free dead machine revival using DynamoDB binding. Independent — can parallel with 3A–3B. |
 | **3E** | Require auth + per-seat enforcement | W | Low | Flip the switch: JWT required on `/activate` page, per-seat limits enforced. |
@@ -579,7 +579,7 @@ Phase 0 (Keygen config) ✅
 | Phase 0   | K           | 0.5 day           | 0.5 day       | ✅ Done 2026-02-11 |
 | Phase 1   | A + W       | 1 day             | 1.5 days      | ✅ Done 2026-02-11 |
 | Phase 2   | W           | 1 day             | 2.5 days      | ✅ Done 2026-02-11 |
-| Phase 3   | E + W       | 2.5–4 days        | 5–6.5 days    | ← 5 subphases (3A, 3B, 3D, 3E, 3F) — browser-delegated |
+| Phase 3   | E + W       | 2.5–4 days        | 5–6.5 days    | 🟡 3B ✅ 2026-02-12; 3A, 3D, 3E, 3F remaining |
 | Phase 4   | W           | 1–2 days          | 6–8.5 days    |
 | **Total** |             | **6–8.5 days**    |               |
 

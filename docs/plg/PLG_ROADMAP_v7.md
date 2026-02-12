@@ -323,7 +323,7 @@ exports.handler = async (event) => {
 ## 🔧 PHASE 5: Multi-Seat Device Management (NEW in v7)
 
 **Goal:** Implement per-user device tracking with browser-delegated activation (extension opens browser → website handles Cognito auth → extension polls for completion), per-seat concurrent device enforcement, and portal alignment for Business tier multi-user scenarios.  
-**Status:** 🔴 NOT STARTED  
+**Status:** 🟡 IN PROGRESS — Phases 0–2 complete, Subphase 3B complete (2026-02-12); 3A, 3D, 3E, 3F remaining  
 **Est. Time:** 6-8.5 days (revised down from 8.5-11.5 — browser-delegated activation eliminates ~450 LOC and 1 subphase)  
 **Authoritative Document:** [20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md](20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md)  
 **Reference Documents:** [Browser-Delegated Activation Proposal](20260212_GC_PROPOSAL_BROWSER_DELEGATED_ACTIVATION.md), [Subphase Plan V2](20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V2.md), [Multi-Seat Tech Spec](20260210_GC_TECH_SPEC_MULTI_SEAT_DEVICE_MANAGEMENT.md)
@@ -344,7 +344,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 | **Phase 0** | Keygen Policy Configuration | Keygen API | ✅ COMPLETE | 0.5 day |
 | **Phase 1** | Cognito Config + Auth Extraction | AWS + Website | ✅ COMPLETE | 1 day |
 | **Phase 2** | DynamoDB Schema & Functions | Website | ✅ COMPLETE | 1 day |
-| **Phase 3** | Browser-Delegated Activation + Enforcement + Portal UI | Both repos | ⬜ NOT STARTED | 2.5-4 days (5 subphases) |
+| **Phase 3** | Browser-Delegated Activation + Enforcement + Portal UI | Both repos | 🟡 IN PROGRESS (3B ✅) | 2.5-4 days (5 subphases) |
 | **Phase 4** | Hardening & Status Code Alignment | Website | ⬜ NOT STARTED | 1-2 days |
 
 > **Phases 0, 1, 2 can be executed in parallel.** Phase 3 depends on all three. Phase 4 depends on Phase 3.
@@ -352,7 +352,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 
 
 > **Deferred cleanup from Phases 0–2 (explicitly scheduled):**
-> - **3B:** `CONCURRENT_DEVICE_WINDOW_HOURS` fallbacks `|| 24` → `|| 2` in activate/heartbeat routes + test + function default (6 locations)
+> - **3B:** ~~`CONCURRENT_DEVICE_WINDOW_HOURS` fallbacks `|| 24` → `|| 2` in activate/heartbeat routes + test + function default (6 locations)~~ — ✅ DONE 2026-02-12 (commit `13deabd`)
 > - **3E:** `addDeviceActivation()` userId/userEmail guard — throw if not provided (prevents silent unbound device records)
 > - **Phase 4:** Remove vestigial `vscode://hic-ai.mouse/callback` from Cognito App Client (Phase 1 artifact, harmless but should be cleaned up)
 
