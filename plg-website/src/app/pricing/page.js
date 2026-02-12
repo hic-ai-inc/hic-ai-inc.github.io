@@ -237,19 +237,11 @@ export default function PricingPage() {
                 Try Mouse free for 14 days—no account or credit card required.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
-                <a
-                  href="https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-cerulean-mist hover:underline text-sm"
-                >
-                  Install from VS Code Marketplace →
-                </a>
                 <Link
                   href="/docs/installation"
                   className="text-cerulean-mist hover:underline text-sm"
                 >
-                  Or install with npx in any editor →
+                  Install with npx in any editor →
                 </Link>
               </div>
             </div>

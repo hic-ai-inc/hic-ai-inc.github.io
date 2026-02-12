@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { Header, Footer } from "@/components/layout";
 import { Button, Badge } from "@/components/ui";
-import { PRICING, EXTERNAL_URLS } from "@/lib/constants";
+import { PRICING, EXTERNAL_URLS, MARKETPLACE_ENABLED } from "@/lib/constants";
 
 export default function HomePage() {
   return (
@@ -197,13 +197,23 @@ export default function HomePage() {
               <Button href="/pricing" size="lg">
                 Start Your Free Trial
               </Button>
-              <Button
-                href={EXTERNAL_URLS.marketplace}
-                variant="secondary"
-                size="lg"
-              >
-                Install VS Code Extension
-              </Button>
+              {MARKETPLACE_ENABLED ? (
+                <Button
+                  href={EXTERNAL_URLS.marketplace}
+                  variant="secondary"
+                  size="lg"
+                >
+                  Install VS Code Extension
+                </Button>
+              ) : (
+                <Button
+                  href="/docs/installation"
+                  variant="secondary"
+                  size="lg"
+                >
+                  Installation Guide
+                </Button>
+              )}
             </div>
           </div>
         </section>

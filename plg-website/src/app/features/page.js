@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { Header, Footer } from "@/components/layout";
 import { Button, Badge } from "@/components/ui";
-import { EXTERNAL_URLS } from "@/lib/constants";
+import { EXTERNAL_URLS, MARKETPLACE_ENABLED } from "@/lib/constants";
 
 // Comparison matrix data
 const COMPETITORS = [
@@ -646,13 +646,23 @@ export default function FeaturesPage() {
               <Button href="/pricing" size="lg">
                 Start Free Trial
               </Button>
-              <Button
-                href={EXTERNAL_URLS.marketplace}
-                variant="secondary"
-                size="lg"
-              >
-                Install VS Code Extension
-              </Button>
+              {MARKETPLACE_ENABLED ? (
+                <Button
+                  href={EXTERNAL_URLS.marketplace}
+                  variant="secondary"
+                  size="lg"
+                >
+                  Install VS Code Extension
+                </Button>
+              ) : (
+                <Button
+                  href="/docs/installation"
+                  variant="secondary"
+                  size="lg"
+                >
+                  Installation Guide
+                </Button>
+              )}
             </div>
             <p className="mt-6 text-sm text-slate-grey">
               14-day free trial • No credit card required

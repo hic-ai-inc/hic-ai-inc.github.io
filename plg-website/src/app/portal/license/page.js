@@ -19,7 +19,7 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { LICENSE_STATUS_DISPLAY, formatLicenseKeyForDisplay } from "@/lib/constants";
+import { LICENSE_STATUS_DISPLAY, formatLicenseKeyForDisplay, EXTERNAL_URLS, MARKETPLACE_ENABLED } from "@/lib/constants";
 import { useUser } from "@/lib/cognito-provider";
 import { getSession } from "@/lib/cognito";
 import CopyLicenseButton from "./CopyLicenseButton";
@@ -206,15 +206,24 @@ export default function LicensePage() {
               </span>
               <span>
                 Install the{" "}
-                <a
-                  href="https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse"
-                  className="text-cerulean-mist hover:text-frost-white"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Mouse extension
-                </a>{" "}
-                from VS Code Marketplace
+                {MARKETPLACE_ENABLED ? (
+                  <a
+                    href={EXTERNAL_URLS.marketplace}
+                    className="text-cerulean-mist hover:text-frost-white"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Mouse extension
+                  </a>
+                ) : (
+                  <Link
+                    href="/docs/installation"
+                    className="text-cerulean-mist hover:text-frost-white"
+                  >
+                    Mouse extension
+                  </Link>
+                )}{" "}
+                {MARKETPLACE_ENABLED ? "from VS Code Marketplace" : "(see installation guide)"}
               </span>
             </li>
             <li className="flex gap-3">

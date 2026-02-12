@@ -5,7 +5,7 @@
  */
 
 import Link from "next/link";
-import { EXTERNAL_URLS, COMPANY_NAME } from "@/lib/constants";
+import { EXTERNAL_URLS, COMPANY_NAME, MARKETPLACE_ENABLED } from "@/lib/constants";
 
 const footerLinks = {
   product: [
@@ -21,9 +21,10 @@ const footerLinks = {
   ],
   resources: [
     {
-      label: "VS Code Marketplace",
-      href: EXTERNAL_URLS.marketplace,
+      label: MARKETPLACE_ENABLED ? "VS Code Marketplace" : "VS Code Marketplace (Coming Soon)",
+      href: MARKETPLACE_ENABLED ? EXTERNAL_URLS.marketplace : null,
       external: true,
+      disabled: !MARKETPLACE_ENABLED,
     },
     { label: "Support", href: "mailto:support@hic-ai.com", external: true },
   ],
@@ -97,8 +98,12 @@ export default function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               {footerLinks.resources.map((link) => (
-                <li key={link.href}>
-                  {link.external ? (
+                <li key={link.label}>
+                  {link.disabled ? (
+                    <span className="text-sm text-slate-grey/50 cursor-not-allowed">
+                      {link.label}
+                    </span>
+                  ) : link.external ? (
                     <a
                       href={link.href}
                       target="_blank"
@@ -155,14 +160,20 @@ export default function Footer() {
 
             {/* VS Code Marketplace link - right */}
             <div className="order-3 sm:flex-1 text-center sm:text-right">
-              <a
-                href={EXTERNAL_URLS.marketplace}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-slate-grey hover:text-frost-white transition-colors"
-              >
-                Get it on VS Code Marketplace →
-              </a>
+              {MARKETPLACE_ENABLED ? (
+                <a
+                  href={EXTERNAL_URLS.marketplace}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-slate-grey hover:text-frost-white transition-colors"
+                >
+                  Get it on VS Code Marketplace →
+                </a>
+              ) : (
+                <span className="text-sm text-slate-grey/50">
+                  VS Code Marketplace — Coming Soon
+                </span>
+              )}
             </div>
           </div>
         </div>

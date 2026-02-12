@@ -31,6 +31,7 @@ import {
   PORTAL_NAV,
   PORTAL_NAV_BUSINESS,
   EXTERNAL_URLS,
+  MARKETPLACE_ENABLED,
   AUTH_NAMESPACE,
   APP_NAME,
   APP_DESCRIPTION,
@@ -291,8 +292,12 @@ describe("constants.js", () => {
   });
 
   describe("EXTERNAL_URLS", () => {
-    it("should have docs URL", () => {
-      expect(EXTERNAL_URLS.docs).toBe("https://docs.hic-ai.com");
+    it("should have docs URL pointing to local /docs path", () => {
+      expect(EXTERNAL_URLS.docs).toBe("/docs");
+    });
+
+    it("should have MARKETPLACE_ENABLED as a boolean", () => {
+      expect(typeof MARKETPLACE_ENABLED).toBe("boolean");
     });
 
     it("should have github URL", () => {

@@ -173,8 +173,11 @@ export const PORTAL_NAV_BUSINESS = [
 // EXTERNAL URLS
 // ===========================================
 
+// Toggle to true when Mouse is published on VS Code Marketplace
+export const MARKETPLACE_ENABLED = false;
+
 export const EXTERNAL_URLS = {
-  docs: "https://docs.hic-ai.com",
+  docs: "/docs",
   github: "https://github.com/hic-ai-inc/mouse",
   twitter: "https://twitter.com/hic_ai",
   discord: "https://discord.gg/hic-ai",
