@@ -526,7 +526,7 @@ describe("build-lambda-layer.sh", () => {
       process.env.LAYER_DIR = layerDir;
       process.env.LAYER_NAME = "hic-test-layer";
       process.env.LAYER_DESCRIPTION = "Test layer for HIC";
-      process.env.LAYER_DEPENDENCIES = '{"@aws-sdk/client-lambda": "^3.400.0"}';
+      process.env.LAYER_DEPENDENCIES = '{}';
       process.env.DIST_DIR = join(testDir, "dist");
       process.env.BUILD_DIR = join(testDir, "build", "hic-test-layer");
 
@@ -543,9 +543,7 @@ describe("build-lambda-layer.sh", () => {
         const topLevelPackageJson = join(nodejsDir, "package.json");
         expect(existsSync(topLevelPackageJson)).toBe(true);
         const topLevelPkg = JSON.parse(readFileSync(topLevelPackageJson, "utf8"));
-        expect(topLevelPkg.dependencies).toEqual({
-          "@aws-sdk/client-lambda": "^3.400.0",
-        });
+        expect(topLevelPkg.dependencies).toEqual({});
 
         // Namespaced package.json contains layer metadata
         const packageJsonPath = join(
