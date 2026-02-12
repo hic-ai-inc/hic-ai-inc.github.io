@@ -241,7 +241,7 @@ export default function PricingPage() {
                   href="/docs/installation"
                   className="text-cerulean-mist hover:underline text-sm"
                 >
-                  Install with npx in any editor →
+                  View installation options →
                 </Link>
               </div>
             </div>

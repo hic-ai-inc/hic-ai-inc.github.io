@@ -19,36 +19,42 @@ const docsContent = {
     content: `
 ## Prerequisites
 
-- VS Code 1.85+ or Cursor IDE
-- Node.js 18+ (for local MCP server)
-- Active license key (Individual or Business)
+- **VS Code 1.85+** or compatible editor (Cursor, Windsurf, etc.)
+- A 14-day free trial starts automatically — no account or credit card required
 
 ## Installation Methods
 
 ### VS Code Marketplace (Recommended)
 
 1. Open VS Code
-2. Go to Extensions (Cmd/Ctrl + Shift + X)
-3. Search for "Mouse by HIC AI"
-4. Click Install
+2. Go to Extensions (**Ctrl+Shift+X** on Windows, **Cmd+Shift+X** on Mac)
+3. Search for **"Mouse by HIC AI"**
+4. Click **Install**
 
-### Manual Installation
+### Terminal / CLI Installation
 
-Download the \`.vsix\` file from your portal and install:
+Download the \`.vsix\` file and install from the command line:
 
 \`\`\`bash
-code --install-extension mouse-hic-ai-x.x.x.vsix
+code --install-extension mouse-*.vsix
 \`\`\`
 
-## Post-Installation
+For example, to install version 0.10.5:
 
-After installing, you'll need to:
+\`\`\`bash
+code --install-extension mouse-0.10.5.vsix
+\`\`\`
 
-1. Configure your license key
-2. Verify the MCP server is running
-3. (Optional) Customize keybindings
+## Post-Installation Setup
 
-See [License Activation](/docs/license-activation) for the next steps.
+After installing Mouse, follow these steps to get started:
+
+1. **Initialize your workspace** — Open the Command Palette (**Ctrl+Shift+P** on Windows, **Cmd+Shift+P** on Mac) and select **Mouse: Initialize Workspace**
+2. **Select your coding assistant** — Choose your AI assistant (e.g., GitHub Copilot, Amazon Q Developer) from the dropdown list. Mouse will automatically configure the correct MCP settings.
+3. **Refresh your editor** — Open the Command Palette again and select **Developer: Reload Window**, or restart your IDE.
+4. **Start using Mouse!** — Mouse is now ready. Your AI coding assistant will automatically have access to Mouse's precision editing tools.
+
+> **Note for VS Code users with GitHub Copilot:** You may need to manually start the MCP server by clicking the **Start** button in the MCP configuration panel. Open \`.vscode/mcp.json\` in your workspace and click **Start** next to the Mouse server entry.
     `,
     nextPage: { slug: "quickstart", title: "Quick Start Guide" },
     prevPage: null,
