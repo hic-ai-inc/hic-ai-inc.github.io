@@ -11,8 +11,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { verifyAuthToken } from "@/lib/auth-verify";
 import {
   getCustomerByUserId,
   getCustomerByEmail,
@@ -23,37 +22,18 @@ import {
 } from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
 
-// Cognito JWT verifier
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-  tokenUse: "id", // Use ID token to get email
-  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
-});
-
 /**
  * Extract user info from Cognito ID token
  */
 async function getUserFromRequest() {
-  try {
-    const headersList = await headers();
-    const authHeader = headersList.get("authorization");
+  const payload = await verifyAuthToken();
+  if (!payload) return null;
 
-    if (!authHeader?.startsWith("Bearer ")) {
-      return null;
-    }
-
-    const token = authHeader.slice(7);
-    const payload = await verifier.verify(token);
-
-    return {
-      userId: payload.sub,
-      email: payload.email,
-      emailVerified: payload.email_verified,
-    };
-  } catch (error) {
-    console.error("[Portal Status] JWT verification failed:", error.message);
-    return null;
-  }
+  return {
+    userId: payload.sub,
+    email: payload.email,
+    emailVerified: payload.email_verified,
+  };
 }
 
 export async function GET(request) {

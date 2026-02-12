@@ -9,37 +9,9 @@
  */
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { verifyAuthToken } from "@/lib/auth-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { getCustomerByEmail } from "@/lib/dynamodb";
-
-// Cognito JWT verifier for ID tokens
-const idVerifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-  tokenUse: "id",
-  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
-});
-
-/**
- * Verify Cognito ID token from Authorization header
- */
-async function verifyAuthToken() {
-  const headersList = await headers();
-  const authHeader = headersList.get("authorization");
-
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const token = authHeader.slice(7);
-  try {
-    return await idVerifier.verify(token);
-  } catch (error) {
-    console.error("[StripeSession] JWT verification failed:", error.message);
-    return null;
-  }
-}
 
 export async function POST() {
   try {

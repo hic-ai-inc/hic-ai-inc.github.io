@@ -13,8 +13,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { verifyAuthToken } from "@/lib/auth-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { createLicenseForPlan } from "@/lib/keygen";
 import {
@@ -30,38 +29,10 @@ import { assignOwnerRole } from "@/lib/cognito-admin";
 // DynamoDB write → DynamoDB Streams → StreamProcessor Lambda → SNS → EmailSender Lambda → SES
 // Do NOT call sendLicenseEmail() directly here.
 
-// Cognito JWT verifier for ID tokens (contains user info)
-const idVerifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-  tokenUse: "id",
-  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
-});
-
-/**
- * Verify Cognito ID token from Authorization header
- * Returns decoded token payload with user info
- */
-async function verifyAuthToken(request) {
-  const headersList = await headers();
-  const authHeader = headersList.get("authorization");
-
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const token = authHeader.slice(7);
-  try {
-    return await idVerifier.verify(token);
-  } catch (error) {
-    console.error("[ProvisionLicense] JWT verification failed:", error.message);
-    return null;
-  }
-}
-
 export async function POST(request) {
   try {
     // Get authenticated user from Authorization header
-    const tokenPayload = await verifyAuthToken(request);
+    const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
       return NextResponse.json(
         { error: "Authentication required" },

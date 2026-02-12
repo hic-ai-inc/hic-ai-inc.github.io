@@ -9,49 +9,21 @@
  */
 
 import { NextResponse } from "next/server";
+import { verifyAuthToken } from "@/lib/auth-verify";
 import { getCustomerByUserId, upsertCustomer, updateCustomerProfile } from "@/lib/dynamodb";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
-
-// Create Cognito JWT verifier for ID tokens (contains user info like email)
-let jwtVerifier = null;
-function getJwtVerifier() {
-  if (!jwtVerifier && process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID && process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID) {
-    jwtVerifier = CognitoJwtVerifier.create({
-      userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-      tokenUse: "id",
-      clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
-    });
-  }
-  return jwtVerifier;
-}
 
 /**
- * Get user from Authorization header (ID token)
+ * Get user from Cognito ID token
  */
-async function getUserFromRequest(request) {
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
+async function getUserFromRequest() {
+  const payload = await verifyAuthToken();
+  if (!payload) return null;
 
-  const token = authHeader.substring(7);
-  const verifier = getJwtVerifier();
-  if (!verifier) {
-    console.error("[Settings API] JWT verifier not initialized");
-    return null;
-  }
-
-  try {
-    const payload = await verifier.verify(token);
-    return {
-      sub: payload.sub,
-      email: payload.email,
-      name: payload.name || payload.given_name || null,
-    };
-  } catch (err) {
-    console.error("[Settings API] Token verification failed:", err.message);
-    return null;
-  }
+  return {
+    sub: payload.sub,
+    email: payload.email,
+    name: payload.name || payload.given_name || null,
+  };
 }
 
 /**
@@ -59,7 +31,7 @@ async function getUserFromRequest(request) {
  */
 export async function GET(request) {
   try {
-    const user = await getUserFromRequest(request);
+    const user = await getUserFromRequest();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -102,7 +74,7 @@ export async function GET(request) {
  */
 export async function PATCH(request) {
   try {
-    const user = await getUserFromRequest(request);
+    const user = await getUserFromRequest();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

@@ -8,42 +8,17 @@
  */
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { verifyAuthToken } from "@/lib/auth-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { PRICING, STRIPE_PRICES } from "@/lib/constants";
 import { getCustomerByEmail } from "@/lib/dynamodb";
 
-// Cognito JWT verifier for ID tokens (contains user email)
-// Note: We use ID tokens because they contain the email claim
-const idVerifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-  tokenUse: "id",
-  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
-});
-
 /**
  * Extract user email from Cognito ID token
- * ID tokens contain the email claim, unlike access tokens
  */
-async function getUserEmailFromRequest(request) {
-  try {
-    const headersList = await headers();
-    const authHeader = headersList.get("authorization");
-
-    if (!authHeader?.startsWith("Bearer ")) {
-      return null;
-    }
-
-    const token = authHeader.slice(7);
-    const payload = await idVerifier.verify(token);
-
-    // ID token contains email directly
-    return payload.email || null;
-  } catch (error) {
-    console.error("[Checkout] JWT verification failed:", error.message);
-    return null;
-  }
+async function getUserEmailFromRequest() {
+  const payload = await verifyAuthToken();
+  return payload?.email || null;
 }
 
 export async function POST(request) {
@@ -119,7 +94,7 @@ export async function POST(request) {
     // Step 4: Get customer email from JWT or body
     let jwtEmail;
     try {
-      jwtEmail = await getUserEmailFromRequest(request);
+      jwtEmail = await getUserEmailFromRequest();
       console.log("[Checkout] Step 4a: JWT email extraction:", jwtEmail ? "found" : "not found");
     } catch (jwtErr) {
       console.error("[Checkout] Step 4a WARN: JWT extraction failed:", jwtErr.message);

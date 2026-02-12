@@ -21,29 +21,9 @@ import assert from "node:assert";
 // Test Helpers - Simulating Route Handler Logic
 // ============================================================================
 
-/**
- * Simulates JWT token extraction from Authorization header
- * This mirrors the verifyAuthToken function in the route
- */
-function extractAuthToken(authHeader) {
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-  return authHeader.slice(7);
-}
-
-/**
- * Simulates building user object from JWT payload
- * This mirrors the user object construction in the route
- */
-function buildUserFromToken(tokenPayload) {
-  if (!tokenPayload) return null;
-  return {
-    sub: tokenPayload.sub,
-    email: tokenPayload.email,
-    name: tokenPayload.name || tokenPayload["cognito:username"],
-  };
-}
+// NOTE: Authorization header parsing and JWT user object construction tests
+// have been consolidated into __tests__/unit/lib/auth-verify.test.js
+// as part of the shared verifyAuthToken() extraction (Phase 1 Step 1.2).
 
 /**
  * Simulates plan name determination from metadata
@@ -134,93 +114,6 @@ function createMockExistingCustomer(overrides = {}) {
 // ============================================================================
 
 describe("provision-license API logic", () => {
-  describe("Authorization header parsing", () => {
-    it("should return null for missing Authorization header", () => {
-      const token = extractAuthToken(null);
-      assert.strictEqual(token, null);
-    });
-
-    it("should return null for undefined Authorization header", () => {
-      const token = extractAuthToken(undefined);
-      assert.strictEqual(token, null);
-    });
-
-    it("should return null for empty Authorization header", () => {
-      const token = extractAuthToken("");
-      assert.strictEqual(token, null);
-    });
-
-    it("should return null for non-Bearer Authorization header", () => {
-      const token = extractAuthToken("Basic abc123");
-      assert.strictEqual(token, null);
-    });
-
-    it("should return null for Bearer without space", () => {
-      const token = extractAuthToken("Bearerabc123");
-      assert.strictEqual(token, null);
-    });
-
-    it("should extract token from valid Bearer header", () => {
-      const token = extractAuthToken(
-        "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
-      );
-      assert.strictEqual(token, "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9");
-    });
-
-    it("should handle Bearer with extra spaces in token", () => {
-      // Token itself shouldn't have spaces, but we should handle edge cases
-      const token = extractAuthToken("Bearer abc 123");
-      assert.strictEqual(token, "abc 123");
-    });
-  });
-
-  describe("user object construction from JWT", () => {
-    it("should return null for null token payload", () => {
-      const user = buildUserFromToken(null);
-      assert.strictEqual(user, null);
-    });
-
-    it("should return null for undefined token payload", () => {
-      const user = buildUserFromToken(undefined);
-      assert.strictEqual(user, null);
-    });
-
-    it("should build user with name from token", () => {
-      const payload = createMockTokenPayload({ name: "John Doe" });
-      const user = buildUserFromToken(payload);
-
-      assert.strictEqual(user.sub, "cognito|user-123");
-      assert.strictEqual(user.email, "test@example.com");
-      assert.strictEqual(user.name, "John Doe");
-    });
-
-    it("should fallback to cognito:username when name is missing", () => {
-      const payload = createMockTokenPayload({ name: undefined });
-      const user = buildUserFromToken(payload);
-
-      assert.strictEqual(user.name, "testuser");
-    });
-
-    it("should fallback to cognito:username when name is empty", () => {
-      const payload = createMockTokenPayload({ name: "" });
-      const user = buildUserFromToken(payload);
-
-      // Empty string is falsy, so it should fallback
-      assert.strictEqual(user.name, "testuser");
-    });
-
-    it("should handle payload with only required fields", () => {
-      const payload = {
-        sub: "user-456",
-        email: "minimal@test.com",
-      };
-      const user = buildUserFromToken(payload);
-
-      assert.strictEqual(user.sub, "user-456");
-      assert.strictEqual(user.email, "minimal@test.com");
-      assert.strictEqual(user.name, undefined);
-    });
-  });
 
   describe("plan name determination", () => {
     it("should return 'Individual' for individual plan", () => {

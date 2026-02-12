@@ -6,41 +6,13 @@
  */
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { verifyAuthToken } from "@/lib/auth-verify";
 import {
   getInviteByToken,
   acceptOrgInvite,
 } from "@/lib/dynamodb";
 // Cognito admin operations for RBAC group assignment
 import { assignInvitedRole } from "@/lib/cognito-admin";
-
-// Cognito JWT verifier for ID tokens
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-  tokenUse: "id",
-  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
-});
-
-/**
- * Verify Cognito ID token from Authorization header
- */
-async function verifyAuthToken() {
-  const headersList = await headers();
-  const authHeader = headersList.get("authorization");
-
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const token = authHeader.slice(7);
-  try {
-    return await verifier.verify(token);
-  } catch (error) {
-    console.error("[Invite] JWT verification failed:", error.message);
-    return null;
-  }
-}
 
 /**
  * GET - Retrieve invite details for the acceptance page
