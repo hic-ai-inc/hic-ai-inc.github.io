@@ -45,11 +45,14 @@ describe("license/validate API logic", () => {
     return { valid: true };
   }
 
-  function formatValidationResponse(result) {
+  function formatValidationResponse(result, { machineId = null, userId = null, userEmail = null } = {}) {
     return {
       valid: result.valid,
       code: result.code,
       detail: result.detail,
+      userId,
+      userEmail,
+      machineId,
       license: result.license
         ? {
             status: result.license.status,
@@ -109,6 +112,30 @@ describe("license/validate API logic", () => {
       assert.strictEqual(response.license.status, "active");
       assert.strictEqual(response.license.expiresAt, "2027-01-01T00:00:00Z");
       assert.strictEqual(response.license.id, undefined); // Should be excluded
+      // New fields default to null when not provided
+      assert.strictEqual(response.machineId, null);
+      assert.strictEqual(response.userId, null);
+      assert.strictEqual(response.userEmail, null);
+    });
+
+    it("should include machineId when provided", () => {
+      const keygenResult = {
+        valid: true,
+        code: "VALID",
+        detail: "License is valid",
+        license: { id: "lic_123", status: "active", expiresAt: "2027-01-01T00:00:00Z" },
+      };
+
+      const response = formatValidationResponse(keygenResult, {
+        machineId: "mach_abc123",
+        userId: "user_001",
+        userEmail: "test@example.com",
+      });
+
+      assert.strictEqual(response.machineId, "mach_abc123");
+      assert.strictEqual(response.userId, "user_001");
+      assert.strictEqual(response.userEmail, "test@example.com");
+      assert.strictEqual(response.valid, true);
     });
 
     it("should format invalid validation", () => {
@@ -138,6 +165,242 @@ describe("license/validate API logic", () => {
     });
   });
 });
+
+describe("validate endpoint — device lookup for machineId/userId/userEmail", () => {
+  /**
+   * Mirrors the device lookup logic in validate/route.js lines 220-237.
+   * After Keygen validation succeeds, we look up the DDB device record
+   * to include machineId, userId, and userEmail in the response.
+   * This is critical for browser-delegated activation polling.
+   */
+  function extractDeviceIdentity(devices, fingerprint) {
+    const deviceRecord = devices.find((d) => d.fingerprint === fingerprint);
+    return {
+      machineId: deviceRecord?.keygenMachineId || null,
+      userId: deviceRecord?.userId || null,
+      userEmail: deviceRecord?.userEmail || null,
+    };
+  }
+
+  it("should extract machineId from matching device record", () => {
+    const devices = [
+      { fingerprint: "fp_aaa", keygenMachineId: "mach_111", userId: "u1", userEmail: "a@test.com" },
+      { fingerprint: "fp_bbb", keygenMachineId: "mach_222", userId: "u2", userEmail: "b@test.com" },
+    ];
+    const result = extractDeviceIdentity(devices, "fp_bbb");
+
+    assert.strictEqual(result.machineId, "mach_222");
+    assert.strictEqual(result.userId, "u2");
+    assert.strictEqual(result.userEmail, "b@test.com");
+  });
+
+  it("should return nulls when no matching device found", () => {
+    const devices = [
+      { fingerprint: "fp_aaa", keygenMachineId: "mach_111", userId: "u1", userEmail: "a@test.com" },
+    ];
+    const result = extractDeviceIdentity(devices, "fp_nonexistent");
+
+    assert.strictEqual(result.machineId, null);
+    assert.strictEqual(result.userId, null);
+    assert.strictEqual(result.userEmail, null);
+  });
+
+  it("should return nulls when devices array is empty", () => {
+    const result = extractDeviceIdentity([], "fp_aaa");
+
+    assert.strictEqual(result.machineId, null);
+    assert.strictEqual(result.userId, null);
+    assert.strictEqual(result.userEmail, null);
+  });
+
+  it("should handle device record missing keygenMachineId", () => {
+    const devices = [
+      { fingerprint: "fp_aaa", userId: "u1", userEmail: "a@test.com" },
+    ];
+    const result = extractDeviceIdentity(devices, "fp_aaa");
+
+    assert.strictEqual(result.machineId, null);
+    assert.strictEqual(result.userId, "u1");
+    assert.strictEqual(result.userEmail, "a@test.com");
+  });
+
+  it("should handle device record with empty string values", () => {
+    const devices = [
+      { fingerprint: "fp_aaa", keygenMachineId: "", userId: "", userEmail: "" },
+    ];
+    const result = extractDeviceIdentity(devices, "fp_aaa");
+
+    // Empty strings are falsy, should fall through to null
+    assert.strictEqual(result.machineId, null);
+    assert.strictEqual(result.userId, null);
+    assert.strictEqual(result.userEmail, null);
+  });
+
+  it("should match first device by fingerprint when duplicates exist", () => {
+    const devices = [
+      { fingerprint: "fp_aaa", keygenMachineId: "mach_first" },
+      { fingerprint: "fp_aaa", keygenMachineId: "mach_second" },
+    ];
+    const result = extractDeviceIdentity(devices, "fp_aaa");
+
+    assert.strictEqual(result.machineId, "mach_first");
+  });
+});
+
+describe("validate endpoint — heartbeat gating logic", () => {
+  /**
+   * Mirrors the heartbeat conditional in validate/route.js lines 205-213.
+   * Keygen machineHeartbeat() requires a real machine UUID.
+   * If only fingerprint is available, we skip the Keygen ping
+   * to avoid silent 404 failures.
+   */
+  function buildHeartbeatTasks(machineId, fingerprint, licenseId) {
+    const trackingId = machineId || fingerprint;
+    const tasks = [{ type: "updateDeviceLastSeen", licenseId, trackingId }];
+    if (machineId) {
+      tasks.push({ type: "machineHeartbeat", machineId });
+    }
+    return tasks;
+  }
+
+  it("should include Keygen heartbeat when machineId is provided", () => {
+    const tasks = buildHeartbeatTasks("mach_real_uuid", "fp_abc", "lic_123");
+
+    assert.strictEqual(tasks.length, 2);
+    assert.strictEqual(tasks[0].type, "updateDeviceLastSeen");
+    assert.strictEqual(tasks[0].trackingId, "mach_real_uuid");
+    assert.strictEqual(tasks[1].type, "machineHeartbeat");
+    assert.strictEqual(tasks[1].machineId, "mach_real_uuid");
+  });
+
+  it("should skip Keygen heartbeat when only fingerprint available", () => {
+    const tasks = buildHeartbeatTasks(undefined, "fp_abc", "lic_123");
+
+    assert.strictEqual(tasks.length, 1);
+    assert.strictEqual(tasks[0].type, "updateDeviceLastSeen");
+    assert.strictEqual(tasks[0].trackingId, "fp_abc");
+  });
+
+  it("should skip Keygen heartbeat when machineId is null", () => {
+    const tasks = buildHeartbeatTasks(null, "fp_abc", "lic_123");
+
+    assert.strictEqual(tasks.length, 1);
+    assert.strictEqual(tasks[0].type, "updateDeviceLastSeen");
+    assert.strictEqual(tasks[0].trackingId, "fp_abc");
+  });
+
+  it("should skip Keygen heartbeat when machineId is empty string", () => {
+    const tasks = buildHeartbeatTasks("", "fp_abc", "lic_123");
+
+    assert.strictEqual(tasks.length, 1);
+    assert.strictEqual(tasks[0].type, "updateDeviceLastSeen");
+    assert.strictEqual(tasks[0].trackingId, "fp_abc");
+  });
+
+  it("should use machineId as trackingId in updateDeviceLastSeen when available", () => {
+    const tasks = buildHeartbeatTasks("mach_uuid", "fp_abc", "lic_123");
+
+    assert.strictEqual(tasks[0].trackingId, "mach_uuid");
+  });
+
+  it("should fall back to fingerprint as trackingId when no machineId", () => {
+    const tasks = buildHeartbeatTasks(null, "fp_fallback", "lic_123");
+
+    assert.strictEqual(tasks[0].trackingId, "fp_fallback");
+  });
+});
+
+describe("extension poll condition — machineId in validate response", () => {
+  /**
+   * Mirrors the extension's pollActivationStatus() check in
+   * hic/licensing/http-client.js lines 166-170:
+   *
+   *   if (rawResponse.valid === true && rawResponse.machineId) {
+   *     return { success: true, machineId: rawResponse.machineId };
+   *   }
+   *
+   * This was the root cause of the activation bug: the validate response
+   * didn't include machineId, so polls always timed out.
+   */
+  function checkPollCondition(response) {
+    if (response.valid === true && response.machineId) {
+      return { success: true, machineId: response.machineId };
+    }
+    return null; // Keep polling
+  }
+
+  it("should succeed when response has valid=true AND machineId", () => {
+    const response = {
+      valid: true,
+      code: "VALID",
+      machineId: "mach_abc123",
+      userId: "user_001",
+      license: { status: "active" },
+    };
+    const result = checkPollCondition(response);
+
+    assert.notStrictEqual(result, null);
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.machineId, "mach_abc123");
+  });
+
+  it("should keep polling when valid=true but machineId is null (pre-fix behavior)", () => {
+    const response = {
+      valid: true,
+      code: "VALID",
+      machineId: null,
+      license: { status: "active" },
+    };
+    const result = checkPollCondition(response);
+
+    assert.strictEqual(result, null); // Keep polling
+  });
+
+  it("should keep polling when valid=true but machineId is missing entirely", () => {
+    const response = {
+      valid: true,
+      code: "VALID",
+      license: { status: "active" },
+    };
+    const result = checkPollCondition(response);
+
+    assert.strictEqual(result, null); // This was the original bug
+  });
+
+  it("should keep polling when valid=false even with machineId", () => {
+    const response = {
+      valid: false,
+      code: "FINGERPRINT_SCOPE_MISMATCH",
+      machineId: "mach_abc123",
+    };
+    const result = checkPollCondition(response);
+
+    assert.strictEqual(result, null); // Device not activated yet
+  });
+
+  it("should keep polling when valid=false and no machineId", () => {
+    const response = {
+      valid: false,
+      code: "NO_MACHINES",
+      machineId: null,
+    };
+    const result = checkPollCondition(response);
+
+    assert.strictEqual(result, null);
+  });
+
+  it("should keep polling when response has empty string machineId", () => {
+    const response = {
+      valid: true,
+      code: "VALID",
+      machineId: "",
+    };
+    const result = checkPollCondition(response);
+
+    assert.strictEqual(result, null); // Empty string is falsy
+  });
+});
+
 
 describe("license/activate API logic", () => {
   function validateActivationInput(body) {

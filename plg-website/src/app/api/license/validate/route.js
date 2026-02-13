@@ -201,11 +201,13 @@ export async function POST(request) {
     // If valid, update heartbeat (machineId optional but useful for tracking)
     if (result.valid && result.license?.id) {
       // Fire and forget - don't block response
+      // Only send Keygen heartbeat with a real machine UUID, not a fingerprint
       const trackingId = machineId || fingerprint;
-      Promise.all([
-        machineHeartbeat(trackingId),
-        updateDeviceLastSeen(result.license.id, trackingId),
-      ]).catch((err) => {
+      const tasks = [updateDeviceLastSeen(result.license.id, trackingId)];
+      if (machineId) {
+        tasks.push(machineHeartbeat(machineId));
+      }
+      Promise.all(tasks).catch((err) => {
         console.error("Heartbeat update failed:", err);
       });
     }
@@ -214,6 +216,7 @@ export async function POST(request) {
     // (enables extension polling to discover user identity after browser-delegated activation)
     let deviceUserId = null;
     let deviceUserEmail = null;
+    let deviceMachineId = null;
     if (result.valid && result.license?.id) {
       try {
         const devices = await getLicenseDevices(result.license.id);
@@ -221,6 +224,7 @@ export async function POST(request) {
         if (deviceRecord) {
           deviceUserId = deviceRecord.userId || null;
           deviceUserEmail = deviceRecord.userEmail || null;
+          deviceMachineId = deviceRecord.keygenMachineId || null;
         }
       } catch (err) {
         // Non-critical — proceed without user identity
@@ -235,6 +239,7 @@ export async function POST(request) {
       detail: result.detail,
       userId: deviceUserId,
       userEmail: deviceUserEmail,
+      machineId: deviceMachineId,
       license: result.license
         ? {
             status: result.license.status,
