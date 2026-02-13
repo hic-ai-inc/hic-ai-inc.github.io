@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { validateLicense, activateDevice, getLicense, getLicenseMachines } from "@/lib/keygen";
+import { validateLicense, activateDevice, getLicense, getLicenseMachines, machineHeartbeat } from "@/lib/keygen";
 import {
   addDeviceActivation,
   getLicense as getDynamoLicense,
@@ -140,6 +140,16 @@ export async function POST(request) {
       userId,
       userEmail,
     });
+
+    // Send first heartbeat so Keygen validates this machine immediately.
+    // Without this, Keygen returns HEARTBEAT_NOT_STARTED (valid: false)
+    // and the extension's poll of /api/license/validate never succeeds.
+    try {
+      await machineHeartbeat(machine.id);
+    } catch (heartbeatErr) {
+      // Non-fatal: machine is activated, heartbeat can be retried by extension
+      console.error("First heartbeat failed (non-fatal):", heartbeatErr.message);
+    }
 
     // Get current device count after activation (time-based)
     let deviceCount = activeDevices.length + 1;

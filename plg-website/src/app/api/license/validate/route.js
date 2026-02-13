@@ -212,12 +212,19 @@ export async function POST(request) {
       });
     }
 
-    // Look up device record to include userId/userEmail in response
-    // (enables extension polling to discover user identity after browser-delegated activation)
+    // Look up device record to include userId/userEmail/machineId in response.
+    // Also runs for HEARTBEAT_NOT_STARTED: machine IS activated but hasn't
+    // sent its first heartbeat, so Keygen returns valid: false. We look up
+    // the device, send the first heartbeat, and return valid: true.
     let deviceUserId = null;
     let deviceUserEmail = null;
     let deviceMachineId = null;
-    if (result.valid && result.license?.id) {
+    let effectiveValid = result.valid;
+    const shouldLookupDevice =
+      (result.valid || result.code === "HEARTBEAT_NOT_STARTED") &&
+      result.license?.id;
+
+    if (shouldLookupDevice) {
       try {
         const devices = await getLicenseDevices(result.license.id);
         const deviceRecord = devices.find((d) => d.fingerprint === fingerprint);
@@ -230,11 +237,23 @@ export async function POST(request) {
         // Non-critical — proceed without user identity
         console.error("Device lookup for userId failed:", err);
       }
+
+      // Self-healing: if HEARTBEAT_NOT_STARTED and we found the machine,
+      // send the first heartbeat so Keygen recognizes the machine as alive.
+      if (result.code === "HEARTBEAT_NOT_STARTED" && deviceMachineId) {
+        try {
+          await machineHeartbeat(deviceMachineId);
+          effectiveValid = true;
+        } catch (hbErr) {
+          console.error("Self-healing heartbeat failed:", hbErr.message);
+          // Still return machineId so extension can start its own heartbeats
+        }
+      }
     }
 
     // Return validation result
     return NextResponse.json({
-      valid: result.valid,
+      valid: effectiveValid,
       code: result.code,
       detail: result.detail,
       userId: deviceUserId,

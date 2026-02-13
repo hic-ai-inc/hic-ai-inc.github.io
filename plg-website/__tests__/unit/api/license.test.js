@@ -402,6 +402,185 @@ describe("extension poll condition — machineId in validate response", () => {
 });
 
 
+describe("validate endpoint — HEARTBEAT_NOT_STARTED self-healing", () => {
+  /**
+   * Mirrors the self-healing path in validate/route.js.
+   *
+   * When Keygen returns valid: false with code HEARTBEAT_NOT_STARTED,
+   * the machine IS activated but hasn't sent its first heartbeat.
+   * The validate endpoint now:
+   * 1. Expands device lookup to include HEARTBEAT_NOT_STARTED
+   * 2. Sends a heartbeat via machineHeartbeat(deviceMachineId)
+   * 3. Returns effectiveValid = true so the extension poll succeeds
+   */
+
+  function shouldLookupDevice(result) {
+    return (
+      (result.valid || result.code === "HEARTBEAT_NOT_STARTED") &&
+      !!result.license?.id
+    );
+  }
+
+  function resolveEffectiveValid(result, deviceMachineId, heartbeatSucceeded) {
+    if (result.code === "HEARTBEAT_NOT_STARTED" && deviceMachineId && heartbeatSucceeded) {
+      return true;
+    }
+    return result.valid;
+  }
+
+  describe("device lookup condition", () => {
+    it("should look up device when valid=true", () => {
+      assert.strictEqual(
+        shouldLookupDevice({ valid: true, code: "VALID", license: { id: "lic_1" } }),
+        true,
+      );
+    });
+
+    it("should look up device when HEARTBEAT_NOT_STARTED (valid=false)", () => {
+      assert.strictEqual(
+        shouldLookupDevice({ valid: false, code: "HEARTBEAT_NOT_STARTED", license: { id: "lic_1" } }),
+        true,
+      );
+    });
+
+    it("should NOT look up device for other failure codes", () => {
+      assert.strictEqual(
+        shouldLookupDevice({ valid: false, code: "NOT_FOUND", license: null }),
+        false,
+      );
+    });
+
+    it("should NOT look up device when HEARTBEAT_NOT_STARTED but no license", () => {
+      assert.strictEqual(
+        shouldLookupDevice({ valid: false, code: "HEARTBEAT_NOT_STARTED", license: null }),
+        false,
+      );
+    });
+
+    it("should NOT look up device for EXPIRED with license", () => {
+      assert.strictEqual(
+        shouldLookupDevice({ valid: false, code: "EXPIRED", license: { id: "lic_1" } }),
+        false,
+      );
+    });
+
+    it("should NOT look up device for SUSPENDED with license", () => {
+      assert.strictEqual(
+        shouldLookupDevice({ valid: false, code: "SUSPENDED", license: { id: "lic_1" } }),
+        false,
+      );
+    });
+  });
+
+  describe("effectiveValid resolution", () => {
+    it("should return true when HEARTBEAT_NOT_STARTED + machineId + heartbeat succeeded", () => {
+      const result = { valid: false, code: "HEARTBEAT_NOT_STARTED" };
+      assert.strictEqual(resolveEffectiveValid(result, "mach_123", true), true);
+    });
+
+    it("should return false when HEARTBEAT_NOT_STARTED but heartbeat failed", () => {
+      const result = { valid: false, code: "HEARTBEAT_NOT_STARTED" };
+      assert.strictEqual(resolveEffectiveValid(result, "mach_123", false), false);
+    });
+
+    it("should return false when HEARTBEAT_NOT_STARTED but no machineId found", () => {
+      const result = { valid: false, code: "HEARTBEAT_NOT_STARTED" };
+      assert.strictEqual(resolveEffectiveValid(result, null, true), false);
+    });
+
+    it("should pass through valid=true for normal VALID responses", () => {
+      const result = { valid: true, code: "VALID" };
+      assert.strictEqual(resolveEffectiveValid(result, "mach_123", true), true);
+    });
+
+    it("should pass through valid=false for non-heartbeat failures", () => {
+      const result = { valid: false, code: "EXPIRED" };
+      assert.strictEqual(resolveEffectiveValid(result, "mach_123", true), false);
+    });
+  });
+
+  describe("end-to-end poll scenario", () => {
+    function checkPollCondition(response) {
+      if (response.valid === true && response.machineId) {
+        return { success: true, machineId: response.machineId };
+      }
+      return null;
+    }
+
+    it("should succeed after self-healing: HEARTBEAT_NOT_STARTED → heartbeat → valid=true + machineId", () => {
+      // Simulates the validate endpoint's self-healing response
+      const response = {
+        valid: true, // effectiveValid after heartbeat
+        code: "HEARTBEAT_NOT_STARTED",
+        machineId: "mach_self_healed",
+        userId: "user_001",
+      };
+      const result = checkPollCondition(response);
+      assert.notStrictEqual(result, null);
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.machineId, "mach_self_healed");
+    });
+
+    it("should fail if self-healing heartbeat fails (valid stays false)", () => {
+      const response = {
+        valid: false, // heartbeat failed, effectiveValid not overridden
+        code: "HEARTBEAT_NOT_STARTED",
+        machineId: "mach_abc", // machineId still returned for extension retry
+      };
+      const result = checkPollCondition(response);
+      assert.strictEqual(result, null); // Keep polling
+    });
+  });
+});
+
+describe("activate endpoint — first heartbeat after activation", () => {
+  /**
+   * Mirrors activate/route.js: after activateDevice() + addDeviceActivation(),
+   * we now call machineHeartbeat(machine.id) to prevent HEARTBEAT_NOT_STARTED.
+   * The heartbeat is non-fatal — activation still succeeds if heartbeat fails.
+   */
+
+  function simulateActivationWithHeartbeat(machineId, heartbeatFn) {
+    const result = { activated: true, machineId };
+    try {
+      heartbeatFn(machineId);
+      result.heartbeatSent = true;
+    } catch {
+      result.heartbeatSent = false;
+    }
+    return result;
+  }
+
+  it("should send heartbeat after successful activation", () => {
+    let heartbeatCalledWith = null;
+    const result = simulateActivationWithHeartbeat("mach_new", (id) => {
+      heartbeatCalledWith = id;
+    });
+    assert.strictEqual(result.activated, true);
+    assert.strictEqual(result.heartbeatSent, true);
+    assert.strictEqual(heartbeatCalledWith, "mach_new");
+  });
+
+  it("should still return success even if heartbeat fails", () => {
+    const result = simulateActivationWithHeartbeat("mach_new", () => {
+      throw new Error("Keygen heartbeat endpoint down");
+    });
+    assert.strictEqual(result.activated, true);
+    assert.strictEqual(result.heartbeatSent, false);
+    assert.strictEqual(result.machineId, "mach_new");
+  });
+
+  it("should call heartbeat with the exact machine ID from activation", () => {
+    const expectedId = "071c6edb-8650-42df-9211-a76505c90a0e";
+    let receivedId = null;
+    simulateActivationWithHeartbeat(expectedId, (id) => {
+      receivedId = id;
+    });
+    assert.strictEqual(receivedId, expectedId);
+  });
+});
+
+
 describe("license/activate API logic", () => {
   function validateActivationInput(body) {
     const { licenseKey, fingerprint } = body || {};
