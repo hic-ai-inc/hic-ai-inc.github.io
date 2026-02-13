@@ -13,6 +13,7 @@
 - [20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V2.md](20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V2.md) — **Revised subphase plan (V2, browser-delegated)**
 - [20260211_ADDENDUM_TO_MULTI_SEAT_DEVICE_MANAGEMENT_SPECIFICATION_V2.md](20260211_ADDENDUM_TO_MULTI_SEAT_DEVICE_MANAGEMENT_SPECIFICATION_V2.md) — Infrastructure audit & recommendations (v2)
 - [20260211_REPORT_ON_KEYGEN_INVESTIGATION.md](20260211_REPORT_ON_KEYGEN_INVESTIGATION.md) — Keygen API findings & PER_LICENSE vs PER_USER analysis
+- [20260212_ADDENDUM_TO_KEYGEN_INVESTIGATION_RE_VALIDATION_CODES.md](20260212_ADDENDUM_TO_KEYGEN_INVESTIGATION_RE_VALIDATION_CODES.md) — Keygen validation codes, extension-side data flow trace (identifies httpClient information loss affecting 3D)
 
 
 > **Reading Order:** This Implementation Plan V3 is the **definitive, self-sufficient** document for all phasing, task ordering, and implementation decisions. The companion Tech Spec (20260210) provides architectural context and rationale but its phasing structure and authentication approach (AuthenticationProvider + PKCE) are **superseded** by this document and the Browser-Delegated Activation Proposal. The Addendum V2 and Keygen Investigation Report are reference material. When in doubt, this document governs.
@@ -62,7 +63,7 @@ These journeys define the end-state we are building towards. Each phase below sp
 | **UJ-6**  | Business device scoping | Team member sees only their own devices in portal, not other team members'               | Phase 3    |
 | **UJ-7**  | Seat limit enforcement  | Business license with 2 seats, 3rd user tries to activate, gets "contact admin" message  | Phase 3    |
 | **UJ-8**  | Device deactivation     | User deactivates a device from portal, freeing a slot for a new device                   | Phase 3    |
-| **UJ-9**  | Heartbeat with identity | Heartbeat payload includes userId, server tracks per-user device activity                | Phase 3    |
+| **UJ-9**  | Heartbeat with identity | Server resolves userId from DDB device record on each heartbeat; per-user device activity tracked without extension transmitting identity data (revised per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1) | Phase 3    |
 | **UJ-10** | Offline grace           | User is offline for 48 hours, Mouse still works using cached validation                  | All phases |
 
 ---
@@ -375,10 +376,10 @@ cd plg-website && npm run test:lib
 
 | Subphase | Focus | Env | Risk | Key Change |
 |----------|-------|-----|------|------------|
-| **3A** | Browser-delegated activation | E | Low | Extension opens browser for auth + polls for completion. No AuthenticationProvider, no PKCE, no URI handler. |
+| **3A** | Browser-delegated activation | E | Low | ✅ **COMPLETE (2026-02-13)** — Extension opens browser for auth + polls for completion. AuthStrategy injection pattern, `pollActivationStatus()`, 48 new tests. No AuthenticationProvider, no PKCE, no URI handler. |
 | **3B** | Backend accepts JWT + `/activate` page | W | Near zero | ✅ **COMPLETE (2026-02-12)** — If JWT present → verify + store userId. `/activate` page handles browser-side auth flow. Backward compatible. All 12 gate criteria passed. |
 | ~~3C~~ | ~~Eliminated~~ | — | — | Absorbed into revised 3A. Extension never sends tokens. |
-| **3D** | Fix startup flow / expiry bug | E | Low | Heartbeat-first startup. Auth-free dead machine revival using DynamoDB binding. Independent — can parallel with 3A–3B. |
+| **3D** | Fix startup flow / expiry bug | E | Low | ✅ **COMPLETE (2026-02-13)** — Heartbeat-first startup, machine recovery codes, `_attemptMachineRevival()`, enriched `validateLicense()` return. 6 new heartbeat tests. |
 | **3E** | Require auth + per-seat enforcement | W | Low | Flip the switch: JWT required on `/activate` page, per-seat limits enforced. |
 | **3F** | Portal scoping + UI | W | Low | Scope devices to current user. Fix DELETE authorization. UI copy updates. |
 
@@ -400,7 +401,7 @@ cd plg-website && npm run test:lib
 
 After all 5 subphases are complete, the following E2E validation applies:
 
-1. **UJ-1 (Solo activation):** Install VSIX → enter license key → browser opens → Cognito sign-in (website) → activation succeeds → extension detects via poll → `license.json` has userId → DynamoDB has userId
+1. **UJ-1 (Solo activation):** Install VSIX → enter license key → browser opens → Cognito sign-in (website) → activation succeeds → extension detects via poll → `license.json` has `machineId` + `status: LICENSED` (no `userId` — per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1) → DynamoDB has userId
 2. **UJ-2 (Multi-device):** Activate on two devices → portal shows both → deactivate one → portal shows one
 3. **UJ-4 (Sleep/wake recovery):** Activate → close VS Code → wait 20 min → reopen → still LICENSED
 4. **UJ-6 (Business device scoping):** User A activates Device 1, User B activates Device 2 (same license) → each sees only their own device in portal
@@ -415,7 +416,7 @@ See the [subphase plan](20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V
 - Extension opens browser for authenticated activation; browser handles OAuth via website session
 - Backend verifies JWT and stores per-user device records
 - Per-seat enforcement blocks over-limit Business activations with meaningful errors
-- Heartbeat includes userId for per-user tracking
+- Heartbeat payload unchanged; backend resolves userId from DDB device record for per-user tracking (per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1)
 - Sleep/wake recovery works without user intervention
 - All activations require authentication — unauthenticated activation returns HTTP 401
 - Portal shows per-user device views for Business licenses
@@ -536,7 +537,7 @@ The `__tests__/e2e/journeys/` directory already contains relevant journey tests:
 
 - `j3-license-activation.test.js` — extend for authenticated activation
 - `j4-multi-device.test.js` — extend for per-user scoping
-- `j5-heartbeat-loop.test.js` — extend for userId in payload
+- `j5-heartbeat-loop.test.js` — extend for per-user tracking (backend resolves userId from DDB; heartbeat payload unchanged per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1)
 - `j6-concurrent-limits.test.js` — extend for per-seat enforcement
 
 These should be updated as part of each phase's test expansion, not rewritten.
@@ -579,7 +580,7 @@ Phase 0 (Keygen config) ✅
 | Phase 0   | K           | 0.5 day           | 0.5 day       | ✅ Done 2026-02-11 |
 | Phase 1   | A + W       | 1 day             | 1.5 days      | ✅ Done 2026-02-11 |
 | Phase 2   | W           | 1 day             | 2.5 days      | ✅ Done 2026-02-11 |
-| Phase 3   | E + W       | 2.5–4 days        | 5–6.5 days    | 🟡 3B ✅ 2026-02-12; 3A, 3D, 3E, 3F remaining |
+| Phase 3   | E + W       | 2.5–4 days        | 5–6.5 days    | 🟡 3A ✅ 2026-02-13, 3B ✅ 2026-02-12, 3D ✅ 2026-02-13; 3E, 3F remaining |
 | Phase 4   | W           | 1–2 days          | 6–8.5 days    |
 | **Total** |             | **6–8.5 days**    |               |
 

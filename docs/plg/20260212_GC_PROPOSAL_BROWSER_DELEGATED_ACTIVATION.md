@@ -2,7 +2,8 @@
 
 **Date:** 2026-02-12  
 **Author:** GC (Copilot)  
-**Status:** APPROVED — SWR approved 2026-02-12  
+**Status:** APPROVED — SWR approved 2026-02-12
+**Implementation:** ✅ COMPLETE (2026-02-13) — implemented as proposed. Commits `307ee22a` (impl), `85e12e25` (fix). Smoke-tested in Codespace; DDB device record confirmed with userId/userEmail.  
 **Context:** Approved architectural modification to Phase 3 of the Multi-Seat Device Management Implementation Plan V2  
 **Supersedes:** Subphase 3A (Extension Auth Provider) as defined in [20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md](../../hic-ai-inc.github.io/docs/plg/20260211_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3.md)  
 **Reference Documents:**
@@ -168,11 +169,17 @@ VS Code                          Browser                         Backend
     Response includes:
     { status: LICENSED, machineId,
       userId, userEmail }
+    (Extension consumes machineId +
+     status only — ignores identity
+     fields per Auth Strategy Update,
+     Decision 1.)
 
 14. Write to license.json:
     status: LICENSED, machineId,
-    userId, userEmail, fingerprint,
-    licenseKey
+    fingerprint, licenseKey
+    (userId/userEmail NOT persisted
+     — see Auth Strategy Update,
+     Decision 1.)
 
 15. Start heartbeat
 
@@ -214,7 +221,7 @@ The DDB record is still written when the user eventually completes authenticatio
 | `licensing/commands/activate.js` | After key validation: open browser URL with params, start polling loop, handle timeout/success/error                                             | Moderate (~80 LOC) |
 | `licensing/http-client.js`       | Add `pollActivationStatus()` — calls `/api/license/validate` with `fingerprint` + `licenseKey`, returns when status confirms LICENSED or timeout | Small (~40 LOC)    |
 | `licensing/constants.js`         | Add `ACTIVATE_URL` (website activation page), `POLL_INTERVAL_MS` (3000), `POLL_TIMEOUT_MS` (300000)                                              | Trivial            |
-| `licensing/state.js`             | Add `userId`, `userEmail` fields to the schema (non-secret display identifiers)                                                                  | Trivial            |
+| ~~`licensing/state.js`~~         | ~~Add `userId`, `userEmail` fields to the schema~~ — **ELIMINATED** per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1 | ~~Trivial~~ N/A    |
 | `mouse-vscode/src/extension.js`  | Activation command calls modified `activate.js` which opens browser + polls; no AuthenticationProvider registration                              | Minimal            |
 
 **What is NOT built:**
@@ -288,7 +295,7 @@ The heartbeat payload currently includes `{ licenseKey, fingerprint, machineId, 
 | WSL environments                 | `vscode://` handler requires Windows-side registration; WSL process cannot register it  | Browser opens on Windows side normally                                             |
 | Headless / SSH remote            | `vscode://` callback requires local desktop registration                                | Browser URL can be copied and opened manually on any machine with a browser        |
 | Token expiry during long session | Must detect and refresh; if refresh token expires, user must re-authenticate            | N/A — no tokens to expire                                                          |
-| VS Code restarts                 | Must reload tokens from `SecretStorage`, verify they're still valid, refresh if expired | Read `license.json` (just `status` + `userId`, no secrets); poll backend if needed |
+| VS Code restarts                 | Must reload tokens from `SecretStorage`, verify they're still valid, refresh if expired | Read `license.json` (just `status` + `machineId`, no secrets, no identity data); poll backend if needed |
 
 ### 4.4 Alignment with Existing Architecture
 
@@ -346,7 +353,7 @@ Phase 1 added `vscode://hic-ai.mouse/callback` to the Cognito App Client's callb
 - [ ] Extension unit tests pass (`cd licensing && npm test && cd mouse-vscode && npm test`)
 - [ ] New/updated tests: `activate.test.js` — browser URL opened with correct params, polling loop handles success/timeout/error
 - [ ] New/updated tests: `http-client.test.js` — `pollActivationStatus()` returns LICENSED when backend confirms activation
-- [ ] Manual verification: Enter license key → browser opens at correct URL → user can sign in and activate → extension detects activation via polling → `license.json` updated with `userId`, `machineId`, `status: LICENSED`
+- [ ] Manual verification: Enter license key → browser opens at correct URL → user can sign in and activate → extension detects activation via polling → `license.json` updated with `machineId`, `status: LICENSED` (no `userId`/`userEmail` — per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1)
 - [ ] Activation still works for trial users (no behavioral change to trial flow)
 - [ ] No `AuthenticationProvider` registered, no `SecretStorage` credentials, no URI handler
 

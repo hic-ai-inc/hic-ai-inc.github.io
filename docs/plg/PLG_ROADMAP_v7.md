@@ -1,9 +1,9 @@
 # PLG Roadmap v7 — Multi-Seat Implementation → Launch
 
 **Document Version:** 7.0.0  
-**Date:** February 11, 2026  
+**Date:** February 12, 2026  
 **Owner:** General Counsel  
-**Status:** ✅ PHASES 1-4 COMPLETE — Multi-Seat Device Management (Phase 5) is the critical path to launch
+**Status:** 🟡 PHASE 5 IN PROGRESS — Phases 0–2 complete, Subphase 3B complete (2026-02-12)
 
 ---
 
@@ -34,7 +34,7 @@
 
 | Phase | Focus | Status | Est. |
 |-------|-------|--------|------|
-| **5** | Multi-Seat Device Management | 🔴 NOT STARTED | 6-8.5 days |
+| **5** | Multi-Seat Device Management | 🟡 IN PROGRESS | 6-8.5 days |
 | **6** | Version Updates & Distribution | 🔴 NOT STARTED | TBD |
 | **7** | Security Audit & Launch Prep | 🔴 NOT STARTED | TBD |
 | **8** | Launch | 🔴 BLOCKED on 5-7 | TBD |
@@ -59,7 +59,7 @@ This document tracks the full PLG pipeline to ship Mouse with self-service capab
 | **2** | Business RBAC (Owner/Admin/Member) | ✅ **COMPLETE** | Done |
 | **3** | Device Management Wire-up          | ✅ **COMPLETE** | Done |
 | **4** | VS Code Extension Finalization     | ✅ **COMPLETE** | Done |
-| **5** | Multi-Seat Device Management       | 🔴 NOT STARTED  | 8.5-11.5 days |
+| **5** | Multi-Seat Device Management       | 🟡 IN PROGRESS   | 6-8.5 days |
 | **6** | Version Updates & Distribution     | 🔴 NOT STARTED  | TBD  |
 | **7** | Security Audit & Launch Prep       | 🔴 NOT STARTED  | TBD  |
 | **8** | Launch                             | 🔴 BLOCKED      | TBD  |
@@ -378,7 +378,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 | UJ-6 | Business device scoping | Team member sees only their own devices in portal |
 | UJ-7 | Seat limit enforcement | 3rd user on 2-seat license gets "contact admin" message |
 | UJ-8 | Device deactivation | User deactivates from portal, frees slot for new device |
-| UJ-9 | Heartbeat with identity | Heartbeat includes userId for per-user tracking |
+| UJ-9 | Heartbeat with identity | Server resolves userId from DDB device record on each heartbeat; per-user activity tracked without extension transmitting identity data (revised per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1) |
 | UJ-10 | Offline grace | User offline 48 hours, Mouse works via cached validation |
 
 ### 5.4 Success Criteria
@@ -580,7 +580,7 @@ Previously, CLI commands (`hic mouse init`, `hic mouse license activate`, etc.) 
 | 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | GC         | —            |
 | 7b  | SES Production                     | ✅ **COMPLETE** (Feb 11)    | Simon      | —            |
 | 8   | VS Code Extension (VSIX)           | ✅ **PHASE 4 COMPLETE**     | GC + Simon | —            |
-| 8b  | **Multi-Seat Device Mgmt (Phase 5)** | 🔴 NOT STARTED            | GC + Simon | **8**        |
+| 8b  | **Multi-Seat Device Mgmt (Phase 5)** | 🟡 IN PROGRESS             | GC + Simon | **8**        |
 | 8c  | **Version Updates & Distro (Phase 6)** | 🔴 NOT STARTED           | GC + Simon | **8b**       |
 | 9   | E2E Testing                        | 🔴 BLOCKED on Phase 5-6    | GC         | **8b, 8c**   |
 | 10  | Front-End Polish                   | ⚠️ Partial                  | GC         | —            |
@@ -588,7 +588,7 @@ Previously, CLI commands (`hic mouse init`, `hic mouse license activate`, etc.) 
 | 12  | Launch (Phase 8)                   | 🔴 BLOCKED on Phase 7      | GC + Simon | **11**       |
 | 13  | Support & Community                | ⬜ POST-LAUNCH              | Simon      | **12**       |
 
-> **Latest Milestone (Feb 11, 2026):** SES production approved (50K/day). Business portal 6-bug fix sprint complete (Feb 8-9). Multi-seat implementation plan finalized and approved. Keygen policy misconfigurations identified. All planning documents current. Comprehensive test coverage across both repos.
+> **Latest Milestone (Feb 12, 2026):** Phase 5 Subphase 3B complete — backend accepts JWT, `/activate` page deployed, concurrent device window aligned, 37 new tests, E2E smoke tested. Browser-delegated activation model approved, eliminating ~450 LOC of security-critical code. SES production approved (50K/day, Feb 11). Phases 0–2 complete (Feb 11). Comprehensive test coverage across both repos.
 
 ## ✅ CI/CD Pipeline — COMPLETE
 
