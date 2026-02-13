@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { machineHeartbeat, getLicenseMachines } from "@/lib/keygen";
 import { updateDeviceLastSeen, getLicense, recordTrialHeartbeat, getVersionConfig, getActiveDevicesInWindow } from "@/lib/dynamodb";
+import { verifyAuthToken } from "@/lib/auth-verify";
 import {
   rateLimitMiddleware,
   getRateLimitHeaders,
@@ -144,7 +145,18 @@ export async function POST(request) {
     // =========================================================================
     // LICENSED USER HEARTBEAT (with license key)
     // =========================================================================
-    
+
+    // Phase 3E: Authentication is required for licensed heartbeats.
+    // The extension always sends the JWT obtained during browser-delegated activation.
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
+      return NextResponse.json(
+        { error: "Unauthorized", detail: "Authentication is required for licensed heartbeats" },
+        { status: 401 },
+      );
+    }
+    const authedUserId = tokenPayload.sub;
+
     // SessionId required for licensed users
     if (!sessionId) {
       return NextResponse.json(
@@ -210,9 +222,9 @@ export async function POST(request) {
     }
 
     // Update device last seen in DynamoDB (fire and forget)
-    // When userId is present, include it in the update for device-user binding
+    // Phase 3E: Use verified authedUserId from JWT, not body-supplied userId
     if (license.keygenLicenseId) {
-      updateDeviceLastSeen(license.keygenLicenseId, machineId, userId).catch((err) => {
+      updateDeviceLastSeen(license.keygenLicenseId, machineId, authedUserId).catch((err) => {
         console.error("Device last seen update failed:", err);
       });
     }

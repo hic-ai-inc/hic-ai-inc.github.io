@@ -15,32 +15,28 @@ import {
   addDeviceActivation,
   getLicense as getDynamoLicense,
   getActiveDevicesInWindow,
+  getActiveUserDevicesInWindow,
 } from "@/lib/dynamodb";
 import { verifyAuthToken } from "@/lib/auth-verify";
+import { PRICING } from "@/lib/constants";
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const { licenseKey, fingerprint, deviceName, platform } = body;
 
-    // Optional JWT authentication (Phase 3B)
-    // If Authorization header is present, verify it and extract user identity.
-    // No header = backward-compatible unauthenticated activation (transitional).
-    // Invalid/expired header = 401 rejection (bad token ≠ no token).
-    let userId = null;
-    let userEmail = null;
-    const authHeader = request.headers.get("authorization");
-    if (authHeader) {
-      const tokenPayload = await verifyAuthToken();
-      if (!tokenPayload) {
-        return NextResponse.json(
-          { error: "Unauthorized", detail: "Invalid or expired authentication token" },
-          { status: 401 },
-        );
-      }
-      userId = tokenPayload.sub;
-      userEmail = tokenPayload.email;
+    // Phase 3E: Authentication is required for all activations.
+    // The extension's browser-delegated flow (3A) always provides a JWT
+    // via the /activate page. No unauthenticated path remains.
+    const tokenPayload = await verifyAuthToken();
+    if (!tokenPayload) {
+      return NextResponse.json(
+        { error: "Unauthorized", detail: "Authentication is required to activate a license" },
+        { status: 401 },
+      );
     }
+    const userId = tokenPayload.sub;
+    const userEmail = tokenPayload.email;
 
     // Validate required fields
     if (!licenseKey) {
@@ -114,10 +110,45 @@ export async function POST(request) {
     // Get full license details
     const license = await getLicense(validation.license.id);
 
-    // Check concurrent device count (2-hour sliding window)
+    // Phase 3E: Per-seat enforcement (Business) or per-license enforcement (Individual).
+    // DynamoDB is the sole enforcement layer — Keygen has ALWAYS_ALLOW_OVERAGE.
     const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 2;
-    const activeDevices = await getActiveDevicesInWindow(license.id, windowHours);
-    const overLimit = license.maxMachines && activeDevices.length >= license.maxMachines;
+
+    // Look up DDB license record for planName to determine enforcement mode
+    const ddbLicense = await getDynamoLicense(license.id);
+    const planName = ddbLicense?.planName || "Individual";
+    const isBusiness = planName === "Business";
+
+    let activeDevices;
+    let perSeatLimit;
+
+    if (isBusiness) {
+      // Business: enforce per-seat (per-user) concurrent device limit
+      activeDevices = await getActiveUserDevicesInWindow(license.id, userId, windowHours);
+      perSeatLimit = PRICING.business.maxConcurrentMachinesPerSeat;
+    } else {
+      // Individual: enforce per-license concurrent device limit
+      activeDevices = await getActiveDevicesInWindow(license.id, windowHours);
+      perSeatLimit = PRICING.individual.maxConcurrentMachines;
+    }
+
+    if (perSeatLimit && activeDevices.length >= perSeatLimit) {
+      return NextResponse.json(
+        {
+          error: "Device limit exceeded",
+          code: "DEVICE_LIMIT_EXCEEDED",
+          detail: isBusiness
+            ? `You are using ${activeDevices.length} of ${perSeatLimit} concurrent devices allowed per seat. Deactivate an existing device or contact your admin.`
+            : `You are using ${activeDevices.length} of ${perSeatLimit} concurrent devices allowed. Deactivate an existing device or upgrade to Business.`,
+          activeDevices: activeDevices.length,
+          maxDevices: perSeatLimit,
+          planName,
+        },
+        { status: 403 },
+      );
+    }
+
+    const overLimit = false; // Enforcement is now hard — we reject above
 
     // Activate device with Keygen
     const machine = await activateDevice({
@@ -161,11 +192,9 @@ export async function POST(request) {
       userId,
       userEmail,
       deviceCount,
-      maxDevices: license.maxMachines,
-      overLimit: overLimit,
-      message: overLimit
-        ? `You're using ${deviceCount} of ${license.maxMachines} allowed devices. Consider upgrading for more concurrent devices.`
-        : null,
+      maxDevices: perSeatLimit,
+      planName,
+      overLimit: false,
       machine: {
         id: machine.id,
         name: machine.name,

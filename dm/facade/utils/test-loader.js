@@ -70,6 +70,9 @@ export async function resolve(specifier, context, nextResolve) {
     if (specifier === "next/server") {
       return await nextResolve("next/server.js", context);
     }
+    if (specifier === "next/headers") {
+      return await nextResolve("next/headers.js", context);
+    }
 
     // Next.js-style alias support for PLG website imports (e.g. `@/lib/keygen`).
     // Next.js resolves this via jsconfig/tsconfig; the Node test runner needs help.

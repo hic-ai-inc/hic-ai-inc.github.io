@@ -1046,3 +1046,387 @@ describe("license/deactivate API logic", () => {
     });
   });
 });
+
+
+// ===========================================
+// PHASE 3E: AUTH REQUIRED FOR ACTIVATION
+// ===========================================
+
+describe("Phase 3E: activation — authentication is mandatory", () => {
+  /**
+   * Mirrors activate/route.js Phase 3E: verifyAuthToken() is called
+   * unconditionally. No token → 401. No unauthenticated fallback.
+   */
+  function requireActivationAuth(tokenPayload) {
+    if (!tokenPayload) {
+      return {
+        error: "Unauthorized",
+        detail: "Authentication is required to activate a license",
+        status: 401,
+      };
+    }
+    return { userId: tokenPayload.sub, userEmail: tokenPayload.email };
+  }
+
+  it("should return 401 when no auth token is provided", () => {
+    const result = requireActivationAuth(null);
+    assert.strictEqual(result.status, 401);
+    assert.strictEqual(result.error, "Unauthorized");
+    assert.ok(result.detail.includes("Authentication is required"));
+  });
+
+  it("should return 401 when token is undefined", () => {
+    const result = requireActivationAuth(undefined);
+    assert.strictEqual(result.status, 401);
+  });
+
+  it("should extract userId and userEmail from valid token", () => {
+    const result = requireActivationAuth({
+      sub: "user_abc123",
+      email: "user@example.com",
+    });
+    assert.strictEqual(result.userId, "user_abc123");
+    assert.strictEqual(result.userEmail, "user@example.com");
+    assert.strictEqual(result.status, undefined); // No error
+  });
+
+  it("should not have a backward-compatible unauthenticated path", () => {
+    // Phase 3E removed the "if (authHeader)" conditional.
+    // Even without an authHeader, the endpoint still calls verifyAuthToken()
+    // which returns null → 401. No silent pass-through.
+    const result = requireActivationAuth(null);
+    assert.strictEqual(result.status, 401);
+    assert.strictEqual(result.error, "Unauthorized");
+  });
+});
+
+// ===========================================
+// PHASE 3E: PER-SEAT ENFORCEMENT
+// ===========================================
+
+describe("Phase 3E: activation — per-seat vs per-license enforcement", () => {
+  /**
+   * Mirrors activate/route.js Phase 3E enforcement logic:
+   *
+   * - Individual: getActiveDevicesInWindow() → limit = PRICING.individual.maxConcurrentMachines (3)
+   * - Business:   getActiveUserDevicesInWindow() → limit = PRICING.business.maxConcurrentMachinesPerSeat (5)
+   *
+   * DynamoDB is the sole enforcement layer (Keygen has ALWAYS_ALLOW_OVERAGE).
+   */
+
+  const INDIVIDUAL_LIMIT = 3; // PRICING.individual.maxConcurrentMachines
+  const BUSINESS_PER_SEAT_LIMIT = 5; // PRICING.business.maxConcurrentMachinesPerSeat
+
+  function determineEnforcementMode(planName) {
+    const isBusiness = planName === "Business";
+    return {
+      isBusiness,
+      perSeatLimit: isBusiness ? BUSINESS_PER_SEAT_LIMIT : INDIVIDUAL_LIMIT,
+    };
+  }
+
+  function checkDeviceLimitExceeded(activeDeviceCount, perSeatLimit, isBusiness) {
+    if (!perSeatLimit || activeDeviceCount < perSeatLimit) {
+      return null; // Within limit
+    }
+    return {
+      error: "Device limit exceeded",
+      code: "DEVICE_LIMIT_EXCEEDED",
+      detail: isBusiness
+        ? `You are using ${activeDeviceCount} of ${perSeatLimit} concurrent devices allowed per seat. Deactivate an existing device or contact your admin.`
+        : `You are using ${activeDeviceCount} of ${perSeatLimit} concurrent devices allowed. Deactivate an existing device or upgrade to Business.`,
+      activeDevices: activeDeviceCount,
+      maxDevices: perSeatLimit,
+      planName: isBusiness ? "Business" : "Individual",
+      status: 403,
+    };
+  }
+
+  describe("enforcement mode determination", () => {
+    it("should use per-license enforcement for Individual plan", () => {
+      const mode = determineEnforcementMode("Individual");
+      assert.strictEqual(mode.isBusiness, false);
+      assert.strictEqual(mode.perSeatLimit, 3);
+    });
+
+    it("should use per-seat enforcement for Business plan", () => {
+      const mode = determineEnforcementMode("Business");
+      assert.strictEqual(mode.isBusiness, true);
+      assert.strictEqual(mode.perSeatLimit, 5);
+    });
+
+    it("should default to Individual for null/undefined planName", () => {
+      // Route uses: const planName = ddbLicense?.planName || "Individual";
+      const planName = null || "Individual";
+      const mode = determineEnforcementMode(planName);
+      assert.strictEqual(mode.isBusiness, false);
+      assert.strictEqual(mode.perSeatLimit, 3);
+    });
+
+    it("should default to Individual for unknown plan names", () => {
+      const mode = determineEnforcementMode("Enterprise");
+      assert.strictEqual(mode.isBusiness, false);
+      assert.strictEqual(mode.perSeatLimit, 3);
+    });
+  });
+
+  describe("Individual plan — per-license device limit", () => {
+    it("should allow activation when 0 active devices (fresh license)", () => {
+      const result = checkDeviceLimitExceeded(0, INDIVIDUAL_LIMIT, false);
+      assert.strictEqual(result, null);
+    });
+
+    it("should allow activation when 2 of 3 devices active", () => {
+      const result = checkDeviceLimitExceeded(2, INDIVIDUAL_LIMIT, false);
+      assert.strictEqual(result, null);
+    });
+
+    it("should reject activation when at limit (3 of 3)", () => {
+      const result = checkDeviceLimitExceeded(3, INDIVIDUAL_LIMIT, false);
+      assert.notStrictEqual(result, null);
+      assert.strictEqual(result.code, "DEVICE_LIMIT_EXCEEDED");
+      assert.strictEqual(result.status, 403);
+      assert.strictEqual(result.activeDevices, 3);
+      assert.strictEqual(result.maxDevices, 3);
+      assert.strictEqual(result.planName, "Individual");
+      assert.ok(result.detail.includes("upgrade to Business"));
+    });
+
+    it("should reject activation when over limit (4 of 3)", () => {
+      const result = checkDeviceLimitExceeded(4, INDIVIDUAL_LIMIT, false);
+      assert.notStrictEqual(result, null);
+      assert.strictEqual(result.code, "DEVICE_LIMIT_EXCEEDED");
+      assert.strictEqual(result.activeDevices, 4);
+    });
+
+    it("should include upgrade suggestion in Individual error detail", () => {
+      const result = checkDeviceLimitExceeded(3, INDIVIDUAL_LIMIT, false);
+      assert.ok(result.detail.includes("upgrade to Business"));
+      assert.ok(!result.detail.includes("contact your admin"));
+    });
+  });
+
+  describe("Business plan — per-seat device limit", () => {
+    it("should allow activation when 0 active devices for this user", () => {
+      const result = checkDeviceLimitExceeded(0, BUSINESS_PER_SEAT_LIMIT, true);
+      assert.strictEqual(result, null);
+    });
+
+    it("should allow activation when 4 of 5 per-seat devices active", () => {
+      const result = checkDeviceLimitExceeded(4, BUSINESS_PER_SEAT_LIMIT, true);
+      assert.strictEqual(result, null);
+    });
+
+    it("should reject activation when at per-seat limit (5 of 5)", () => {
+      const result = checkDeviceLimitExceeded(5, BUSINESS_PER_SEAT_LIMIT, true);
+      assert.notStrictEqual(result, null);
+      assert.strictEqual(result.code, "DEVICE_LIMIT_EXCEEDED");
+      assert.strictEqual(result.status, 403);
+      assert.strictEqual(result.activeDevices, 5);
+      assert.strictEqual(result.maxDevices, 5);
+      assert.strictEqual(result.planName, "Business");
+      assert.ok(result.detail.includes("per seat"));
+    });
+
+    it("should reject activation when over per-seat limit (6 of 5)", () => {
+      const result = checkDeviceLimitExceeded(6, BUSINESS_PER_SEAT_LIMIT, true);
+      assert.notStrictEqual(result, null);
+      assert.strictEqual(result.activeDevices, 6);
+    });
+
+    it("should include admin contact in Business error detail", () => {
+      const result = checkDeviceLimitExceeded(5, BUSINESS_PER_SEAT_LIMIT, true);
+      assert.ok(result.detail.includes("contact your admin"));
+      assert.ok(!result.detail.includes("upgrade to Business"));
+    });
+
+    it("should enforce per-user, not per-license, for Business", () => {
+      // Business enforcement counts only THIS user's devices,
+      // not all devices on the license. Two users on same license
+      // each get 5 devices independently.
+      const userADevices = 3;
+      const resultA = checkDeviceLimitExceeded(userADevices, BUSINESS_PER_SEAT_LIMIT, true);
+      assert.strictEqual(resultA, null); // User A: 3/5 → allowed
+
+      const userBDevices = 4;
+      const resultB = checkDeviceLimitExceeded(userBDevices, BUSINESS_PER_SEAT_LIMIT, true);
+      assert.strictEqual(resultB, null); // User B: 4/5 → allowed
+    });
+  });
+
+  describe("response shape for DEVICE_LIMIT_EXCEEDED", () => {
+    it("should include all required fields in 403 response", () => {
+      const result = checkDeviceLimitExceeded(3, INDIVIDUAL_LIMIT, false);
+      assert.strictEqual(result.error, "Device limit exceeded");
+      assert.strictEqual(result.code, "DEVICE_LIMIT_EXCEEDED");
+      assert.strictEqual(typeof result.detail, "string");
+      assert.strictEqual(typeof result.activeDevices, "number");
+      assert.strictEqual(typeof result.maxDevices, "number");
+      assert.strictEqual(typeof result.planName, "string");
+      assert.strictEqual(result.status, 403);
+    });
+  });
+
+  describe("activation success response shape (Phase 3E updates)", () => {
+    function formatActivationSuccessResponse({
+      machine,
+      license,
+      userId,
+      userEmail,
+      activeDeviceCount,
+      perSeatLimit,
+      planName,
+    }) {
+      return {
+        success: true,
+        activated: true,
+        activationId: machine.id,
+        userId,
+        userEmail,
+        deviceCount: activeDeviceCount + 1,
+        maxDevices: perSeatLimit,
+        planName,
+        overLimit: false,
+        machine: {
+          id: machine.id,
+          name: machine.name,
+          fingerprint: machine.fingerprint,
+        },
+        license: {
+          id: license.id,
+          status: license.status,
+          expiresAt: license.expiresAt,
+        },
+      };
+    }
+
+    it("should include planName in success response", () => {
+      const response = formatActivationSuccessResponse({
+        machine: { id: "mach_1", name: "Dev Machine", fingerprint: "fp_1" },
+        license: { id: "lic_1", status: "active", expiresAt: "2027-01-01" },
+        userId: "user_1",
+        userEmail: "user@test.com",
+        activeDeviceCount: 1,
+        perSeatLimit: 3,
+        planName: "Individual",
+      });
+      assert.strictEqual(response.planName, "Individual");
+      assert.strictEqual(response.maxDevices, 3);
+    });
+
+    it("should use perSeatLimit (not Keygen maxMachines) for maxDevices", () => {
+      const response = formatActivationSuccessResponse({
+        machine: { id: "mach_1", name: "Dev Machine", fingerprint: "fp_1" },
+        license: { id: "lic_1", status: "active", expiresAt: "2027-01-01" },
+        userId: "user_1",
+        userEmail: "user@test.com",
+        activeDeviceCount: 2,
+        perSeatLimit: 5,
+        planName: "Business",
+      });
+      assert.strictEqual(response.maxDevices, 5);
+      assert.strictEqual(response.planName, "Business");
+    });
+
+    it("should always set overLimit to false (enforcement is hard)", () => {
+      const response = formatActivationSuccessResponse({
+        machine: { id: "mach_1", name: "Dev Machine", fingerprint: "fp_1" },
+        license: { id: "lic_1", status: "active", expiresAt: "2027-01-01" },
+        userId: "user_1",
+        userEmail: "user@test.com",
+        activeDeviceCount: 2,
+        perSeatLimit: 3,
+        planName: "Individual",
+      });
+      assert.strictEqual(response.overLimit, false);
+    });
+
+    it("should calculate deviceCount as activeDevices + 1", () => {
+      const response = formatActivationSuccessResponse({
+        machine: { id: "mach_1", name: "Dev Machine", fingerprint: "fp_1" },
+        license: { id: "lic_1", status: "active", expiresAt: "2027-01-01" },
+        userId: "user_1",
+        userEmail: "user@test.com",
+        activeDeviceCount: 2,
+        perSeatLimit: 3,
+        planName: "Individual",
+      });
+      assert.strictEqual(response.deviceCount, 3);
+    });
+
+    it("should include userId and userEmail (always present in 3E)", () => {
+      const response = formatActivationSuccessResponse({
+        machine: { id: "mach_1", name: "Dev Machine", fingerprint: "fp_1" },
+        license: { id: "lic_1", status: "active", expiresAt: "2027-01-01" },
+        userId: "user_xyz",
+        userEmail: "xyz@test.com",
+        activeDeviceCount: 0,
+        perSeatLimit: 3,
+        planName: "Individual",
+      });
+      assert.strictEqual(response.userId, "user_xyz");
+      assert.strictEqual(response.userEmail, "xyz@test.com");
+    });
+  });
+});
+
+// ===========================================
+// PHASE 3E: addDeviceActivation GUARD
+// ===========================================
+
+describe("Phase 3E: addDeviceActivation — userId/userEmail are mandatory", () => {
+  /**
+   * Mirrors dynamodb.js addDeviceActivation() guard:
+   *   if (!userId || !userEmail) throw new Error(...);
+   *
+   * All activation paths now require auth, so these are always present.
+   */
+  function guardDeviceActivation({ userId, userEmail }) {
+    if (!userId || !userEmail) {
+      throw new Error(
+        "addDeviceActivation requires userId and userEmail (auth is mandatory)",
+      );
+    }
+  }
+
+  it("should throw when userId is missing", () => {
+    assert.throws(
+      () => guardDeviceActivation({ userId: null, userEmail: "a@b.com" }),
+      /userId and userEmail/,
+    );
+  });
+
+  it("should throw when userEmail is missing", () => {
+    assert.throws(
+      () => guardDeviceActivation({ userId: "user_1", userEmail: null }),
+      /userId and userEmail/,
+    );
+  });
+
+  it("should throw when both are missing", () => {
+    assert.throws(
+      () => guardDeviceActivation({ userId: null, userEmail: null }),
+      /userId and userEmail/,
+    );
+  });
+
+  it("should throw when userId is undefined", () => {
+    assert.throws(
+      () => guardDeviceActivation({ userId: undefined, userEmail: "a@b.com" }),
+      /userId and userEmail/,
+    );
+  });
+
+  it("should throw when userId is empty string", () => {
+    assert.throws(
+      () => guardDeviceActivation({ userId: "", userEmail: "a@b.com" }),
+      /auth is mandatory/,
+    );
+  });
+
+  it("should not throw when both are provided", () => {
+    assert.doesNotThrow(() =>
+      guardDeviceActivation({ userId: "user_1", userEmail: "user@test.com" }),
+    );
+  });
+});

@@ -535,6 +535,8 @@ describe("dynamodb.js", () => {
         fingerprint: "abc123fingerprint",
         name: "MacBook Pro",
         platform: "darwin",
+        userId: "cognito|user-001",
+        userEmail: "test@example.com",
       });
 
       // Should call send 3 times (getLicenseDevices + device record + increment counter)
@@ -543,6 +545,8 @@ describe("dynamodb.js", () => {
       expect(result.keygenMachineId).toBe("mach_new");
       expect(result.fingerprint).toBe("abc123fingerprint");
       expect(result.platform).toBe("darwin");
+      expect(result.userId).toBe("cognito|user-001");
+      expect(result.userEmail).toBe("test@example.com");
       expect(result.createdAt).toBeDefined();
       expect(result.lastSeenAt).toBeDefined();
     });
@@ -1404,60 +1408,57 @@ describe("dynamodb.js", () => {
       expect(updateCommand.input.ExpressionAttributeValues[":userEmail"]).toBe("updated@example.com");
     });
 
-    it("should succeed without userId/userEmail (optional in Phase 2)", async () => {
-      // Mock getLicenseDevices to return empty
-      mockSend.mockResolvedValueOnce({ Items: [] });
-      // Mock PutCommand and UpdateCommand
-      mockSend.mockResolvedValue({});
-
-      const result = await addDeviceActivation({
-        keygenLicenseId: "lic_123",
-        keygenMachineId: "mach_no_user",
-        fingerprint: "nouser_fingerprint",
-        name: "Anonymous Device",
-        platform: "linux",
-      });
-
-      // Should succeed — no userId/userEmail in result
-      expect(result.keygenMachineId).toBe("mach_no_user");
-      expect(result.userId).toBeUndefined();
-      expect(result.userEmail).toBeUndefined();
-
-      // Verify PutCommand does NOT include userId/userEmail
-      const putCommand = mockSend.calls[1][0];
-      expect(putCommand.input.Item.userId).toBeUndefined();
-      expect(putCommand.input.Item.userEmail).toBeUndefined();
+    it("should throw when userId is missing (Phase 3E: auth mandatory)", async () => {
+      let threw = false;
+      try {
+        await addDeviceActivation({
+          keygenLicenseId: "lic_123",
+          keygenMachineId: "mach_no_user",
+          fingerprint: "nouser_fingerprint",
+          name: "Anonymous Device",
+          platform: "linux",
+          userEmail: "test@example.com",
+        });
+      } catch (err) {
+        threw = true;
+        expect(err.message).toContain("userId and userEmail");
+      }
+      expect(threw).toBe(true);
     });
 
-    it("should not include userId/userEmail in update expression when not provided", async () => {
-      // Mock getLicenseDevices with existing device
-      mockSend.mockResolvedValueOnce({
-        Items: [
-          {
-            PK: "LICENSE#lic_123",
-            SK: "DEVICE#mach_existing",
-            keygenMachineId: "mach_existing",
-            fingerprint: "existing_fp",
-            name: "Existing",
-            platform: "win32",
-          },
-        ],
-      });
-      // Mock UpdateCommand
-      mockSend.mockResolvedValue({});
+    it("should throw when userEmail is missing (Phase 3E: auth mandatory)", async () => {
+      let threw = false;
+      try {
+        await addDeviceActivation({
+          keygenLicenseId: "lic_123",
+          keygenMachineId: "mach_no_email",
+          fingerprint: "noemail_fingerprint",
+          name: "No Email Device",
+          platform: "linux",
+          userId: "cognito|user-001",
+        });
+      } catch (err) {
+        threw = true;
+        expect(err.message).toContain("userId and userEmail");
+      }
+      expect(threw).toBe(true);
+    });
 
-      await addDeviceActivation({
-        keygenLicenseId: "lic_123",
-        keygenMachineId: "mach_updated",
-        fingerprint: "existing_fp",
-        name: "Updated Name",
-        platform: "win32",
-      });
-
-      // UpdateExpression should NOT contain userId or userEmail
-      const updateCommand = mockSend.calls[1][0];
-      expect(updateCommand.input.UpdateExpression).not.toContain("userId");
-      expect(updateCommand.input.UpdateExpression).not.toContain("userEmail");
+    it("should throw when updating existing device without userId (Phase 3E: auth mandatory)", async () => {
+      let threw = false;
+      try {
+        await addDeviceActivation({
+          keygenLicenseId: "lic_123",
+          keygenMachineId: "mach_updated",
+          fingerprint: "existing_fp",
+          name: "Updated Name",
+          platform: "win32",
+        });
+      } catch (err) {
+        threw = true;
+        expect(err.message).toContain("userId and userEmail");
+      }
+      expect(threw).toBe(true);
     });
   });
 

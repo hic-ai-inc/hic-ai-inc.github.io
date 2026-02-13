@@ -63,6 +63,11 @@ function getVerifier() {
  *   the token is missing, malformed, expired, or fails verification.
  */
 export async function verifyAuthToken() {
+  // Test override
+  if (_mockVerifyAuthToken) {
+    return _mockVerifyAuthToken();
+  }
+
   const verifier = getVerifier();
   if (!verifier) {
     console.error(
@@ -85,6 +90,22 @@ export async function verifyAuthToken() {
     console.error("[auth-verify] JWT verification failed:", error.message);
     return null;
   }
+}
+
+/**
+ * Override verifyAuthToken for testing. When set, verifyAuthToken()
+ * calls this function instead of the real JWT verifier.
+ * @param {Function|null} mockFn - Mock function, or null to restore real behavior
+ * @private
+ */
+let _mockVerifyAuthToken = null;
+
+export function __setVerifyAuthTokenForTests(mockFn) {
+  _mockVerifyAuthToken = mockFn;
+}
+
+export function __resetVerifyAuthTokenForTests() {
+  _mockVerifyAuthToken = null;
 }
 
 /**

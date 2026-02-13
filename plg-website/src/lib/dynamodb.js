@@ -596,6 +596,12 @@ export async function addDeviceActivation({
   userId,
   userEmail,
 }) {
+  // Phase 3E: userId and userEmail are now mandatory.
+  // All activation paths require authentication, so these must always be present.
+  if (!userId || !userEmail) {
+    throw new Error("addDeviceActivation requires userId and userEmail (auth is mandatory)");
+  }
+
   const now = new Date().toISOString();
 
   // Check if a device with this fingerprint already exists for this license
@@ -614,9 +620,7 @@ export async function addDeviceActivation({
           SK: existingDevice.SK,
         },
         UpdateExpression:
-          "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen" +
-          (userId ? ", userId = :userId" : "") +
-          (userEmail ? ", userEmail = :userEmail" : ""),
+          "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen, userId = :userId, userEmail = :userEmail",
         ExpressionAttributeNames: {
           "#name": "name",
         },
@@ -625,8 +629,8 @@ export async function addDeviceActivation({
           ":name": name,
           ":platform": platform,
           ":lastSeen": now,
-          ...(userId && { ":userId": userId }),
-          ...(userEmail && { ":userEmail": userEmail }),
+          ":userId": userId,
+          ":userEmail": userEmail,
         },
       }),
     );
@@ -636,8 +640,8 @@ export async function addDeviceActivation({
       name,
       platform,
       lastSeenAt: now,
-      ...(userId && { userId }),
-      ...(userEmail && { userEmail }),
+      userId,
+      userEmail,
     };
   }
 
@@ -651,8 +655,8 @@ export async function addDeviceActivation({
     platform,
     lastSeenAt: now,
     ...metadata,
-    ...(userId && { userId }),
-    ...(userEmail && { userEmail }),
+    userId,
+    userEmail,
     createdAt: now,
   };
 

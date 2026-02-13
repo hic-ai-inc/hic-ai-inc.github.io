@@ -24,6 +24,10 @@ import {
 } from "../../../src/lib/keygen.js";
 import { createKeygenMock } from "../../../../dm/facade/helpers/keygen.js";
 import { clearAllRateLimits } from "../../../src/lib/rate-limit.js";
+import {
+  __setVerifyAuthTokenForTests,
+  __resetVerifyAuthTokenForTests,
+} from "../../../src/lib/auth-verify.js";
 
 function calculateChecksum(keyBody) {
   let sum = 0;
@@ -81,6 +85,8 @@ describe("Heartbeat Route - Contract", () => {
   beforeEach(() => {
     clearAllRateLimits();
     __resetKeygenRequestForTests();
+    // Mock auth to return a valid user for licensed heartbeat tests
+    __setVerifyAuthTokenForTests(() => ({ sub: "test-user-id", email: "test@example.com" }));
 
     originalSend = dynamodb.send;
     mockSend = createSpy("dynamodb.send");
@@ -90,6 +96,7 @@ describe("Heartbeat Route - Contract", () => {
   afterEach(() => {
     clearAllRateLimits();
     __resetKeygenRequestForTests();
+    __resetVerifyAuthTokenForTests();
     dynamodb.send = originalSend;
   });
 

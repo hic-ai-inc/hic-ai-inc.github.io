@@ -334,3 +334,12 @@ Adopt the 5-subphase browser-delegated approach (3A, 3B, 3D, 3E, 3F). This V2 re
 - `mouse-vscode/tests/auth-provider.test.js` (~200 LOC) — eliminated
 
 **Next step:** Update `20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md` and `PLG_ROADMAP_v7.md` to reflect the revised subphase structure.
+
+---
+
+## Update — 2026-02-13
+
+**3A/3B Integration Bug Fix (Resolved):** Browser-delegated activation showed success in the browser but the extension's poll never completed. Root cause: Keygen's `heartbeatDuration` policy caused freshly activated machines to return `HEARTBEAT_NOT_STARTED` (valid: false), and the validate endpoint's device lookup was gated on `result.valid`. Additionally, `machineId` was missing from the validate response entirely. Fixed in commits `56f8b74` and `7ad380d` — the activate endpoint now sends the first heartbeat immediately, and the validate endpoint includes self-healing for `HEARTBEAT_NOT_STARTED`.
+
+**Pending UX Polish (Extension, Pre-E2E Gate):** After successful license activation, the extension should prompt the user to reload their developer window (similar to the existing "Initialize Workspace" success toast). This is a small extension-side change in the `hic` repo — add a "Reload Window" action button to the `showInformationMessage` call in `activate.js` after successful poll completion. Not blocking for 3E or 3F (both are backend-only), but should be completed before the full E2E validation gate in §6 above.
+

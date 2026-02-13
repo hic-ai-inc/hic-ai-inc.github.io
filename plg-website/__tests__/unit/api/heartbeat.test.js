@@ -557,3 +557,101 @@ describe("heartbeat API - checksum algorithm", () => {
     expect(checksum).toMatch(/^[A-Z0-9]{4}$/);
   });
 });
+
+
+// ===========================================
+// PHASE 3E: AUTH REQUIRED FOR LICENSED HEARTBEATS
+// ===========================================
+
+describe("Phase 3E: heartbeat — authentication requirements", () => {
+  /**
+   * Mirrors heartbeat/route.js Phase 3E logic:
+   *
+   * - Trial heartbeats (no licenseKey): NO auth required.
+   *   Trial users send heartbeats before purchasing.
+   *
+   * - Licensed heartbeats (with licenseKey): Auth IS required.
+   *   verifyAuthToken() → null means 401.
+   *   JWT’s sub (“authedUserId”) replaces the body’s userId
+   *   for updateDeviceLastSeen to prevent spoofing.
+   */
+
+  function requireHeartbeatAuth(tokenPayload, hasLicenseKey) {
+    // Trial heartbeats don’t require auth
+    if (!hasLicenseKey) {
+      return { required: false };
+    }
+    // Licensed heartbeats require auth
+    if (!tokenPayload) {
+      return {
+        required: true,
+        error: "Unauthorized",
+        detail: "Authentication is required for licensed heartbeats",
+        status: 401,
+      };
+    }
+    return { required: true, authedUserId: tokenPayload.sub };
+  }
+
+  describe("trial heartbeats (no licenseKey)", () => {
+    test("should not require auth for trial heartbeats", () => {
+      const result = requireHeartbeatAuth(null, false);
+      expect(result.required).toBe(false);
+      expect(result.error).toBeUndefined();
+    });
+
+    test("should not require auth even when token is provided for trial", () => {
+      const result = requireHeartbeatAuth(
+        { sub: "user_1", email: "a@b.com" },
+        false,
+      );
+      expect(result.required).toBe(false);
+    });
+  });
+
+  describe("licensed heartbeats (with licenseKey)", () => {
+    test("should return 401 when no auth token for licensed heartbeat", () => {
+      const result = requireHeartbeatAuth(null, true);
+      expect(result.required).toBe(true);
+      expect(result.status).toBe(401);
+      expect(result.error).toBe("Unauthorized");
+    });
+
+    test("should return 401 when token is undefined", () => {
+      const result = requireHeartbeatAuth(undefined, true);
+      expect(result.status).toBe(401);
+    });
+
+    test("should extract authedUserId from valid token", () => {
+      const result = requireHeartbeatAuth(
+        { sub: "user_abc", email: "abc@test.com" },
+        true,
+      );
+      expect(result.required).toBe(true);
+      expect(result.authedUserId).toBe("user_abc");
+      expect(result.error).toBeUndefined();
+    });
+  });
+
+  describe("userId source for updateDeviceLastSeen", () => {
+    test("should use JWT sub, not body userId, to prevent spoofing", () => {
+      // Before 3E: userId came from request body (spoofable)
+      // After 3E: authedUserId comes from JWT (verified)
+      const bodyUserId = "spoofed_user";
+      const jwtPayload = { sub: "real_user_abc", email: "real@test.com" };
+
+      const authResult = requireHeartbeatAuth(jwtPayload, true);
+      const userIdForUpdate = authResult.authedUserId;
+
+      expect(userIdForUpdate).toBe("real_user_abc");
+      expect(userIdForUpdate).not.toBe(bodyUserId);
+    });
+
+    test("should derive userId from JWT sub claim", () => {
+      const jwtPayload = { sub: "cognito|12345", email: "user@test.com" };
+      const authResult = requireHeartbeatAuth(jwtPayload, true);
+
+      expect(authResult.authedUserId).toBe("cognito|12345");
+    });
+  });
+});
