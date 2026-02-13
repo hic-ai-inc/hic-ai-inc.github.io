@@ -172,6 +172,10 @@ describe("Journey 3: License Activation Flow", () => {
         expectFields(response.json, ["activationId", "machine"]);
         scope.trackDevice(deviceData.fingerprint, response.json.activationId);
         log.info("Device activated successfully");
+      } else if (response.status === 401) {
+        // Phase 3E: Auth is now mandatory for activation. E2E tests don't send
+        // a JWT, so 401 is the expected response in unauthenticated context.
+        log.info("Activation rejected (auth required — expected in E2E without JWT)");
       } else if (response.status === 400 || response.status === 404) {
         // Invalid license - expected in E2E without real key
         log.info("Activation rejected (expected without valid license)");
@@ -186,7 +190,12 @@ describe("Journey 3: License Activation Flow", () => {
         machineId: deviceData.machineId,
       });
 
-      expectStatus(response, 400);
+      // Phase 3E: Auth check runs before input validation, so without a JWT
+      // we get 401 (not 400). Both are acceptable rejection statuses.
+      assert.ok(
+        response.status === 400 || response.status === 401,
+        `Expected 400 or 401, got ${response.status}`,
+      );
     });
 
     test("should include machine metadata in activation", async () => {
