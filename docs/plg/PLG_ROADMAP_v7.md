@@ -1,9 +1,9 @@
 # PLG Roadmap v7 — Multi-Seat Implementation → Launch
 
-**Document Version:** 7.0.0  
-**Date:** February 12, 2026  
+**Document Version:** 7.1.0  
+**Date:** February 13, 2026  
 **Owner:** General Counsel  
-**Status:** 🟡 PHASE 5 IN PROGRESS — Phases 0–2 complete, Subphase 3B complete (2026-02-12)
+**Status:** 🟡 PHASE 5 IN PROGRESS — Phases 0–2 complete, Subphases 3A–3E complete (2026-02-13); 3F remaining
 
 ---
 
@@ -323,7 +323,7 @@ exports.handler = async (event) => {
 ## 🔧 PHASE 5: Multi-Seat Device Management (NEW in v7)
 
 **Goal:** Implement per-user device tracking with browser-delegated activation (extension opens browser → website handles Cognito auth → extension polls for completion), per-seat concurrent device enforcement, and portal alignment for Business tier multi-user scenarios.  
-**Status:** 🟡 IN PROGRESS — Phases 0–2 complete, Subphase 3B complete (2026-02-12); 3A, 3D, 3E, 3F remaining  
+**Status:** 🟡 IN PROGRESS — Phases 0–2 complete, Subphases 3A–3E complete (2026-02-13); 3F remaining  
 **Est. Time:** 6-8.5 days (revised down from 8.5-11.5 — browser-delegated activation eliminates ~450 LOC and 1 subphase)  
 **Authoritative Document:** [20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md](20260212_MULTI_SEAT_IMPLEMENTATION_PLAN_V3.md)  
 **Reference Documents:** [Browser-Delegated Activation Proposal](20260212_GC_PROPOSAL_BROWSER_DELEGATED_ACTIVATION.md), [Subphase Plan V2](20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V2.md), [Multi-Seat Tech Spec](20260210_GC_TECH_SPEC_MULTI_SEAT_DEVICE_MANAGEMENT.md)
@@ -344,7 +344,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 | **Phase 0** | Keygen Policy Configuration | Keygen API | ✅ COMPLETE | 0.5 day |
 | **Phase 1** | Cognito Config + Auth Extraction | AWS + Website | ✅ COMPLETE | 1 day |
 | **Phase 2** | DynamoDB Schema & Functions | Website | ✅ COMPLETE | 1 day |
-| **Phase 3** | Browser-Delegated Activation + Enforcement + Portal UI | Both repos | 🟡 IN PROGRESS (3B ✅) | 2.5-4 days (5 subphases) |
+| **Phase 3** | Browser-Delegated Activation + Enforcement + Portal UI | Both repos | 🟡 IN PROGRESS (3A–3E ✅; 3F remaining) | 2.5-4 days (5 subphases) |
 | **Phase 4** | Hardening & Status Code Alignment | Website | ⬜ NOT STARTED | 1-2 days |
 
 > **Phases 0, 1, 2 can be executed in parallel.** Phase 3 depends on all three. Phase 4 depends on Phase 3.
@@ -353,7 +353,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 
 > **Deferred cleanup from Phases 0–2 (explicitly scheduled):**
 > - **3B:** ~~`CONCURRENT_DEVICE_WINDOW_HOURS` fallbacks `|| 24` → `|| 2` in activate/heartbeat routes + test + function default (6 locations)~~ — ✅ DONE 2026-02-12 (commit `13deabd`)
-> - **3E:** `addDeviceActivation()` userId/userEmail guard — throw if not provided (prevents silent unbound device records)
+> - **3E:** ~~`addDeviceActivation()` userId/userEmail guard — throw if not provided (prevents silent unbound device records)~~ — ✅ DONE 2026-02-13 (E2E validated by SWR in `hic-e2e-clean` Codespace)
 > - **Phase 4:** Remove vestigial `vscode://hic-ai.mouse/callback` from Cognito App Client (Phase 1 artifact, harmless but should be cleaned up)
 
 ### 5.2 Key Architecture Decisions (All Resolved)
@@ -588,7 +588,7 @@ Previously, CLI commands (`hic mouse init`, `hic mouse license activate`, etc.) 
 | 12  | Launch (Phase 8)                   | 🔴 BLOCKED on Phase 7      | GC + Simon | **11**       |
 | 13  | Support & Community                | ⬜ POST-LAUNCH              | Simon      | **12**       |
 
-> **Latest Milestone (Feb 12, 2026):** Phase 5 Subphase 3B complete — backend accepts JWT, `/activate` page deployed, concurrent device window aligned, 37 new tests, E2E smoke tested. Browser-delegated activation model approved, eliminating ~450 LOC of security-critical code. SES production approved (50K/day, Feb 11). Phases 0–2 complete (Feb 11). Comprehensive test coverage across both repos.
+> **Latest Milestone (Feb 13, 2026):** Phase 5 Subphases 3A–3E all complete. 3A (browser-delegated activation, 48 new tests), 3B (backend JWT + `/activate` page, 37 new tests), 3D (startup flow fix, 6 new heartbeat tests), and 3E (require auth + per-seat enforcement, userId/userEmail guard) all implemented, tested, and pushed to `development`. SWR ran full E2E validation in `hic-e2e-clean` Codespace: Mouse VSIX install → trial → license activation → LICENSED confirmation. Only 3F (admin portal scoping) and Phase 4 (hardening) remain before launch readiness. AWS Activate approved $1,000.00 in AWS credits for HIC AI, Inc. (Feb 13).
 
 ## ✅ CI/CD Pipeline — COMPLETE
 
@@ -989,6 +989,26 @@ CI/CD pipeline adapted from SimonReiff/hic and deployed to `.github/workflows/ci
 | Workflow triggers                     | ✅     | push/PR to development and main        |
 | Test full CI/CD flow                  | ✅     | PR #1 verified, all tests passed (58s) |
 | Branch protection rules               | ⬜     | **TIER 2** — Pre-launch (low effort, high value) |
+
+### 7.4 AWS Activate Credits — $1,000.00 Approved (Feb 13, 2026)
+
+**Status:** ✅ APPROVED  
+**Amount:** $1,000.00 in AWS credits  
+**Program:** AWS Activate  
+**Implication:** Covers AWS infrastructure costs (Amplify, Cognito, DynamoDB, Lambda, SNS/SQS/EventBridge, SES, etc.) and enables expanded AI-assisted development tooling (Kiro with Opus 4.6 Pro plan, $20/month covered by credits, with overage credits also covered).
+
+#### Cost Planning & Credit Optimization Checklist
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Calculate current monthly AWS infrastructure costs | ⬜ | Amplify, Cognito, DynamoDB, Lambda, SES, SNS/SQS, EventBridge, Secrets Manager, CloudWatch |
+| Calculate projected costs at launch-scale traffic | ⬜ | Estimate based on expected user growth |
+| Identify cost optimization opportunities | ⬜ | Reserved capacity, right-sizing Lambda memory, DynamoDB on-demand vs provisioned |
+| Set up AWS Cost Explorer alerts | ⬜ | Monthly budget alerts at 25%/50%/75%/100% of credit |
+| Plan Kiro Pro usage budget ($20/mo from credits) | ⬜ | Opus 4.6 for heavy-duty coding, included credits + overage |
+| Track credit burn rate monthly | ⬜ | Ensure credits last through launch and initial growth |
+| Determine credit expiration date | ⬜ | AWS Activate credits typically expire 1-2 years after issuance |
+| Document which services are free-tier eligible | ⬜ | Some services may remain free-tier even after credits expire |
 
 ---
 
@@ -1412,6 +1432,7 @@ User Issue
 
 | Version   | Date         | Changes                                                                                                                                                                                                     |
 | --------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **7.1.0** | Feb 13, 2026 | **Phase 5 progress: Subphases 3A–3E complete.** Browser-delegated activation (3A), backend JWT acceptance (3B), startup flow fix (3D), and auth-required per-seat enforcement (3E) all implemented, tested, and pushed to `development`. Full E2E validation by SWR in `hic-e2e-clean` Codespace (Mouse VSIX install → trial → license activation → LICENSED). Only 3F (admin portal) and Phase 4 (hardening) remain. Mouse v0.10.7 shipped with bug fix. **AWS Activate approved $1,000.00 in AWS credits for HIC AI, Inc.** See Section 7.4 for cost planning checklist. |
 | **7.0.0** | Feb 11, 2026 | **v7 — COMPLETE REWRITE.** 8-phase launch structure (Phases 1-4 complete, 5-8 new). Multi-seat device management (Phase 5). VSIX-only distribution (npm/npx deprecated). Version update mechanism (Phase 6). SES production approved (50K/day). 83(b) election filed. Keygen misconfigurations identified. Stale content removed. Mouse v0.10.5. 2-hour concurrent sliding window. OAuth PKCE for device activation. |
 | **6.8.2** | Feb 5, 2026  | **Daily-gated extension update payload.** Heartbeat contract removes `minVersion`, always returns version payload. Comprehensive test coverage. |
 | **6.0.0** | Feb 1, 2026  | **v6 — CLEANUP.** Removed Auth0 migration history. Condensed Section 3. Added 23 TODOs. Cognito as sole auth provider. |

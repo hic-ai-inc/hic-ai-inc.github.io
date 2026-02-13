@@ -380,7 +380,7 @@ cd plg-website && npm run test:lib
 | **3B** | Backend accepts JWT + `/activate` page | W | Near zero | ✅ **COMPLETE (2026-02-12)** — If JWT present → verify + store userId. `/activate` page handles browser-side auth flow. Backward compatible. All 12 gate criteria passed. |
 | ~~3C~~ | ~~Eliminated~~ | — | — | Absorbed into revised 3A. Extension never sends tokens. |
 | **3D** | Fix startup flow / expiry bug | E | Low | ✅ **COMPLETE (2026-02-13)** — Heartbeat-first startup, machine recovery codes, `_attemptMachineRevival()`, enriched `validateLicense()` return. 6 new heartbeat tests. |
-| **3E** | Require auth + per-seat enforcement | W | Low | Flip the switch: JWT required on `/activate` page, per-seat limits enforced. |
+| **3E** | Require auth + per-seat enforcement | W | Low | ✅ **COMPLETE (2026-02-13)** — JWT required on `/activate` page, per-seat limits enforced, `addDeviceActivation()` userId/userEmail guard added. Full E2E validated by SWR in `hic-e2e-clean` Codespace: Mouse VSIX install → trial → license activation → LICENSED confirmation. All code changes implemented, tested, pushed to `development`. |
 | **3F** | Portal scoping + UI | W | Low | Scope devices to current user. Fix DELETE authorization. UI copy updates. |
 
 #### Subphase Dependencies
@@ -580,7 +580,7 @@ Phase 0 (Keygen config) ✅
 | Phase 0   | K           | 0.5 day           | 0.5 day       | ✅ Done 2026-02-11 |
 | Phase 1   | A + W       | 1 day             | 1.5 days      | ✅ Done 2026-02-11 |
 | Phase 2   | W           | 1 day             | 2.5 days      | ✅ Done 2026-02-11 |
-| Phase 3   | E + W       | 2.5–4 days        | 5–6.5 days    | 🟡 3A ✅ 2026-02-13, 3B ✅ 2026-02-12, 3D ✅ 2026-02-13; 3E, 3F remaining |
+| Phase 3   | E + W       | 2.5–4 days        | 5–6.5 days    | 🟡 3A ✅ 2026-02-13, 3B ✅ 2026-02-12, 3D ✅ 2026-02-13, 3E ✅ 2026-02-13; 3F remaining |
 | Phase 4   | W           | 1–2 days          | 6–8.5 days    |
 | **Total** |             | **6–8.5 days**    |               |
 
