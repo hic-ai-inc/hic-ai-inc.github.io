@@ -247,66 +247,65 @@ describe("validate endpoint — device lookup for machineId/userId/userEmail", (
   });
 });
 
-describe("validate endpoint — heartbeat gating logic", () => {
+describe("validate endpoint — heartbeat gating logic (Phase 3F)", () => {
   /**
-   * Mirrors the heartbeat conditional in validate/route.js lines 205-213.
-   * Keygen machineHeartbeat() requires a real machine UUID.
-   * If only fingerprint is available, we skip the Keygen ping
-   * to avoid silent 404 failures.
+   * Phase 3F: Mirrors the heartbeat conditional in validate/route.js.
+   * When machineId is absent, NO tasks fire at all — no updateDeviceLastSeen,
+   * no machineHeartbeat. This prevents ghost DEVICE# records from fingerprint
+   * fallback (root cause of "Unknown Device" bug).
    */
-  function buildHeartbeatTasks(machineId, fingerprint, licenseId) {
-    const trackingId = machineId || fingerprint;
-    const tasks = [{ type: "updateDeviceLastSeen", licenseId, trackingId }];
+  function buildHeartbeatTasks(machineId, licenseId) {
+    const tasks = [];
     if (machineId) {
+      tasks.push({ type: "updateDeviceLastSeen", licenseId, machineId });
       tasks.push({ type: "machineHeartbeat", machineId });
     }
     return tasks;
   }
 
-  it("should include Keygen heartbeat when machineId is provided", () => {
-    const tasks = buildHeartbeatTasks("mach_real_uuid", "fp_abc", "lic_123");
+  it("should include both tasks when machineId is provided", () => {
+    const tasks = buildHeartbeatTasks("mach_real_uuid", "lic_123");
 
     assert.strictEqual(tasks.length, 2);
     assert.strictEqual(tasks[0].type, "updateDeviceLastSeen");
-    assert.strictEqual(tasks[0].trackingId, "mach_real_uuid");
+    assert.strictEqual(tasks[0].machineId, "mach_real_uuid");
+    assert.strictEqual(tasks[0].licenseId, "lic_123");
     assert.strictEqual(tasks[1].type, "machineHeartbeat");
     assert.strictEqual(tasks[1].machineId, "mach_real_uuid");
   });
 
-  it("should skip Keygen heartbeat when only fingerprint available", () => {
-    const tasks = buildHeartbeatTasks(undefined, "fp_abc", "lic_123");
+  it("should produce EMPTY tasks when machineId is undefined", () => {
+    const tasks = buildHeartbeatTasks(undefined, "lic_123");
 
-    assert.strictEqual(tasks.length, 1);
-    assert.strictEqual(tasks[0].type, "updateDeviceLastSeen");
-    assert.strictEqual(tasks[0].trackingId, "fp_abc");
+    assert.strictEqual(tasks.length, 0);
   });
 
-  it("should skip Keygen heartbeat when machineId is null", () => {
-    const tasks = buildHeartbeatTasks(null, "fp_abc", "lic_123");
+  it("should produce EMPTY tasks when machineId is null", () => {
+    const tasks = buildHeartbeatTasks(null, "lic_123");
 
-    assert.strictEqual(tasks.length, 1);
-    assert.strictEqual(tasks[0].type, "updateDeviceLastSeen");
-    assert.strictEqual(tasks[0].trackingId, "fp_abc");
+    assert.strictEqual(tasks.length, 0);
   });
 
-  it("should skip Keygen heartbeat when machineId is empty string", () => {
-    const tasks = buildHeartbeatTasks("", "fp_abc", "lic_123");
+  it("should produce EMPTY tasks when machineId is empty string", () => {
+    const tasks = buildHeartbeatTasks("", "lic_123");
 
-    assert.strictEqual(tasks.length, 1);
-    assert.strictEqual(tasks[0].type, "updateDeviceLastSeen");
-    assert.strictEqual(tasks[0].trackingId, "fp_abc");
+    assert.strictEqual(tasks.length, 0);
   });
 
-  it("should use machineId as trackingId in updateDeviceLastSeen when available", () => {
-    const tasks = buildHeartbeatTasks("mach_uuid", "fp_abc", "lic_123");
+  it("should NOT fall back to fingerprint as trackingId", () => {
+    // Phase 3F: Fingerprint fallback was the root cause of ghost devices.
+    // buildHeartbeatTasks no longer accepts fingerprint parameter.
+    const tasks = buildHeartbeatTasks(null, "lic_123");
 
-    assert.strictEqual(tasks[0].trackingId, "mach_uuid");
+    // No tasks = no DynamoDB writes = no ghost DEVICE# records
+    assert.deepStrictEqual(tasks, []);
   });
 
-  it("should fall back to fingerprint as trackingId when no machineId", () => {
-    const tasks = buildHeartbeatTasks(null, "fp_fallback", "lic_123");
+  it("should use machineId in updateDeviceLastSeen when available", () => {
+    const tasks = buildHeartbeatTasks("mach_uuid", "lic_123");
 
-    assert.strictEqual(tasks[0].trackingId, "fp_fallback");
+    assert.strictEqual(tasks[0].machineId, "mach_uuid");
+    assert.strictEqual(tasks[0].licenseId, "lic_123");
   });
 });
 
@@ -400,7 +399,6 @@ describe("extension poll condition — machineId in validate response", () => {
     assert.strictEqual(result, null); // Empty string is falsy
   });
 });
-
 
 describe("validate endpoint — HEARTBEAT_NOT_STARTED self-healing", () => {
   /**
@@ -579,7 +577,6 @@ describe("activate endpoint — first heartbeat after activation", () => {
     assert.strictEqual(receivedId, expectedId);
   });
 });
-
 
 describe("license/activate API logic", () => {
   function validateActivationInput(body) {
@@ -1046,7 +1043,6 @@ describe("license/deactivate API logic", () => {
     });
   });
 });
-
 
 // ===========================================
 // PHASE 3E: AUTH REQUIRED FOR ACTIVATION

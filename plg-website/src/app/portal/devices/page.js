@@ -22,6 +22,7 @@ export default function DevicesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [totalActiveDevices, setTotalActiveDevices] = useState(null);
 
   useEffect(() => {
     if (user && !userLoading) {
@@ -55,6 +56,7 @@ export default function DevicesPage() {
       const data = await res.json();
       setDevices(data.devices || []);
       setMaxDevices(data.maxDevices || 3);
+      setTotalActiveDevices(data.totalActiveDevices ?? null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -62,7 +64,7 @@ export default function DevicesPage() {
     }
   }
 
-  // Filter devices by active status (active = seen in last 7 days)
+  // Filter devices by active status (active = seen within 2-hour window)
   const activeDevices = devices.filter((d) => isActiveDevice(d));
   const inactiveDevices = devices.filter((d) => !isActiveDevice(d));
   const displayedDevices = showInactive ? devices : activeDevices;
@@ -142,6 +144,11 @@ export default function DevicesPage() {
                 ? "Hide inactive installations"
                 : `Show all installations (${devices.length} total)`}
             </button>
+          )}
+          {totalActiveDevices !== null && (
+            <p className="mt-3 text-xs text-slate-grey">
+              {totalActiveDevices} active {totalActiveDevices === 1 ? "device" : "devices"} across your team
+            </p>
           )}
         </CardContent>
       </Card>
@@ -258,13 +265,14 @@ export default function DevicesPage() {
 }
 
 /**
- * Check if device is "active" (seen within last 7 days)
+ * Check if device is "active" (seen within the 2-hour concurrent device window)
+ * Matches the server-side enforcement window (CONCURRENT_DEVICE_WINDOW_HOURS=2)
  */
 function isActiveDevice(device) {
   if (!device.lastSeen && !device.createdAt) return true; // No data, assume active
   const lastActivity = new Date(device.lastSeen || device.createdAt);
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  return lastActivity > sevenDaysAgo;
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  return lastActivity > twoHoursAgo;
 }
 
 /**

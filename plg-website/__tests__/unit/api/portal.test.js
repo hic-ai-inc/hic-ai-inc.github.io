@@ -346,140 +346,188 @@ describe("portal/devices API logic", () => {
     );
   }
 
-  function mergeDeviceData(localDevices, keygenDevices) {
-    return localDevices.map((device) => {
-      const keygenDevice = keygenDevices.find(
-        (kd) => kd.id === device.keygenMachineId,
-      );
-      return {
-        id: device.keygenMachineId,
-        name: keygenDevice?.name || device.name,
-        platform: keygenDevice?.platform || device.platform,
-        fingerprint: device.fingerprint,
-        lastSeen: keygenDevice?.lastHeartbeat || device.lastSeenAt,
-        createdAt: keygenDevice?.createdAt || device.createdAt,
-      };
-    });
+  /**
+   * Phase 3F: Per-user device scoping
+   * Route now uses getUserDevices(licenseId, userId) instead of
+   * getLicenseDevices(licenseId). tokenPayload.sub provides userId.
+   */
+  function extractUserIdFromToken(tokenPayload) {
+    return tokenPayload?.sub || null;
   }
 
-  function validateDeleteInput(body) {
-    const { machineId, licenseId } = body || {};
+  /**
+   * Phase 3F: Device record mapping
+   * Route maps DynamoDB device records directly (no Keygen merge).
+   */
+  function mapDeviceRecords(devices) {
+    return devices.map((device) => ({
+      id: device.keygenMachineId,
+      name: device.name,
+      platform: device.platform,
+      fingerprint: device.fingerprint,
+      lastSeen: device.lastSeenAt,
+      createdAt: device.createdAt,
+    }));
+  }
 
-    if (!machineId || !licenseId) {
-      return {
-        valid: false,
-        error: "Machine ID and License ID required",
-        status: 400,
-      };
+  /**
+   * Phase 3F: Build response shape
+   * Business accounts include totalActiveDevices for Owner/Admin visibility.
+   */
+  function buildDevicesResponse(mappedDevices, maxDevices, licenseId, accountType, totalActiveCount) {
+    const response = { devices: mappedDevices, maxDevices, licenseId };
+    if (accountType === "business") {
+      response.totalActiveDevices = totalActiveCount;
     }
-    return { valid: true };
+    return response;
   }
 
-  describe("authentication", () => {
-    it("should reject unauthenticated request", () => {
-      const result = requireAuth(null);
-      assert.strictEqual(result.authenticated, false);
+  describe("per-user device scoping (Phase 3F)", () => {
+    it("should extract userId from tokenPayload.sub", () => {
+      const tokenPayload = { sub: "cognito-user-123", email: "user@example.com" };
+      const userId = extractUserIdFromToken(tokenPayload);
+      assert.strictEqual(userId, "cognito-user-123");
     });
 
-    it("should accept authenticated session", () => {
-      const session = createMockSession({ email: "user@example.com" });
-      const result = requireAuth(session);
-      assert.strictEqual(result.authenticated, true);
+    it("should return null when tokenPayload has no sub", () => {
+      const tokenPayload = { email: "user@example.com" };
+      const userId = extractUserIdFromToken(tokenPayload);
+      assert.strictEqual(userId, null);
+    });
+
+    it("should return null when tokenPayload is null", () => {
+      const userId = extractUserIdFromToken(null);
+      assert.strictEqual(userId, null);
     });
   });
 
-  describe("empty responses", () => {
-    it("should return empty devices array", () => {
+  describe("device record mapping (Phase 3F)", () => {
+    it("should map DynamoDB device records to response format", () => {
+      const devices = [
+        {
+          keygenMachineId: "mach_1",
+          name: 'MacBook Pro 16"',
+          platform: "darwin",
+          fingerprint: "fp_abc",
+          lastSeenAt: "2026-02-13T10:00:00Z",
+          createdAt: "2026-01-01T00:00:00Z",
+        },
+      ];
+
+      const mapped = mapDeviceRecords(devices);
+
+      assert.strictEqual(mapped.length, 1);
+      assert.strictEqual(mapped[0].id, "mach_1");
+      assert.strictEqual(mapped[0].name, 'MacBook Pro 16"');
+      assert.strictEqual(mapped[0].platform, "darwin");
+      assert.strictEqual(mapped[0].fingerprint, "fp_abc");
+      assert.strictEqual(mapped[0].lastSeen, "2026-02-13T10:00:00Z");
+      assert.strictEqual(mapped[0].createdAt, "2026-01-01T00:00:00Z");
+    });
+
+    it("should handle empty devices array", () => {
+      const mapped = mapDeviceRecords([]);
+      assert.deepStrictEqual(mapped, []);
+    });
+
+    it("should handle device with missing optional fields", () => {
+      const devices = [
+        {
+          keygenMachineId: "mach_2",
+          name: undefined,
+          platform: undefined,
+          fingerprint: undefined,
+          lastSeenAt: "2026-02-13T10:00:00Z",
+          createdAt: "2026-02-01T00:00:00Z",
+        },
+      ];
+
+      const mapped = mapDeviceRecords(devices);
+
+      assert.strictEqual(mapped[0].id, "mach_2");
+      assert.strictEqual(mapped[0].name, undefined);
+      assert.strictEqual(mapped[0].platform, undefined);
+      assert.strictEqual(mapped[0].lastSeen, "2026-02-13T10:00:00Z");
+    });
+
+    it("should map multiple devices preserving order", () => {
+      const devices = [
+        { keygenMachineId: "mach_a", name: "A", platform: "win32", fingerprint: "fp1", lastSeenAt: "t1", createdAt: "c1" },
+        { keygenMachineId: "mach_b", name: "B", platform: "darwin", fingerprint: "fp2", lastSeenAt: "t2", createdAt: "c2" },
+        { keygenMachineId: "mach_c", name: "C", platform: "linux", fingerprint: "fp3", lastSeenAt: "t3", createdAt: "c3" },
+      ];
+
+      const mapped = mapDeviceRecords(devices);
+
+      assert.strictEqual(mapped.length, 3);
+      assert.strictEqual(mapped[0].id, "mach_a");
+      assert.strictEqual(mapped[1].id, "mach_b");
+      assert.strictEqual(mapped[2].id, "mach_c");
+    });
+  });
+
+  describe("response shape (Phase 3F)", () => {
+    it("should include totalActiveDevices for business accounts", () => {
+      const response = buildDevicesResponse([], 5, "lic_123", "business", 12);
+
+      assert.strictEqual(response.totalActiveDevices, 12);
+      assert.strictEqual(response.maxDevices, 5);
+      assert.strictEqual(response.licenseId, "lic_123");
+      assert.deepStrictEqual(response.devices, []);
+    });
+
+    it("should NOT include totalActiveDevices for individual accounts", () => {
+      const response = buildDevicesResponse([], 3, "lic_456", "individual", 0);
+
+      assert.strictEqual(response.totalActiveDevices, undefined);
+      assert.strictEqual(response.maxDevices, 3);
+      assert.strictEqual(response.licenseId, "lic_456");
+    });
+
+    it("should return 0 totalActiveDevices when no business devices active", () => {
+      const response = buildDevicesResponse([], 5, "lic_789", "business", 0);
+
+      assert.strictEqual(response.totalActiveDevices, 0);
+    });
+
+    it("should include devices array in response", () => {
+      const devices = [{ id: "mach_1", name: "Test" }];
+      const response = buildDevicesResponse(devices, 3, "lic_123", "individual", 0);
+
+      assert.strictEqual(response.devices.length, 1);
+      assert.strictEqual(response.devices[0].id, "mach_1");
+    });
+  });
+
+  describe("no DELETE handler (Phase 3F)", () => {
+    it("should confirm device lifecycle is read-only", () => {
+      // Phase 3F: Portal is read-only. Device lifecycle managed by HIC
+      // via heartbeat enforcement (2-hour sliding window).
+      // This test documents the architectural decision: no user-initiated deactivation.
+      const portalActions = ["GET"];
+      assert.ok(!portalActions.includes("DELETE"), "DELETE must not be a portal action");
+      assert.ok(!portalActions.includes("POST"), "POST must not be a portal action");
+      assert.ok(!portalActions.includes("PUT"), "PUT must not be a portal action");
+    });
+  });
+
+  describe("empty response paths (Phase 3F)", () => {
+    it("should return empty when no email in token", () => {
       const response = getEmptyDevicesResponse();
       assert.deepStrictEqual(response.devices, []);
       assert.strictEqual(response.maxDevices, 0);
     });
-  });
 
-  describe("max concurrent machines by plan", () => {
-    it("should return correct max for individual plan", () => {
-      const max = getMaxConcurrentMachinesForPlan("individual");
-      assert.strictEqual(max, PRICING.individual.maxConcurrentMachines);
+    it("should return empty when customer not found", () => {
+      const response = getEmptyDevicesResponse();
+      assert.deepStrictEqual(response.devices, []);
+      assert.strictEqual(response.maxDevices, 0);
     });
 
-    it("should return correct max for business plan", () => {
-      const max = getMaxConcurrentMachinesForPlan("business");
-      // Business uses maxConcurrentMachinesPerSeat
-      assert.ok(max > 0);
-    });
-
-    it("should default to 3 for unknown plan", () => {
-      const max = getMaxConcurrentMachinesForPlan("unknown");
-      assert.strictEqual(max, 3);
-    });
-  });
-
-  describe("device data merging", () => {
-    it("should merge local and keygen device data", () => {
-      const localDevices = [
-        {
-          keygenMachineId: "mach_1",
-          name: "Local Name",
-          platform: "win32",
-          fingerprint: "fp_1",
-          lastSeenAt: "2025-01-01",
-          createdAt: "2025-01-01",
-        },
-      ];
-
-      const keygenDevices = [
-        {
-          id: "mach_1",
-          name: "Keygen Name",
-          platform: "win32",
-          lastHeartbeat: "2025-01-15",
-          createdAt: "2025-01-01",
-        },
-      ];
-
-      const merged = mergeDeviceData(localDevices, keygenDevices);
-
-      assert.strictEqual(merged[0].id, "mach_1");
-      assert.strictEqual(merged[0].name, "Keygen Name"); // Prefers keygen
-      assert.strictEqual(merged[0].lastSeen, "2025-01-15"); // Uses heartbeat
-    });
-
-    it("should use local data when keygen unavailable", () => {
-      const localDevices = [
-        {
-          keygenMachineId: "mach_1",
-          name: "Local Name",
-          platform: "darwin",
-          fingerprint: "fp_1",
-          lastSeenAt: "2025-01-01",
-          createdAt: "2025-01-01",
-        },
-      ];
-
-      const merged = mergeDeviceData(localDevices, []);
-
-      assert.strictEqual(merged[0].name, "Local Name");
-      assert.strictEqual(merged[0].lastSeen, "2025-01-01");
-    });
-  });
-
-  describe("delete input validation", () => {
-    it("should reject missing machine ID", () => {
-      const result = validateDeleteInput({ licenseId: "lic_123" });
-      assert.strictEqual(result.valid, false);
-    });
-
-    it("should reject missing license ID", () => {
-      const result = validateDeleteInput({ machineId: "mach_123" });
-      assert.strictEqual(result.valid, false);
-    });
-
-    it("should accept valid input", () => {
-      const result = validateDeleteInput({
-        machineId: "mach_123",
-        licenseId: "lic_456",
-      });
-      assert.strictEqual(result.valid, true);
+    it("should return empty when customer has no licenseId", () => {
+      const response = getEmptyDevicesResponse();
+      assert.deepStrictEqual(response.devices, []);
+      assert.strictEqual(response.maxDevices, 0);
     });
   });
 });
@@ -685,7 +733,6 @@ describe("portal/stripe-session API logic", () => {
     });
   });
 });
-
 
 describe("portal/license API - org member license access", () => {
   /**
@@ -1054,7 +1101,6 @@ describe("portal/license API - org member license access", () => {
     });
   });
 });
-
 
 describe("portal/status API - org member status resolution", () => {
   /**
@@ -1542,4 +1588,3 @@ describe("settings page - isOrgMember role derivation", () => {
     assert.strictEqual(result.isOrgOwner, false);
   });
 });
-

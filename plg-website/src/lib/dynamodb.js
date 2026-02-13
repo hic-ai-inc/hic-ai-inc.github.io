@@ -599,7 +599,9 @@ export async function addDeviceActivation({
   // Phase 3E: userId and userEmail are now mandatory.
   // All activation paths require authentication, so these must always be present.
   if (!userId || !userEmail) {
-    throw new Error("addDeviceActivation requires userId and userEmail (auth is mandatory)");
+    throw new Error(
+      "addDeviceActivation requires userId and userEmail (auth is mandatory)",
+    );
   }
 
   const now = new Date().toISOString();
@@ -664,7 +666,6 @@ export async function addDeviceActivation({
 
   // Increment activated devices count only for new devices
 
-
   // Increment activated devices count only for new devices
   await dynamodb.send(
     new UpdateCommand({
@@ -691,11 +692,14 @@ export async function addDeviceActivation({
  * @param {number} windowHours - Hours to consider device active (default: 2)
  * @returns {Promise<Array>} Active devices within window
  */
-export async function getActiveDevicesInWindow(keygenLicenseId, windowHours = 2) {
+export async function getActiveDevicesInWindow(
+  keygenLicenseId,
+  windowHours = 2,
+) {
   const devices = await getLicenseDevices(keygenLicenseId);
   const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
-  
-  return devices.filter(device => {
+
+  return devices.filter((device) => {
     const lastActivity = new Date(device.lastSeenAt || device.createdAt);
     return lastActivity > cutoffTime;
   });
@@ -782,25 +786,44 @@ export async function removeDeviceActivation(keygenLicenseId, keygenMachineId) {
 
 /**
  * Update device last seen timestamp
+ *
+ * Phase 3F: ConditionExpression prevents upsert on non-existent items.
+ * Without this guard, UpdateCommand creates ghost DEVICE# records with
+ * only lastSeenAt (no name/platform), causing "Unknown Device" in portal.
+ *
  * @param {string} keygenLicenseId - License ID
  * @param {string} keygenMachineId - Machine ID
  * @param {string} [userId] - Optional Cognito user ID to bind device to user
  */
-export async function updateDeviceLastSeen(keygenLicenseId, keygenMachineId, userId) {
-  await dynamodb.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `LICENSE#${keygenLicenseId}`,
-        SK: `DEVICE#${keygenMachineId}`,
-      },
-      UpdateExpression: "SET lastSeenAt = :now" + (userId ? ", userId = :userId" : ""),
-      ExpressionAttributeValues: {
-        ":now": new Date().toISOString(),
-        ...(userId && { ":userId": userId }),
-      },
-    }),
-  );
+export async function updateDeviceLastSeen(
+  keygenLicenseId,
+  keygenMachineId,
+  userId,
+) {
+  await dynamodb
+    .send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `LICENSE#${keygenLicenseId}`,
+          SK: `DEVICE#${keygenMachineId}`,
+        },
+        ConditionExpression: "attribute_exists(PK)",
+        UpdateExpression:
+          "SET lastSeenAt = :now" + (userId ? ", userId = :userId" : ""),
+        ExpressionAttributeValues: {
+          ":now": new Date().toISOString(),
+          ...(userId && { ":userId": userId }),
+        },
+      }),
+    )
+    .catch((err) => {
+      // ConditionalCheckFailedException = device record doesn't exist, safe to ignore
+      if (err.name === "ConditionalCheckFailedException") {
+        return;
+      }
+      throw err;
+    });
 }
 
 // ===========================================
@@ -1395,7 +1418,7 @@ export async function getOrgLicenseUsage(orgId) {
     const org = orgResult.Item || {};
     const memberCount = membersResult.Items?.length || 0;
     const seatLimit = org.seatLimit || 0;
-    
+
     // Owner always counts as 1 seat, plus any additional members
     // (Owner may or may not have a MEMBER# record)
     const hasOwner = !!org.ownerId;
@@ -1445,7 +1468,13 @@ function generateInviteToken() {
  * @param {string} invitedBy - User ID of inviter
  * @returns {Promise<Object>} Created invite record
  */
-export async function createOrgInvite(orgId, email, role, invitedBy, metadata = {}) {
+export async function createOrgInvite(
+  orgId,
+  email,
+  role,
+  invitedBy,
+  metadata = {},
+) {
   const logger = createLogger("createOrgInvite");
   const normalizedEmail = email.toLowerCase();
   const inviteId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;

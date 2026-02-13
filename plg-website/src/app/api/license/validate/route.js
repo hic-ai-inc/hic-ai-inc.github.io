@@ -201,10 +201,12 @@ export async function POST(request) {
     // If valid, update heartbeat (machineId optional but useful for tracking)
     if (result.valid && result.license?.id) {
       // Fire and forget - don't block response
-      // Only send Keygen heartbeat with a real machine UUID, not a fingerprint
-      const trackingId = machineId || fingerprint;
-      const tasks = [updateDeviceLastSeen(result.license.id, trackingId)];
+      // Phase 3F: Only update DynamoDB with a real machineId.
+      // Using fingerprint as trackingId creates ghost DEVICE# records
+      // with no name/platform fields (causes \"Unknown Device\" in portal).
+      const tasks = [];
       if (machineId) {
+        tasks.push(updateDeviceLastSeen(result.license.id, machineId));
         tasks.push(machineHeartbeat(machineId));
       }
       Promise.all(tasks).catch((err) => {

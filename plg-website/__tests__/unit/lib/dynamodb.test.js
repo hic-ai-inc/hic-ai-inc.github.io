@@ -183,7 +183,11 @@ describe("dynamodb.js", () => {
       mockSend.mockResolvedValue({
         Items: [
           { email: "user@example.com", userId: "old" },
-          { email: "user@example.com", userId: "licensed", keygenLicenseId: "lic_123" },
+          {
+            email: "user@example.com",
+            userId: "licensed",
+            keygenLicenseId: "lic_123",
+          },
         ],
       });
 
@@ -585,8 +589,65 @@ describe("dynamodb.js", () => {
       expect(command.input.Key.SK).toBe("DEVICE#mach_123");
       expect(command.input.UpdateExpression).toContain("lastSeenAt");
     });
-  });
 
+    it("should include ConditionExpression to prevent upsert (Phase 3F)", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateDeviceLastSeen("lic_123", "mach_456");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.ConditionExpression).toBe("attribute_exists(PK)");
+    });
+
+    it("should silently catch ConditionalCheckFailedException (Phase 3F)", async () => {
+      const condError = new Error("Conditional check failed");
+      condError.name = "ConditionalCheckFailedException";
+      mockSend.mockRejectedValue(condError);
+
+      // Should NOT throw — ghost device records silently ignored
+      await updateDeviceLastSeen("lic_123", "mach_nonexistent");
+      expect(mockSend.callCount).toBe(1);
+    });
+
+    it("should re-throw non-conditional errors (Phase 3F)", async () => {
+      const otherError = new Error("DynamoDB throttle");
+      otherError.name = "ProvisionedThroughputExceededException";
+      mockSend.mockRejectedValue(otherError);
+
+      let threw = false;
+      try {
+        await updateDeviceLastSeen("lic_123", "mach_456");
+      } catch (err) {
+        threw = true;
+        expect(err.name).toBe("ProvisionedThroughputExceededException");
+      }
+      expect(threw).toBe(true);
+    });
+
+    it("should include userId in UpdateExpression when provided (Phase 3F)", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateDeviceLastSeen("lic_123", "mach_789", "user_abc");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.UpdateExpression).toContain("userId = :userId");
+      expect(command.input.ExpressionAttributeValues[":userId"]).toBe(
+        "user_abc",
+      );
+    });
+
+    it("should NOT include userId when not provided (Phase 3F)", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateDeviceLastSeen("lic_123", "mach_789");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.UpdateExpression).not.toContain("userId");
+      expect(command.input.ExpressionAttributeValues[":userId"]).toBe(
+        undefined,
+      );
+    });
+  });
   describe("getActiveDevicesInWindow", () => {
     it("should return only devices active within 24-hour window", async () => {
       const now = Date.now();
@@ -597,11 +658,15 @@ describe("dynamodb.js", () => {
         Items: [
           { keygenMachineId: "mach_1", lastSeenAt: twentyHoursAgo },
           { keygenMachineId: "mach_2", lastSeenAt: thirtyHoursAgo },
-          { keygenMachineId: "mach_3", lastSeenAt: new Date(now).toISOString() },
+          {
+            keygenMachineId: "mach_3",
+            lastSeenAt: new Date(now).toISOString(),
+          },
         ],
       });
 
-      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const { getActiveDevicesInWindow } =
+        await import("../../../src/lib/dynamodb.js");
       const result = await getActiveDevicesInWindow("lic_123", 24);
 
       expect(result).toHaveLength(2);
@@ -611,7 +676,9 @@ describe("dynamodb.js", () => {
 
     it("should filter out devices with lastSeenAt older than window", async () => {
       const now = Date.now();
-      const fortyEightHoursAgo = new Date(now - 48 * 60 * 60 * 1000).toISOString();
+      const fortyEightHoursAgo = new Date(
+        now - 48 * 60 * 60 * 1000,
+      ).toISOString();
 
       mockSend.mockResolvedValue({
         Items: [
@@ -619,7 +686,8 @@ describe("dynamodb.js", () => {
         ],
       });
 
-      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const { getActiveDevicesInWindow } =
+        await import("../../../src/lib/dynamodb.js");
       const result = await getActiveDevicesInWindow("lic_123", 24);
 
       expect(result).toHaveLength(0);
@@ -630,12 +698,11 @@ describe("dynamodb.js", () => {
       const tenHoursAgo = new Date(now - 10 * 60 * 60 * 1000).toISOString();
 
       mockSend.mockResolvedValue({
-        Items: [
-          { keygenMachineId: "mach_new", createdAt: tenHoursAgo },
-        ],
+        Items: [{ keygenMachineId: "mach_new", createdAt: tenHoursAgo }],
       });
 
-      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const { getActiveDevicesInWindow } =
+        await import("../../../src/lib/dynamodb.js");
       const result = await getActiveDevicesInWindow("lic_123", 24);
 
       expect(result).toHaveLength(1);
@@ -647,12 +714,11 @@ describe("dynamodb.js", () => {
       const tenHoursAgo = new Date(now - 10 * 60 * 60 * 1000).toISOString();
 
       mockSend.mockResolvedValue({
-        Items: [
-          { keygenMachineId: "mach_1", lastSeenAt: tenHoursAgo },
-        ],
+        Items: [{ keygenMachineId: "mach_1", lastSeenAt: tenHoursAgo }],
       });
 
-      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const { getActiveDevicesInWindow } =
+        await import("../../../src/lib/dynamodb.js");
       const result = await getActiveDevicesInWindow("lic_123", 8);
 
       expect(result).toHaveLength(0);
@@ -661,7 +727,8 @@ describe("dynamodb.js", () => {
     it("should return empty array when no devices active", async () => {
       mockSend.mockResolvedValue({ Items: [] });
 
-      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const { getActiveDevicesInWindow } =
+        await import("../../../src/lib/dynamodb.js");
       const result = await getActiveDevicesInWindow("lic_123", 24);
 
       expect(result).toEqual([]);
@@ -669,15 +736,21 @@ describe("dynamodb.js", () => {
 
     it("should handle devices at exact window boundary", async () => {
       const now = Date.now();
-      const exactlyTwentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      const exactlyTwentyFourHoursAgo = new Date(
+        now - 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       mockSend.mockResolvedValue({
         Items: [
-          { keygenMachineId: "mach_boundary", lastSeenAt: exactlyTwentyFourHoursAgo },
+          {
+            keygenMachineId: "mach_boundary",
+            lastSeenAt: exactlyTwentyFourHoursAgo,
+          },
         ],
       });
 
-      const { getActiveDevicesInWindow } = await import("../../../src/lib/dynamodb.js");
+      const { getActiveDevicesInWindow } =
+        await import("../../../src/lib/dynamodb.js");
       const result = await getActiveDevicesInWindow("lic_123", 24);
 
       expect(result).toHaveLength(0);
@@ -767,13 +840,17 @@ describe("dynamodb.js", () => {
     });
   });
 
-
   describe("getOrgInvites", () => {
     it("should return both pending and accepted invites", async () => {
       mockSend.mockResolvedValue({
         Items: [
           { inviteId: "inv_1", status: "pending", email: "a@test.com" },
-          { inviteId: "inv_2", status: "accepted", email: "b@test.com", acceptedAt: "2026-02-08T00:00:00Z" },
+          {
+            inviteId: "inv_2",
+            status: "accepted",
+            email: "b@test.com",
+            acceptedAt: "2026-02-08T00:00:00Z",
+          },
         ],
       });
 
@@ -796,10 +873,16 @@ describe("dynamodb.js", () => {
       expect(command.input.FilterExpression).toBe(
         "#status IN (:pending, :accepted)",
       );
-      expect(command.input.ExpressionAttributeValues[":pk"]).toBe("ORG#org_123");
+      expect(command.input.ExpressionAttributeValues[":pk"]).toBe(
+        "ORG#org_123",
+      );
       expect(command.input.ExpressionAttributeValues[":sk"]).toBe("INVITE#");
-      expect(command.input.ExpressionAttributeValues[":pending"]).toBe("pending");
-      expect(command.input.ExpressionAttributeValues[":accepted"]).toBe("accepted");
+      expect(command.input.ExpressionAttributeValues[":pending"]).toBe(
+        "pending",
+      );
+      expect(command.input.ExpressionAttributeValues[":accepted"]).toBe(
+        "accepted",
+      );
     });
 
     it("should NOT return cancelled or expired invites", async () => {
@@ -829,7 +912,12 @@ describe("dynamodb.js", () => {
     it("should include eventType field in created invite", async () => {
       mockSend.mockResolvedValueOnce({}); // PutCommand success
 
-      const result = await createOrgInvite("org_123", "user@example.com", "admin", "inviter_123");
+      const result = await createOrgInvite(
+        "org_123",
+        "user@example.com",
+        "admin",
+        "inviter_123",
+      );
 
       expect(result.eventType).toBe("TEAM_INVITE_CREATED");
       expect(result.email).toBe("user@example.com");
@@ -839,10 +927,16 @@ describe("dynamodb.js", () => {
     it("should include metadata fields when provided", async () => {
       mockSend.mockResolvedValueOnce({}); // PutCommand success
 
-      const result = await createOrgInvite("org_123", "user@example.com", "member", "inviter_123", {
-        organizationName: "Test Corp",
-        inviterName: "Test User"
-      });
+      const result = await createOrgInvite(
+        "org_123",
+        "user@example.com",
+        "member",
+        "inviter_123",
+        {
+          organizationName: "Test Corp",
+          inviterName: "Test User",
+        },
+      );
 
       expect(result.organizationName).toBe("Test Corp");
       expect(result.inviterName).toBe("Test User");
@@ -852,7 +946,12 @@ describe("dynamodb.js", () => {
     it("should accept metadata parameter with default empty object", async () => {
       mockSend.mockResolvedValueOnce({}); // PutCommand success
 
-      const result = await createOrgInvite("org_123", "user@example.com", "admin", "inviter_123");
+      const result = await createOrgInvite(
+        "org_123",
+        "user@example.com",
+        "admin",
+        "inviter_123",
+      );
 
       expect(result).toBeDefined();
       expect(result.eventType).toBe("TEAM_INVITE_CREATED");
@@ -1029,7 +1128,9 @@ describe("dynamodb.js", () => {
 
       const command = mockSend.calls[0][0];
       expect(command.input.UpdateExpression).toContain("updatedAt");
-      expect(command.input.ExpressionAttributeValues[":updatedAt"]).toBeTruthy();
+      expect(
+        command.input.ExpressionAttributeValues[":updatedAt"],
+      ).toBeTruthy();
     });
   });
 
@@ -1170,104 +1271,105 @@ describe("dynamodb.js", () => {
       expect(error.message).toBe("Access denied");
     });
 
-  // ===========================================
-  // USER ORG MEMBERSHIP TESTS
-  // ===========================================
+    // ===========================================
+    // USER ORG MEMBERSHIP TESTS
+    // ===========================================
 
-  describe("getUserOrgMembership", () => {
-    it("should return org membership for user with active membership", async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [
-          {
-            GSI1PK: "USER#user_123",
-            GSI1SK: "ORG#org_acme",
-            orgId: "org_acme",
-            role: "member",
-            status: "active",
-            email: "user@acme.com",
-            joinedAt: "2026-02-01T00:00:00.000Z",
-          },
-        ],
+    describe("getUserOrgMembership", () => {
+      it("should return org membership for user with active membership", async () => {
+        mockSend.mockResolvedValueOnce({
+          Items: [
+            {
+              GSI1PK: "USER#user_123",
+              GSI1SK: "ORG#org_acme",
+              orgId: "org_acme",
+              role: "member",
+              status: "active",
+              email: "user@acme.com",
+              joinedAt: "2026-02-01T00:00:00.000Z",
+            },
+          ],
+        });
+
+        const result = await getUserOrgMembership("user_123");
+
+        expect(result).not.toBeNull();
+        expect(result.orgId).toBe("org_acme");
+        expect(result.role).toBe("member");
+        expect(result.status).toBe("active");
+        expect(result.email).toBe("user@acme.com");
+
+        // Should query GSI1 with USER# prefix
+        const command = mockSend.calls[0][0];
+        expect(command.input.IndexName).toBe("GSI1");
+        expect(command.input.ExpressionAttributeValues[":pk"]).toBe(
+          "USER#user_123",
+        );
       });
 
-      const result = await getUserOrgMembership("user_123");
+      it("should return null for user with no org membership", async () => {
+        mockSend.mockResolvedValueOnce({ Items: [] });
 
-      expect(result).not.toBeNull();
-      expect(result.orgId).toBe("org_acme");
-      expect(result.role).toBe("member");
-      expect(result.status).toBe("active");
-      expect(result.email).toBe("user@acme.com");
+        const result = await getUserOrgMembership("user_no_org");
 
-      // Should query GSI1 with USER# prefix
-      const command = mockSend.calls[0][0];
-      expect(command.input.IndexName).toBe("GSI1");
-      expect(command.input.ExpressionAttributeValues[":pk"]).toBe("USER#user_123");
-    });
-
-    it("should return null for user with no org membership", async () => {
-      mockSend.mockResolvedValueOnce({ Items: [] });
-
-      const result = await getUserOrgMembership("user_no_org");
-
-      expect(result).toBeNull();
-    });
-
-    it("should return null for user with only inactive memberships", async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [
-          {
-            orgId: "org_old",
-            role: "member",
-            status: "removed",
-            email: "user@old.com",
-          },
-        ],
+        expect(result).toBeNull();
       });
 
-      const result = await getUserOrgMembership("user_inactive");
+      it("should return null for user with only inactive memberships", async () => {
+        mockSend.mockResolvedValueOnce({
+          Items: [
+            {
+              orgId: "org_old",
+              role: "member",
+              status: "removed",
+              email: "user@old.com",
+            },
+          ],
+        });
 
-      expect(result).toBeNull();
-    });
+        const result = await getUserOrgMembership("user_inactive");
 
-    it("should return first active membership when user has multiple", async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [
-          {
-            orgId: "org_inactive",
-            role: "member",
-            status: "removed",
-          },
-          {
-            orgId: "org_active",
-            role: "admin",
-            status: "active",
-            email: "user@active.com",
-            joinedAt: "2026-02-02T00:00:00.000Z",
-          },
-        ],
+        expect(result).toBeNull();
       });
 
-      const result = await getUserOrgMembership("user_multi");
+      it("should return first active membership when user has multiple", async () => {
+        mockSend.mockResolvedValueOnce({
+          Items: [
+            {
+              orgId: "org_inactive",
+              role: "member",
+              status: "removed",
+            },
+            {
+              orgId: "org_active",
+              role: "admin",
+              status: "active",
+              email: "user@active.com",
+              joinedAt: "2026-02-02T00:00:00.000Z",
+            },
+          ],
+        });
 
-      expect(result.orgId).toBe("org_active");
-      expect(result.role).toBe("admin");
+        const result = await getUserOrgMembership("user_multi");
+
+        expect(result.orgId).toBe("org_active");
+        expect(result.role).toBe("admin");
+      });
+
+      it("should throw on DynamoDB error", async () => {
+        mockSend.mockRejectedValueOnce(new Error("Connection failed"));
+
+        let error;
+        try {
+          await getUserOrgMembership("user_error");
+        } catch (e) {
+          error = e;
+        }
+
+        expect(error).toBeDefined();
+        expect(error.message).toBe("Connection failed");
+      });
     });
-
-    it("should throw on DynamoDB error", async () => {
-      mockSend.mockRejectedValueOnce(new Error("Connection failed"));
-
-      let error;
-      try {
-        await getUserOrgMembership("user_error");
-      } catch (e) {
-        error = e;
-      }
-
-      expect(error).toBeDefined();
-      expect(error.message).toBe("Connection failed");
-    });
-  });
-
   });
 
   // ===========================================
@@ -1282,7 +1384,8 @@ describe("dynamodb.js", () => {
           SK: "CURRENT",
           latestVersion: "0.10.0",
           updateUrl: {
-            marketplace: "https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse",
+            marketplace:
+              "https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse",
           },
           releaseNotesUrl: "https://hic.ai/mouse/changelog",
           readyVersion: "0.10.0",
@@ -1300,7 +1403,9 @@ describe("dynamodb.js", () => {
       expect(result.releaseNotesUrl).toBe("https://hic.ai/mouse/changelog");
       expect(result.readyVersion).toBe("0.10.0");
       expect(result.readyUpdateUrl).toContain("marketplace.visualstudio.com");
-      expect(result.updateUrl.marketplace).toContain("marketplace.visualstudio.com");
+      expect(result.updateUrl.marketplace).toContain(
+        "marketplace.visualstudio.com",
+      );
     });
 
     it("should default to mouse product when no argument provided", async () => {
@@ -1404,8 +1509,12 @@ describe("dynamodb.js", () => {
       const updateCommand = mockSend.calls[1][0];
       expect(updateCommand.input.UpdateExpression).toContain("userId");
       expect(updateCommand.input.UpdateExpression).toContain("userEmail");
-      expect(updateCommand.input.ExpressionAttributeValues[":userId"]).toBe("cognito|user-789");
-      expect(updateCommand.input.ExpressionAttributeValues[":userEmail"]).toBe("updated@example.com");
+      expect(updateCommand.input.ExpressionAttributeValues[":userId"]).toBe(
+        "cognito|user-789",
+      );
+      expect(updateCommand.input.ExpressionAttributeValues[":userEmail"]).toBe(
+        "updated@example.com",
+      );
     });
 
     it("should throw when userId is missing (Phase 3E: auth mandatory)", async () => {
@@ -1554,9 +1663,21 @@ describe("dynamodb.js", () => {
 
       mockSend.mockResolvedValueOnce({
         Items: [
-          { keygenMachineId: "mach_1", userId: "user-A", lastSeenAt: oneHourAgo },
-          { keygenMachineId: "mach_2", userId: "user-A", lastSeenAt: threeHoursAgo },
-          { keygenMachineId: "mach_3", userId: "user-B", lastSeenAt: oneHourAgo },
+          {
+            keygenMachineId: "mach_1",
+            userId: "user-A",
+            lastSeenAt: oneHourAgo,
+          },
+          {
+            keygenMachineId: "mach_2",
+            userId: "user-A",
+            lastSeenAt: threeHoursAgo,
+          },
+          {
+            keygenMachineId: "mach_3",
+            userId: "user-B",
+            lastSeenAt: oneHourAgo,
+          },
         ],
       });
 
@@ -1576,8 +1697,16 @@ describe("dynamodb.js", () => {
 
       mockSend.mockResolvedValueOnce({
         Items: [
-          { keygenMachineId: "mach_recent", userId: "user-A", lastSeenAt: ninetyMinutesAgo },
-          { keygenMachineId: "mach_stale", userId: "user-A", lastSeenAt: threeHoursAgo },
+          {
+            keygenMachineId: "mach_recent",
+            userId: "user-A",
+            lastSeenAt: ninetyMinutesAgo,
+          },
+          {
+            keygenMachineId: "mach_stale",
+            userId: "user-A",
+            lastSeenAt: threeHoursAgo,
+          },
         ],
       });
 
@@ -1594,7 +1723,11 @@ describe("dynamodb.js", () => {
 
       mockSend.mockResolvedValueOnce({
         Items: [
-          { keygenMachineId: "mach_1", userId: "user-A", lastSeenAt: fiveHoursAgo },
+          {
+            keygenMachineId: "mach_1",
+            userId: "user-A",
+            lastSeenAt: fiveHoursAgo,
+          },
         ],
       });
 
@@ -1605,12 +1738,20 @@ describe("dynamodb.js", () => {
       // Reset mock for 4-hour window test
       mockSend.mockResolvedValueOnce({
         Items: [
-          { keygenMachineId: "mach_1", userId: "user-A", lastSeenAt: fiveHoursAgo },
+          {
+            keygenMachineId: "mach_1",
+            userId: "user-A",
+            lastSeenAt: fiveHoursAgo,
+          },
         ],
       });
 
       // 4-hour window should exclude device from 5 hours ago
-      const result2 = await getActiveUserDevicesInWindow("lic_123", "user-A", 4);
+      const result2 = await getActiveUserDevicesInWindow(
+        "lic_123",
+        "user-A",
+        4,
+      );
       expect(result2).toHaveLength(0);
     });
 
@@ -1620,7 +1761,11 @@ describe("dynamodb.js", () => {
 
       mockSend.mockResolvedValueOnce({
         Items: [
-          { keygenMachineId: "mach_1", userId: "user-A", createdAt: oneHourAgo },
+          {
+            keygenMachineId: "mach_1",
+            userId: "user-A",
+            createdAt: oneHourAgo,
+          },
         ],
       });
 
@@ -1632,11 +1777,17 @@ describe("dynamodb.js", () => {
 
     it("should exclude stale devices outside window", async () => {
       const now = Date.now();
-      const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      const twentyFourHoursAgo = new Date(
+        now - 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       mockSend.mockResolvedValueOnce({
         Items: [
-          { keygenMachineId: "mach_stale", userId: "user-A", lastSeenAt: twentyFourHoursAgo },
+          {
+            keygenMachineId: "mach_stale",
+            userId: "user-A",
+            lastSeenAt: twentyFourHoursAgo,
+          },
         ],
       });
 
@@ -1664,9 +1815,21 @@ describe("dynamodb.js", () => {
 
       mockSend.mockResolvedValueOnce({
         Items: [
-          { keygenMachineId: "mach_1", userId: "user-A", lastSeenAt: tenMinutesAgo },
-          { keygenMachineId: "mach_2", userId: "user-B", lastSeenAt: tenMinutesAgo },
-          { keygenMachineId: "mach_3", userId: "user-C", lastSeenAt: tenMinutesAgo },
+          {
+            keygenMachineId: "mach_1",
+            userId: "user-A",
+            lastSeenAt: tenMinutesAgo,
+          },
+          {
+            keygenMachineId: "mach_2",
+            userId: "user-B",
+            lastSeenAt: tenMinutesAgo,
+          },
+          {
+            keygenMachineId: "mach_3",
+            userId: "user-C",
+            lastSeenAt: tenMinutesAgo,
+          },
         ],
       });
 

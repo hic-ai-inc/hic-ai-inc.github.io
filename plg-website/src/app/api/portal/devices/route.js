@@ -2,20 +2,24 @@
  * Portal Devices API
  *
  * GET /api/portal/devices
- * DELETE /api/portal/devices (deactivate)
  *
- * Fetches and manages devices for the authenticated user's license.
+ * Fetches device status for the authenticated user's license.
+ * Returns per-user devices (scoped by Cognito userId).
+ * For business accounts, includes totalActiveDevices across the license.
+ *
  * Requires Authorization header with Cognito ID token.
+ *
+ * Phase 3F: Read-only endpoint. No DELETE — device lifecycle is
+ * managed by HIC via heartbeat enforcement (2-hour sliding window).
  */
 
 import { NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth-verify";
 import {
   getCustomerByEmail,
-  getCustomerLicensesByEmail,
-  getLicenseDevices,
+  getUserDevices,
+  getActiveDevicesInWindow,
 } from "@/lib/dynamodb";
-import { deactivateDevice } from "@/lib/keygen";
 import { PRICING } from "@/lib/constants";
 
 // Mock data for development preview
@@ -74,9 +78,10 @@ export async function GET() {
       return NextResponse.json({ devices: [], maxDevices: 0 });
     }
 
-    // Get devices for the license from DynamoDB
-    // DynamoDB is the authoritative source - heartbeat API updates lastSeenAt there
-    const devices = await getLicenseDevices(licenseId);
+    // Phase 3F: Per-user device scoping
+    // Each user sees only their own devices, scoped by Cognito userId
+    const userId = tokenPayload.sub;
+    const devices = await getUserDevices(licenseId, userId);
 
     // Map DynamoDB device records to response format
     const mappedDevices = devices.map((device) => ({
@@ -91,56 +96,28 @@ export async function GET() {
     // Get max devices from customer's plan using PRICING constants
     const planConfig = PRICING[customer.accountType];
     const maxDevices =
-      planConfig?.maxConcurrentMachinesPerSeat || planConfig?.maxConcurrentMachines || 3;
+      planConfig?.maxConcurrentMachinesPerSeat ||
+      planConfig?.maxConcurrentMachines ||
+      3;
 
-    return NextResponse.json({
+    // For business accounts, include total active devices across the license
+    // so Owner/Admin can see team-wide usage
+    const response = {
       devices: mappedDevices,
       maxDevices,
       licenseId,
-    });
+    };
+
+    if (customer.accountType === "business") {
+      const allActiveDevices = await getActiveDevicesInWindow(licenseId);
+      response.totalActiveDevices = allActiveDevices.length;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Portal devices error:", error);
     return NextResponse.json(
       { error: "Failed to fetch devices" },
-      { status: 500 },
-    );
-  }
-}
-
-export async function DELETE(request) {
-  try {
-    // Verify JWT from Authorization header
-    const tokenPayload = await verifyAuthToken();
-    if (!tokenPayload) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { machineId, licenseId } = body;
-
-    if (!machineId || !licenseId) {
-      return NextResponse.json(
-        { error: "Machine ID and License ID required" },
-        { status: 400 },
-      );
-    }
-
-    // Verify user owns this license by checking their licenses
-    const userEmail = tokenPayload.email;
-    const licenses = await getCustomerLicensesByEmail(userEmail);
-    const ownsLicense = licenses.some((l) => l.keygenLicenseId === licenseId);
-    if (!ownsLicense) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    // Deactivate via Keygen
-    await deactivateDevice(machineId);
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Device deactivation error:", error);
-    return NextResponse.json(
-      { error: "Failed to deactivate device" },
       { status: 500 },
     );
   }
