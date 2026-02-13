@@ -62,7 +62,7 @@ These journeys define the end-state we are building towards. Each phase below sp
 | **UJ-5**  | Business team member    | Team admin shares license key, member authenticates with own Cognito identity, activates | Phase 3    |
 | **UJ-6**  | Business device scoping | Team member sees only their own devices in portal, not other team members'               | Phase 3    |
 | **UJ-7**  | Seat limit enforcement  | Business license with 2 seats, 3rd user tries to activate, gets "contact admin" message  | Phase 3    |
-| **UJ-8**  | Device deactivation     | User deactivates a device from portal, freeing a slot for a new device                   | Phase 3    |
+| **UJ-8**  | Device lifecycle         | Device becomes inactive when heartbeat expires (2-hour sliding window); portal reflects active/inactive status. Users do not manually deactivate devices — HIC controls the device lifecycle via heartbeat enforcement. | Phase 3    |
 | **UJ-9**  | Heartbeat with identity | Server resolves userId from DDB device record on each heartbeat; per-user device activity tracked without extension transmitting identity data (revised per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1) | Phase 3    |
 | **UJ-10** | Offline grace           | User is offline for 48 hours, Mouse still works using cached validation                  | All phases |
 
@@ -381,7 +381,7 @@ cd plg-website && npm run test:lib
 | ~~3C~~ | ~~Eliminated~~ | — | — | Absorbed into revised 3A. Extension never sends tokens. |
 | **3D** | Fix startup flow / expiry bug | E | Low | ✅ **COMPLETE (2026-02-13)** — Heartbeat-first startup, machine recovery codes, `_attemptMachineRevival()`, enriched `validateLicense()` return. 6 new heartbeat tests. |
 | **3E** | Require auth + per-seat enforcement | W | Low | ✅ **COMPLETE (2026-02-13)** — JWT required on `/activate` page, per-seat limits enforced, `addDeviceActivation()` userId/userEmail guard added. Full E2E validated by SWR in `hic-e2e-clean` Codespace: Mouse VSIX install → trial → license activation → LICENSED confirmation. All code changes implemented, tested, pushed to `development`. |
-| **3F** | Portal scoping + UI | W | Low | Scope devices to current user. Fix DELETE authorization. UI copy updates. |
+| **3F** | Portal scoping + UI | W | Low | Scope devices to current user (per-user filtering for Business licenses; role-based views for Owner/Admin vs Member). UI copy updates to reflect active/inactive device status based on 2-hour heartbeat window. Portal is read-only for device state — no user-initiated device deactivation. |
 
 #### Subphase Dependencies
 
@@ -402,10 +402,10 @@ cd plg-website && npm run test:lib
 After all 5 subphases are complete, the following E2E validation applies:
 
 1. **UJ-1 (Solo activation):** Install VSIX → enter license key → browser opens → Cognito sign-in (website) → activation succeeds → extension detects via poll → `license.json` has `machineId` + `status: LICENSED` (no `userId` — per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1) → DynamoDB has userId
-2. **UJ-2 (Multi-device):** Activate on two devices → portal shows both → deactivate one → portal shows one
+2. **UJ-2 (Multi-device):** Activate on two devices → portal shows both as active
 3. **UJ-4 (Sleep/wake recovery):** Activate → close VS Code → wait 20 min → reopen → still LICENSED
 4. **UJ-6 (Business device scoping):** User A activates Device 1, User B activates Device 2 (same license) → each sees only their own device in portal
-5. **UJ-8 (Deactivation):** Deactivate from portal → device count decreases → can activate new device
+5. **UJ-8 (Device lifecycle):** Activate on device → close VS Code / stop container → wait >2 hours → portal shows device as inactive → device no longer counts against concurrent limit
 6. **UJ-10 (Offline grace):** Activate → disconnect → close VS Code → wait 1 hour → reconnect → reopen → LICENSED (within 72h grace)
 7. **Portal check:** `staging.hic-ai.com` → Devices page → user identity, per-seat usage, correct scoping
 
@@ -420,7 +420,7 @@ See the [subphase plan](20260212_PROPOSED_SUBPHASE_PLAN_FOR_MULTI_USER_PHASE_3_V
 - Sleep/wake recovery works without user intervention
 - All activations require authentication — unauthenticated activation returns HTTP 401
 - Portal shows per-user device views for Business licenses
-- Device deactivation works end-to-end from portal
+- Portal reflects device active/inactive status based on 2-hour heartbeat sliding window (read-only — no user-initiated deactivation)
 - Business team members see only their own installations
 - All unit tests pass in both repos
 - All user journeys UJ-1 through UJ-10 are operational

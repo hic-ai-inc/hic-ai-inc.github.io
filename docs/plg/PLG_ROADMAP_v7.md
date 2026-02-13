@@ -377,7 +377,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 | UJ-5 | Business team member | Team member authenticates with own Cognito identity, activates |
 | UJ-6 | Business device scoping | Team member sees only their own devices in portal |
 | UJ-7 | Seat limit enforcement | 3rd user on 2-seat license gets "contact admin" message |
-| UJ-8 | Device deactivation | User deactivates from portal, frees slot for new device |
+| UJ-8 | Device lifecycle | Device becomes inactive when heartbeat expires (2-hour sliding window); portal reflects active/inactive status. No user-initiated deactivation — HIC controls device lifecycle via heartbeat enforcement. |
 | UJ-9 | Heartbeat with identity | Server resolves userId from DDB device record on each heartbeat; per-user activity tracked without extension transmitting identity data (revised per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1) |
 | UJ-10 | Offline grace | User offline 48 hours, Mouse works via cached validation |
 
@@ -1248,7 +1248,7 @@ Remaining E2E testing is subsumed by the multi-seat implementation (Phase 5), ve
 | Login → View dashboard                            | ✅     | Cognito + Portal       |
 | Update profile (name fields)                      | ✅     | Settings API wired     |
 | View/copy license key                             | ✅     | License page working   |
-| Deactivate device                                 | ✅     | Devices page working   |
+| View device active/inactive status                | ✅     | Devices page reflects heartbeat-based lifecycle (read-only) |
 | Update payment method                             | ✅     | Stripe Portal link     |
 | **Team Admin Flows (Feb 2)**                      |        |                        |
 | Invite member → Accept → Login                    | ✅     | Full invite flow       |
@@ -1476,8 +1476,8 @@ User Issue
   - Activating same license on machine A, then machine B, then machine A again
   - Network disconnection during heartbeat
   - Offline mode behavior
-  - Device deactivation and reactivation
-  - Hitting limit then deactivating one device to make room
+  - Device becoming inactive after heartbeat window expires (2-hour sliding window)
+  - Hitting limit then waiting for device heartbeat to expire to free slot
 
 ### TODO 2: Business RBAC Implementation
 
