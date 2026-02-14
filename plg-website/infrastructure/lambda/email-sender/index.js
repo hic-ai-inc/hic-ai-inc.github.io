@@ -118,9 +118,12 @@ export const handler = async (event) => {
       }
 
       // Guard 1: Skip MODIFY/REMOVE events for initial-creation email types
-      // Our DDB update (clearing emailPendingVerification) triggers a MODIFY stream
-      // event which would re-enter this pipeline and send duplicate emails
-      if (eventName !== "INSERT" && eventType === "CUSTOMER_CREATED") {
+      // Our DDB updates can trigger MODIFY stream events that would re-enter
+      // this pipeline and resend one-time creation emails.
+      if (
+        eventName !== "INSERT" &&
+        (eventType === "CUSTOMER_CREATED" || eventType === "LICENSE_CREATED")
+      ) {
         log.debug("skip-non-insert", { eventName, eventType });
         continue;
       }

@@ -487,14 +487,10 @@ describe("Email Sender Lambda", async () => {
       expect(result.success).toBe(1);
     });
 
-    test("should allow MODIFY events for non-CUSTOMER_CREATED event types", async () => {
-      // Other event types (e.g., LICENSE_CREATED) may legitimately need
-      // MODIFY processing for status transitions
+    test("should allow MODIFY events for non-creation event types", async () => {
+      // Status-transition events should still process on MODIFY.
       const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "updated@example.com", {
-          licenseKey: { S: "KEY-UPD" },
-          planName: { S: "PRO" },
-        }, "MODIFY"),
+        createSqsRecord("SUBSCRIPTION_REACTIVATED", "updated@example.com", {}, "MODIFY"),
       ]);
 
       const result = await handler(event);
