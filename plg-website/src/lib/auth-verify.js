@@ -79,7 +79,15 @@ export async function verifyAuthToken() {
   const headersList = await headers();
   const authHeader = headersList.get("authorization");
 
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!authHeader) {
+    console.warn("[auth-verify] Missing Authorization header");
+    return null;
+  }
+
+  if (!authHeader.startsWith("Bearer ")) {
+    console.warn(
+      "[auth-verify] Malformed Authorization header (expected Bearer token)",
+    );
     return null;
   }
 

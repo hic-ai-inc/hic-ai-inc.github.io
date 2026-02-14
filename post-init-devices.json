@@ -1,0 +1,591 @@
+{
+    "Items": [
+        {
+            "SK": {
+                "S": "DEVICE#071c6edb-8650-42df-9211-a76505c90a0e"
+            },
+            "createdAt": {
+                "S": "2026-02-13T13:21:22.952Z"
+            },
+            "fingerprint": {
+                "S": "9ef490ad60e7366df169bfe6ccd1b0a2"
+            },
+            "keygenMachineId": {
+                "S": "071c6edb-8650-42df-9211-a76505c90a0e"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T13:21:22.952Z"
+            },
+            "name": {
+                "S": "node's codespaces-fee112"
+            },
+            "userEmail": {
+                "S": "simon.reiff@gmail.com"
+            },
+            "userId": {
+                "S": "d4b8e428-6081-701b-d2c1-a5eb06c6846e"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#172b8128-20d8-4fc0-b32f-3b87bb23451d"
+            },
+            "createdAt": {
+                "S": "2026-02-13T23:59:56.370Z"
+            },
+            "fingerprint": {
+                "S": "b0f14210d1ca9ab9da39ab5ab027c036"
+            },
+            "keygenMachineId": {
+                "S": "172b8128-20d8-4fc0-b32f-3b87bb23451d"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T23:59:56.370Z"
+            },
+            "name": {
+                "S": "node's codespaces-64d417"
+            },
+            "userEmail": {
+                "S": "sreiff@hic-ai.com"
+            },
+            "userId": {
+                "S": "9448c4a8-e081-70fb-4a30-a4ce0f67b8d0"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#26f94b27-7ff1-4019-ab8f-0252d6309e72"
+            },
+            "createdAt": {
+                "S": "2026-02-14T16:43:20.459Z"
+            },
+            "fingerprint": {
+                "S": "bbbffb62307ef3c3881319e4e06d40ae"
+            },
+            "keygenMachineId": {
+                "S": "26f94b27-7ff1-4019-ab8f-0252d6309e72"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-14T16:43:20.459Z"
+            },
+            "name": {
+                "S": "node's codespaces-7aaf97"
+            },
+            "userEmail": {
+                "S": "sreiff@hic-ai.com"
+            },
+            "userId": {
+                "S": "9448c4a8-e081-70fb-4a30-a4ce0f67b8d0"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#31f8ac33-0c29-4e3a-9463-69bea064a83f"
+            },
+            "createdAt": {
+                "S": "2026-02-14T16:36:14.740Z"
+            },
+            "fingerprint": {
+                "S": "28f6c29640272019f64948ab5f263250"
+            },
+            "keygenMachineId": {
+                "S": "31f8ac33-0c29-4e3a-9463-69bea064a83f"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-14T16:36:14.740Z"
+            },
+            "name": {
+                "S": "node's codespaces-9c8e3d"
+            },
+            "userEmail": {
+                "S": "sreiff@hic-ai.com"
+            },
+            "userId": {
+                "S": "9448c4a8-e081-70fb-4a30-a4ce0f67b8d0"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#332f5a25c7469ef92ab45a2da83ef742"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T18:09:46.555Z"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#378d7dc7ed7b5545846d0a7a3a12042a"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T18:21:13.175Z"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#3955498c-0431-4dd1-a3f7-107e7e618dbb"
+            },
+            "createdAt": {
+                "S": "2026-02-13T14:02:08.718Z"
+            },
+            "fingerprint": {
+                "S": "c25400b1fe87069889b83ad621dba454"
+            },
+            "keygenMachineId": {
+                "S": "3955498c-0431-4dd1-a3f7-107e7e618dbb"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T14:02:08.718Z"
+            },
+            "name": {
+                "S": "node's codespaces-7af3f8"
+            },
+            "userEmail": {
+                "S": "simon.reiff@gmail.com"
+            },
+            "userId": {
+                "S": "d4b8e428-6081-701b-d2c1-a5eb06c6846e"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#422f724d-3a08-42c4-a256-e3da5cca307f"
+            },
+            "createdAt": {
+                "S": "2026-02-13T22:50:17.633Z"
+            },
+            "fingerprint": {
+                "S": "b064d0e1e93f1a6d7cb8c6050f6f3bdb"
+            },
+            "keygenMachineId": {
+                "S": "422f724d-3a08-42c4-a256-e3da5cca307f"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T22:50:17.633Z"
+            },
+            "name": {
+                "S": "node's codespaces-74c884"
+            },
+            "userEmail": {
+                "S": "simon.reiff@gmail.com"
+            },
+            "userId": {
+                "S": "d4b8e428-6081-701b-d2c1-a5eb06c6846e"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#4c3aadf3-535b-45eb-a987-1b3afd921b46"
+            },
+            "createdAt": {
+                "S": "2026-02-13T05:40:54.703Z"
+            },
+            "fingerprint": {
+                "S": "eae2e1be8888fd30000b24c727829fb9"
+            },
+            "keygenMachineId": {
+                "S": "4c3aadf3-535b-45eb-a987-1b3afd921b46"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T05:40:54.703Z"
+            },
+            "name": {
+                "S": "node's codespaces-31a8b2"
+            },
+            "userEmail": {
+                "S": "sreiff@hic-ai.com"
+            },
+            "userId": {
+                "S": "9448c4a8-e081-70fb-4a30-a4ce0f67b8d0"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#4d421067-9b24-4dd9-ba2c-2a24c34299db"
+            },
+            "createdAt": {
+                "S": "2026-02-14T15:00:44.070Z"
+            },
+            "fingerprint": {
+                "S": "21524ac480286670c24f1bd46a1cb4ad"
+            },
+            "keygenMachineId": {
+                "S": "4d421067-9b24-4dd9-ba2c-2a24c34299db"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-14T15:00:44.070Z"
+            },
+            "name": {
+                "S": "node's codespaces-fffcc7"
+            },
+            "userEmail": {
+                "S": "brekauyitrouro-9818@yopmail.com"
+            },
+            "userId": {
+                "S": "e4c85428-0041-7008-3a43-66bff165935b"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#5cfbd7f4-7cca-4577-b2ec-0c9339a4c259"
+            },
+            "createdAt": {
+                "S": "2026-02-13T15:54:27.531Z"
+            },
+            "fingerprint": {
+                "S": "8336b38344ad9671d1e3ac60378f91b2"
+            },
+            "keygenMachineId": {
+                "S": "5cfbd7f4-7cca-4577-b2ec-0c9339a4c259"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T15:54:27.531Z"
+            },
+            "name": {
+                "S": "node's codespaces-4d574f"
+            },
+            "userEmail": {
+                "S": "simon.reiff@gmail.com"
+            },
+            "userId": {
+                "S": "d4b8e428-6081-701b-d2c1-a5eb06c6846e"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#82f55c6a-bd00-494c-9908-a29a62335d3d"
+            },
+            "createdAt": {
+                "S": "2026-02-06T04:37:30.927Z"
+            },
+            "fingerprint": {
+                "S": "3966f76072588e0ba5737e636d0ed27a"
+            },
+            "keygenMachineId": {
+                "S": "82f55c6a-bd00-494c-9908-a29a62335d3d"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-06T04:37:30.927Z"
+            },
+            "name": {
+                "S": "node's codespaces-361bc4"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#8336b38344ad9671d1e3ac60378f91b2"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T15:54:29.974Z"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#9193b791-2fb9-44a5-997c-92fbd3ed946b"
+            },
+            "createdAt": {
+                "S": "2026-02-03T17:00:45.782Z"
+            },
+            "fingerprint": {
+                "S": "bb47a0b8de1db90fd449a1880950ae6a"
+            },
+            "keygenMachineId": {
+                "S": "9193b791-2fb9-44a5-997c-92fbd3ed946b"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-03T17:00:45.782Z"
+            },
+            "name": {
+                "S": "node's codespaces-4e9aa8"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#997956b181a7e66abcf17739a91e8095"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T18:46:41.808Z"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#9d6ba919-5f51-4d1f-ad36-c13b1a683b16"
+            },
+            "createdAt": {
+                "S": "2026-02-05T18:48:43.312Z"
+            },
+            "fingerprint": {
+                "S": "1757a0384b7b5c29dfb2f00c916e66f7"
+            },
+            "keygenMachineId": {
+                "S": "9d6ba919-5f51-4d1f-ad36-c13b1a683b16"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-05T18:48:43.312Z"
+            },
+            "name": {
+                "S": "node's codespaces-1ff296"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#9e39a658-bdb6-45a5-a77a-bd54a49444bd"
+            },
+            "createdAt": {
+                "S": "2026-02-02T23:35:05.677Z"
+            },
+            "fingerprint": {
+                "S": "b99a90560e24cfb9fbf7910ffa0eede2"
+            },
+            "keygenMachineId": {
+                "S": "34e9065e-06f4-477c-96d8-af304e22e640"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-14T18:59:18.594Z"
+            },
+            "name": {
+                "S": "SimonAdmin's HARWOOD-LT03"
+            },
+            "userEmail": {
+                "S": "sreiff@hic-ai.com"
+            },
+            "userId": {
+                "S": "9448c4a8-e081-70fb-4a30-a4ce0f67b8d0"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#9e465ffa-bbd7-49f6-90e2-2156a2f94c1c"
+            },
+            "createdAt": {
+                "S": "2026-02-14T16:47:02.352Z"
+            },
+            "fingerprint": {
+                "S": "f8ff2b024d29952ffb00d08caa8024da"
+            },
+            "keygenMachineId": {
+                "S": "9e465ffa-bbd7-49f6-90e2-2156a2f94c1c"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-14T16:47:02.352Z"
+            },
+            "name": {
+                "S": "node's codespaces-78ad14"
+            },
+            "userEmail": {
+                "S": "simon.reiff@gmail.com"
+            },
+            "userId": {
+                "S": "d4b8e428-6081-701b-d2c1-a5eb06c6846e"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#b99a90560e24cfb9fbf7910ffa0eede2"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T19:13:15.457Z"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#d3a81d6b-3289-4c85-bb6c-00bb0f986a50"
+            },
+            "createdAt": {
+                "S": "2026-02-13T18:09:43.847Z"
+            },
+            "fingerprint": {
+                "S": "332f5a25c7469ef92ab45a2da83ef742"
+            },
+            "keygenMachineId": {
+                "S": "d3a81d6b-3289-4c85-bb6c-00bb0f986a50"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T18:09:43.847Z"
+            },
+            "name": {
+                "S": "node's codespaces-43b925"
+            },
+            "userEmail": {
+                "S": "sreiff@hic-ai.com"
+            },
+            "userId": {
+                "S": "9448c4a8-e081-70fb-4a30-a4ce0f67b8d0"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#e31610b1-e900-4208-872d-8ba64b7c6c23"
+            },
+            "createdAt": {
+                "S": "2026-02-13T18:21:10.210Z"
+            },
+            "fingerprint": {
+                "S": "378d7dc7ed7b5545846d0a7a3a12042a"
+            },
+            "keygenMachineId": {
+                "S": "e31610b1-e900-4208-872d-8ba64b7c6c23"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T18:21:10.210Z"
+            },
+            "name": {
+                "S": "node's codespaces-486bee"
+            },
+            "userEmail": {
+                "S": "sreiff@hic-ai.com"
+            },
+            "userId": {
+                "S": "9448c4a8-e081-70fb-4a30-a4ce0f67b8d0"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#e5c3255f-1c69-4d32-b96a-54b0a127f5ad"
+            },
+            "createdAt": {
+                "S": "2026-02-13T18:46:39.216Z"
+            },
+            "fingerprint": {
+                "S": "997956b181a7e66abcf17739a91e8095"
+            },
+            "keygenMachineId": {
+                "S": "e5c3255f-1c69-4d32-b96a-54b0a127f5ad"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T18:46:39.216Z"
+            },
+            "name": {
+                "S": "node's codespaces-25159a"
+            },
+            "userEmail": {
+                "S": "simon.reiff@gmail.com"
+            },
+            "userId": {
+                "S": "d4b8e428-6081-701b-d2c1-a5eb06c6846e"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#f1f5254a-5441-4610-b3f4-541ee1c95949"
+            },
+            "createdAt": {
+                "S": "2026-02-11T23:13:20.425Z"
+            },
+            "fingerprint": {
+                "S": "63916cf5f3bec3992d9356b0b3f01215"
+            },
+            "keygenMachineId": {
+                "S": "f1f5254a-5441-4610-b3f4-541ee1c95949"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-11T23:13:20.425Z"
+            },
+            "name": {
+                "S": "node's codespaces-8842fd"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#f3a5c257fdca7804a06da266e76426b4"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T18:27:24.035Z"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#f8695031-cf63-4d1e-80da-9a0d6965ae58"
+            },
+            "createdAt": {
+                "S": "2026-02-13T18:27:20.847Z"
+            },
+            "fingerprint": {
+                "S": "f3a5c257fdca7804a06da266e76426b4"
+            },
+            "keygenMachineId": {
+                "S": "f8695031-cf63-4d1e-80da-9a0d6965ae58"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-13T18:27:20.847Z"
+            },
+            "name": {
+                "S": "node's codespaces-b0a572"
+            },
+            "userEmail": {
+                "S": "simon.reiff@gmail.com"
+            },
+            "userId": {
+                "S": "d4b8e428-6081-701b-d2c1-a5eb06c6846e"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#f8ec2018-2075-404a-a035-a0ec04f4f7f5"
+            },
+            "createdAt": {
+                "S": "2026-02-12T20:54:28.444Z"
+            },
+            "fingerprint": {
+                "S": "417c1dc7c41c72235f9e978085cd94d0"
+            },
+            "keygenMachineId": {
+                "S": "f8ec2018-2075-404a-a035-a0ec04f4f7f5"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-12T20:54:28.444Z"
+            },
+            "name": {
+                "S": "node's codespaces-7b6a2e"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#faa3f63f-733a-4d65-8a4c-1a8d63a32e33"
+            },
+            "createdAt": {
+                "S": "2026-02-11T14:58:08.729Z"
+            },
+            "fingerprint": {
+                "S": "400d574155db9e5357bee60a40bf686c"
+            },
+            "keygenMachineId": {
+                "S": "faa3f63f-733a-4d65-8a4c-1a8d63a32e33"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-11T14:58:08.729Z"
+            },
+            "name": {
+                "S": "node's codespaces-7be58a"
+            }
+        },
+        {
+            "SK": {
+                "S": "DEVICE#fe0009f6-c2a9-4502-b395-0aa2fb1746d2"
+            },
+            "createdAt": {
+                "S": "2026-02-14T00:07:00.627Z"
+            },
+            "fingerprint": {
+                "S": "131867bdca82a02275a4dc5a3aa1b4d4"
+            },
+            "keygenMachineId": {
+                "S": "fe0009f6-c2a9-4502-b395-0aa2fb1746d2"
+            },
+            "lastSeenAt": {
+                "S": "2026-02-14T00:07:00.627Z"
+            },
+            "name": {
+                "S": "node's codespaces-f7230e"
+            },
+            "userEmail": {
+                "S": "simon.reiff@gmail.com"
+            },
+            "userId": {
+                "S": "d4b8e428-6081-701b-d2c1-a5eb06c6846e"
+            }
+        }
+    ],
+    "Count": 28,
+    "ScannedCount": 28,
+    "ConsumedCapacity": null
+}

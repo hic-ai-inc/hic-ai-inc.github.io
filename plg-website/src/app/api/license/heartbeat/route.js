@@ -156,6 +156,24 @@ export async function POST(request) {
     // The extension always sends the JWT obtained during browser-delegated activation.
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      const authHeader = request.headers.get("authorization");
+      const hasBearerToken =
+        typeof authHeader === "string" && authHeader.startsWith("Bearer ");
+
+      console.warn("[license/heartbeat] Licensed heartbeat rejected (401)", {
+        reason: hasBearerToken
+          ? "token_verification_failed"
+          : "missing_or_malformed_bearer",
+        hasAuthorizationHeader: Boolean(authHeader),
+        hasBearerToken,
+        hasSessionId: Boolean(sessionId),
+        hasFingerprint: Boolean(fingerprint),
+        hasMachineId: Boolean(machineId),
+        hasBodyUserId: Boolean(userId),
+        fingerprintPrefix:
+          typeof fingerprint === "string" ? fingerprint.slice(0, 12) : null,
+      });
+
       return NextResponse.json(
         {
           error: "Unauthorized",
