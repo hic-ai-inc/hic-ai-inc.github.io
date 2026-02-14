@@ -34,6 +34,8 @@ import {
   createLicense,
   updateLicenseStatus,
   getLicenseDevices,
+  getDeviceByFingerprint,
+  getDeviceByMachineId,
   addDeviceActivation,
   removeDeviceActivation,
   updateDeviceLastSeen,
@@ -555,8 +557,20 @@ describe("dynamodb.js", () => {
         userEmail: "test@example.com",
       });
 
-      // Hardened flow adds fingerprint lock acquire/release around write path
-      expect(mockSend.callCount).toBe(5);
+      const canonicalPutCall = mockSend.calls.find((call) => {
+        const item = call?.[0]?.input?.Item;
+        return item && item.SK === "DEVICE#abc123fingerprint";
+      });
+      expect(canonicalPutCall).toBeDefined();
+
+      const counterUpdateCall = mockSend.calls.find((call) => {
+        const input = call?.[0]?.input;
+        return (
+          typeof input?.UpdateExpression === "string" &&
+          input.UpdateExpression.includes("activatedDevices")
+        );
+      });
+      expect(counterUpdateCall).toBeDefined();
 
       expect(result.keygenMachineId).toBe("mach_new");
       expect(result.fingerprint).toBe("abc123fingerprint");
@@ -565,6 +579,50 @@ describe("dynamodb.js", () => {
       expect(result.userEmail).toBe("test@example.com");
       expect(result.createdAt).toBeDefined();
       expect(result.lastSeenAt).toBeDefined();
+    });
+
+    it("should rekey legacy machineId-based row to canonical fingerprint key", async () => {
+      mockSend.mockResolvedValueOnce({});
+      mockSend.mockResolvedValueOnce({ Item: undefined });
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            PK: "LICENSE#lic_123",
+            SK: "DEVICE#mach_old",
+            keygenMachineId: "mach_old",
+            fingerprint: "legacy_fp",
+            name: "Legacy Device",
+            platform: "win32",
+            createdAt: "2026-02-01T00:00:00.000Z",
+          },
+        ],
+      });
+      mockSend.mockResolvedValue({});
+
+      const result = await addDeviceActivation({
+        keygenLicenseId: "lic_123",
+        keygenMachineId: "mach_new",
+        fingerprint: "legacy_fp",
+        name: "Upgraded Device",
+        platform: "win32",
+        userId: "cognito|user-777",
+        userEmail: "legacy@example.com",
+      });
+
+      expect(result.SK).toBe("DEVICE#legacy_fp");
+      expect(result.keygenMachineId).toBe("mach_new");
+
+      const updateCall = mockSend.calls.find((call) => {
+        const key = call?.[0]?.input?.Key;
+        return key?.PK === "LICENSE#lic_123" && key?.SK === "DEVICE#legacy_fp";
+      });
+      expect(updateCall).toBeDefined();
+
+      const legacyDeleteCall = mockSend.calls.find((call) => {
+        const key = call?.[0]?.input?.Key;
+        return key?.PK === "LICENSE#lic_123" && key?.SK === "DEVICE#mach_old";
+      });
+      expect(legacyDeleteCall).toBeDefined();
     });
 
     it("should store metadata under metadata field without overriding protected keys", async () => {
@@ -589,13 +647,13 @@ describe("dynamodb.js", () => {
 
       const putCall = mockSend.calls.find((call) => {
         const item = call?.[0]?.input?.Item;
-        return item && item.SK === "DEVICE#mach_new";
+        return item && item.SK === "DEVICE#meta_fingerprint";
       });
 
       expect(putCall).toBeDefined();
       const putItem = putCall[0].input.Item;
       expect(putItem.PK).toBe("LICENSE#lic_123");
-      expect(putItem.SK).toBe("DEVICE#mach_new");
+      expect(putItem.SK).toBe("DEVICE#meta_fingerprint");
       expect(putItem.metadata.environment).toBe("staging");
       expect(putItem.metadata.PK).toBe("LICENSE#attacker");
     });
@@ -619,24 +677,35 @@ describe("dynamodb.js", () => {
 
   describe("removeDeviceActivation", () => {
     it("should delete device record and decrement counter", async () => {
-      mockSend.mockResolvedValueOnce({ Attributes: { keygenMachineId: "mach_remove" } });
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            PK: "LICENSE#lic_123",
+            SK: "DEVICE#fp_remove",
+            keygenMachineId: "mach_remove",
+            fingerprint: "fp_remove",
+          },
+        ],
+      });
+      mockSend.mockResolvedValueOnce({ Attributes: { SK: "DEVICE#fp_remove" } });
       mockSend.mockResolvedValue({});
 
       await removeDeviceActivation("lic_123", "mach_remove");
 
-      // Should call send twice (delete device + decrement counter)
-      expect(mockSend.callCount).toBe(2);
+      const deleteCommandCall = mockSend.calls.find((call) => {
+        const input = call?.[0]?.input;
+        return input?.Key?.SK === "DEVICE#fp_remove";
+      });
+      expect(deleteCommandCall).toBeDefined();
 
-      // First call should be DeleteCommand
-      const deleteCommand = mockSend.calls[0][0];
-      expect(deleteCommand.input.Key.PK).toBe("LICENSE#lic_123");
-      expect(deleteCommand.input.Key.SK).toBe("DEVICE#mach_remove");
-
-      // Second call should be UpdateCommand to decrement
-      const updateCommand = mockSend.calls[1][0];
-      expect(updateCommand.input.UpdateExpression).toContain(
-        "activatedDevices",
-      );
+      const updateCommandCall = mockSend.calls.find((call) => {
+        const input = call?.[0]?.input;
+        return (
+          typeof input?.UpdateExpression === "string" &&
+          input.UpdateExpression.includes("activatedDevices")
+        );
+      });
+      expect(updateCommandCall).toBeDefined();
     });
 
     it("should skip counter decrement when no device record was deleted", async () => {
@@ -646,6 +715,33 @@ describe("dynamodb.js", () => {
 
       expect(result.removed).toBe(false);
       expect(mockSend.callCount).toBe(1);
+    });
+
+    it("should remove by fingerprint when machineId is unavailable", async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: "LICENSE#lic_123",
+          SK: "DEVICE#fp_remove",
+          fingerprint: "fp_remove",
+          keygenMachineId: "mach_remove",
+        },
+      });
+      mockSend.mockResolvedValueOnce({ Attributes: { SK: "DEVICE#fp_remove" } });
+      mockSend.mockResolvedValue({});
+
+      const result = await removeDeviceActivation(
+        "lic_123",
+        undefined,
+        "fp_remove",
+      );
+
+      expect(result.removed).toBe(true);
+
+      const deleteCommandCall = mockSend.calls.find((call) => {
+        const key = call?.[0]?.input?.Key;
+        return key?.PK === "LICENSE#lic_123" && key?.SK === "DEVICE#fp_remove";
+      });
+      expect(deleteCommandCall).toBeDefined();
     });
   });
 
@@ -717,6 +813,16 @@ describe("dynamodb.js", () => {
       expect(command.input.ExpressionAttributeValues[":userId"]).toBe(
         undefined,
       );
+    });
+
+    it("should key lastSeen updates by fingerprint identity", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateDeviceLastSeen("lic_123", "fp_123");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.Key.PK).toBe("LICENSE#lic_123");
+      expect(command.input.Key.SK).toBe("DEVICE#fp_123");
     });
   });
   describe("getActiveDevicesInWindow", () => {
@@ -854,6 +960,52 @@ describe("dynamodb.js", () => {
       }
       expect(threw).toBe(true);
       expect(mockSend.callCount).toBe(0);
+    });
+  });
+
+  describe("device lookup helpers", () => {
+    it("should get device by canonical fingerprint key", async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          PK: "LICENSE#lic_123",
+          SK: "DEVICE#fp_lookup",
+          fingerprint: "fp_lookup",
+          keygenMachineId: "mach_lookup",
+        },
+      });
+
+      const result = await getDeviceByFingerprint("lic_123", "fp_lookup");
+
+      expect(result).toBeDefined();
+      expect(result.fingerprint).toBe("fp_lookup");
+      expect(result.keygenMachineId).toBe("mach_lookup");
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.Key.PK).toBe("LICENSE#lic_123");
+      expect(command.input.Key.SK).toBe("DEVICE#fp_lookup");
+    });
+
+    it("should resolve device by machineId from license partition", async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            SK: "DEVICE#fp_a",
+            fingerprint: "fp_a",
+            keygenMachineId: "mach_a",
+          },
+          {
+            SK: "DEVICE#fp_b",
+            fingerprint: "fp_b",
+            keygenMachineId: "mach_b",
+          },
+        ],
+      });
+
+      const result = await getDeviceByMachineId("lic_123", "mach_b");
+
+      expect(result).toBeDefined();
+      expect(result.fingerprint).toBe("fp_b");
+      expect(result.keygenMachineId).toBe("mach_b");
     });
   });
 
@@ -1613,15 +1765,20 @@ describe("dynamodb.js", () => {
       expect(result.fingerprint).toBe("abc123fingerprint");
       expect(result.keygenMachineId).toBe("mach_new");
 
-      // Verify PutCommand includes userId/userEmail in the item
-      const putCommand = mockSend.calls[2][0];
-      expect(putCommand.input.Item.userId).toBe("cognito|user-456");
-      expect(putCommand.input.Item.userEmail).toBe("user@example.com");
+      // Verify canonical put includes userId/userEmail in the item
+      const putCommandCall = mockSend.calls.find((call) => {
+        const item = call?.[0]?.input?.Item;
+        return item && item.SK === "DEVICE#abc123fingerprint";
+      });
+      expect(putCommandCall).toBeDefined();
+      expect(putCommandCall[0].input.Item.userId).toBe("cognito|user-456");
+      expect(putCommandCall[0].input.Item.userEmail).toBe("user@example.com");
     });
 
     it("should include userId and userEmail when updating existing device", async () => {
-      // Mock lock PutCommand, then getLicenseDevices result with existing device
+      // Mock lock PutCommand, then canonical lookup miss, then legacy lookup hit
       mockSend.mockResolvedValueOnce({});
+      mockSend.mockResolvedValueOnce({ Item: undefined });
       mockSend.mockResolvedValueOnce({
         Items: [
           {
@@ -1634,7 +1791,7 @@ describe("dynamodb.js", () => {
           },
         ],
       });
-      // Mock UpdateCommand and lock cleanup DeleteCommand
+      // Mock update/delete/cleanup calls
       mockSend.mockResolvedValue({});
 
       const result = await addDeviceActivation({

@@ -12,7 +12,11 @@
 
 import { NextResponse } from "next/server";
 import { deactivateDevice } from "@/lib/keygen";
-import { removeDeviceActivation, getCustomerLicenses } from "@/lib/dynamodb";
+import {
+  removeDeviceActivation,
+  getCustomerLicenses,
+  getDeviceByFingerprint,
+} from "@/lib/dynamodb";
 import { getSession } from "@/lib/auth";
 
 export async function DELETE(request) {
@@ -21,9 +25,9 @@ export async function DELETE(request) {
     const { machineId, licenseId, fingerprint } = body;
 
     // Validate required fields
-    if (!machineId) {
+    if (!machineId && !fingerprint) {
       return NextResponse.json(
-        { error: "Machine ID is required" },
+        { error: "Machine ID or fingerprint is required" },
         { status: 400 },
       );
     }
@@ -45,11 +49,25 @@ export async function DELETE(request) {
       }
     }
 
+    let resolvedMachineId = machineId;
+
+    if (!resolvedMachineId && fingerprint) {
+      const device = await getDeviceByFingerprint(licenseId, fingerprint);
+      resolvedMachineId = device?.keygenMachineId || null;
+    }
+
+    if (!resolvedMachineId) {
+      return NextResponse.json(
+        { error: "Unable to resolve machine ID for deactivation" },
+        { status: 400 },
+      );
+    }
+
     // Deactivate device with Keygen
-    await deactivateDevice(machineId);
+    await deactivateDevice(resolvedMachineId);
 
     // Remove from DynamoDB
-    await removeDeviceActivation(licenseId, machineId);
+    await removeDeviceActivation(licenseId, resolvedMachineId, fingerprint);
 
     return NextResponse.json({
       success: true,
@@ -73,7 +91,6 @@ export async function DELETE(request) {
   }
 }
 
-
 /**
  * POST handler - alias for DELETE
  * Provided for compatibility with clients that can't easily use DELETE with body
@@ -81,4 +98,3 @@ export async function DELETE(request) {
 export async function POST(request) {
   return DELETE(request);
 }
-

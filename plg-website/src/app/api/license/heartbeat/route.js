@@ -17,7 +17,13 @@
 
 import { NextResponse } from "next/server";
 import { machineHeartbeat, getLicenseMachines } from "@/lib/keygen";
-import { updateDeviceLastSeen, getLicense, recordTrialHeartbeat, getVersionConfig, getActiveDevicesInWindow } from "@/lib/dynamodb";
+import {
+  updateDeviceLastSeen,
+  getLicense,
+  recordTrialHeartbeat,
+  getVersionConfig,
+  getActiveDevicesInWindow,
+} from "@/lib/dynamodb";
 import { verifyAuthToken } from "@/lib/auth-verify";
 import {
   rateLimitMiddleware,
@@ -151,7 +157,10 @@ export async function POST(request) {
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
       return NextResponse.json(
-        { error: "Unauthorized", detail: "Authentication is required for licensed heartbeats" },
+        {
+          error: "Unauthorized",
+          detail: "Authentication is required for licensed heartbeats",
+        },
         { status: 401 },
       );
     }
@@ -224,19 +233,27 @@ export async function POST(request) {
     // Update device last seen in DynamoDB (fire and forget)
     // Phase 3E: Use verified authedUserId from JWT, not body-supplied userId
     if (license.keygenLicenseId) {
-      updateDeviceLastSeen(license.keygenLicenseId, machineId, authedUserId).catch((err) => {
+      updateDeviceLastSeen(
+        license.keygenLicenseId,
+        fingerprint,
+        authedUserId,
+      ).catch((err) => {
         console.error("Device last seen update failed:", err);
       });
     }
 
     // Get active device count using time-based window (2-hour sliding window)
-    const windowHours = parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 2;
+    const windowHours =
+      parseInt(process.env.CONCURRENT_DEVICE_WINDOW_HOURS) || 2;
     let concurrentMachines = 1;
     let maxMachines = license.maxDevices || null;
 
     if (license.keygenLicenseId) {
       try {
-        const activeDevices = await getActiveDevicesInWindow(license.keygenLicenseId, windowHours);
+        const activeDevices = await getActiveDevicesInWindow(
+          license.keygenLicenseId,
+          windowHours,
+        );
         concurrentMachines = activeDevices.length;
       } catch (err) {
         console.error("Failed to fetch active device count:", err);

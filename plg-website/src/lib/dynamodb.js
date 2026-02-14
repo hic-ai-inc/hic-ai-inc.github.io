@@ -618,6 +618,61 @@ export async function getLicenseDevices(keygenLicenseId) {
 }
 
 /**
+ * Get a device by immutable fingerprint identity.
+ *
+ * @param {string} keygenLicenseId - License ID
+ * @param {string} fingerprint - Device fingerprint
+ * @returns {Promise<Object|null>} Device record or null
+ */
+export async function getDeviceByFingerprint(keygenLicenseId, fingerprint) {
+  if (!keygenLicenseId || !fingerprint) {
+    return null;
+  }
+
+  try {
+    const result = await dynamodb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `LICENSE#${keygenLicenseId}`,
+          SK: `DEVICE#${fingerprint}`,
+        },
+      }),
+    );
+
+    return result.Item || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get a device by Keygen machine ID.
+ *
+ * This is used for compatibility with Keygen webhooks and deactivate APIs,
+ * where Keygen emits/accepts machine IDs.
+ *
+ * @param {string} keygenLicenseId - License ID
+ * @param {string} keygenMachineId - Keygen machine ID
+ * @returns {Promise<Object|null>} Device record or null
+ */
+export async function getDeviceByMachineId(keygenLicenseId, keygenMachineId) {
+  if (!keygenLicenseId || !keygenMachineId) {
+    return null;
+  }
+
+  try {
+    const devices = await getLicenseDevices(keygenLicenseId);
+    return (
+      devices.find((device) => device.keygenMachineId === keygenMachineId) ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Add device activation
  *
  * IMPORTANT: Uses fingerprint as the deduplication key.
@@ -680,10 +735,17 @@ export async function addDeviceActivation({
   }
 
   try {
-    const existingDevices = await getLicenseDevices(keygenLicenseId);
-    const existingDevice = existingDevices.find(
-      (device) => device.fingerprint === fingerprint,
+    const canonicalDevice = await getDeviceByFingerprint(
+      keygenLicenseId,
+      fingerprint,
     );
+    const existingDevice =
+      canonicalDevice ||
+      (await getLicenseDevices(keygenLicenseId)).find(
+        (device) => device.fingerprint === fingerprint,
+      );
+
+    const canonicalDeviceKey = `DEVICE#${fingerprint}`;
 
     if (existingDevice) {
       await dynamodb.send(
@@ -691,10 +753,10 @@ export async function addDeviceActivation({
           TableName: TABLE_NAME,
           Key: {
             PK: `LICENSE#${keygenLicenseId}`,
-            SK: existingDevice.SK,
+            SK: canonicalDeviceKey,
           },
           UpdateExpression:
-            "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen, userId = :userId, userEmail = :userEmail, metadata = :metadata",
+            "SET keygenMachineId = :machineId, #name = :name, platform = :platform, fingerprint = :fingerprint, lastSeenAt = :lastSeen, userId = :userId, userEmail = :userEmail, metadata = :metadata, createdAt = if_not_exists(createdAt, :createdAt)",
           ExpressionAttributeNames: {
             "#name": "name",
           },
@@ -702,16 +764,31 @@ export async function addDeviceActivation({
             ":machineId": keygenMachineId,
             ":name": name,
             ":platform": platform,
+            ":fingerprint": fingerprint,
             ":lastSeen": now,
             ":userId": userId,
             ":userEmail": userEmail,
             ":metadata": safeMetadata,
+            ":createdAt": existingDevice.createdAt || now,
           },
         }),
       );
 
+      if (existingDevice.SK !== canonicalDeviceKey) {
+        await dynamodb.send(
+          new DeleteCommand({
+            TableName: TABLE_NAME,
+            Key: {
+              PK: `LICENSE#${keygenLicenseId}`,
+              SK: existingDevice.SK,
+            },
+          }),
+        );
+      }
+
       return {
         ...existingDevice,
+        SK: canonicalDeviceKey,
         keygenMachineId,
         name,
         platform,
@@ -724,7 +801,7 @@ export async function addDeviceActivation({
 
     const item = {
       PK: `LICENSE#${keygenLicenseId}`,
-      SK: `DEVICE#${keygenMachineId}`,
+      SK: canonicalDeviceKey,
       keygenMachineId,
       fingerprint,
       name,
@@ -766,7 +843,7 @@ export async function addDeviceActivation({
           TableName: TABLE_NAME,
           Key: {
             PK: `LICENSE#${keygenLicenseId}`,
-            SK: `DEVICE#${keygenMachineId}`,
+            SK: canonicalDeviceKey,
           },
         }),
       );
@@ -918,22 +995,48 @@ export async function getActiveUserDevicesInWindow(
 /**
  * Remove device activation
  */
-export async function removeDeviceActivation(keygenLicenseId, keygenMachineId) {
+export async function removeDeviceActivation(
+  keygenLicenseId,
+  keygenMachineId,
+  fingerprint,
+) {
   const logger = createLogger("removeDeviceActivation");
 
-  if (!keygenLicenseId || !keygenMachineId) {
+  if (!keygenLicenseId) {
+    throw new Error("removeDeviceActivation requires keygenLicenseId");
+  }
+
+  if (!keygenMachineId && !fingerprint) {
     throw new Error(
-      "removeDeviceActivation requires keygenLicenseId and keygenMachineId",
+      "removeDeviceActivation requires keygenMachineId or fingerprint",
     );
   }
 
   try {
+    const existingDevice = fingerprint
+      ? await getDeviceByFingerprint(keygenLicenseId, fingerprint)
+      : await getDeviceByMachineId(keygenLicenseId, keygenMachineId);
+
+    if (!existingDevice) {
+      return { removed: false };
+    }
+
+    const deviceKey =
+      existingDevice.SK ||
+      (existingDevice.fingerprint
+        ? `DEVICE#${existingDevice.fingerprint}`
+        : null);
+
+    if (!deviceKey) {
+      return { removed: false };
+    }
+
     const deleted = await dynamodb.send(
       new DeleteCommand({
         TableName: TABLE_NAME,
         Key: {
           PK: `LICENSE#${keygenLicenseId}`,
-          SK: `DEVICE#${keygenMachineId}`,
+          SK: deviceKey,
         },
         ReturnValues: "ALL_OLD",
       }),
@@ -951,7 +1054,8 @@ export async function removeDeviceActivation(keygenLicenseId, keygenMachineId) {
             PK: `LICENSE#${keygenLicenseId}`,
             SK: "DETAILS",
           },
-          ConditionExpression: "attribute_exists(activatedDevices) AND activatedDevices > :zero",
+          ConditionExpression:
+            "attribute_exists(activatedDevices) AND activatedDevices > :zero",
           UpdateExpression: "SET activatedDevices = activatedDevices - :one",
           ExpressionAttributeValues: {
             ":zero": 0,
@@ -985,26 +1089,26 @@ export async function removeDeviceActivation(keygenLicenseId, keygenMachineId) {
  * only lastSeenAt (no name/platform), causing "Unknown Device" in portal.
  *
  * @param {string} keygenLicenseId - License ID
- * @param {string} keygenMachineId - Machine ID
+ * @param {string} fingerprint - Device fingerprint
  * @param {string} [userId] - Deprecated: ignored to prevent reassignment
  */
 export async function updateDeviceLastSeen(
   keygenLicenseId,
-  keygenMachineId,
+  fingerprint,
   userId,
 ) {
   const logger = createLogger("updateDeviceLastSeen");
 
-  if (!keygenLicenseId || !keygenMachineId) {
+  if (!keygenLicenseId || !fingerprint) {
     throw new Error(
-      "updateDeviceLastSeen requires keygenLicenseId and keygenMachineId",
+      "updateDeviceLastSeen requires keygenLicenseId and fingerprint",
     );
   }
 
   if (userId) {
     logger.info("Ignored userId in updateDeviceLastSeen", {
       keygenLicenseId,
-      keygenMachineId,
+      fingerprint,
     });
   }
 
@@ -1014,7 +1118,7 @@ export async function updateDeviceLastSeen(
         TableName: TABLE_NAME,
         Key: {
           PK: `LICENSE#${keygenLicenseId}`,
-          SK: `DEVICE#${keygenMachineId}`,
+          SK: `DEVICE#${fingerprint}`,
         },
         ConditionExpression: "attribute_exists(PK)",
         UpdateExpression: "SET lastSeenAt = :now",
@@ -1028,14 +1132,14 @@ export async function updateDeviceLastSeen(
     if (error.name === "ConditionalCheckFailedException") {
       logger.info("Skipped lastSeen update for missing device", {
         keygenLicenseId,
-        keygenMachineId,
+        fingerprint,
       });
       return { updated: false };
     }
 
     logger.error("Failed to update device last seen", {
       keygenLicenseId,
-      keygenMachineId,
+      fingerprint,
       error: error.message,
     });
     throw error;

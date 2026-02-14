@@ -198,15 +198,12 @@ export async function POST(request) {
     // Mode 2: License key provided = validate with Keygen
     const result = await validateLicense(licenseKey, fingerprint);
 
-    // If valid, update heartbeat (machineId optional but useful for tracking)
+    // If valid, update heartbeat and last-seen
     if (result.valid && result.license?.id) {
       // Fire and forget - don't block response
-      // Phase 3F: Only update DynamoDB with a real machineId.
-      // Using fingerprint as trackingId creates ghost DEVICE# records
-      // with no name/platform fields (causes \"Unknown Device\" in portal).
       const tasks = [];
+      tasks.push(updateDeviceLastSeen(result.license.id, fingerprint));
       if (machineId) {
-        tasks.push(updateDeviceLastSeen(result.license.id, machineId));
         tasks.push(machineHeartbeat(machineId));
       }
       Promise.all(tasks).catch((err) => {
