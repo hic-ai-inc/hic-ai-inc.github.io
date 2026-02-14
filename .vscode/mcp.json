@@ -3,14 +3,12 @@
     "hic_local": {
       "type": "stdio",
       "command": "node",
-      "args": ["c:/Users/SimonAdmin/source/repos/hic/mcp/src/core/server.js"],
+      "args": [
+        "${workspaceFolder}/.hic/mcp/src/core/server.js"
+      ],
       "env": {
-        "DEBUG": "false",
         "HIC_AGENT_ADAPTER": "copilot",
-        "HIC_ALLOWED_DIRECTORIES": "c:/Users/SimonAdmin/source/repos/hic-ai-inc.github.io;c:/Users/SimonAdmin/source/repos/hic",
-        "HIC_LICENSING_ENABLED": "true",
-        "HIC_SCHEMA_PROFILE": "gemini",
-        "NODE_ENV": "production"
+        "HIC_ALLOWED_DIRECTORIES": "${workspaceFolder}"
       }
     }
   }

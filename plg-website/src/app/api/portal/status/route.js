@@ -15,7 +15,7 @@ import { verifyAuthToken } from "@/lib/auth-verify";
 import {
   getCustomerByUserId,
   getCustomerByEmail,
-  getLicenseDevices,
+  getActiveUserDevicesInWindow,
   getUserOrgMembership,
   getOrganization,
   getCustomerByStripeId,
@@ -108,14 +108,17 @@ export async function GET(request) {
     // licenseId at function scope — used in device count AND response body
     const licenseId = effectiveCustomer?.keygenLicenseId;
 
-    // Get device count — org members get 0 (they don't own the license)
+    // Get active device count in heartbeat window (current user only)
     let activatedDevices = 0;
     if (!orgMembership && licenseId) {
       try {
-        const devices = await getLicenseDevices(licenseId);
-        activatedDevices = devices.length;
+        const activeDevices = await getActiveUserDevicesInWindow(
+          licenseId,
+          user.userId,
+        );
+        activatedDevices = activeDevices.length;
       } catch (error) {
-        console.error("[Portal Status] Failed to get device count:", error.message);
+        console.error("[Portal Status] Failed to get active device count:", error.message);
       }
     }
 
