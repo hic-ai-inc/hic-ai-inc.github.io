@@ -145,6 +145,9 @@ Run one controlled pass and confirm logs for at least:
 
 **Exit criteria for Phase 0:** logs are present and queryable in both systems before functional edits begin.
 
+Update (2026-02-14): Implemented and tested `api-log`, then wired the first endpoint (`GET /api/checkout/verify`) to structured logging. We were unable to identify/query the corresponding AWS runtime log group for those probe events. Further AWS Amplify/CloudWatch logging-path investigation is required before deployment can proceed.
+
+
 ---
 
 ## 7) Surgical Changes in Other Repo First (`~/source/repos/hic`)
