@@ -163,7 +163,7 @@ With `ALWAYS_ALLOW_OVERAGE`, re-activation is guaranteed to succeed — no risk 
 - [x] Extension unit tests pass — ✅ licensing/ 177/177, mouse-vscode/ 198/198
 - [x] New/updated tests: `commands.test.js` — 8 new machine recovery code tests (FINGERPRINT_SCOPE_MISMATCH, NO_MACHINES, HEARTBEAT_DEAD with active license → re-activation; inactive license → EXPIRED; missing code → EXPIRED) — ✅
 - [x] New/updated tests: `heartbeat.test.js` — 6 new `_attemptMachineRevival()` tests (success path updates machineId, failure path logs warning, guards for missing licenseKey/stateManager) — ✅
-- [ ] Manual E2E: activate → close VS Code → wait 20 minutes → reopen → still LICENSED (not Expired) — deferred (requires 1+ hour wait for DEACTIVATE_DEAD; functional correctness validated via unit tests)
+- [x] Manual E2E: activate → close VS Code → wait 20 minutes → reopen → still LICENSED (not Expired) — ✅ confirmed 2026-02-14 during full reinstall/reinitialize/re-activate validation
 
 **Implementation Notes:**
 - `httpClient.validateLicense()` enriched to return `code`, `detail`, `licenseStatus` (fixes information loss identified in [Keygen Codes Addendum](20260212_ADDENDUM_TO_KEYGEN_INVESTIGATION_RE_VALIDATION_CODES.md))
@@ -201,18 +201,18 @@ With `ALWAYS_ALLOW_OVERAGE`, re-activation is guaranteed to succeed — no risk 
 - **Per-license enforcement (Individual licenses):** Same mechanism but using per-license limit instead of per-seat limit. DynamoDB is the sole enforcement layer (Keygen has ALWAYS_ALLOW_OVERAGE).
 - **Heartbeat without userId:** Return HTTP 401 (or, during a brief transition period, log warning and apply per-license fallback behavior — then remove fallback promptly)
 
-**Gate 3E:**
+**Gate 3E:** ✅ **ALL PASSED (2026-02-14)**
 
-- [ ] All existing tests pass (updated to reflect auth-required behavior)
-- [ ] `addDeviceActivation()` guard: calling without `userId` or `userEmail` throws (prevents silent unbound device records)
-- [ ] Existing `addDeviceActivation` tests updated: all calls now provide `userId`/`userEmail`
-- [ ] New tests: activation without JWT → 401
-- [ ] New tests: Business license, per-seat limit exceeded → 403 with meaningful error body
-- [ ] New tests: Business license, per-seat limit not exceeded → 200 success
-- [ ] New tests: Individual license → DynamoDB-based device limit enforcement (2-hour sliding window)
-- [ ] New tests: heartbeat without userId → 401 (or warning with fallback)
-- [ ] CI/CD passes
-- [ ] E2E: activation without auth → 401. Activation with auth, under limit → 200. Over limit → 403.
+- [x] All existing tests pass (updated to reflect auth-required behavior)
+- [x] `addDeviceActivation()` guard: calling without `userId` or `userEmail` throws (prevents silent unbound device records)
+- [x] Existing `addDeviceActivation` tests updated: all calls now provide `userId`/`userEmail`
+- [x] New tests: activation without JWT → 401
+- [x] New tests: Business license, per-seat limit exceeded → 403 with meaningful error body
+- [x] New tests: Business license, per-seat limit not exceeded → 200 success
+- [x] New tests: Individual license → DynamoDB-based device limit enforcement (2-hour sliding window)
+- [x] New tests: heartbeat without userId → 401 (or warning with fallback)
+- [x] CI/CD passes
+- [x] E2E: activation without auth → 401. Activation with auth, under limit → 200. Over limit → 403.
 
 **Risk: Low.** Since Mouse is not yet published to the VS Code Marketplace (all installs are via local VSIX), there are no stale extension versions in the wild. We control exactly when the extension is updated, so 3A (extension opens browser + polls) and 3E (backend requires auth) can be deployed on the same day with no gap. The only prerequisite is that the VSIX installed for testing includes the 3A browser-delegated activation changes before 3E goes live.
 
@@ -237,15 +237,15 @@ With `ALWAYS_ALLOW_OVERAGE`, re-activation is guaranteed to succeed — no risk 
 - **Keep portal read-only for lifecycle:** No user-initiated device deactivation in portal. Device lifecycle is managed by heartbeat-window enforcement and Keygen auto-deactivation.
 - **UI copy updates:** "Your active installations" (not "Active devices"). Show user email for Business admins. Show per-seat usage: "3 of 5 devices used".
 
-**Gate 3F:**
+**Gate 3F:** ✅ **ALL PASSED (2026-02-14)**
 
-- [ ] All existing tests pass
-- [ ] New tests: Portal devices GET with Business license → returns only current user's devices
-- [ ] New tests: Portal devices GET with Individual license → returns all devices
-- [ ] New tests: Portal devices API has no DELETE handler (read-only by design)
-- [ ] New tests: Business response includes team-wide active count while list stays scoped to current user
-- [ ] CI/CD passes
-- [ ] E2E: User A sees only their devices, User B sees only theirs. Inactive status appears after heartbeat-window expiry without manual deactivation.
+- [x] All existing tests pass
+- [x] New tests: Portal devices GET with Business license → returns only current user's devices
+- [x] New tests: Portal devices GET with Individual license → returns all devices
+- [x] New tests: Portal devices API has no DELETE handler (read-only by design)
+- [x] New tests: Business response includes team-wide active count while list stays scoped to current user
+- [x] CI/CD passes
+- [x] E2E: User A sees only their devices, User B sees only theirs. Inactive status appears after heartbeat-window expiry without manual deactivation.
 
 **Risk: Low.** UI + query filtering, no protocol changes. Auth and enforcement are already in place from 3E.
 

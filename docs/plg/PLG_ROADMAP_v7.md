@@ -344,7 +344,7 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 | **Phase 0** | Keygen Policy Configuration | Keygen API | ✅ COMPLETE | 0.5 day |
 | **Phase 1** | Cognito Config + Auth Extraction | AWS + Website | ✅ COMPLETE | 1 day |
 | **Phase 2** | DynamoDB Schema & Functions | Website | ✅ COMPLETE | 1 day |
-| **Phase 3** | Browser-Delegated Activation + Enforcement + Portal UI | Both repos | 🟡 IN PROGRESS (3A–3E ✅; 3F remaining) | 2.5-4 days (5 subphases) |
+| **Phase 3** | Browser-Delegated Activation + Enforcement + Portal UI | Both repos | ✅ COMPLETE (3A–3F complete; E2E confirmed 2026-02-14) | 2.5-4 days (5 subphases) |
 | **Phase 4** | Hardening & Status Code Alignment | Website | ⬜ NOT STARTED | 1-2 days |
 
 > **Phases 0, 1, 2 can be executed in parallel.** Phase 3 depends on all three. Phase 4 depends on Phase 3.
@@ -383,13 +383,13 @@ All enforcement moves to DynamoDB's 2-hour sliding window. Keygen becomes a mach
 
 ### 5.4 Success Criteria
 
-- [ ] All user journeys UJ-1 through UJ-10 pass E2E against staging
+- [x] All user journeys UJ-1 through UJ-10 pass E2E against staging
 - [ ] All unit tests pass in both repos with >80% coverage on modified files
-- [ ] Extension authenticates users via browser-delegated activation (opens browser → website handles Cognito auth → extension polls for completion)
-- [ ] Per-seat device limits enforced via DynamoDB 2-hour sliding window
-- [ ] Portal shows per-user device views for Business licenses
-- [ ] Sleep/wake recovery works without user intervention
-- [ ] Unauthenticated activation rejected with HTTP 401
+- [x] Extension authenticates users via browser-delegated activation (opens browser → website handles Cognito auth → extension polls for completion)
+- [x] Per-seat device limits enforced via DynamoDB 2-hour sliding window
+- [x] Portal shows per-user device views for Business licenses
+- [x] Sleep/wake recovery works without user intervention
+- [x] Unauthenticated activation rejected with HTTP 401
 - [ ] No hardcoded secrets; all credentials from SSM/SecretStorage
 
 ---
@@ -580,15 +580,15 @@ Previously, CLI commands (`hic mouse init`, `hic mouse license activate`, etc.) 
 | 7   | AWS Infrastructure                 | ✅ **DEPLOYED TO STAGING**  | GC         | —            |
 | 7b  | SES Production                     | ✅ **COMPLETE** (Feb 11)    | Simon      | —            |
 | 8   | VS Code Extension (VSIX)           | ✅ **PHASE 4 COMPLETE**     | GC + Simon | —            |
-| 8b  | **Multi-Seat Device Mgmt (Phase 5)** | 🟡 IN PROGRESS             | GC + Simon | **8**        |
+| 8b  | **Multi-Seat Device Mgmt (Phase 5)** | ✅ COMPLETE (Feb 14)      | GC + Simon | **8**        |
 | 8c  | **Version Updates & Distro (Phase 6)** | 🔴 NOT STARTED           | GC + Simon | **8b**       |
-| 9   | E2E Testing                        | 🔴 BLOCKED on Phase 5-6    | GC         | **8b, 8c**   |
+| 9   | E2E Testing                        | 🟡 PARTIAL (Phase 5 E2E complete; Phase 6 pending) | GC         | **8c**   |
 | 10  | Front-End Polish                   | ⚠️ Partial                  | GC         | —            |
 | 11  | Security Audit & Launch Prep (Phase 7) | 🔴 BLOCKED on Phase 5-6 | GC + Simon | **8b, 8c, 9** |
 | 12  | Launch (Phase 8)                   | 🔴 BLOCKED on Phase 7      | GC + Simon | **11**       |
 | 13  | Support & Community                | ⬜ POST-LAUNCH              | Simon      | **12**       |
 
-> **Latest Milestone (Feb 13, 2026):** Phase 5 Subphases 3A–3E all complete. 3A (browser-delegated activation, 48 new tests), 3B (backend JWT + `/activate` page, 37 new tests), 3D (startup flow fix, 6 new heartbeat tests), and 3E (require auth + per-seat enforcement, userId/userEmail guard) all implemented, tested, and pushed to `development`. SWR ran full E2E validation in `hic-e2e-clean` Codespace: Mouse VSIX install → trial → license activation → LICENSED confirmation. Only 3F (admin portal scoping) and Phase 4 (hardening) remain before launch readiness. AWS Activate approved $1,000.00 in AWS credits for HIC AI, Inc. (Feb 13).
+> **Latest Milestone (Feb 14, 2026):** Phase 5 Subphases 3A–3F are complete. 3A (browser-delegated activation), 3B (backend JWT + `/activate` page), 3D (startup flow fix), 3E (require auth + per-seat enforcement), and 3F (portal scoping + UI) are implemented, tested, and validated. SWR confirmed full Phase 3 E2E behavior in `hic-e2e-clean` and staging/admin portal checks: clean reinstall → initialize workspace → `Mouse: Enter License Key` → correct licensed state, device scoping, and portal/device status behavior. Phase 4 (hardening) remains next. AWS Activate approved $1,000.00 in AWS credits for HIC AI, Inc. (Feb 13).
 
 ## ✅ CI/CD Pipeline — COMPLETE
 
@@ -680,7 +680,7 @@ npm run metrics -- --period=7d
 ## 3. Auth (Cognito)
 
 **Status:** ✅ **COMPLETE (Individual + Business RBAC)**
-**Est. Hours:** 0h remaining — pending final E2E verification
+**Est. Hours:** 0h remaining — E2E verification complete (Feb 14, 2026)
 **Documentation:** [Migration Decision](../20260128_AUTH0_TO_COGNITO_MIGRATION_DECISION.md)
 
 ### 3.1 Current State
@@ -692,7 +692,7 @@ npm run metrics -- --period=7d
 | GitHub OAuth | ⏸️ DEFERRED | Requires OIDC proxy setup |
 | Login/Signup/Logout | ✅ | All flows working on staging |
 | Protected Routes | ✅ | Middleware validates tokens |
-| Business RBAC | ✅ COMPLETE | Owner/Admin/Member roles — pending final E2E |
+| Business RBAC | ✅ COMPLETE | Owner/Admin/Member roles — E2E verified (Feb 14) |
 
 ### 3.2 Key Configuration
 

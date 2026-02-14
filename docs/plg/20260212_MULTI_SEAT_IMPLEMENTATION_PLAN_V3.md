@@ -399,7 +399,7 @@ cd plg-website && npm run test:lib
 
 #### ✅ Gate 3 (after all subphases): Full E2E Validation
 
-After all 5 subphases are complete, the following E2E validation applies:
+✅ Completed 2026-02-14 (SWR): all 5 subphases are complete and the following E2E validation has passed on staging:
 
 1. **UJ-1 (Solo activation):** Install VSIX → enter license key → browser opens → Cognito sign-in (website) → activation succeeds → extension detects via poll → `license.json` has `machineId` + `status: LICENSED` (no `userId` — per [Auth Strategy Update](20260212_UPDATE_RE_AUTH_STRATEGY_AND_LOCAL_DATA.md), Decision 1) → DynamoDB has userId
 2. **UJ-2 (Multi-device):** Activate on two devices → portal shows both as active
@@ -606,16 +606,16 @@ Phase 3 is the critical path but is now decomposed into 5 independently deployab
 
 The multi-seat implementation is complete when:
 
-- [ ] All user journeys UJ-1 through UJ-10 pass end-to-end against staging
+- [x] All user journeys UJ-1 through UJ-10 pass end-to-end against staging
 - [ ] All unit tests pass in both repos with >80% coverage on modified files
 - [ ] CI/CD passes on both repos with merged PRs to `development`
-- [ ] Extension can be built as VSIX and installed fresh, completing UJ-1 successfully
-- [ ] A Business license with 2 seats correctly limits each user to 5 devices
-- [ ] The portal shows per-user device views for Business licenses
-- [ ] Sleep/wake recovery works without user intervention (UJ-4)
-- [ ] Unauthenticated activation attempts are rejected with HTTP 401
+- [x] Extension can be built as VSIX and installed fresh, completing UJ-1 successfully
+- [x] A Business license with 2 seats correctly limits each user to 5 devices
+- [x] The portal shows per-user device views for Business licenses
+- [x] Sleep/wake recovery works without user intervention (UJ-4)
+- [x] Unauthenticated activation attempts are rejected with HTTP 401
 - [ ] No hardcoded secrets; all credentials from SSM/SecretStorage
-- [ ] Documentation updated with API contract for authenticated activation
+- [x] Documentation updated with API contract for authenticated activation
 
 ---
 
