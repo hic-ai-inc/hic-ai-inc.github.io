@@ -228,13 +228,13 @@ With `ALWAYS_ALLOW_OVERAGE`, re-activation is guaranteed to succeed — no risk 
 
 **Files:**
 
-- `plg-website/src/app/api/portal/devices/route.js` — GET and DELETE handlers
+- `plg-website/src/app/api/portal/devices/route.js` — GET handler (read-only endpoint; no DELETE)
 - `plg-website/src/app/portal/devices/page.js` — UI copy and layout
 
 **Work:**
 
 - **Scope devices GET:** Extract userId from JWT. Business licenses → call `getUserDevices(licenseId, userId)` → return only this user's devices. Individual licenses → return all devices.
-- **Fix devices DELETE authorization:** Verify requesting user owns the device they're deactivating. Call Keygen to deactivate the machine. Remove/update DynamoDB device record.
+- **Keep portal read-only for lifecycle:** No user-initiated device deactivation in portal. Device lifecycle is managed by heartbeat-window enforcement and Keygen auto-deactivation.
 - **UI copy updates:** "Your active installations" (not "Active devices"). Show user email for Business admins. Show per-seat usage: "3 of 5 devices used".
 
 **Gate 3F:**
@@ -242,10 +242,10 @@ With `ALWAYS_ALLOW_OVERAGE`, re-activation is guaranteed to succeed — no risk 
 - [ ] All existing tests pass
 - [ ] New tests: Portal devices GET with Business license → returns only current user's devices
 - [ ] New tests: Portal devices GET with Individual license → returns all devices
-- [ ] New tests: Portal devices DELETE → deactivates on Keygen + updates DynamoDB
-- [ ] New tests: Portal devices DELETE → cannot delete another user's device (403)
+- [ ] New tests: Portal devices API has no DELETE handler (read-only by design)
+- [ ] New tests: Business response includes team-wide active count while list stays scoped to current user
 - [ ] CI/CD passes
-- [ ] E2E: User A sees only their devices, User B sees only theirs. Deactivation works end-to-end.
+- [ ] E2E: User A sees only their devices, User B sees only theirs. Inactive status appears after heartbeat-window expiry without manual deactivation.
 
 **Risk: Low.** UI + query filtering, no protocol changes. Auth and enforcement are already in place from 3E.
 

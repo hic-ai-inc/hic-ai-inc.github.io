@@ -108,9 +108,9 @@ export async function GET(request) {
     // licenseId at function scope — used in device count AND response body
     const licenseId = effectiveCustomer?.keygenLicenseId;
 
-    // Get active device count in heartbeat window (current user only)
+    // Get active device count in heartbeat window (current authenticated user)
     let activatedDevices = 0;
-    if (!orgMembership && licenseId) {
+    if (licenseId) {
       try {
         const activeDevices = await getActiveUserDevicesInWindow(
           licenseId,
