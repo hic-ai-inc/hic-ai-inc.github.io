@@ -9,36 +9,44 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent, Badge, Button } from "@/components/ui";
 import { useUser } from "@/lib/cognito-provider";
 import { getSession } from "@/lib/cognito";
+import {
+  DEFAULT_MAX_DEVICES,
+  getMaxDevicesForAccountType,
+} from "@/lib/constants";
+import DeviceIcon from "./_components/DeviceIcon";
+import {
+  isActiveDevice,
+  getPlatformName,
+  formatRelativeTime,
+} from "./_lib/device-utils";
 
 export default function DevicesPage() {
   const { user, isLoading: userLoading } = useUser();
   const [devices, setDevices] = useState([]);
-  const [maxDevices, setMaxDevices] = useState(3);
+  const [maxDevices, setMaxDevices] = useState(DEFAULT_MAX_DEVICES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showInactive, setShowInactive] = useState(false);
   const [totalActiveDevices, setTotalActiveDevices] = useState(null);
 
-  useEffect(() => {
-    if (user && !userLoading) {
-      fetchDevices();
-    }
-  }, [user, userLoading]);
-
-  async function fetchDevices() {
+  const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const session = await getSession();
-      if (!session?.idToken) {
-        setError("Not authenticated");
-        setLoading(false);
+      if (!session) {
+        setError("Session not found. Please sign in again.");
+        return;
+      }
+
+      if (!session.idToken) {
+        setError("Authentication token missing. Please refresh and try again.");
         return;
       }
 
@@ -53,16 +61,28 @@ export default function DevicesPage() {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to fetch devices");
       }
+
       const data = await res.json();
+      const fallbackMax = getMaxDevicesForAccountType(user?.accountType);
       setDevices(data.devices || []);
-      setMaxDevices(data.maxDevices || 3);
-      setTotalActiveDevices(data.totalActiveDevices ?? null);
+      setMaxDevices(data.maxDevices || fallbackMax || DEFAULT_MAX_DEVICES);
+      setTotalActiveDevices(
+        typeof data.totalActiveDevices === "number"
+          ? data.totalActiveDevices
+          : null,
+      );
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [user?.accountType]);
+
+  useEffect(() => {
+    if (user && !userLoading) {
+      fetchDevices();
+    }
+  }, [user, userLoading, fetchDevices]);
 
   // Filter devices by active status (active = seen within 2-hour window)
   const activeDevices = devices.filter((d) => isActiveDevice(d));
@@ -145,7 +165,7 @@ export default function DevicesPage() {
                 : `Show all installations (${devices.length} total)`}
             </button>
           )}
-          {totalActiveDevices !== null && (
+          {typeof totalActiveDevices === "number" && (
             <p className="mt-3 text-xs text-slate-grey">
               {totalActiveDevices} active {totalActiveDevices === 1 ? "device" : "devices"} across your team
             </p>
@@ -262,105 +282,4 @@ export default function DevicesPage() {
       )}
     </div>
   );
-}
-
-/**
- * Check if device is "active" (seen within the 2-hour concurrent device window)
- * Matches the server-side enforcement window (CONCURRENT_DEVICE_WINDOW_HOURS=2)
- */
-function isActiveDevice(device) {
-  if (!device.lastSeen && !device.createdAt) return true; // No data, assume active
-  const lastActivity = new Date(device.lastSeen || device.createdAt);
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-  return lastActivity > twoHoursAgo;
-}
-
-/**
- * Platform-specific icons using SVG
- */
-function DeviceIcon({ platform }) {
-  const p = platform?.toLowerCase();
-
-  // Apple/macOS icon
-  if (p === "darwin" || p === "macos") {
-    return (
-      <svg
-        className="w-5 h-5 text-slate-grey"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-      >
-        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-      </svg>
-    );
-  }
-
-  // Windows icon
-  if (p === "win32" || p === "windows") {
-    return (
-      <svg
-        className="w-5 h-5 text-slate-grey"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-      >
-        <path d="M3 12V6.75l6-1.32v6.48L3 12zm17-9v8.75l-10 .15V5.21L20 3zM3 13l6 .09v6.81l-6-1.15V13zm17 .25V22l-10-1.91V13.1l10 .15z" />
-      </svg>
-    );
-  }
-
-  // Linux icon
-  if (p === "linux") {
-    return (
-      <svg
-        className="w-5 h-5 text-slate-grey"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-      >
-        <path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587.26 1.24.43 1.922.43.682 0 1.335-.17 1.922-.43.238.482.682.83 1.208.946.75.2 1.69-.004 2.616-.47.865-.465 1.964-.4 2.774-.6.405-.131.766-.267.94-.601.174-.34.142-.804-.106-1.484-.077-.242-.018-.571.04-.97.028-.135.055-.337.055-.536a1.44 1.44 0 00-.132-.602c-.206-.411-.551-.544-.864-.68-.312-.133-.598-.201-.797-.4a3.68 3.68 0 01-.663-.839.424.424 0 00-.11-.135c.123-.805-.009-1.657-.287-2.489-.589-1.771-1.831-3.47-2.716-4.521-.75-1.067-.974-1.928-1.05-3.02-.065-1.491 1.056-5.965-3.17-6.298A5.417 5.417 0 0012.504 0z" />
-      </svg>
-    );
-  }
-
-  // Default computer icon
-  return (
-    <svg
-      className="w-5 h-5 text-slate-grey"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-      />
-    </svg>
-  );
-}
-
-function getPlatformName(platform) {
-  const names = {
-    darwin: "macOS",
-    macos: "macOS",
-    win32: "Windows",
-    windows: "Windows",
-    linux: "Linux",
-  };
-  return names[platform?.toLowerCase()] || platform;
-}
-
-function formatRelativeTime(dateString) {
-  if (!dateString) return "unknown";
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
 }

@@ -19,6 +19,8 @@ import {
   DeleteCommand,
 } from "../../../dm/layers/dynamodb/src/index.js";
 import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
+import { randomBytes } from "node:crypto";
+import { DEVICE_ACTIVITY_WINDOW_HOURS } from "@/lib/constants";
 
 // Initialize DynamoDB client with HIC logging
 const client = new DynamoDBClient({
@@ -27,6 +29,28 @@ const client = new DynamoDBClient({
 
 // Service logger for all DynamoDB operations
 const createLogger = (operation) => new HicLog(`plg-dynamodb-${operation}`);
+
+function sanitizeMetadata(metadata) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return {};
+  }
+  return { ...metadata };
+}
+
+function sanitizeInviteMetadata(metadata) {
+  const safeMetadata = sanitizeMetadata(metadata);
+  return {
+    organizationName:
+      typeof safeMetadata.organizationName === "string"
+        ? safeMetadata.organizationName
+        : undefined,
+    inviterName:
+      typeof safeMetadata.inviterName === "string"
+        ? safeMetadata.inviterName
+        : undefined,
+    metadata: safeMetadata,
+  };
+}
 
 // Document client for simplified operations
 export const dynamodb = DynamoDBDocumentClient.from(client, {
@@ -566,17 +590,31 @@ export async function updateLicenseStatus(
  * Get devices for a license
  */
 export async function getLicenseDevices(keygenLicenseId) {
-  const result = await dynamodb.send(
-    new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
-      ExpressionAttributeValues: {
-        ":pk": `LICENSE#${keygenLicenseId}`,
-        ":sk": "DEVICE#",
-      },
-    }),
-  );
-  return result.Items || [];
+  const logger = createLogger("getLicenseDevices");
+
+  if (!keygenLicenseId) {
+    throw new Error("getLicenseDevices requires keygenLicenseId");
+  }
+
+  try {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
+        ExpressionAttributeValues: {
+          ":pk": `LICENSE#${keygenLicenseId}`,
+          ":sk": "DEVICE#",
+        },
+      }),
+    );
+    return result.Items || [];
+  } catch (error) {
+    logger.error("Failed to get license devices", {
+      keygenLicenseId,
+      error: error.message,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -596,8 +634,14 @@ export async function addDeviceActivation({
   userId,
   userEmail,
 }) {
-  // Phase 3E: userId and userEmail are now mandatory.
-  // All activation paths require authentication, so these must always be present.
+  const logger = createLogger("addDeviceActivation");
+
+  if (!keygenLicenseId || !keygenMachineId || !fingerprint) {
+    throw new Error(
+      "addDeviceActivation requires keygenLicenseId, keygenMachineId, and fingerprint",
+    );
+  }
+
   if (!userId || !userEmail) {
     throw new Error(
       "addDeviceActivation requires userId and userEmail (auth is mandatory)",
@@ -605,85 +649,158 @@ export async function addDeviceActivation({
   }
 
   const now = new Date().toISOString();
+  const safeMetadata = sanitizeMetadata(metadata);
+  const lockKey = `FPLOCK#${fingerprint}`;
 
-  // Check if a device with this fingerprint already exists for this license
-  const existingDevices = await getLicenseDevices(keygenLicenseId);
-  const existingDevice = existingDevices.find(
-    (d) => d.fingerprint === fingerprint,
-  );
-
-  if (existingDevice) {
-    // Update existing device record (may have new Keygen machine ID)
+  try {
     await dynamodb.send(
-      new UpdateCommand({
+      new PutCommand({
         TableName: TABLE_NAME,
-        Key: {
+        Item: {
           PK: `LICENSE#${keygenLicenseId}`,
-          SK: existingDevice.SK,
+          SK: lockKey,
+          fingerprint,
+          createdAt: now,
         },
-        UpdateExpression:
-          "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen, userId = :userId, userEmail = :userEmail",
-        ExpressionAttributeNames: {
-          "#name": "name",
-        },
-        ExpressionAttributeValues: {
-          ":machineId": keygenMachineId,
-          ":name": name,
-          ":platform": platform,
-          ":lastSeen": now,
-          ":userId": userId,
-          ":userEmail": userEmail,
-        },
+        ConditionExpression: "attribute_not_exists(PK)",
       }),
     );
-    return {
-      ...existingDevice,
+  } catch (error) {
+    if (error.name === "ConditionalCheckFailedException") {
+      const existingDevices = await getLicenseDevices(keygenLicenseId);
+      const existingDevice = existingDevices.find(
+        (device) => device.fingerprint === fingerprint,
+      );
+      if (existingDevice) {
+        return existingDevice;
+      }
+      throw new Error("Device activation in progress for this fingerprint");
+    }
+    throw error;
+  }
+
+  try {
+    const existingDevices = await getLicenseDevices(keygenLicenseId);
+    const existingDevice = existingDevices.find(
+      (device) => device.fingerprint === fingerprint,
+    );
+
+    if (existingDevice) {
+      await dynamodb.send(
+        new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            PK: `LICENSE#${keygenLicenseId}`,
+            SK: existingDevice.SK,
+          },
+          UpdateExpression:
+            "SET keygenMachineId = :machineId, #name = :name, platform = :platform, lastSeenAt = :lastSeen, userId = :userId, userEmail = :userEmail, metadata = :metadata",
+          ExpressionAttributeNames: {
+            "#name": "name",
+          },
+          ExpressionAttributeValues: {
+            ":machineId": keygenMachineId,
+            ":name": name,
+            ":platform": platform,
+            ":lastSeen": now,
+            ":userId": userId,
+            ":userEmail": userEmail,
+            ":metadata": safeMetadata,
+          },
+        }),
+      );
+
+      return {
+        ...existingDevice,
+        keygenMachineId,
+        name,
+        platform,
+        lastSeenAt: now,
+        userId,
+        userEmail,
+        metadata: safeMetadata,
+      };
+    }
+
+    const item = {
+      PK: `LICENSE#${keygenLicenseId}`,
+      SK: `DEVICE#${keygenMachineId}`,
       keygenMachineId,
+      fingerprint,
       name,
       platform,
       lastSeenAt: now,
+      metadata: safeMetadata,
       userId,
       userEmail,
+      createdAt: now,
     };
+
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: item,
+        ConditionExpression: "attribute_not_exists(PK)",
+      }),
+    );
+
+    try {
+      await dynamodb.send(
+        new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            PK: `LICENSE#${keygenLicenseId}`,
+            SK: "DETAILS",
+          },
+          UpdateExpression:
+            "SET activatedDevices = if_not_exists(activatedDevices, :zero) + :one",
+          ExpressionAttributeValues: {
+            ":zero": 0,
+            ":one": 1,
+          },
+        }),
+      );
+    } catch (counterError) {
+      await dynamodb.send(
+        new DeleteCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            PK: `LICENSE#${keygenLicenseId}`,
+            SK: `DEVICE#${keygenMachineId}`,
+          },
+        }),
+      );
+      throw counterError;
+    }
+
+    return item;
+  } catch (error) {
+    logger.error("Failed to add device activation", {
+      keygenLicenseId,
+      keygenMachineId,
+      fingerprint,
+      error: error.message,
+    });
+    throw error;
+  } finally {
+    await dynamodb
+      .send(
+        new DeleteCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            PK: `LICENSE#${keygenLicenseId}`,
+            SK: lockKey,
+          },
+        }),
+      )
+      .catch((cleanupError) => {
+        logger.error("Failed to release fingerprint lock", {
+          keygenLicenseId,
+          fingerprint,
+          error: cleanupError.message,
+        });
+      });
   }
-
-  // No existing device with this fingerprint - create new record
-  const item = {
-    PK: `LICENSE#${keygenLicenseId}`,
-    SK: `DEVICE#${keygenMachineId}`,
-    keygenMachineId,
-    fingerprint,
-    name,
-    platform,
-    lastSeenAt: now,
-    ...metadata,
-    userId,
-    userEmail,
-    createdAt: now,
-  };
-
-  await dynamodb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
-
-  // Increment activated devices count only for new devices
-
-  // Increment activated devices count only for new devices
-  await dynamodb.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `LICENSE#${keygenLicenseId}`,
-        SK: "DETAILS",
-      },
-      UpdateExpression:
-        "SET activatedDevices = if_not_exists(activatedDevices, :zero) + :one",
-      ExpressionAttributeValues: {
-        ":zero": 0,
-        ":one": 1,
-      },
-    }),
-  );
-
-  return item;
 }
 
 /**
@@ -694,15 +811,33 @@ export async function addDeviceActivation({
  */
 export async function getActiveDevicesInWindow(
   keygenLicenseId,
-  windowHours = 2,
+  windowHours = DEVICE_ACTIVITY_WINDOW_HOURS,
 ) {
-  const devices = await getLicenseDevices(keygenLicenseId);
-  const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+  const logger = createLogger("getActiveDevicesInWindow");
 
-  return devices.filter((device) => {
-    const lastActivity = new Date(device.lastSeenAt || device.createdAt);
-    return lastActivity > cutoffTime;
-  });
+  if (!keygenLicenseId) {
+    throw new Error("getActiveDevicesInWindow requires keygenLicenseId");
+  }
+
+  try {
+    const devices = await getLicenseDevices(keygenLicenseId);
+    const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+    return devices.filter((device) => {
+      const lastActivity = new Date(device.lastSeenAt || device.createdAt);
+      if (Number.isNaN(lastActivity.getTime())) {
+        return false;
+      }
+      return lastActivity > cutoffTime;
+    });
+  } catch (error) {
+    logger.error("Failed to get active devices in window", {
+      keygenLicenseId,
+      windowHours,
+      error: error.message,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -716,12 +851,23 @@ export async function getActiveDevicesInWindow(
  * @returns {Promise<Array>} Devices belonging to this user
  */
 export async function getUserDevices(keygenLicenseId, userId) {
+  const logger = createLogger("getUserDevices");
+
   if (!keygenLicenseId || !userId) {
     return [];
   }
 
-  const devices = await getLicenseDevices(keygenLicenseId);
-  return devices.filter((device) => device.userId === userId);
+  try {
+    const devices = await getLicenseDevices(keygenLicenseId);
+    return devices.filter((device) => device.userId === userId);
+  } catch (error) {
+    logger.error("Failed to get user devices", {
+      keygenLicenseId,
+      userId,
+      error: error.message,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -739,49 +885,96 @@ export async function getUserDevices(keygenLicenseId, userId) {
 export async function getActiveUserDevicesInWindow(
   keygenLicenseId,
   userId,
-  windowHours = 2,
+  windowHours = DEVICE_ACTIVITY_WINDOW_HOURS,
 ) {
+  const logger = createLogger("getActiveUserDevicesInWindow");
+
   if (!keygenLicenseId || !userId) {
     return [];
   }
 
-  const userDevices = await getUserDevices(keygenLicenseId, userId);
-  const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+  try {
+    const userDevices = await getUserDevices(keygenLicenseId, userId);
+    const cutoffTime = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
-  return userDevices.filter((device) => {
-    const lastActivity = new Date(device.lastSeenAt || device.createdAt);
-    return lastActivity > cutoffTime;
-  });
+    return userDevices.filter((device) => {
+      const lastActivity = new Date(device.lastSeenAt || device.createdAt);
+      if (Number.isNaN(lastActivity.getTime())) {
+        return false;
+      }
+      return lastActivity > cutoffTime;
+    });
+  } catch (error) {
+    logger.error("Failed to get active user devices in window", {
+      keygenLicenseId,
+      userId,
+      windowHours,
+      error: error.message,
+    });
+    throw error;
+  }
 }
 
 /**
  * Remove device activation
  */
 export async function removeDeviceActivation(keygenLicenseId, keygenMachineId) {
-  await dynamodb.send(
-    new DeleteCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `LICENSE#${keygenLicenseId}`,
-        SK: `DEVICE#${keygenMachineId}`,
-      },
-    }),
-  );
+  const logger = createLogger("removeDeviceActivation");
 
-  // Decrement activated devices count
-  await dynamodb.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `LICENSE#${keygenLicenseId}`,
-        SK: "DETAILS",
-      },
-      UpdateExpression: "SET activatedDevices = activatedDevices - :one",
-      ExpressionAttributeValues: {
-        ":one": 1,
-      },
-    }),
-  );
+  if (!keygenLicenseId || !keygenMachineId) {
+    throw new Error(
+      "removeDeviceActivation requires keygenLicenseId and keygenMachineId",
+    );
+  }
+
+  try {
+    const deleted = await dynamodb.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `LICENSE#${keygenLicenseId}`,
+          SK: `DEVICE#${keygenMachineId}`,
+        },
+        ReturnValues: "ALL_OLD",
+      }),
+    );
+
+    if (!deleted.Attributes) {
+      return { removed: false };
+    }
+
+    await dynamodb
+      .send(
+        new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            PK: `LICENSE#${keygenLicenseId}`,
+            SK: "DETAILS",
+          },
+          ConditionExpression: "attribute_exists(activatedDevices) AND activatedDevices > :zero",
+          UpdateExpression: "SET activatedDevices = activatedDevices - :one",
+          ExpressionAttributeValues: {
+            ":zero": 0,
+            ":one": 1,
+          },
+        }),
+      )
+      .catch((error) => {
+        if (error.name === "ConditionalCheckFailedException") {
+          return;
+        }
+        throw error;
+      });
+
+    return { removed: true };
+  } catch (error) {
+    logger.error("Failed to remove device activation", {
+      keygenLicenseId,
+      keygenMachineId,
+      error: error.message,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -793,15 +986,30 @@ export async function removeDeviceActivation(keygenLicenseId, keygenMachineId) {
  *
  * @param {string} keygenLicenseId - License ID
  * @param {string} keygenMachineId - Machine ID
- * @param {string} [userId] - Optional Cognito user ID to bind device to user
+ * @param {string} [userId] - Deprecated: ignored to prevent reassignment
  */
 export async function updateDeviceLastSeen(
   keygenLicenseId,
   keygenMachineId,
   userId,
 ) {
-  await dynamodb
-    .send(
+  const logger = createLogger("updateDeviceLastSeen");
+
+  if (!keygenLicenseId || !keygenMachineId) {
+    throw new Error(
+      "updateDeviceLastSeen requires keygenLicenseId and keygenMachineId",
+    );
+  }
+
+  if (userId) {
+    logger.info("Ignored userId in updateDeviceLastSeen", {
+      keygenLicenseId,
+      keygenMachineId,
+    });
+  }
+
+  try {
+    await dynamodb.send(
       new UpdateCommand({
         TableName: TABLE_NAME,
         Key: {
@@ -809,21 +1017,29 @@ export async function updateDeviceLastSeen(
           SK: `DEVICE#${keygenMachineId}`,
         },
         ConditionExpression: "attribute_exists(PK)",
-        UpdateExpression:
-          "SET lastSeenAt = :now" + (userId ? ", userId = :userId" : ""),
+        UpdateExpression: "SET lastSeenAt = :now",
         ExpressionAttributeValues: {
           ":now": new Date().toISOString(),
-          ...(userId && { ":userId": userId }),
         },
       }),
-    )
-    .catch((err) => {
-      // ConditionalCheckFailedException = device record doesn't exist, safe to ignore
-      if (err.name === "ConditionalCheckFailedException") {
-        return;
-      }
-      throw err;
+    );
+    return { updated: true };
+  } catch (error) {
+    if (error.name === "ConditionalCheckFailedException") {
+      logger.info("Skipped lastSeen update for missing device", {
+        keygenLicenseId,
+        keygenMachineId,
+      });
+      return { updated: false };
+    }
+
+    logger.error("Failed to update device last seen", {
+      keygenLicenseId,
+      keygenMachineId,
+      error: error.message,
     });
+    throw error;
+  }
 }
 
 // ===========================================
@@ -1451,13 +1667,11 @@ export async function getOrgLicenseUsage(orgId) {
  * @returns {string} Random invite token
  */
 function generateInviteToken() {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let token = "";
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
+  return randomBytes(24)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 /**
@@ -1477,7 +1691,7 @@ export async function createOrgInvite(
 ) {
   const logger = createLogger("createOrgInvite");
   const normalizedEmail = email.toLowerCase();
-  const inviteId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const inviteId = `inv_${Date.now()}_${randomBytes(4).toString("hex")}`;
   const token = generateInviteToken();
   const now = new Date().toISOString();
   const expiresAt = new Date(
@@ -1485,6 +1699,8 @@ export async function createOrgInvite(
   ).toISOString(); // 7 days
 
   try {
+    const inviteMetadata = sanitizeInviteMetadata(metadata);
+
     const item = {
       PK: `ORG#${orgId}`,
       SK: `INVITE#${inviteId}`,
@@ -1502,7 +1718,9 @@ export async function createOrgInvite(
       createdAt: now,
       expiresAt,
       eventType: "TEAM_INVITE_CREATED",
-      ...metadata,
+      organizationName: inviteMetadata.organizationName,
+      inviterName: inviteMetadata.inviterName,
+      metadata: inviteMetadata.metadata,
     };
 
     await dynamodb.send(

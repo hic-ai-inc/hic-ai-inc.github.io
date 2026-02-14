@@ -524,6 +524,18 @@ describe("dynamodb.js", () => {
       );
       expect(command.input.ExpressionAttributeValues[":sk"]).toBe("DEVICE#");
     });
+
+    it("should throw when keygenLicenseId is missing", async () => {
+      let threw = false;
+      try {
+        await getLicenseDevices();
+      } catch (err) {
+        threw = true;
+        expect(err.message).toContain("requires keygenLicenseId");
+      }
+      expect(threw).toBe(true);
+      expect(mockSend.callCount).toBe(0);
+    });
   });
 
   describe("addDeviceActivation", () => {
@@ -543,8 +555,8 @@ describe("dynamodb.js", () => {
         userEmail: "test@example.com",
       });
 
-      // Should call send 3 times (getLicenseDevices + device record + increment counter)
-      expect(mockSend.callCount).toBe(3);
+      // Hardened flow adds fingerprint lock acquire/release around write path
+      expect(mockSend.callCount).toBe(5);
 
       expect(result.keygenMachineId).toBe("mach_new");
       expect(result.fingerprint).toBe("abc123fingerprint");
@@ -554,10 +566,60 @@ describe("dynamodb.js", () => {
       expect(result.createdAt).toBeDefined();
       expect(result.lastSeenAt).toBeDefined();
     });
+
+    it("should store metadata under metadata field without overriding protected keys", async () => {
+      mockSend.mockResolvedValueOnce({ Items: [] });
+      mockSend.mockResolvedValue({});
+
+      await addDeviceActivation({
+        keygenLicenseId: "lic_123",
+        keygenMachineId: "mach_new",
+        fingerprint: "meta_fingerprint",
+        name: "Metadata Device",
+        platform: "linux",
+        userId: "cognito|user-999",
+        userEmail: "meta@example.com",
+        metadata: {
+          PK: "LICENSE#attacker",
+          SK: "DEVICE#attacker",
+          role: "admin",
+          environment: "staging",
+        },
+      });
+
+      const putCall = mockSend.calls.find((call) => {
+        const item = call?.[0]?.input?.Item;
+        return item && item.SK === "DEVICE#mach_new";
+      });
+
+      expect(putCall).toBeDefined();
+      const putItem = putCall[0].input.Item;
+      expect(putItem.PK).toBe("LICENSE#lic_123");
+      expect(putItem.SK).toBe("DEVICE#mach_new");
+      expect(putItem.metadata.environment).toBe("staging");
+      expect(putItem.metadata.PK).toBe("LICENSE#attacker");
+    });
+
+    it("should throw when key identifiers are missing", async () => {
+      let threw = false;
+      try {
+        await addDeviceActivation({
+          keygenLicenseId: "lic_123",
+          userId: "cognito|user-1",
+          userEmail: "user@example.com",
+        });
+      } catch (err) {
+        threw = true;
+        expect(err.message).toContain("keygenLicenseId, keygenMachineId, and fingerprint");
+      }
+      expect(threw).toBe(true);
+      expect(mockSend.callCount).toBe(0);
+    });
   });
 
   describe("removeDeviceActivation", () => {
     it("should delete device record and decrement counter", async () => {
+      mockSend.mockResolvedValueOnce({ Attributes: { keygenMachineId: "mach_remove" } });
       mockSend.mockResolvedValue({});
 
       await removeDeviceActivation("lic_123", "mach_remove");
@@ -575,6 +637,15 @@ describe("dynamodb.js", () => {
       expect(updateCommand.input.UpdateExpression).toContain(
         "activatedDevices",
       );
+    });
+
+    it("should skip counter decrement when no device record was deleted", async () => {
+      mockSend.mockResolvedValueOnce({ Attributes: undefined });
+
+      const result = await removeDeviceActivation("lic_123", "mach_missing");
+
+      expect(result.removed).toBe(false);
+      expect(mockSend.callCount).toBe(1);
     });
   });
 
@@ -624,15 +695,15 @@ describe("dynamodb.js", () => {
       expect(threw).toBe(true);
     });
 
-    it("should include userId in UpdateExpression when provided (Phase 3F)", async () => {
+    it("should NOT include userId in UpdateExpression when provided (security hardening)", async () => {
       mockSend.mockResolvedValue({});
 
       await updateDeviceLastSeen("lic_123", "mach_789", "user_abc");
 
       const command = mockSend.calls[0][0];
-      expect(command.input.UpdateExpression).toContain("userId = :userId");
+      expect(command.input.UpdateExpression).not.toContain("userId");
       expect(command.input.ExpressionAttributeValues[":userId"]).toBe(
-        "user_abc",
+        undefined,
       );
     });
 
@@ -754,6 +825,35 @@ describe("dynamodb.js", () => {
       const result = await getActiveDevicesInWindow("lic_123", 24);
 
       expect(result).toHaveLength(0);
+    });
+
+    it("should exclude devices with invalid date strings", async () => {
+      mockSend.mockResolvedValue({
+        Items: [
+          { keygenMachineId: "mach_bad", lastSeenAt: "not-a-date" },
+          {
+            keygenMachineId: "mach_good",
+            lastSeenAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      const result = await getActiveDevicesInWindow("lic_123", 24);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].keygenMachineId).toBe("mach_good");
+    });
+
+    it("should throw when keygenLicenseId is missing", async () => {
+      let threw = false;
+      try {
+        await getActiveDevicesInWindow();
+      } catch (err) {
+        threw = true;
+        expect(err.message).toContain("requires keygenLicenseId");
+      }
+      expect(threw).toBe(true);
+      expect(mockSend.callCount).toBe(0);
     });
   });
 
@@ -941,6 +1041,51 @@ describe("dynamodb.js", () => {
       expect(result.organizationName).toBe("Test Corp");
       expect(result.inviterName).toBe("Test User");
       expect(result.eventType).toBe("TEAM_INVITE_CREATED");
+    });
+
+    it("should keep invite metadata nested while preserving protected top-level fields", async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      const result = await createOrgInvite(
+        "org_123",
+        "user@example.com",
+        "member",
+        "inviter_123",
+        {
+          organizationName: "Secure Org",
+          inviterName: "Secure Inviter",
+          role: "owner",
+          token: "forged-token",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          extraField: "kept-in-metadata",
+        },
+      );
+
+      expect(result.role).toBe("member");
+      expect(result.token).not.toBe("forged-token");
+      expect(result.organizationName).toBe("Secure Org");
+      expect(result.inviterName).toBe("Secure Inviter");
+      expect(result.metadata.extraField).toBe("kept-in-metadata");
+      expect(result.metadata.role).toBe("owner");
+    });
+
+    it("should sanitize invite metadata field types", async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      const result = await createOrgInvite(
+        "org_123",
+        "user@example.com",
+        "member",
+        "inviter_123",
+        {
+          organizationName: { bad: true },
+          inviterName: 42,
+        },
+      );
+
+      expect(result.organizationName).toBe(undefined);
+      expect(result.inviterName).toBe(undefined);
+      expect(result.metadata).toBeDefined();
     });
 
     it("should accept metadata parameter with default empty object", async () => {
@@ -1469,13 +1614,14 @@ describe("dynamodb.js", () => {
       expect(result.keygenMachineId).toBe("mach_new");
 
       // Verify PutCommand includes userId/userEmail in the item
-      const putCommand = mockSend.calls[1][0];
+      const putCommand = mockSend.calls[2][0];
       expect(putCommand.input.Item.userId).toBe("cognito|user-456");
       expect(putCommand.input.Item.userEmail).toBe("user@example.com");
     });
 
     it("should include userId and userEmail when updating existing device", async () => {
-      // Mock getLicenseDevices to return existing device with same fingerprint
+      // Mock lock PutCommand, then getLicenseDevices result with existing device
+      mockSend.mockResolvedValueOnce({});
       mockSend.mockResolvedValueOnce({
         Items: [
           {
@@ -1488,7 +1634,7 @@ describe("dynamodb.js", () => {
           },
         ],
       });
-      // Mock UpdateCommand
+      // Mock UpdateCommand and lock cleanup DeleteCommand
       mockSend.mockResolvedValue({});
 
       const result = await addDeviceActivation({
@@ -1506,7 +1652,18 @@ describe("dynamodb.js", () => {
       expect(result.keygenMachineId).toBe("mach_new");
 
       // Verify UpdateCommand includes userId/userEmail in expression
-      const updateCommand = mockSend.calls[1][0];
+      const updateCommandCall = mockSend.calls.find((call) => {
+        const input = call?.[0]?.input;
+        return (
+          typeof input?.UpdateExpression === "string" &&
+          input.UpdateExpression.includes("userId") &&
+          input.UpdateExpression.includes("userEmail")
+        );
+      });
+
+      expect(updateCommandCall).toBeDefined();
+
+      const updateCommand = updateCommandCall[0];
       expect(updateCommand.input.UpdateExpression).toContain("userId");
       expect(updateCommand.input.UpdateExpression).toContain("userEmail");
       expect(updateCommand.input.ExpressionAttributeValues[":userId"]).toBe(

@@ -36,9 +36,37 @@ import {
   APP_NAME,
   APP_DESCRIPTION,
   COMPANY_NAME,
+  DEFAULT_MAX_DEVICES,
+  DEVICE_ACTIVITY_WINDOW_HOURS,
+  DEVICE_ACTIVITY_WINDOW_MS,
+  getMaxDevicesForAccountType,
 } from "../../../src/lib/constants.js";
 
 describe("constants.js", () => {
+  describe("Device policy constants", () => {
+    it("should define default max devices as 3", () => {
+      expect(DEFAULT_MAX_DEVICES).toBe(3);
+    });
+
+    it("should define activity window as 2 hours", () => {
+      expect(DEVICE_ACTIVITY_WINDOW_HOURS).toBe(2);
+      expect(DEVICE_ACTIVITY_WINDOW_MS).toBe(2 * 60 * 60 * 1000);
+    });
+
+    it("should resolve individual max devices from shared helper", () => {
+      expect(getMaxDevicesForAccountType("individual")).toBe(3);
+    });
+
+    it("should resolve business max devices from shared helper", () => {
+      expect(getMaxDevicesForAccountType("business")).toBe(5);
+    });
+
+    it("should fallback to default max devices for unknown account type", () => {
+      expect(getMaxDevicesForAccountType("unknown")).toBe(3);
+      expect(getMaxDevicesForAccountType(undefined)).toBe(3);
+    });
+  });
+
   describe("PRICING", () => {
     describe("individual tier", () => {
       it("should have id of individual", () => {

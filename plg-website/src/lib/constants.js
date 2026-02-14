@@ -13,6 +13,20 @@
 // ===========================================
 
 // v4.2: 2-tier model for launch — Individual + Business only
+export const DEFAULT_MAX_DEVICES = 3;
+export const DEVICE_ACTIVITY_WINDOW_HOURS = 2;
+export const DEVICE_ACTIVITY_WINDOW_MS =
+  DEVICE_ACTIVITY_WINDOW_HOURS * 60 * 60 * 1000;
+
+export function getMaxDevicesForAccountType(accountType) {
+  const planConfig = PRICING[accountType];
+  return (
+    planConfig?.maxConcurrentMachinesPerSeat ||
+    planConfig?.maxConcurrentMachines ||
+    DEFAULT_MAX_DEVICES
+  );
+}
+
 export const PRICING = {
   individual: {
     id: "individual",
