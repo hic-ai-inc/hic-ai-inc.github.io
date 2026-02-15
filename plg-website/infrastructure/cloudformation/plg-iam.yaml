@@ -160,8 +160,8 @@ Resources:
                   - dynamodb:BatchGetItem
                   - dynamodb:BatchWriteItem
                 Resource:
-                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/plg-*"
-                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/plg-*/index/*"
+                  - !Ref DynamoDBTableArn
+                  - !Sub "${DynamoDBTableArn}/index/*"
         # Secrets Manager - read Stripe keys and other secrets
         - PolicyName: SecretsManagerAccess
           PolicyDocument:
@@ -171,7 +171,7 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource:
-                  - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:plg/*"
+                  - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:plg/${Environment}/*"
         # SES - send transactional emails
         - PolicyName: SESAccess
           PolicyDocument:
