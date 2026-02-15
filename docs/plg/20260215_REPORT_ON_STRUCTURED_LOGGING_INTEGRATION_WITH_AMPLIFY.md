@@ -2,15 +2,15 @@
 
 **Date:** 2026-02-15
 **Author:** GitHub Copilot (GC) with SWR
-**Status:** Phase 1 In Progress — Commits 1 and 2 Complete (15 Portal Handlers Wired)
+**Status:** Phase 1 In Progress — Commits 1, 2, and 3 Complete (18 Portal Handlers Wired)
 **Branch:** `development`
-**Commit Range:** `094edf8..ac7b22f`
+**Commit Range:** `094edf8..0554e53`
 
 ---
 
 ## 1. Executive Summary
 
-This report documents the end-to-end investigation, root cause analysis, and resolution of the structured logging integration for the HIC PLG website running on AWS Amplify Gen 2 (WEB_COMPUTE). What began as a diagnostic session — "I wired `api-log` but can't find logs in CloudWatch" — uncovered multiple infrastructure gaps, culminated in a manually created log group, and validated the structured logging pattern. As of this update, the pattern is wired and validated across 17 handlers (checkout domain + Commits 1–2 portal endpoints), with 16 handlers remaining.
+This report documents the end-to-end investigation, root cause analysis, and resolution of the structured logging integration for the HIC PLG website running on AWS Amplify Gen 2 (WEB_COMPUTE). What began as a diagnostic session — "I wired `api-log` but can't find logs in CloudWatch" — uncovered multiple infrastructure gaps, culminated in a manually created log group, and validated the structured logging pattern. As of this update, the pattern is wired and validated across 23 handlers (checkout domain + Commits 1–3 endpoints), with 10 handlers remaining.
 
 ---
 
@@ -191,9 +191,9 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 | #   | Endpoint                  | Method | Lines | Status |
 | --- | ------------------------- | ------ | ----- | ------ |
 | 3   | `/api/license/activate`   | POST   | 229   | ⬜     |
-| 4   | `/api/license/check`      | GET    | 140   | ⬜     |
-| 5   | `/api/license/deactivate` | DELETE | 100   | ⬜     |
-| 6   | `/api/license/deactivate` | POST   | 100   | ⬜     |
+| 4   | `/api/license/check`      | GET    | 140   | ✅ Wired and validated |
+| 5   | `/api/license/deactivate` | DELETE | 100   | ✅ Wired and validated |
+| 6   | `/api/license/deactivate` | POST   | 100   | ✅ Wired and validated |
 | 7   | `/api/license/heartbeat`  | POST   | 343   | ⬜     |
 | 8   | `/api/license/validate`   | POST   | 275   | ⬜     |
 | 9   | `/api/license/trial/init` | POST   | 326   | ⬜     |
@@ -218,9 +218,9 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 | 23  | `/api/portal/settings/leave-organization` | POST   | 111   | ✅ Wired and validated |
 | 24  | `/api/portal/status`                      | GET    | 166   | ✅ Wired and validated |
 | 25  | `/api/portal/stripe-session`              | POST   | 55    | ✅ Wired and validated |
-| 26  | `/api/portal/team`                        | GET    | 585   | ⬜                     |
-| 27  | `/api/portal/team`                        | POST   | 585   | ⬜                     |
-| 28  | `/api/portal/team`                        | DELETE | 585   | ⬜                     |
+| 26  | `/api/portal/team`                        | GET    | 585   | ✅ Wired and validated |
+| 27  | `/api/portal/team`                        | POST   | 585   | ✅ Wired and validated |
+| 28  | `/api/portal/team`                        | DELETE | 585   | ✅ Wired and validated |
 
 ### 6.4 Webhooks Domain (2 files, 2 handlers)
 
@@ -244,8 +244,8 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 | Total route files       | 24                                                        |
 | Total handler functions | 33                                                        |
 | Total lines of code     | 5,679                                                     |
-| Wired and validated     | 17 handlers (checkout + Commits 1 and 2 portal endpoints) |
-| Remaining to wire       | 16 handlers across 11 route files                         |
+| Wired and validated     | 23 handlers (checkout + Commits 1, 2, and 3 endpoints)     |
+| Remaining to wire       | 10 handlers across 8 route files                          |
 
 ---
 
@@ -294,7 +294,7 @@ git add <file> && git commit -m "feat(logging): wire <endpoint> to api-log" && g
 
 ### Batching Strategy — Detailed Implementation Plan
 
-The rollout scope remains **33 handlers across 24 route files** total. After completing 17 handlers, **16 handlers remain across 11 route files** (~115 console calls), organized into **4 remaining commits** across 3 tiers of complexity. Each commit is independently testable and deployable.
+The rollout scope remains **33 handlers across 24 route files** total. After completing 23 handlers, **10 handlers remain across 8 route files** (~108 console calls), organized into **3 remaining commits** across 3 tiers of complexity. Each commit is independently testable and deployable.
 
 #### Complexity Tiers
 
@@ -345,7 +345,7 @@ Files with 2–3 exported handlers. Each handler needs its own `createApiLogger(
 
 ---
 
-### Commit 3: Portal — Team Endpoint + License Simple (4 files, 6 handlers, ~7 console calls)
+### Commit 3: Portal — Team Endpoint + License Simple (4 files, 6 handlers, ~7 console calls) ✅ COMPLETE
 
 The team endpoint (3 exports, 585 lines) is the largest portal file. Bundle with the simpler license endpoints.
 
@@ -356,6 +356,8 @@ The team endpoint (3 exports, 585 lines) is the largest portal file. Bundle with
 | 5–6   | `license/deactivate/route.js` | DELETE, POST      | 1             | `plg-api-license-deactivate` | `license_deactivate`                                           |
 
 **Commit message:** `feat(logging): wire portal/team and license/check,deactivate to api-log`
+
+**Completion note (2026-02-15):** Implemented for `portal/team`, `license/check`, and `license/deactivate`, with new contract coverage in `portal-commit3-logging.contract.test.js`, full suite passing (1438/1438), and CI/CD + Amplify deployment validated.
 
 ---
 
