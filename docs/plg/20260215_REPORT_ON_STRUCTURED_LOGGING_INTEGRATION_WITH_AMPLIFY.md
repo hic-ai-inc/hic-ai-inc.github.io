@@ -2,15 +2,15 @@
 
 **Date:** 2026-02-15
 **Author:** GitHub Copilot (GC) with SWR
-**Status:** Phase 1 In Progress — Commit 1 Complete (7 Portal Endpoints Wired)
+**Status:** Phase 1 In Progress — Commits 1 and 2 Complete (15 Portal Handlers Wired)
 **Branch:** `development`
-**Commit Range:** `094edf8..f0e9643`
+**Commit Range:** `094edf8..ac7b22f`
 
 ---
 
 ## 1. Executive Summary
 
-This report documents the end-to-end investigation, root cause analysis, and resolution of the structured logging integration for the HIC PLG website running on AWS Amplify Gen 2 (WEB_COMPUTE). What began as a diagnostic session — "I wired `api-log` but can't find logs in CloudWatch" — uncovered multiple infrastructure gaps, culminated in a manually created log group, and validated the structured logging pattern. As of this update, the pattern is wired and validated across 9 handlers (checkout domain + Commit 1 portal endpoints), with 24 handlers remaining.
+This report documents the end-to-end investigation, root cause analysis, and resolution of the structured logging integration for the HIC PLG website running on AWS Amplify Gen 2 (WEB_COMPUTE). What began as a diagnostic session — "I wired `api-log` but can't find logs in CloudWatch" — uncovered multiple infrastructure gaps, culminated in a manually created log group, and validated the structured logging pattern. As of this update, the pattern is wired and validated across 17 handlers (checkout domain + Commits 1–2 portal endpoints), with 16 handlers remaining.
 
 ---
 
@@ -26,14 +26,15 @@ SWR had wired the `api-log` structured logging adapter (which wraps `HicLog`) to
 
 Amplify Gen 2 WEB_COMPUTE uses **two IAM roles**:
 
-| Role | Purpose | CloudWatch Logs Permissions |
-|------|---------|-----------------------------|
-| `plg-amplify-role-staging` | Service/build role (CI/CD) | ✅ Full CW Logs access |
-| `plg-amplify-compute-role-staging` | SSR runtime (Lambda@Edge) | ❌ **Zero CW Logs permissions** |
+| Role                               | Purpose                    | CloudWatch Logs Permissions     |
+| ---------------------------------- | -------------------------- | ------------------------------- |
+| `plg-amplify-role-staging`         | Service/build role (CI/CD) | ✅ Full CW Logs access          |
+| `plg-amplify-compute-role-staging` | SSR runtime (Lambda@Edge)  | ❌ **Zero CW Logs permissions** |
 
 The compute role — the one that actually executes API route code at runtime — had been manually created in the AWS Console with four inline policies for DynamoDB, SecretsManager, SES, and SSM. **None included CloudWatch Logs permissions.** Without `logs:PutLogEvents` and `logs:CreateLogStream`, the runtime could not write logs even if the log group existed.
 
 **Resolution:** Migrated the compute role into CloudFormation (`plg-iam.yaml`) with all existing policies plus CloudWatch Logs. Deleted the manual IAM role and its four inline policies. Two deploy iterations were needed:
+
 - First fix: `DomainName` parameter reference → changed to `${Environment}.hic-ai.com`
 - Second fix: DynamoDB policy glob `table/plg-*` didn't match actual table `hic-plg-staging` → changed to `!Ref DynamoDBTableArn`; SecretsManager scope tightened from `plg/*` to `plg/${Environment}/*`
 
@@ -90,25 +91,26 @@ API Route Handler
 import { createApiLogger } from "@/lib/api-log";
 
 const log = createApiLogger({
-  service: "plg-api-{endpoint}",   // Unique service name per route
-  request,                          // Next.js Request object
-  operation: "{operation_name}",    // Logical operation (e.g., "checkout_create")
+  service: "plg-api-{endpoint}", // Unique service name per route
+  request, // Next.js Request object
+  operation: "{operation_name}", // Logical operation (e.g., "checkout_create")
 });
 
 // Available methods:
-log.requestReceived(extra)           // Log incoming request with context
-log.decision(event, message, extra)  // Log business logic decisions
-log.info(event, message, extra)      // General informational events
-log.warn(event, message, extra)      // Warnings (non-fatal issues)
-log.debug(event, message, extra)     // Debug-level detail
-log.error(event, message, err, extra)// Error events with stack traces
-log.response(statusCode, msg, extra) // Auto-routes: 2xx→info, 4xx→warn, 5xx→error
-log.exception(err, event, msg, extra)// Catch-all error logging
+log.requestReceived(extra); // Log incoming request with context
+log.decision(event, message, extra); // Log business logic decisions
+log.info(event, message, extra); // General informational events
+log.warn(event, message, extra); // Warnings (non-fatal issues)
+log.debug(event, message, extra); // Debug-level detail
+log.error(event, message, err, extra); // Error events with stack traces
+log.response(statusCode, msg, extra); // Auto-routes: 2xx→info, 4xx→warn, 5xx→error
+log.exception(err, event, msg, extra); // Catch-all error logging
 ```
 
 ### 4.3 Automatic Context
 
 Every log entry automatically includes:
+
 - `correlationId` — from `x-correlation-id`, `x-request-id`, or `x-hic-probe-id` headers
 - `method`, `path` — HTTP method and route path
 - `probeId` — for diagnostic probe requests
@@ -119,6 +121,7 @@ Every log entry automatically includes:
 ### 4.4 Validated Output
 
 Probe request:
+
 ```bash
 curl -s -X POST -H "Content-Type: application/json" \
   -H "x-hic-probe-id: probe-checkout-logging" \
@@ -126,6 +129,7 @@ curl -s -X POST -H "Content-Type: application/json" \
 ```
 
 CloudWatch output (4 structured JSON entries):
+
 ```json
 {"timestamp":"2026-02-15T14:53:05.333Z","level":"INFO","service":"plg-api-checkout","correlationId":"probe-checkout-logging","event":"request_received","message":"API request received","method":"POST","path":"/api/checkout","operation":"checkout_create","nodeEnv":"production","hasAppUrl":true,"hasStripeKey":false}
 {"timestamp":"2026-02-15T14:53:05.334Z","level":"INFO","service":"plg-api-checkout","correlationId":"probe-checkout-logging","event":"body_parsed","message":"Request body parsed","operation":"checkout_create","hasEmail":false}
@@ -142,6 +146,7 @@ CloudWatch output (4 structured JSON entries):
 **File:** `plg-website/infrastructure/cloudformation/plg-iam.yaml`
 
 Added `AmplifyComputeRole` resource with five policies:
+
 1. **CloudWatch Logs** — `CreateLogGroup`, `CreateLogStream`, `PutLogEvents` scoped to `/aws/amplify/*`
 2. **DynamoDB** — Full table access scoped to `!Ref DynamoDBTableArn` (resolves to `hic-plg-staging`)
 3. **Secrets Manager** — Read access scoped to `plg/${Environment}/*`
@@ -153,6 +158,7 @@ Output `AmplifyComputeRoleArn` passed through `plg-main-stack.yaml`.
 ### 5.2 Manual IAM Cleanup
 
 Deleted from AWS Console:
+
 - Role: `plg-amplify-compute-role-staging` (manually created)
 - 4 inline policies attached to that role
 
@@ -169,76 +175,77 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 ## 6. Endpoint Wiring Checklist
 
 ### Legend
+
 - ✅ Wired and validated in CloudWatch
 - ⬜ Not yet wired (uses ad-hoc `console.log`)
 
 ### 6.1 Checkout Domain (2 files, 2 handlers)
 
-| # | Endpoint | Method | Lines | Status |
-|---|----------|--------|-------|--------|
-| 1 | `/api/checkout` | POST | 295 | ✅ Wired and validated |
-| 2 | `/api/checkout/verify` | GET | 98 | ✅ Wired and validated |
+| #   | Endpoint               | Method | Lines | Status                 |
+| --- | ---------------------- | ------ | ----- | ---------------------- |
+| 1   | `/api/checkout`        | POST   | 295   | ✅ Wired and validated |
+| 2   | `/api/checkout/verify` | GET    | 98    | ✅ Wired and validated |
 
 ### 6.2 License Domain (6 files, 7 handlers)
 
-| # | Endpoint | Method | Lines | Status |
-|---|----------|--------|-------|--------|
-| 3 | `/api/license/activate` | POST | 229 | ⬜ |
-| 4 | `/api/license/check` | GET | 140 | ⬜ |
-| 5 | `/api/license/deactivate` | DELETE | 100 | ⬜ |
-| 6 | `/api/license/deactivate` | POST | 100 | ⬜ |
-| 7 | `/api/license/heartbeat` | POST | 343 | ⬜ |
-| 8 | `/api/license/validate` | POST | 275 | ⬜ |
-| 9 | `/api/license/trial/init` | POST | 326 | ⬜ |
-| 10 | `/api/license/trial/init` | GET | 326 | ⬜ |
+| #   | Endpoint                  | Method | Lines | Status |
+| --- | ------------------------- | ------ | ----- | ------ |
+| 3   | `/api/license/activate`   | POST   | 229   | ⬜     |
+| 4   | `/api/license/check`      | GET    | 140   | ⬜     |
+| 5   | `/api/license/deactivate` | DELETE | 100   | ⬜     |
+| 6   | `/api/license/deactivate` | POST   | 100   | ⬜     |
+| 7   | `/api/license/heartbeat`  | POST   | 343   | ⬜     |
+| 8   | `/api/license/validate`   | POST   | 275   | ⬜     |
+| 9   | `/api/license/trial/init` | POST   | 326   | ⬜     |
+| 10  | `/api/license/trial/init` | GET    | 326   | ⬜     |
 
-### 6.3 Portal Domain (9 files, 13 handlers)
+### 6.3 Portal Domain (12 files, 18 handlers)
 
-| # | Endpoint | Method | Lines | Status |
-|---|----------|--------|-------|--------|
-| 11 | `/api/portal/billing` | GET | 141 | ✅ Wired and validated |
-| 12 | `/api/portal/devices` | GET | 151 | ✅ Wired and validated |
-| 13 | `/api/portal/invite/[token]` | GET | 159 | ⬜ |
-| 14 | `/api/portal/invite/[token]` | POST | 159 | ⬜ |
-| 15 | `/api/portal/license` | GET | 138 | ✅ Wired and validated |
-| 16 | `/api/portal/seats` | GET | 253 | ⬜ |
-| 17 | `/api/portal/seats` | POST | 253 | ⬜ |
-| 18 | `/api/portal/settings` | GET | 178 | ⬜ |
-| 19 | `/api/portal/settings` | PATCH | 178 | ⬜ |
-| 20 | `/api/portal/settings/delete-account` | POST | 214 | ⬜ |
-| 21 | `/api/portal/settings/delete-account` | DELETE | 214 | ⬜ |
-| 22 | `/api/portal/settings/export` | POST | 164 | ✅ Wired and validated |
-| 23 | `/api/portal/settings/leave-organization` | POST | 111 | ✅ Wired and validated |
-| 24 | `/api/portal/status` | GET | 166 | ✅ Wired and validated |
-| 25 | `/api/portal/stripe-session` | POST | 55 | ✅ Wired and validated |
-| 26 | `/api/portal/team` | GET | 585 | ⬜ |
-| 27 | `/api/portal/team` | POST | 585 | ⬜ |
-| 28 | `/api/portal/team` | DELETE | 585 | ⬜ |
+| #   | Endpoint                                  | Method | Lines | Status                 |
+| --- | ----------------------------------------- | ------ | ----- | ---------------------- |
+| 11  | `/api/portal/billing`                     | GET    | 141   | ✅ Wired and validated |
+| 12  | `/api/portal/devices`                     | GET    | 151   | ✅ Wired and validated |
+| 13  | `/api/portal/invite/[token]`              | GET    | 159   | ✅ Wired and validated |
+| 14  | `/api/portal/invite/[token]`              | POST   | 159   | ✅ Wired and validated |
+| 15  | `/api/portal/license`                     | GET    | 138   | ✅ Wired and validated |
+| 16  | `/api/portal/seats`                       | GET    | 253   | ✅ Wired and validated |
+| 17  | `/api/portal/seats`                       | POST   | 253   | ✅ Wired and validated |
+| 18  | `/api/portal/settings`                    | GET    | 178   | ✅ Wired and validated |
+| 19  | `/api/portal/settings`                    | PATCH  | 178   | ✅ Wired and validated |
+| 20  | `/api/portal/settings/delete-account`     | POST   | 214   | ✅ Wired and validated |
+| 21  | `/api/portal/settings/delete-account`     | DELETE | 214   | ✅ Wired and validated |
+| 22  | `/api/portal/settings/export`             | POST   | 164   | ✅ Wired and validated |
+| 23  | `/api/portal/settings/leave-organization` | POST   | 111   | ✅ Wired and validated |
+| 24  | `/api/portal/status`                      | GET    | 166   | ✅ Wired and validated |
+| 25  | `/api/portal/stripe-session`              | POST   | 55    | ✅ Wired and validated |
+| 26  | `/api/portal/team`                        | GET    | 585   | ⬜                     |
+| 27  | `/api/portal/team`                        | POST   | 585   | ⬜                     |
+| 28  | `/api/portal/team`                        | DELETE | 585   | ⬜                     |
 
 ### 6.4 Webhooks Domain (2 files, 2 handlers)
 
-| # | Endpoint | Method | Lines | Status |
-|---|----------|--------|-------|--------|
-| 29 | `/api/webhooks/stripe` | POST | 718 | ⬜ |
-| 30 | `/api/webhooks/keygen` | POST | 315 | ⬜ |
+| #   | Endpoint               | Method | Lines | Status |
+| --- | ---------------------- | ------ | ----- | ------ |
+| 29  | `/api/webhooks/stripe` | POST   | 718   | ⬜     |
+| 30  | `/api/webhooks/keygen` | POST   | 315   | ⬜     |
 
 ### 6.5 Provisioning / Admin (2 files, 3 handlers)
 
-| # | Endpoint | Method | Lines | Status |
-|---|----------|--------|-------|--------|
-| 31 | `/api/provision-license` | POST | 278 | ⬜ |
-| 32 | `/api/admin/provision-test-license` | POST | 247 | ⬜ |
-| 33 | `/api/admin/provision-test-license` | GET | 247 | ⬜ |
+| #   | Endpoint                            | Method | Lines | Status |
+| --- | ----------------------------------- | ------ | ----- | ------ |
+| 31  | `/api/provision-license`            | POST   | 278   | ⬜     |
+| 32  | `/api/admin/provision-test-license` | POST   | 247   | ⬜     |
+| 33  | `/api/admin/provision-test-license` | GET    | 247   | ⬜     |
 
 ### 6.6 Summary
 
-| Metric | Count |
-|--------|-------|
-| Total route files | 24 |
-| Total handler functions | 33 |
-| Total lines of code | 5,679 |
-| Wired and validated | 9 handlers (files: 9 route handlers across checkout + Commit 1 portal endpoints) |
-| Remaining to wire | 24 handlers across 17 route files |
+| Metric                  | Count                                                     |
+| ----------------------- | --------------------------------------------------------- |
+| Total route files       | 24                                                        |
+| Total handler functions | 33                                                        |
+| Total lines of code     | 5,679                                                     |
+| Wired and validated     | 17 handlers (checkout + Commits 1 and 2 portal endpoints) |
+| Remaining to wire       | 16 handlers across 11 route files                         |
 
 ---
 
@@ -247,50 +254,55 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 For each remaining endpoint, the mechanical process is:
 
 ### Step 1: Add Import
+
 ```javascript
 import { createApiLogger } from "@/lib/api-log";
 ```
 
 ### Step 2: Create Logger at Handler Top
+
 ```javascript
 const log = createApiLogger({
-  service: "plg-api-{domain}-{action}",  // e.g., "plg-api-license-activate"
+  service: "plg-api-{domain}-{action}", // e.g., "plg-api-license-activate"
   request,
-  operation: "{operation_name}",          // e.g., "license_activate"
+  operation: "{operation_name}", // e.g., "license_activate"
 });
 log.requestReceived();
 ```
 
 ### Step 3: Replace Console Calls
-| Old Pattern | New Pattern |
-|-------------|-------------|
-| `console.log("[Tag] message", data)` | `log.info("event_name", "message", { data })` |
-| `console.error("[Tag] message", err)` | `log.error("event_name", "message", err)` |
-| `console.log("[Tag] decision:", x)` | `log.decision("event_name", "message", { x })` |
-| `console.log("[Tag] returning 200")` | `log.response(200, "message", { extra })` |
-| `console.error("[Tag] catch:", err)` | `log.exception(err, "event_name", "message")` |
+
+| Old Pattern                           | New Pattern                                    |
+| ------------------------------------- | ---------------------------------------------- |
+| `console.log("[Tag] message", data)`  | `log.info("event_name", "message", { data })`  |
+| `console.error("[Tag] message", err)` | `log.error("event_name", "message", err)`      |
+| `console.log("[Tag] decision:", x)`   | `log.decision("event_name", "message", { x })` |
+| `console.log("[Tag] returning 200")`  | `log.response(200, "message", { extra })`      |
+| `console.error("[Tag] catch:", err)`  | `log.exception(err, "event_name", "message")`  |
 
 ### Step 4: Run Tests
+
 ```bash
 cd plg-website && npm run test
 ```
 
 ### Step 5: Commit and Push
+
 ```bash
 git add <file> && git commit -m "feat(logging): wire <endpoint> to api-log" && git push origin development
 ```
 
 ### Batching Strategy — Detailed Implementation Plan
 
-The rollout scope remains **33 handlers across 24 route files** total. After completing 9 handlers, **24 handlers remain across 17 route files** (~123 console calls), organized into **5 remaining commits** across 3 tiers of complexity. Each commit is independently testable and deployable.
+The rollout scope remains **33 handlers across 24 route files** total. After completing 17 handlers, **16 handlers remain across 11 route files** (~115 console calls), organized into **4 remaining commits** across 3 tiers of complexity. Each commit is independently testable and deployable.
 
 #### Complexity Tiers
 
-| Tier | Description | Files | Handlers | Console Calls | Effort |
-|------|-------------|-------|----------|---------------|--------|
-| **Tier 1** | Mechanical — 0–4 console calls, single try/catch | 14 | 20 | ~30 | Low |
-| **Tier 2** | Moderate — multiple exports or deep nesting | 6 | 9 | ~28 | Medium |
-| **Tier 3** | Complex — webhook handlers with sub-functions | 2 | 2 | ~76 | High |
+| Tier       | Description                                      | Files | Handlers | Console Calls | Effort |
+| ---------- | ------------------------------------------------ | ----- | -------- | ------------- | ------ |
+| **Tier 1** | Mechanical — 0–4 console calls, single try/catch | 14    | 20       | ~30           | Low    |
+| **Tier 2** | Moderate — multiple exports or deep nesting      | 6     | 9        | ~28           | Medium |
+| **Tier 3** | Complex — webhook handlers with sub-functions    | 2     | 2        | ~76           | High   |
 
 ---
 
@@ -298,15 +310,15 @@ The rollout scope remains **33 handlers across 24 route files** total. After com
 
 All single-export, single-try/catch files with 1–3 console calls. Pure mechanical replacement.
 
-| # | File | Handlers | Console Calls | Service Name | Operation(s) |
-|---|------|----------|---------------|--------------|---------------|
-| 11 | `portal/billing/route.js` | GET | 1 | `plg-api-portal-billing` | `portal_billing` |
-| 12 | `portal/devices/route.js` | GET | 1 | `plg-api-portal-devices` | `portal_devices` |
-| 15 | `portal/license/route.js` | GET | 2 | `plg-api-portal-license` | `portal_license` |
-| 24 | `portal/status/route.js` | GET | 3 | `plg-api-portal-status` | `portal_status` |
-| 25 | `portal/stripe-session/route.js` | POST | 1 | `plg-api-portal-stripe-session` | `portal_stripe_session` |
-| 22 | `portal/settings/export/route.js` | POST | 3 | `plg-api-portal-settings-export` | `portal_settings_export` |
-| 23 | `portal/settings/leave-organization/route.js` | POST | 4 (1 warn) | `plg-api-portal-settings-leave-org` | `portal_settings_leave_org` |
+| #   | File                                          | Handlers | Console Calls | Service Name                        | Operation(s)                |
+| --- | --------------------------------------------- | -------- | ------------- | ----------------------------------- | --------------------------- |
+| 11  | `portal/billing/route.js`                     | GET      | 1             | `plg-api-portal-billing`            | `portal_billing`            |
+| 12  | `portal/devices/route.js`                     | GET      | 1             | `plg-api-portal-devices`            | `portal_devices`            |
+| 15  | `portal/license/route.js`                     | GET      | 2             | `plg-api-portal-license`            | `portal_license`            |
+| 24  | `portal/status/route.js`                      | GET      | 3             | `plg-api-portal-status`             | `portal_status`             |
+| 25  | `portal/stripe-session/route.js`              | POST     | 1             | `plg-api-portal-stripe-session`     | `portal_stripe_session`     |
+| 22  | `portal/settings/export/route.js`             | POST     | 3             | `plg-api-portal-settings-export`    | `portal_settings_export`    |
+| 23  | `portal/settings/leave-organization/route.js` | POST     | 4 (1 warn)    | `plg-api-portal-settings-leave-org` | `portal_settings_leave_org` |
 
 **Commit message:** `feat(logging): wire 7 simple portal endpoints to api-log`
 
@@ -314,20 +326,22 @@ All single-export, single-try/catch files with 1–3 console calls. Pure mechani
 
 ---
 
-### Commit 2: Portal — Multi-Handler Endpoints (4 files, 10 handlers, ~16 console calls)
+### Commit 2: Portal — Multi-Handler Endpoints (4 files, 8 handlers, ~16 console calls) ✅ COMPLETE
 
 Files with 2–3 exported handlers. Each handler needs its own `createApiLogger()` call.
 
-| # | File | Handlers | Console Calls | Service Name | Operation(s) |
-|---|------|----------|---------------|--------------|---------------|
-| 13–14 | `portal/invite/[token]/route.js` | GET, POST | 4 | `plg-api-portal-invite` | `portal_invite_check`, `portal_invite_accept` |
-| 16–17 | `portal/seats/route.js` | GET, POST | 4 | `plg-api-portal-seats` | `portal_seats_list`, `portal_seats_update` |
-| 18–19 | `portal/settings/route.js` | GET, PATCH | 2 | `plg-api-portal-settings` | `portal_settings_get`, `portal_settings_update` |
-| 20–21 | `portal/settings/delete-account/route.js` | POST, DELETE | 6 | `plg-api-portal-settings-delete` | `portal_settings_delete_request`, `portal_settings_delete_confirm` |
+| #     | File                                      | Handlers     | Console Calls | Service Name                     | Operation(s)                                                       |
+| ----- | ----------------------------------------- | ------------ | ------------- | -------------------------------- | ------------------------------------------------------------------ |
+| 13–14 | `portal/invite/[token]/route.js`          | GET, POST    | 4             | `plg-api-portal-invite`          | `portal_invite_check`, `portal_invite_accept`                      |
+| 16–17 | `portal/seats/route.js`                   | GET, POST    | 4             | `plg-api-portal-seats`           | `portal_seats_list`, `portal_seats_update`                         |
+| 18–19 | `portal/settings/route.js`                | GET, PATCH   | 2             | `plg-api-portal-settings`        | `portal_settings_get`, `portal_settings_update`                    |
+| 20–21 | `portal/settings/delete-account/route.js` | POST, DELETE | 6             | `plg-api-portal-settings-delete` | `portal_settings_delete_request`, `portal_settings_delete_confirm` |
 
 **Note on multi-handler files:** Each exported function (GET, POST, DELETE, PATCH) gets its own `const log = createApiLogger(...)` with a unique `operation` value. The `service` name stays the same across all handlers in the same file.
 
 **Commit message:** `feat(logging): wire 4 multi-handler portal endpoints to api-log`
+
+**Completion note (2026-02-15):** Implemented with comment parity restoration, expanded contract tests added (`portal-commit2-logging.contract.test.js`), test suite passing (1431/1431), and CI/CD + Amplify deployment validated.
 
 ---
 
@@ -335,11 +349,11 @@ Files with 2–3 exported handlers. Each handler needs its own `createApiLogger(
 
 The team endpoint (3 exports, 585 lines) is the largest portal file. Bundle with the simpler license endpoints.
 
-| # | File | Handlers | Console Calls | Service Name | Operation(s) |
-|---|------|----------|---------------|--------------|---------------|
-| 26–28 | `portal/team/route.js` | GET, POST, DELETE | 3 | `plg-api-portal-team` | `portal_team_list`, `portal_team_invite`, `portal_team_remove` |
-| 4 | `license/check/route.js` | GET | 1 | `plg-api-license-check` | `license_check` |
-| 5–6 | `license/deactivate/route.js` | DELETE, POST | 1 | `plg-api-license-deactivate` | `license_deactivate` |
+| #     | File                          | Handlers          | Console Calls | Service Name                 | Operation(s)                                                   |
+| ----- | ----------------------------- | ----------------- | ------------- | ---------------------------- | -------------------------------------------------------------- |
+| 26–28 | `portal/team/route.js`        | GET, POST, DELETE | 3             | `plg-api-portal-team`        | `portal_team_list`, `portal_team_invite`, `portal_team_remove` |
+| 4     | `license/check/route.js`      | GET               | 1             | `plg-api-license-check`      | `license_check`                                                |
+| 5–6   | `license/deactivate/route.js` | DELETE, POST      | 1             | `plg-api-license-deactivate` | `license_deactivate`                                           |
 
 **Commit message:** `feat(logging): wire portal/team and license/check,deactivate to api-log`
 
@@ -349,14 +363,15 @@ The team endpoint (3 exports, 585 lines) is the largest portal file. Bundle with
 
 Higher-traffic endpoints with nested try/catch, helper functions, and business-critical logging.
 
-| # | File | Handlers | Console Calls | Service Name | Operation(s) |
-|---|------|----------|---------------|--------------|---------------|
-| 3 | `license/activate/route.js` | POST | 2 | `plg-api-license-activate` | `license_activate` |
-| 7 | `license/heartbeat/route.js` | POST | 5 (1 warn) | `plg-api-license-heartbeat` | `license_heartbeat` |
-| 8 | `license/validate/route.js` | POST | 4 | `plg-api-license-validate` | `license_validate` |
-| 9–10 | `license/trial/init/route.js` | POST, GET | 2 | `plg-api-license-trial-init` | `license_trial_init`, `license_trial_check` |
+| #    | File                          | Handlers  | Console Calls | Service Name                 | Operation(s)                                |
+| ---- | ----------------------------- | --------- | ------------- | ---------------------------- | ------------------------------------------- |
+| 3    | `license/activate/route.js`   | POST      | 2             | `plg-api-license-activate`   | `license_activate`                          |
+| 7    | `license/heartbeat/route.js`  | POST      | 5 (1 warn)    | `plg-api-license-heartbeat`  | `license_heartbeat`                         |
+| 8    | `license/validate/route.js`   | POST      | 4             | `plg-api-license-validate`   | `license_validate`                          |
+| 9–10 | `license/trial/init/route.js` | POST, GET | 2             | `plg-api-license-trial-init` | `license_trial_init`, `license_trial_check` |
 
 **Special attention:**
+
 - `heartbeat` has 2 helper functions (`processHeartbeat`, `calculateActiveDevices`) — `log` should be passed as a parameter or closured
 - `validate` has a nested try/catch for self-healing heartbeat — inner catch should use `log.warn()` not `log.exception()`
 - `trial/init` has 2 exports sharing helper functions — each export gets its own logger
@@ -367,12 +382,13 @@ Higher-traffic endpoints with nested try/catch, helper functions, and business-c
 
 ### Commit 5: Provisioning & Admin (2 files, 3 handlers, ~19 console calls)
 
-| # | File | Handlers | Console Calls | Service Name | Operation(s) |
-|---|------|----------|---------------|--------------|---------------|
-| 31 | `provision-license/route.js` | POST | 11 (2 warn) | `plg-api-provision-license` | `provision_license` |
-| 32–33 | `admin/provision-test-license/route.js` | POST, GET | 8 | `plg-api-admin-provision-test` | `admin_provision_test`, `admin_provision_test_check` |
+| #     | File                                    | Handlers  | Console Calls | Service Name                   | Operation(s)                                         |
+| ----- | --------------------------------------- | --------- | ------------- | ------------------------------ | ---------------------------------------------------- |
+| 31    | `provision-license/route.js`            | POST      | 11 (2 warn)   | `plg-api-provision-license`    | `provision_license`                                  |
+| 32–33 | `admin/provision-test-license/route.js` | POST, GET | 8             | `plg-api-admin-provision-test` | `admin_provision_test`, `admin_provision_test_check` |
 
 **Special attention:**
+
 - `provision-license` has deeply nested multi-step flow (Stripe verify → Keygen create → DynamoDB write → SES email). Each step should get a distinct `log.info()` event name: `stripe_session_verified`, `keygen_license_created`, `dynamodb_record_written`, `welcome_email_sent`
 - Inline `console.log` progress messages map to `log.info()` with meaningful event names
 - `console.warn` calls map to `log.warn()`
@@ -385,10 +401,10 @@ Higher-traffic endpoints with nested try/catch, helper functions, and business-c
 
 The most complex commit. These two files account for 57% of all remaining console calls.
 
-| # | File | Handlers | Console Calls | Service Name | Operation(s) |
-|---|------|----------|---------------|--------------|---------------|
-| 29 | `webhooks/stripe/route.js` | POST | 53 | `plg-api-webhooks-stripe` | `webhook_stripe` |
-| 30 | `webhooks/keygen/route.js` | POST | 23 | `plg-api-webhooks-keygen` | `webhook_keygen` |
+| #   | File                       | Handlers | Console Calls | Service Name              | Operation(s)     |
+| --- | -------------------------- | -------- | ------------- | ------------------------- | ---------------- |
+| 29  | `webhooks/stripe/route.js` | POST     | 53            | `plg-api-webhooks-stripe` | `webhook_stripe` |
+| 30  | `webhooks/keygen/route.js` | POST     | 23            | `plg-api-webhooks-keygen` | `webhook_keygen` |
 
 **Design decision for Stripe webhook (718 lines, 8 private sub-handlers):**
 
@@ -420,6 +436,7 @@ async function handleCheckoutCompleted(session, log) {
 ```
 
 Each sub-handler's `console.log` calls get domain-specific event names:
+
 - `handleCheckoutCompleted` → `checkout_completed`, `license_created`, `dynamodb_updated`
 - `handleSubscriptionUpdated` → `subscription_updated`, `status_change`
 - `handleInvoicePaymentFailed` → `invoice_payment_failed`, `suspension_applied`
@@ -449,6 +466,7 @@ For each file, the implementing agent must:
 ### Event Naming Convention
 
 Event names use `snake_case` and follow `{domain}_{action}` pattern:
+
 - `request_received` (automatic via `log.requestReceived()`)
 - `body_parsed`, `body_parse_failed`
 - `auth_verified`, `auth_failed`
@@ -460,6 +478,7 @@ Event names use `snake_case` and follow `{domain}_{action}` pattern:
 ### Metadata Guidelines
 
 Safe to log (include in metadata):
+
 - Boolean presence: `hasEmail: Boolean(email)`, `hasLicenseKey: Boolean(key)`
 - Counts: `deviceCount: devices.length`, `seatCount`
 - IDs: `licenseId`, `sessionId`, `subscriptionId` (non-secret identifiers)
@@ -467,6 +486,7 @@ Safe to log (include in metadata):
 - Error types: `error.name`, `error.message`
 
 **Never log directly** (the sanitizer will catch these, but don't rely on it):
+
 - Secret keys, tokens, passwords
 - Full email addresses (use `hasEmail: Boolean(email)` instead)
 - Authorization headers
@@ -504,6 +524,7 @@ for endpoint in endpoints:
 ```
 
 This script should:
+
 - Run against all wired endpoints
 - Report pass/fail per endpoint
 - Output a summary table
@@ -512,6 +533,7 @@ This script should:
 ### 8.2 Unit Test Coverage
 
 Each wired route should have companion tests verifying:
+
 - Logger is created with correct service name and operation
 - `requestReceived()` is called on entry
 - `response()` is called with correct status codes on each exit path
@@ -519,6 +541,7 @@ Each wired route should have companion tests verifying:
 - No residual `console.log` or `console.error` calls remain
 
 A grep gate can enforce this:
+
 ```bash
 # Fail if any route.js still uses console.log/console.error
 grep -r "console\.\(log\|error\)" plg-website/src/app/api/**/route.js && exit 1
@@ -535,6 +558,7 @@ This is where structured logging becomes a force multiplier. Once all 33 handler
 With structured JSON in CloudWatch, Insights queries become trivially powerful:
 
 **Error rate by endpoint (last 24h):**
+
 ```sql
 filter level = "ERROR"
 | stats count(*) as errors by service
@@ -542,6 +566,7 @@ filter level = "ERROR"
 ```
 
 **P95 request flow duration by operation:**
+
 ```sql
 filter event = "request_received" or event = "response"
 | stats earliest(timestamp) as start, latest(timestamp) as end by correlationId, service
@@ -550,12 +575,14 @@ filter event = "request_received" or event = "response"
 ```
 
 **All events for a specific user session:**
+
 ```sql
 filter correlationId = "specific-correlation-id"
 | sort @timestamp asc
 ```
 
 **Stripe failure analysis:**
+
 ```sql
 filter service = "plg-api-checkout" and level = "ERROR"
 | stats count(*) as failures by event
@@ -563,6 +590,7 @@ filter service = "plg-api-checkout" and level = "ERROR"
 ```
 
 **4xx/5xx breakdown by endpoint:**
+
 ```sql
 filter event = "warning" or level = "ERROR"
 | parse message "* rejected" as rejection_type
@@ -574,15 +602,16 @@ filter event = "warning" or level = "ERROR"
 
 **Metric Filters → Alarms:**
 
-| Metric | Filter Pattern | Alarm Threshold |
-|--------|---------------|-----------------|
-| 5xx Error Rate | `{ $.level = "ERROR" && $.statusCode >= 500 }` | > 5 in 5 min |
-| Webhook Failures | `{ $.service = "plg-api-webhooks-stripe" && $.level = "ERROR" }` | > 1 in 15 min |
-| Auth Failures | `{ $.event = "auth_failed" }` | > 10 in 5 min |
-| Checkout Failures | `{ $.service = "plg-api-checkout" && $.level = "ERROR" }` | > 3 in 5 min |
-| License Heartbeat Errors | `{ $.service = "plg-api-license-heartbeat" && $.level = "ERROR" }` | > 10 in 5 min |
+| Metric                   | Filter Pattern                                                     | Alarm Threshold |
+| ------------------------ | ------------------------------------------------------------------ | --------------- |
+| 5xx Error Rate           | `{ $.level = "ERROR" && $.statusCode >= 500 }`                     | > 5 in 5 min    |
+| Webhook Failures         | `{ $.service = "plg-api-webhooks-stripe" && $.level = "ERROR" }`   | > 1 in 15 min   |
+| Auth Failures            | `{ $.event = "auth_failed" }`                                      | > 10 in 5 min   |
+| Checkout Failures        | `{ $.service = "plg-api-checkout" && $.level = "ERROR" }`          | > 3 in 5 min    |
+| License Heartbeat Errors | `{ $.service = "plg-api-license-heartbeat" && $.level = "ERROR" }` | > 10 in 5 min   |
 
 **Dashboard Widgets:**
+
 - Real-time request volume by service (bar chart)
 - Error rate over time (line chart)
 - Status code distribution (pie chart)
@@ -592,6 +621,7 @@ filter event = "warning" or level = "ERROR"
 ### 9.3 Automated Monitoring Scripts
 
 **Daily Health Report (cron or Lambda):**
+
 ```bash
 #!/bin/bash
 # Query last 24h, summarize by service
@@ -608,11 +638,13 @@ MSYS_NO_PATHCONV=1 aws logs start-query \
 ```
 
 **Anomaly Detection:**
+
 - Compare hourly request volumes to 7-day rolling average
 - Alert if any endpoint drops to zero requests (possible outage)
 - Alert if error rate exceeds 2x baseline
 
 **Probe-Based Synthetic Monitoring:**
+
 - Schedule the E2E validation script on a 15-minute cron
 - Each probe uses `x-hic-probe-id: synthetic-{timestamp}`
 - Verify both HTTP response AND CloudWatch log presence
@@ -629,21 +661,25 @@ The Stripe webhook handler (718 lines, most complex endpoint) processes subscrip
 
 **3. License Heartbeat Health**
 The heartbeat endpoint (343 lines) is called by every active VS Code extension instance. Structured logging enables:
+
 - Active device count estimation (unique correlation IDs per hour)
 - Geographic distribution (if we add region metadata)
 - Failure pattern detection (specific error events over time)
 
 **4. Business Intelligence**
+
 - Checkout conversion funnel: `request_received` → `plan_validated` → `session_created` — measure drop-off at each step
 - Trial-to-paid conversion: correlate `trial_init` events with subsequent `checkout_create` events
 - Seat utilization: `portal/seats` GET frequency vs POST frequency
 
 **5. Security Monitoring**
+
 - Detect brute-force patterns: repeated `auth_failed` events from same source
 - Track admin endpoint access: `provision-test-license` usage patterns
 - Audit trail: every state-changing operation logged with correlation ID
 
 **6. Cost Optimization**
+
 - Identify endpoints with disproportionate invocation counts
 - Track cold start patterns via request timing gaps
 - Measure actual usage to right-size DynamoDB capacity
@@ -655,6 +691,7 @@ The heartbeat endpoint (343 lines) is called by every active VS Code extension i
 ### 10.1 Log Group Auto-Provisioning Bug
 
 Amplify Gen 2 WEB_COMPUTE did not auto-create the log group `/aws/amplify/{appId}`. This appears to be a service-side issue. If the log group is ever deleted, it must be manually recreated. Consider:
+
 - Adding a CloudFormation `AWS::Logs::LogGroup` resource (separate from the IAM stack)
 - Setting a retention policy (currently unlimited; recommend 90 days for staging, 365 for production)
 - Filing an AWS support case to confirm whether this is expected behavior
@@ -662,6 +699,7 @@ Amplify Gen 2 WEB_COMPUTE did not auto-create the log group `/aws/amplify/{appId
 ### 10.2 Log Retention
 
 The manually created log group has no retention policy set. Recommend:
+
 ```bash
 MSYS_NO_PATHCONV=1 aws logs put-retention-policy \
   --log-group-name "/aws/amplify/d2yhz9h4xdd5rb" \
@@ -675,6 +713,7 @@ Amplify access logs (CSV format, available via Console) only capture traffic to 
 ### 10.4 Production Readiness
 
 Before promoting to `main`:
+
 - Complete wiring of all 33 handlers
 - Run E2E logging validation
 - Set log retention policy
@@ -687,30 +726,30 @@ Before promoting to `main`:
 
 ### AWS Resources
 
-| Resource | Value |
-|----------|-------|
-| Amplify App ID | `d2yhz9h4xdd5rb` |
-| AWS Account | `496998973008` |
-| Region | `us-east-1` |
-| Log Group | `/aws/amplify/d2yhz9h4xdd5rb` |
-| Compute Role | `plg-amplify-compute-role-staging` (CloudFormation) |
-| Service Role | `plg-amplify-role-staging` |
-| Custom Domain | `staging.hic-ai.com` |
-| Branch | `development` (PRODUCTION stage) |
+| Resource       | Value                                               |
+| -------------- | --------------------------------------------------- |
+| Amplify App ID | `d2yhz9h4xdd5rb`                                    |
+| AWS Account    | `496998973008`                                      |
+| Region         | `us-east-1`                                         |
+| Log Group      | `/aws/amplify/d2yhz9h4xdd5rb`                       |
+| Compute Role   | `plg-amplify-compute-role-staging` (CloudFormation) |
+| Service Role   | `plg-amplify-role-staging`                          |
+| Custom Domain  | `staging.hic-ai.com`                                |
+| Branch         | `development` (PRODUCTION stage)                    |
 
 ### Key Files
 
-| File | Purpose |
-|------|---------|
-| `plg-website/src/lib/api-log.js` | Structured logging adapter (242 lines) |
-| `dm/layers/base/src/hic-log.js` | Core structured logger |
-| `plg-website/infrastructure/cloudformation/plg-iam.yaml` | IAM roles incl. compute role |
-| `plg-website/infrastructure/cloudformation/plg-main-stack.yaml` | Nested stack orchestrator |
+| File                                                            | Purpose                                |
+| --------------------------------------------------------------- | -------------------------------------- |
+| `plg-website/src/lib/api-log.js`                                | Structured logging adapter (242 lines) |
+| `dm/layers/base/src/hic-log.js`                                 | Core structured logger                 |
+| `plg-website/infrastructure/cloudformation/plg-iam.yaml`        | IAM roles incl. compute role           |
+| `plg-website/infrastructure/cloudformation/plg-main-stack.yaml` | Nested stack orchestrator              |
 
 ### Commits
 
-| Hash | Description |
-|------|-------------|
-| `094edf8` | Add AmplifyComputeRole to CloudFormation |
+| Hash      | Description                               |
+| --------- | ----------------------------------------- |
+| `094edf8` | Add AmplifyComputeRole to CloudFormation  |
 | `0583672` | Fix DynamoDB ARN and SecretsManager scope |
-| `f1d949e` | Wire POST /api/checkout to api-log |
+| `f1d949e` | Wire POST /api/checkout to api-log        |
