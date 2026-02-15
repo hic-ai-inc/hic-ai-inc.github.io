@@ -2,15 +2,15 @@
 
 **Date:** 2026-02-15
 **Author:** GitHub Copilot (GC) with SWR
-**Status:** Phase 0 Complete — Pattern Validated, Rollout Pending
+**Status:** Phase 1 In Progress — Commit 1 Complete (7 Portal Endpoints Wired)
 **Branch:** `development`
-**Commit Range:** `094edf8..f1d949e`
+**Commit Range:** `094edf8..f0e9643`
 
 ---
 
 ## 1. Executive Summary
 
-This report documents the end-to-end investigation, root cause analysis, and resolution of the structured logging integration for the HIC PLG website running on AWS Amplify Gen 2 (WEB_COMPUTE). What began as a diagnostic session — "I wired `api-log` but can't find logs in CloudWatch" — uncovered multiple infrastructure gaps, culminated in a manually created log group, and validated the structured logging pattern across two endpoints. The platform is now ready for systematic rollout to all 24 API route files (33 handler functions).
+This report documents the end-to-end investigation, root cause analysis, and resolution of the structured logging integration for the HIC PLG website running on AWS Amplify Gen 2 (WEB_COMPUTE). What began as a diagnostic session — "I wired `api-log` but can't find logs in CloudWatch" — uncovered multiple infrastructure gaps, culminated in a manually created log group, and validated the structured logging pattern. As of this update, the pattern is wired and validated across 9 handlers (checkout domain + Commit 1 portal endpoints), with 24 handlers remaining.
 
 ---
 
@@ -196,21 +196,21 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 
 | # | Endpoint | Method | Lines | Status |
 |---|----------|--------|-------|--------|
-| 11 | `/api/portal/billing` | GET | 141 | ⬜ |
-| 12 | `/api/portal/devices` | GET | 151 | ⬜ |
+| 11 | `/api/portal/billing` | GET | 141 | ✅ Wired and validated |
+| 12 | `/api/portal/devices` | GET | 151 | ✅ Wired and validated |
 | 13 | `/api/portal/invite/[token]` | GET | 159 | ⬜ |
 | 14 | `/api/portal/invite/[token]` | POST | 159 | ⬜ |
-| 15 | `/api/portal/license` | GET | 138 | ⬜ |
+| 15 | `/api/portal/license` | GET | 138 | ✅ Wired and validated |
 | 16 | `/api/portal/seats` | GET | 253 | ⬜ |
 | 17 | `/api/portal/seats` | POST | 253 | ⬜ |
 | 18 | `/api/portal/settings` | GET | 178 | ⬜ |
 | 19 | `/api/portal/settings` | PATCH | 178 | ⬜ |
 | 20 | `/api/portal/settings/delete-account` | POST | 214 | ⬜ |
 | 21 | `/api/portal/settings/delete-account` | DELETE | 214 | ⬜ |
-| 22 | `/api/portal/settings/export` | POST | 164 | ⬜ |
-| 23 | `/api/portal/settings/leave-organization` | POST | 111 | ⬜ |
-| 24 | `/api/portal/status` | GET | 166 | ⬜ |
-| 25 | `/api/portal/stripe-session` | POST | 55 | ⬜ |
+| 22 | `/api/portal/settings/export` | POST | 164 | ✅ Wired and validated |
+| 23 | `/api/portal/settings/leave-organization` | POST | 111 | ✅ Wired and validated |
+| 24 | `/api/portal/status` | GET | 166 | ✅ Wired and validated |
+| 25 | `/api/portal/stripe-session` | POST | 55 | ✅ Wired and validated |
 | 26 | `/api/portal/team` | GET | 585 | ⬜ |
 | 27 | `/api/portal/team` | POST | 585 | ⬜ |
 | 28 | `/api/portal/team` | DELETE | 585 | ⬜ |
@@ -237,8 +237,8 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 | Total route files | 24 |
 | Total handler functions | 33 |
 | Total lines of code | 5,679 |
-| Wired and validated | 2 (handlers #1, #2) |
-| Remaining to wire | 31 |
+| Wired and validated | 9 handlers (files: 9 route handlers across checkout + Commit 1 portal endpoints) |
+| Remaining to wire | 24 handlers across 17 route files |
 
 ---
 
@@ -282,7 +282,7 @@ git add <file> && git commit -m "feat(logging): wire <endpoint> to api-log" && g
 
 ### Batching Strategy — Detailed Implementation Plan
 
-The 31 remaining handlers (22 files, ~134 console calls) are organized into **6 commits** across 3 tiers of complexity. Each commit is independently testable and deployable.
+The rollout scope remains **33 handlers across 24 route files** total. After completing 9 handlers, **24 handlers remain across 17 route files** (~123 console calls), organized into **5 remaining commits** across 3 tiers of complexity. Each commit is independently testable and deployable.
 
 #### Complexity Tiers
 
@@ -294,7 +294,7 @@ The 31 remaining handlers (22 files, ~134 console calls) are organized into **6 
 
 ---
 
-### Commit 1: Portal — Simple Endpoints (7 files, 8 handlers, ~11 console calls)
+### Commit 1: Portal — Simple Endpoints (7 files, 8 handlers, ~11 console calls) ✅ COMPLETE
 
 All single-export, single-try/catch files with 1–3 console calls. Pure mechanical replacement.
 
@@ -309,6 +309,8 @@ All single-export, single-try/catch files with 1–3 console calls. Pure mechani
 | 23 | `portal/settings/leave-organization/route.js` | POST | 4 (1 warn) | `plg-api-portal-settings-leave-org` | `portal_settings_leave_org` |
 
 **Commit message:** `feat(logging): wire 7 simple portal endpoints to api-log`
+
+**Completion note (2026-02-15):** Implemented, tested (1423/1423 passing), deployed via Amplify, and validated in CloudWatch with probe IDs on all 7 endpoints.
 
 ---
 
