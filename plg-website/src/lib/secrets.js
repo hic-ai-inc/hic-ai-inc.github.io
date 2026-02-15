@@ -205,11 +205,12 @@ export async function getSecret(secretName) {
  * Get Stripe secrets (API key and webhook secret)
  *
  * Priority order:
- * 1. Local development: process.env (from .env.local)
+ * 1. Non-production (dev/test/CI): process.env (from .env.local)
  * 2. AWS Secrets Manager (plg/{env}/stripe) — canonical source
  * 3. SSM Parameter Store (legacy fallback, pending removal)
  *
- * Throws if all sources fail — no silent fallback to process.env.
+ * Only NODE_ENV=production hits AWS. All other environments use process.env.
+ * Throws if all production sources fail.
  * See: FINDING-3, FINDING-4 in 20260215_AUDIT_REPORT_ON_SECRETS_HYGIENE.md
  *
  * @returns {Promise<{STRIPE_SECRET_KEY: string, STRIPE_WEBHOOK_SECRET: string}>}
@@ -217,9 +218,9 @@ export async function getSecret(secretName) {
 export async function getStripeSecrets() {
   console.log("[Secrets] getStripeSecrets called, NODE_ENV:", process.env.NODE_ENV);
 
-  // Local development: use .env.local
-  if (process.env.NODE_ENV === "development") {
-    console.log("[Secrets] Development mode - using process.env");
+  // Non-production (dev, test, CI): use .env.local / process.env
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Secrets] Non-production mode - using process.env");
     return {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
@@ -261,11 +262,12 @@ export async function getStripeSecrets() {
  * Get Keygen secrets (product token)
  *
  * Priority order:
- * 1. Local development: process.env (from .env.local)
+ * 1. Non-production (dev/test/CI): process.env (from .env.local)
  * 2. AWS Secrets Manager (plg/{env}/keygen) — canonical source
  * 3. SSM Parameter Store (legacy fallback, pending removal)
  *
- * Throws if all sources fail — no silent fallback to process.env.
+ * Only NODE_ENV=production hits AWS. All other environments use process.env.
+ * Throws if all production sources fail.
  * See: FINDING-3, FINDING-4 in 20260215_AUDIT_REPORT_ON_SECRETS_HYGIENE.md
  *
  * @returns {Promise<{KEYGEN_PRODUCT_TOKEN: string}>}
@@ -273,9 +275,9 @@ export async function getStripeSecrets() {
 export async function getKeygenSecrets() {
   console.log("[Secrets] getKeygenSecrets called, NODE_ENV:", process.env.NODE_ENV);
 
-  // Local development: use .env.local
-  if (process.env.NODE_ENV === "development") {
-    console.log("[Secrets] Development mode - using process.env for Keygen");
+  // Non-production (dev, test, CI): use .env.local / process.env
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Secrets] Non-production mode - using process.env for Keygen");
     return {
       KEYGEN_PRODUCT_TOKEN: process.env.KEYGEN_PRODUCT_TOKEN,
     };
@@ -313,7 +315,7 @@ export async function getKeygenSecrets() {
  * Get Keygen policy IDs for license creation
  *
  * Priority order:
- * 1. Local development: process.env (from .env.local)
+ * 1. Non-production (dev/test/CI): process.env (from .env.local)
  * 2. SSM Parameter Store: /plg/secrets/<app-id>/KEYGEN_POLICY_ID_*
  *
  * @returns {Promise<{individual: string, business: string}>}
@@ -321,9 +323,9 @@ export async function getKeygenSecrets() {
 export async function getKeygenPolicyIds() {
   console.log("[Secrets] getKeygenPolicyIds called, NODE_ENV:", process.env.NODE_ENV);
 
-  // Local development: use .env.local
-  if (process.env.NODE_ENV === "development") {
-    console.log("[Secrets] Development mode - using process.env for Keygen policy IDs");
+  // Non-production (dev, test, CI): use .env.local / process.env
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Secrets] Non-production mode - using process.env for Keygen policy IDs");
     return {
       individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
       business: process.env.KEYGEN_POLICY_ID_BUSINESS,
@@ -358,13 +360,13 @@ export async function getKeygenPolicyIds() {
 /**
  * Get application secrets (trial token signing, admin keys, etc.)
  *
- * Falls back to environment variables for local development.
+ * Non-production uses process.env; production uses Secrets Manager.
  *
  * @returns {Promise<{TRIAL_TOKEN_SECRET: string, TEST_ADMIN_KEY?: string}>}
  */
 export async function getAppSecrets() {
-  // Local development fallback
-  if (process.env.NODE_ENV === "development") {
+  // Non-production (dev, test, CI): use process.env
+  if (process.env.NODE_ENV !== "production") {
     return {
       TRIAL_TOKEN_SECRET:
         process.env.TRIAL_TOKEN_SECRET ||

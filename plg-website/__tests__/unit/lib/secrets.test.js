@@ -196,8 +196,8 @@ describe("secrets.js", () => {
         secretsManagerError = null,
       } = options;
 
-      // Development mode: use env vars
-      if (nodeEnv === "development") {
+      // Non-production (dev, test, CI): use env vars
+      if (nodeEnv !== "production") {
         return {
           STRIPE_SECRET_KEY: envSecretKey,
           STRIPE_WEBHOOK_SECRET: envWebhookSecret,
@@ -306,8 +306,8 @@ describe("secrets.js", () => {
         secretsManagerError = null,
       } = options;
 
-      // Development mode
-      if (nodeEnv === "development") {
+      // Non-production (dev, test, CI)
+      if (nodeEnv !== "production") {
         return { KEYGEN_PRODUCT_TOKEN: envToken };
       }
 
@@ -385,8 +385,8 @@ describe("secrets.js", () => {
         secretsManagerError = null,
       } = options;
 
-      // Development mode
-      if (nodeEnv === "development") {
+      // Non-production (dev, test, CI)
+      if (nodeEnv !== "production") {
         return {
           TRIAL_TOKEN_SECRET:
             envTrialSecret || "dev-trial-secret-for-local-development-only",
@@ -729,7 +729,7 @@ describe("secrets.js", () => {
         secretsManagerData = null,
       } = options;
 
-      if (nodeEnv === "development") {
+      if (nodeEnv !== "production") {
         return {
           STRIPE_SECRET_KEY: envSecretKey,
           STRIPE_WEBHOOK_SECRET: envWebhookSecret,
@@ -851,7 +851,7 @@ describe("secrets.js", () => {
         secretsManagerData = null,
       } = options;
 
-      if (nodeEnv === "development") {
+      if (nodeEnv !== "production") {
         return { KEYGEN_PRODUCT_TOKEN: envToken };
       }
 
@@ -934,7 +934,7 @@ describe("secrets.js", () => {
         ssmBusiness = null,
       } = options;
 
-      if (nodeEnv === "development") {
+      if (nodeEnv !== "production") {
         return {
           individual: envIndividual,
           business: envBusiness,
@@ -1087,31 +1087,31 @@ describe("secrets.js", () => {
 
   describe("Resolution chain symmetry", () => {
     // Verify all secret accessors follow the same pattern:
-    // development → canonical source → fallback → throw
+    // non-production → canonical source → fallback → throw
 
-    it("getStripeSecrets: dev → SM → SSM → throw", () => {
-      const chain = ["development:process.env", "SM:plg/{env}/stripe", "SSM:/plg/secrets/{appId}/*", "throw"];
+    it("getStripeSecrets: non-prod → SM → SSM → throw", () => {
+      const chain = ["non-production:process.env", "SM:plg/{env}/stripe", "SSM:/plg/secrets/{appId}/*", "throw"];
       expect(chain.length).toBe(4);
-      expect(chain[0]).toContain("development");
+      expect(chain[0]).toContain("non-production");
       expect(chain[1]).toContain("SM");
       expect(chain[2]).toContain("SSM");
       expect(chain[3]).toBe("throw");
     });
 
-    it("getKeygenSecrets: dev → SM → SSM → throw", () => {
-      const chain = ["development:process.env", "SM:plg/{env}/keygen", "SSM:/plg/secrets/{appId}/*", "throw"];
+    it("getKeygenSecrets: non-prod → SM → SSM → throw", () => {
+      const chain = ["non-production:process.env", "SM:plg/{env}/keygen", "SSM:/plg/secrets/{appId}/*", "throw"];
       expect(chain.length).toBe(4);
       expect(chain[3]).toBe("throw");
     });
 
-    it("getKeygenPolicyIds: dev → SSM → throw (no SM)", () => {
-      const chain = ["development:process.env", "SSM:/plg/secrets/{appId}/*", "throw"];
+    it("getKeygenPolicyIds: non-prod → SSM → throw (no SM)", () => {
+      const chain = ["non-production:process.env", "SSM:/plg/secrets/{appId}/*", "throw"];
       expect(chain.length).toBe(3);
       expect(chain[2]).toBe("throw");
     });
 
-    it("getAppSecrets: dev → SM → throw (no SSM)", () => {
-      const chain = ["development:process.env", "SM:plg/{env}/app", "throw"];
+    it("getAppSecrets: non-prod → SM → throw (no SSM)", () => {
+      const chain = ["non-production:process.env", "SM:plg/{env}/app", "throw"];
       expect(chain.length).toBe(3);
       expect(chain[2]).toBe("throw");
     });
