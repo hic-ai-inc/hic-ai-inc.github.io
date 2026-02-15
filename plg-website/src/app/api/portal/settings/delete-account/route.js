@@ -21,11 +21,26 @@ import {
   getOrgMembers,
 } from "@/lib/dynamodb";
 import { getStripeClient } from "@/lib/stripe";
+import { createApiLogger } from "@/lib/api-log";
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-settings-delete",
+    request,
+    operation: "portal_settings_delete_request",
+  });
+
+  log.requestReceived();
+
   try {
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Delete account request rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "Delete account request rejected", {
+        reason: "unauthorized",
+      });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -39,6 +54,12 @@ export async function POST(request) {
 
     // Require explicit confirmation
     if (confirmation !== "DELETE MY ACCOUNT") {
+      log.decision("confirmation_invalid", "Delete account request rejected", {
+        reason: "confirmation_invalid",
+      });
+      log.response(400, "Delete account request rejected", {
+        reason: "confirmation_invalid",
+      });
       return NextResponse.json(
         { error: "Please type 'DELETE MY ACCOUNT' to confirm" },
         { status: 400 },
@@ -47,6 +68,12 @@ export async function POST(request) {
 
     const customer = await getCustomerByUserId(user.sub);
     if (!customer) {
+      log.decision("customer_not_found", "Delete account request rejected", {
+        reason: "customer_not_found",
+      });
+      log.response(404, "Delete account request rejected", {
+        reason: "customer_not_found",
+      });
       return NextResponse.json(
         { error: "Customer not found" },
         { status: 404 },
@@ -55,6 +82,12 @@ export async function POST(request) {
 
     // Check for active team memberships (non-owners must leave first)
     if (customer.orgId && customer.orgRole !== "owner") {
+      log.decision("org_member_must_leave_first", "Delete account request rejected", {
+        reason: "org_member_must_leave_first",
+      });
+      log.response(400, "Delete account request rejected", {
+        reason: "org_member_must_leave_first",
+      });
       return NextResponse.json(
         {
           error:
@@ -90,8 +123,10 @@ export async function POST(request) {
           }
         }
       } catch (stripeError) {
-        console.error("Error cancelling subscriptions:", stripeError);
         // Continue with deletion even if Stripe fails
+        log.warn("subscription_cancel_failed", "Failed to cancel subscriptions", {
+          errorMessage: stripeError?.message,
+        });
       }
     }
 
@@ -99,7 +134,7 @@ export async function POST(request) {
     if (isOrgOwner) {
       try {
         orgMembers = await getOrgMembers(customer.orgId);
-        
+
         // Remove all non-owner members from the org
         for (const member of orgMembers) {
           if (member.userId !== user.sub) {
@@ -111,13 +146,19 @@ export async function POST(request) {
               orgRole: null,
               accountStatus: "active", // They can still use Mouse if they subscribe individually
             });
-            console.log(`[DeleteAccount] Removed member ${member.userId} from org ${customer.orgId}`);
+            log.info("org_member_removed", "Removed member from organization", {
+              hasOrgId: Boolean(customer.orgId),
+            });
           }
         }
-        console.log(`[DeleteAccount] Dissolved org ${customer.orgId} with ${orgMembers.length} members`);
+        log.info("organization_dissolved", "Organization dissolved", {
+          membersCount: orgMembers.length,
+        });
       } catch (orgError) {
-        console.error("Error dissolving organization:", orgError);
         // Continue - org dissolution failure shouldn't block account deletion
+        log.warn("organization_dissolve_failed", "Failed to dissolve organization", {
+          errorMessage: orgError?.message,
+        });
       }
     }
 
@@ -149,9 +190,15 @@ export async function POST(request) {
       response.membersAffected = orgMembers.length - 1; // Exclude owner
     }
 
+    log.info("account_deletion_requested", "Account deletion requested", {
+      isOrgOwner: Boolean(isOrgOwner),
+      membersAffected: response.membersAffected || 0,
+    });
+    log.response(200, "Delete account request succeeded", { success: true });
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Account deletion error:", error);
+    log.exception(error, "portal_settings_delete_request_failed", "Delete account request failed");
+    log.response(500, "Delete account request failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Failed to process deletion request" },
       { status: 500 },
@@ -163,9 +210,21 @@ export async function POST(request) {
  * Cancel a pending account deletion
  */
 export async function DELETE(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-settings-delete",
+    request,
+    operation: "portal_settings_delete_confirm",
+  });
+
+  log.requestReceived();
+
   try {
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Cancel deletion rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "Cancel deletion rejected", { reason: "unauthorized" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -176,6 +235,10 @@ export async function DELETE(request) {
 
     const customer = await getCustomerByUserId(user.sub);
     if (!customer) {
+      log.decision("customer_not_found", "Cancel deletion rejected", {
+        reason: "customer_not_found",
+      });
+      log.response(404, "Cancel deletion rejected", { reason: "customer_not_found" });
       return NextResponse.json(
         { error: "Customer not found" },
         { status: 404 },
@@ -183,6 +246,10 @@ export async function DELETE(request) {
     }
 
     if (customer.accountStatus !== "pending_deletion") {
+      log.decision("no_pending_deletion", "Cancel deletion rejected", {
+        reason: "no_pending_deletion",
+      });
+      log.response(400, "Cancel deletion rejected", { reason: "no_pending_deletion" });
       return NextResponse.json(
         { error: "No pending deletion request found" },
         { status: 400 },
@@ -200,12 +267,15 @@ export async function DELETE(request) {
       deletionReason: null,
     });
 
+    log.info("account_deletion_cancelled", "Account deletion cancelled");
+    log.response(200, "Cancel deletion succeeded", { success: true });
     return NextResponse.json({
       success: true,
       message: "Account deletion cancelled",
     });
   } catch (error) {
-    console.error("Cancel deletion error:", error);
+    log.exception(error, "portal_settings_delete_confirm_failed", "Cancel deletion failed");
+    log.response(500, "Cancel deletion failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Failed to cancel deletion request" },
       { status: 500 },
