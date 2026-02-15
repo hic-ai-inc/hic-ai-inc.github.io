@@ -19,53 +19,77 @@ import {
   getOrganization,
 } from "@/lib/dynamodb";
 import { getLicense as getKeygenLicense } from "@/lib/keygen";
+import { createApiLogger } from "@/lib/api-log";
 
-export async function GET() {
+export async function GET(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-license",
+    request,
+    operation: "portal_license",
+  });
+
+  log.requestReceived();
+
   try {
-    // Verify JWT from Authorization header
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Portal license rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "Portal license rejected", { reason: "unauthorized" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get customer by email from verified token
     const customer = await getCustomerByEmail(tokenPayload.email);
 
-    // Check if user has a direct license
     if (customer?.keygenLicenseId) {
-      return buildLicenseResponse(customer);
+      log.info("direct_license_found", "Direct license found", {
+        hasLicenseId: Boolean(customer.keygenLicenseId),
+      });
+      const response = await buildLicenseResponse(customer, null, log);
+      log.response(200, "Portal license fetched", { source: "direct" });
+      return response;
     }
 
-    // No direct license - check if user is an org member with shared license access
     const userId = tokenPayload.sub;
     const membership = await getUserOrgMembership(userId);
 
     if (membership?.orgId) {
-      // User is a member of an org - get the org's shared license
       const org = await getOrganization(membership.orgId);
 
       if (org?.ownerEmail) {
-        // Get the org owner's customer record (which has the license)
         const orgOwner = await getCustomerByEmail(org.ownerEmail);
 
         if (orgOwner?.keygenLicenseId) {
-          return buildLicenseResponse(orgOwner, {
-            isOrgMember: true,
-            orgId: membership.orgId,
-            orgName: org.name || "Organization",
-            memberRole: membership.role || "member",
+          log.info("shared_license_found", "Shared organization license found", {
+            hasLicenseId: Boolean(orgOwner.keygenLicenseId),
+            role: membership.role,
           });
+          const response = await buildLicenseResponse(
+            orgOwner,
+            {
+              isOrgMember: true,
+              orgId: membership.orgId,
+              orgName: org.name || "Organization",
+              memberRole: membership.role || "member",
+            },
+            log,
+          );
+          log.response(200, "Portal license fetched", { source: "organization" });
+          return response;
         }
       }
     }
 
-    // No license found (neither direct nor via org)
+    log.info("license_not_found", "No license found for user");
+    log.response(200, "Portal license empty result", { hasLicense: false });
     return NextResponse.json({
       license: null,
       message: "No license found",
     });
   } catch (error) {
-    console.error("Portal license error:", error);
+    log.exception(error, "portal_license_failed", "Portal license failed");
+    log.response(500, "Portal license failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Failed to fetch license" },
       { status: 500 },
@@ -84,7 +108,7 @@ export async function GET() {
  * @param {string} [orgContext.memberRole] - Member's role in the org
  * @returns {NextResponse} JSON response with license details
  */
-async function buildLicenseResponse(customer, orgContext = null) {
+async function buildLicenseResponse(customer, orgContext = null, log = null) {
   // Get license from DynamoDB
   const localLicense = await getLicense(customer.keygenLicenseId);
 
@@ -93,7 +117,11 @@ async function buildLicenseResponse(customer, orgContext = null) {
   try {
     keygenLicense = await getKeygenLicense(customer.keygenLicenseId);
   } catch (e) {
-    console.error("Failed to fetch from Keygen:", e);
+    if (log) {
+      log.warn("keygen_fetch_failed", "Keygen license fetch failed", {
+        errorMessage: e?.message,
+      });
+    }
   }
 
   // Determine plan name (only Individual and Business exist)

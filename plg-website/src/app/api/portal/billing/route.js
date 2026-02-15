@@ -12,36 +12,52 @@ import { verifyAuthToken } from "@/lib/auth-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { getCustomerByEmail, getCustomerByUserId, getUserOrgMembership } from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
+import { createApiLogger } from "@/lib/api-log";
 
-export async function GET() {
+export async function GET(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-billing",
+    request,
+    operation: "portal_billing",
+  });
+
+  log.requestReceived();
+
   try {
-    // Verify JWT from Authorization header
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Portal billing rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "Portal billing rejected", { reason: "unauthorized" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check for org membership - only owners can access billing
-    // First check if user has a customer record with subscriptionStatus
     let customer = await getCustomerByUserId(tokenPayload.sub);
     if (!customer && tokenPayload.email) {
       customer = await getCustomerByEmail(tokenPayload.email);
     }
 
-    // Check if user is an org member (admin or regular member)
     let orgMembership = null;
     if (!customer?.subscriptionStatus) {
       orgMembership = await getUserOrgMembership(tokenPayload.sub);
     }
 
-    // Non-owners cannot access billing information
     if (orgMembership && orgMembership.role !== "owner") {
+      log.decision("org_member_forbidden", "Portal billing rejected", {
+        reason: "owner_required",
+        role: orgMembership.role,
+      });
+      log.response(403, "Portal billing rejected", { reason: "owner_required" });
       return NextResponse.json(
         { error: "Only the subscription owner can access billing information" },
-        { status: 403 }
+        { status: 403 },
       );
     }
+
     if (!customer?.stripeCustomerId) {
+      log.info("billing_not_found", "No billing information found");
+      log.response(200, "Portal billing empty result", { hasBilling: false });
       return NextResponse.json({
         subscription: null,
         paymentMethod: null,
@@ -49,10 +65,7 @@ export async function GET() {
       });
     }
 
-    // Get Stripe client
     const stripe = await getStripeClient();
-
-    // Fetch Stripe customer with default payment method
     const stripeCustomer = await stripe.customers.retrieve(
       customer.stripeCustomerId,
       {
@@ -60,7 +73,6 @@ export async function GET() {
       },
     );
 
-    // Fetch active subscriptions
     const subscriptions = await stripe.subscriptions.list({
       customer: customer.stripeCustomerId,
       status: "all",
@@ -69,7 +81,6 @@ export async function GET() {
 
     const activeSubscription = subscriptions.data[0];
 
-    // Get payment method details
     let paymentMethod = null;
     const defaultPm =
       stripeCustomer.invoice_settings?.default_payment_method ||
@@ -93,7 +104,6 @@ export async function GET() {
       }
     }
 
-    // Format subscription info
     let subscriptionInfo = null;
     if (activeSubscription) {
       const priceItem = activeSubscription.items.data[0];
@@ -121,8 +131,13 @@ export async function GET() {
       };
     }
 
-    // Get plan info from our pricing config
     const planConfig = PRICING[customer.accountType];
+
+    log.response(200, "Portal billing fetched", {
+      hasSubscription: Boolean(subscriptionInfo),
+      hasPaymentMethod: Boolean(paymentMethod),
+      accountType: customer.accountType,
+    });
 
     return NextResponse.json({
       accountType: customer.accountType,
@@ -132,7 +147,8 @@ export async function GET() {
       stripeCustomerId: customer.stripeCustomerId,
     });
   } catch (error) {
-    console.error("Portal billing error:", error);
+    log.exception(error, "portal_billing_failed", "Portal billing failed");
+    log.response(500, "Portal billing failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Failed to fetch billing information" },
       { status: 500 },

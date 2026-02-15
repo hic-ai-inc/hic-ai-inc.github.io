@@ -15,11 +15,26 @@ import {
   getLicenseDevices,
 } from "@/lib/dynamodb";
 import { getStripeClient } from "@/lib/stripe";
+import { createApiLogger } from "@/lib/api-log";
 
-export async function POST() {
+export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-settings-export",
+    request,
+    operation: "portal_settings_export",
+  });
+
+  log.requestReceived();
+
   try {
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Portal data export rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "Portal data export rejected", {
+        reason: "unauthorized",
+      });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -87,7 +102,10 @@ export async function POST() {
             })),
           );
         } catch (e) {
-          console.error("Error fetching devices for license:", e);
+          log.warn("license_devices_fetch_failed", "Failed to fetch devices for license", {
+            errorMessage: e?.message,
+            hasLicenseId: Boolean(license.keygenLicenseId),
+          });
         }
       }
 
@@ -138,7 +156,10 @@ export async function POST() {
             };
           }
         } catch (e) {
-          console.error("Error fetching Stripe data:", e);
+          log.warn("stripe_data_fetch_failed", "Failed to fetch Stripe data", {
+            errorMessage: e?.message,
+            hasStripeCustomerId: Boolean(customer.stripeCustomerId),
+          });
         }
       }
     }
@@ -147,6 +168,12 @@ export async function POST() {
     const jsonString = JSON.stringify(exportData, null, 2);
     const filename = `mouse-data-export-${new Date().toISOString().split("T")[0]}.json`;
 
+    log.response(200, "Portal data export generated", {
+      licenseCount: exportData.licenses.length,
+      deviceCount: exportData.devices.length,
+      invoiceCount: exportData.invoices.length,
+      hasSubscription: Boolean(exportData.subscription),
+    });
     return new NextResponse(jsonString, {
       status: 200,
       headers: {
@@ -155,7 +182,10 @@ export async function POST() {
       },
     });
   } catch (error) {
-    console.error("Data export error:", error);
+    log.exception(error, "portal_settings_export_failed", "Portal data export failed");
+    log.response(500, "Portal data export failed", {
+      reason: "unhandled_error",
+    });
     return NextResponse.json(
       { error: "Failed to export data" },
       { status: 500 },

@@ -21,6 +21,7 @@ import {
   getCustomerByStripeId,
 } from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
+import { createApiLogger } from "@/lib/api-log";
 
 /**
  * Extract user info from Cognito ID token
@@ -37,10 +38,22 @@ async function getUserFromRequest() {
 }
 
 export async function GET(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-status",
+    request,
+    operation: "portal_status",
+  });
+
+  log.requestReceived();
+
   try {
     const user = await getUserFromRequest();
 
     if (!user) {
+      log.decision("auth_failed", "Portal status rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "Portal status rejected", { reason: "unauthorized" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -69,12 +82,22 @@ export async function GET(request) {
           orgOwnerCustomer = await getCustomerByStripeId(org.stripeCustomerId);
         }
         
-        console.log(`[Portal Status] User ${user.userId} is org member (role: ${orgMembership.role})`);
+        log.info("org_membership_found", "User is organization member", {
+          role: orgMembership.role,
+          hasOrgId: Boolean(orgMembership.orgId),
+        });
       }
     }
 
     // No customer record AND not an org member - new user, needs to checkout
     if (!customer && !orgMembership) {
+      log.info("new_user", "Portal status resolved for new user", {
+        shouldRedirectToCheckout: true,
+      });
+      log.response(200, "Portal status fetched", {
+        status: "new",
+        hasSubscription: false,
+      });
       return NextResponse.json({
         status: "new",
         subscriptionStatus: "none",
@@ -118,7 +141,9 @@ export async function GET(request) {
         );
         activatedDevices = activeDevices.length;
       } catch (error) {
-        console.error("[Portal Status] Failed to get active device count:", error.message);
+        log.warn("active_device_count_failed", "Failed to get active device count", {
+          errorMessage: error.message,
+        });
       }
     }
 
@@ -155,9 +180,16 @@ export async function GET(request) {
       response.isOrgMember = true;
     }
 
+    log.response(200, "Portal status fetched", {
+      status: response.status,
+      subscriptionStatus,
+      accountType,
+      isOrgMember: Boolean(orgMembership),
+    });
     return NextResponse.json(response);
   } catch (error) {
-    console.error("[Portal Status] Error:", error);
+    log.exception(error, "portal_status_failed", "Portal status failed");
+    log.response(500, "Portal status failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Failed to get portal status" },
       { status: 500 },

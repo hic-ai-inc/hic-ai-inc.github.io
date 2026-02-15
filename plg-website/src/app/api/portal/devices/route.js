@@ -24,6 +24,7 @@ import {
 } from "@/lib/dynamodb";
 import { getMaxDevicesForAccountType } from "@/lib/constants";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { createApiLogger } from "@/lib/api-log";
 
 async function resolveLicenseContext(tokenPayload) {
   const userEmail = tokenPayload?.email;
@@ -69,9 +70,21 @@ async function resolveLicenseContext(tokenPayload) {
 }
 
 export async function GET(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-devices",
+    request,
+    operation: "portal_devices",
+  });
+
+  log.requestReceived();
+
   try {
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Portal devices rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "Portal devices rejected", { reason: "unauthorized" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -88,13 +101,22 @@ export async function GET(request) {
     });
 
     if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil(
+        (rateLimitResult.resetAt.getTime() - Date.now()) / 1000,
+      );
+      log.warn("rate_limited", "Portal devices rate limited", {
+        reason: "rate_limit_exceeded",
+        retryAfter,
+      });
+      log.response(429, "Portal devices rate limited", {
+        reason: "rate_limit_exceeded",
+        retryAfter,
+      });
       return NextResponse.json(
         {
           error: "Rate limit exceeded",
           code: "RATE_LIMIT_EXCEEDED",
-          retryAfter: Math.ceil(
-            (rateLimitResult.resetAt.getTime() - Date.now()) / 1000,
-          ),
+          retryAfter,
         },
         { status: 429 },
       );
@@ -102,12 +124,20 @@ export async function GET(request) {
 
     const resolved = await resolveLicenseContext(tokenPayload);
     if (!resolved.licenseId) {
+      const status = resolved.status || 500;
+      log.decision("license_context_failed", "Portal devices context resolution failed", {
+        reason: resolved.error || "LICENSE_CONTEXT_ERROR",
+        status,
+      });
+      log.response(status, "Portal devices rejected", {
+        reason: resolved.error || "LICENSE_CONTEXT_ERROR",
+      });
       return NextResponse.json(
         {
           error: "Failed to resolve license context",
           code: resolved.error || "LICENSE_CONTEXT_ERROR",
         },
-        { status: resolved.status || 500 },
+        { status },
       );
     }
 
@@ -133,12 +163,17 @@ export async function GET(request) {
       response.totalActiveDevices = allActiveDevices.length;
     }
 
+    log.response(200, "Portal devices fetched", {
+      accountType: resolved.accountType,
+      deviceCount: mappedDevices.length,
+      hasTotalActiveDevices: resolved.accountType === "business",
+    });
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Portal devices error", {
-      name: error?.name,
-      message: error?.message,
+    log.exception(error, "portal_devices_failed", "Portal devices failed", {
+      errorName: error?.name,
     });
+    log.response(500, "Portal devices failed", { reason: "unhandled_error" });
 
     return NextResponse.json(
       {

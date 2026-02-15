@@ -12,41 +12,63 @@ import { NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth-verify";
 import { getStripeClient } from "@/lib/stripe";
 import { getCustomerByEmail } from "@/lib/dynamodb";
+import { createApiLogger } from "@/lib/api-log";
 
-export async function POST() {
+export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-stripe-session",
+    request,
+    operation: "portal_stripe_session",
+  });
+
+  log.requestReceived();
+
   try {
-    // Verify JWT from Authorization header
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Portal stripe session rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "Portal stripe session rejected", {
+        reason: "unauthorized",
+      });
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 },
       );
     }
 
-    // Get customer by email from verified token
     const customer = await getCustomerByEmail(tokenPayload.email);
 
     if (!customer?.stripeCustomerId) {
+      log.decision("customer_not_found", "Portal stripe session rejected", {
+        reason: "missing_stripe_customer",
+      });
+      log.response(404, "Portal stripe session rejected", {
+        reason: "missing_stripe_customer",
+      });
       return NextResponse.json(
         { error: "No Stripe customer found. Please purchase a license first." },
         { status: 404 },
       );
     }
 
-    // Get Stripe client (handles secrets properly)
     const stripe = await getStripeClient();
 
-    // Create portal session with success indicator in return URL
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customer.stripeCustomerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/billing?updated=true`,
     });
 
-    // Return URL for client-side redirect (not server redirect which loses auth)
+    log.response(200, "Portal stripe session created", {
+      hasPortalUrl: Boolean(portalSession.url),
+    });
     return NextResponse.json({ url: portalSession.url });
   } catch (error) {
-    console.error("Portal session error:", error);
+    log.exception(error, "portal_stripe_session_failed", "Portal stripe session failed");
+    log.response(500, "Portal stripe session failed", {
+      reason: "unhandled_error",
+    });
     return NextResponse.json(
       { error: "Failed to create portal session" },
       { status: 500 },
