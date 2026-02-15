@@ -112,6 +112,100 @@ Resources:
         - Key: Application
           Value: plg-website
 
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AMPLIFY COMPUTE ROLE (SSR Runtime)
+  # Used by Amplify WEB_COMPUTE for Next.js server-side rendering.
+  # Must have CloudWatch Logs permissions for console.log output to appear.
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  AmplifyComputeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "plg-amplify-compute-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: amplify.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        # CloudWatch Logs - required for SSR console.log to appear in CloudWatch
+        - PolicyName: CloudWatchLogsAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/amplify/*"
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/amplify/*:*"
+        # DynamoDB - read/write access to PLG tables
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/plg-*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/plg-*/index/*"
+        # Secrets Manager - read Stripe keys and other secrets
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:plg/*"
+        # SES - send transactional emails
+        - PolicyName: SESAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ses:FromAddress: !Sub "noreply@${Environment}.hic-ai.com"
+        # SSM Parameter Store - read configuration
+        - PolicyName: SSMParameterAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/plg/*"
+      Tags:
+        - Key: Project
+          Value: hic-plg
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: plg-website
+        - Key: Purpose
+          Value: amplify-ssr-compute
   # ═══════════════════════════════════════════════════════════════════════════
   # STREAM PROCESSOR LAMBDA ROLE
   # Reads DynamoDB Stream, publishes to SNS topics
@@ -382,6 +476,12 @@ Outputs:
     Value: !GetAtt AmplifyExecutionRole.Arn
     Export:
       Name: !Sub "${AWS::StackName}-AmplifyExecutionRoleArn"
+
+  AmplifyComputeRoleArn:
+    Description: ARN of Amplify SSR compute role
+    Value: !GetAtt AmplifyComputeRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-AmplifyComputeRoleArn"
 
   StreamProcessorRoleArn:
     Description: ARN of Stream Processor Lambda role

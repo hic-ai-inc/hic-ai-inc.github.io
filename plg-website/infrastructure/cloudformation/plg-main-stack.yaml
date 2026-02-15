@@ -312,6 +312,12 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-AmplifyExecutionRoleArn"
 
+  AmplifyComputeRoleArn:
+    Description: Amplify SSR compute role ARN (use in Amplify Console as computeRoleArn)
+    Value: !GetAtt IAMStack.Outputs.AmplifyComputeRoleArn
+    Export:
+      Name: !Sub "${AWS::StackName}-AmplifyComputeRoleArn"
+
   CognitoPostConfirmationFunctionArn:
     Description: Cognito Post-Confirmation Lambda ARN (use in Amplify Cognito config)
     Value: !GetAtt ComputeStack.Outputs.CognitoPostConfirmationFunctionArn
@@ -342,10 +348,11 @@ Outputs:
       PLG Infrastructure deployed to ${Environment}
 
       DynamoDB Table: ${DynamoDBStack.Outputs.TableName}
-      Amplify Role: ${IAMStack.Outputs.AmplifyExecutionRoleArn}
+      Amplify Service Role: ${IAMStack.Outputs.AmplifyExecutionRoleArn}
+      Amplify Compute Role: ${IAMStack.Outputs.AmplifyComputeRoleArn}
       Dashboard: ${MonitoringStack.Outputs.DashboardUrl}
 
       Next steps:
       1. Add SES DNS records to GoDaddy (see SES Console)
-      2. Configure Amplify with AmplifyExecutionRoleArn
+      2. Configure Amplify with AmplifyExecutionRoleArn and AmplifyComputeRoleArn
       3. Set environment variables in Amplify Console
