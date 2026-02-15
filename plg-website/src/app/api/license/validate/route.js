@@ -25,6 +25,7 @@ import {
   createTrial,
   getLicenseDevices,
 } from "@/lib/dynamodb";
+import { createApiLogger } from "@/lib/api-log";
 
 // Trial duration in days
 const TRIAL_DAYS = 14;
@@ -167,12 +168,24 @@ async function handleTrialValidation(fingerprint) {
 }
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-license-validate",
+    request,
+    operation: "license_validate",
+  });
+
+  log.requestReceived();
+
   try {
     // Parse JSON body with explicit error handling
     let body;
     try {
       body = await request.json();
     } catch (parseError) {
+      log.decision("invalid_json", "License validation rejected", {
+        reason: "invalid_json",
+      });
+      log.response(400, "License validation rejected", { reason: "invalid_json" });
       return NextResponse.json(
         { error: "Invalid JSON", detail: parseError.message },
         { status: 400 },
@@ -184,6 +197,10 @@ export async function POST(request) {
     // Fingerprint is REQUIRED - it's the primary device identifier
     // machineId is optional secondary identifier for additional tracking
     if (!fingerprint) {
+      log.decision("fingerprint_missing", "License validation rejected", {
+        reason: "fingerprint_missing",
+      });
+      log.response(400, "License validation rejected", { reason: "fingerprint_missing" });
       return NextResponse.json(
         { error: "Device fingerprint is required" },
         { status: 400 },
@@ -192,6 +209,7 @@ export async function POST(request) {
 
     // Mode 1: Fingerprint-only = trial flow
     if (!licenseKey) {
+      log.info("trial_validation_requested", "Trial validation requested");
       return await handleTrialValidation(fingerprint);
     }
 
@@ -207,7 +225,9 @@ export async function POST(request) {
         tasks.push(machineHeartbeat(machineId));
       }
       Promise.all(tasks).catch((err) => {
-        console.error("Heartbeat update failed:", err);
+        log.warn("heartbeat_update_failed", "Heartbeat update failed", {
+          errorMessage: err?.message,
+        });
       });
     }
 
@@ -234,7 +254,9 @@ export async function POST(request) {
         }
       } catch (err) {
         // Non-critical — proceed without user identity
-        console.error("Device lookup for userId failed:", err);
+        log.warn("device_lookup_failed", "Device lookup for user identity failed", {
+          errorMessage: err?.message,
+        });
       }
 
       // Self-healing: if HEARTBEAT_NOT_STARTED and we found the machine,
@@ -244,13 +266,19 @@ export async function POST(request) {
           await machineHeartbeat(deviceMachineId);
           effectiveValid = true;
         } catch (hbErr) {
-          console.error("Self-healing heartbeat failed:", hbErr.message);
+          log.warn("self_healing_heartbeat_failed", "Self-healing heartbeat failed", {
+            errorMessage: hbErr.message,
+          });
           // Still return machineId so extension can start its own heartbeats
         }
       }
     }
 
     // Return validation result
+    log.response(200, "License validation completed", {
+      valid: effectiveValid,
+      code: result.code,
+    });
     return NextResponse.json({
       valid: effectiveValid,
       code: result.code,
@@ -266,7 +294,8 @@ export async function POST(request) {
         : null,
     });
   } catch (error) {
-    console.error("License validation error:", error);
+    log.exception(error, "license_validation_failed", "License validation failed");
+    log.response(500, "License validation failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Validation failed", detail: error.message },
       { status: 500 },

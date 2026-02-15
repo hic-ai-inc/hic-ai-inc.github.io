@@ -19,8 +19,17 @@ import {
 } from "@/lib/dynamodb";
 import { verifyAuthToken } from "@/lib/auth-verify";
 import { PRICING } from "@/lib/constants";
+import { createApiLogger } from "@/lib/api-log";
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-license-activate",
+    request,
+    operation: "license_activate",
+  });
+
+  log.requestReceived();
+
   try {
     const body = await request.json();
     const { licenseKey, fingerprint, deviceName, platform } = body;
@@ -30,6 +39,10 @@ export async function POST(request) {
     // via the /activate page. No unauthenticated path remains.
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "License activation rejected", {
+        reason: "unauthorized",
+      });
+      log.response(401, "License activation rejected", { reason: "unauthorized" });
       return NextResponse.json(
         { error: "Unauthorized", detail: "Authentication is required to activate a license" },
         { status: 401 },
@@ -40,6 +53,10 @@ export async function POST(request) {
 
     // Validate required fields
     if (!licenseKey) {
+      log.decision("license_key_missing", "License activation rejected", {
+        reason: "license_key_missing",
+      });
+      log.response(400, "License activation rejected", { reason: "license_key_missing" });
       return NextResponse.json(
         { error: "License key is required" },
         { status: 400 },
@@ -47,6 +64,10 @@ export async function POST(request) {
     }
 
     if (!fingerprint) {
+      log.decision("fingerprint_missing", "License activation rejected", {
+        reason: "fingerprint_missing",
+      });
+      log.response(400, "License activation rejected", { reason: "fingerprint_missing" });
       return NextResponse.json(
         { error: "Device fingerprint is required" },
         { status: 400 },
@@ -97,6 +118,10 @@ export async function POST(request) {
 
     // Safety check: ensure we have license data to proceed
     if (!validation.license?.id) {
+      log.decision("license_data_missing", "License activation rejected", {
+        reason: "license_data_missing",
+      });
+      log.response(400, "License activation rejected", { reason: "license_data_missing" });
       return NextResponse.json(
         {
           error: "License data unavailable",
@@ -133,6 +158,12 @@ export async function POST(request) {
     }
 
     if (perSeatLimit && activeDevices.length >= perSeatLimit) {
+      log.decision("device_limit_exceeded", "License activation rejected", {
+        reason: "device_limit_exceeded",
+        activeDevices: activeDevices.length,
+        maxDevices: perSeatLimit,
+      });
+      log.response(403, "License activation rejected", { reason: "device_limit_exceeded" });
       return NextResponse.json(
         {
           error: "Device limit exceeded",
@@ -179,12 +210,20 @@ export async function POST(request) {
       await machineHeartbeat(machine.id);
     } catch (heartbeatErr) {
       // Non-fatal: machine is activated, heartbeat can be retried by extension
-      console.error("First heartbeat failed (non-fatal):", heartbeatErr.message);
+      log.warn("first_heartbeat_failed", "First heartbeat failed (non-fatal)", {
+        errorMessage: heartbeatErr.message,
+      });
     }
 
     // Get current device count after activation (time-based)
     let deviceCount = activeDevices.length + 1;
 
+    log.info("license_activated", "License activated", {
+      activationId: machine.id,
+      planName,
+      deviceCount,
+    });
+    log.response(200, "License activated", { success: true });
     return NextResponse.json({
       success: true,
       activated: true,
@@ -207,10 +246,11 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("License activation error:", error);
+    log.exception(error, "license_activation_failed", "License activation failed");
 
     // Handle Keygen-specific errors
     if (error.status === 422) {
+      log.response(422, "License activation failed", { reason: "activation_error" });
       return NextResponse.json(
         {
           error: "Activation failed",
@@ -221,6 +261,7 @@ export async function POST(request) {
       );
     }
 
+    log.response(500, "License activation failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Activation failed", detail: error.message },
       { status: 500 },

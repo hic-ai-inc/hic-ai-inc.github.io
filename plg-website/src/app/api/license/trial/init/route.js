@@ -24,6 +24,7 @@ import {
   RATE_LIMIT_PRESETS,
 } from "@/lib/rate-limit";
 import { getAppSecrets } from "@/lib/secrets";
+import { createApiLogger } from "@/lib/api-log";
 
 // Trial configuration
 const TRIAL_DURATION_DAYS = 14;
@@ -162,6 +163,14 @@ function calculateRemainingDays(trial) {
 }
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-license-trial-init",
+    request,
+    operation: "license_trial_init",
+  });
+
+  log.requestReceived();
+
   try {
     // Rate limiting: 5 requests per hour per fingerprint
     const rateLimitResult = await rateLimitMiddleware(request, {
@@ -170,6 +179,10 @@ export async function POST(request) {
     });
 
     if (rateLimitResult) {
+      log.decision("rate_limit_exceeded", "Trial init rejected", {
+        reason: "rate_limit_exceeded",
+      });
+      log.response(429, "Trial init rate limited", { reason: "rate_limit_exceeded" });
       return NextResponse.json(rateLimitResult, {
         status: 429,
         headers: {
@@ -184,6 +197,10 @@ export async function POST(request) {
     // Validate fingerprint
     const validation = validateFingerprint(fingerprint);
     if (!validation.valid) {
+      log.decision("invalid_fingerprint", "Trial init rejected", {
+        reason: "invalid_fingerprint",
+      });
+      log.response(400, "Trial init rejected", { reason: "invalid_fingerprint" });
       return NextResponse.json(
         {
           error: "invalid_fingerprint",
@@ -201,6 +218,10 @@ export async function POST(request) {
 
       if (remainingDays <= 0) {
         // Trial expired
+        log.decision("trial_expired", "Trial init rejected", {
+          reason: "trial_expired",
+        });
+        log.response(410, "Trial init rejected", { reason: "trial_expired" });
         return NextResponse.json(
           {
             error: "trial_expired",
@@ -213,6 +234,10 @@ export async function POST(request) {
       }
 
       // Trial exists and is still valid - return existing info
+      log.decision("trial_exists", "Trial init rejected", {
+        reason: "trial_exists",
+      });
+      log.response(409, "Trial init rejected", { reason: "trial_exists" });
       return NextResponse.json(
         {
           error: "trial_exists",
@@ -247,6 +272,7 @@ export async function POST(request) {
       RATE_LIMIT_PRESETS.trialInit,
     );
 
+        log.response(200, "Trial initialized", { success: true });
     return NextResponse.json(
       {
         trialToken: token,
@@ -257,8 +283,9 @@ export async function POST(request) {
       { headers: responseHeaders },
     );
   } catch (error) {
-    console.error("Trial init error:", error);
+    log.exception(error, "license_trial_init_failed", "Trial init failed");
 
+    log.response(500, "Trial init failed", { reason: "unhandled_error" });
     return NextResponse.json(
       {
         error: "server_error",
@@ -276,6 +303,14 @@ export async function POST(request) {
  * Query params: ?fingerprint=xxx
  */
 export async function GET(request) {
+  const log = createApiLogger({
+    service: "plg-api-license-trial-init",
+    request,
+    operation: "license_trial_check",
+  });
+
+  log.requestReceived();
+
   try {
     const { searchParams } = new URL(request.url);
     const fingerprint = searchParams.get("fingerprint");
@@ -283,6 +318,10 @@ export async function GET(request) {
     // Validate fingerprint
     const validation = validateFingerprint(fingerprint);
     if (!validation.valid) {
+      log.decision("invalid_fingerprint", "Trial init rejected", {
+        reason: "invalid_fingerprint",
+      });
+      log.response(400, "Trial init rejected", { reason: "invalid_fingerprint" });
       return NextResponse.json(
         {
           error: "invalid_fingerprint",
@@ -296,6 +335,7 @@ export async function GET(request) {
     const trial = await getTrialByFingerprint(fingerprint);
 
     if (!trial) {
+      log.response(200, "Trial status returned", { hasTrialHistory: false });
       return NextResponse.json({
         hasTrialHistory: false,
         canStartTrial: true,
@@ -305,6 +345,10 @@ export async function GET(request) {
     const remainingDays = calculateRemainingDays(trial);
     const isExpired = remainingDays <= 0;
 
+        log.response(200, "Trial status returned", {
+      hasTrialHistory: true,
+      isExpired,
+    });
     return NextResponse.json({
       hasTrialHistory: true,
       canStartTrial: false,
@@ -313,8 +357,9 @@ export async function GET(request) {
       expiresAt: new Date(trial.expiresAt).toISOString(),
     });
   } catch (error) {
-    console.error("Trial status check error:", error);
+    log.exception(error, "license_trial_check_failed", "Trial status check failed");
 
+    log.response(500, "Trial status check failed", { reason: "unhandled_error" });
     return NextResponse.json(
       {
         error: "server_error",

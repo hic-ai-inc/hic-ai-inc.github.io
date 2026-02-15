@@ -30,6 +30,7 @@ import {
   getRateLimitHeaders,
   RATE_LIMIT_PRESETS,
 } from "@/lib/rate-limit";
+import { createApiLogger } from "@/lib/api-log";
 
 /**
  * Validate license key format before any server calls
@@ -79,6 +80,14 @@ function calculateChecksum(keyBody) {
 }
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-license-heartbeat",
+    request,
+    operation: "license_heartbeat",
+  });
+
+  log.requestReceived();
+
   try {
     // Rate limiting: 10 heartbeats per minute per license key
     const rateLimitResult = await rateLimitMiddleware(request, {
@@ -87,6 +96,10 @@ export async function POST(request) {
     });
 
     if (rateLimitResult) {
+      log.decision("rate_limit_exceeded", "Heartbeat rejected", {
+        reason: "rate_limit_exceeded",
+      });
+      log.response(429, "Heartbeat rate limited", { reason: "rate_limit_exceeded" });
       return NextResponse.json(rateLimitResult, {
         status: 429,
         headers: {
@@ -101,6 +114,10 @@ export async function POST(request) {
     // Validate required fields - fingerprint is always required
     // Each container/device must have a unique fingerprint for concurrent session tracking
     if (!fingerprint) {
+      log.decision("fingerprint_missing", "Heartbeat rejected", {
+        reason: "fingerprint_missing",
+      });
+      log.response(400, "Heartbeat rejected", { reason: "fingerprint_missing" });
       return NextResponse.json(
         { error: "Device fingerprint is required" },
         { status: 400 },
@@ -122,13 +139,16 @@ export async function POST(request) {
           lastSeen: new Date().toISOString(),
         });
       } catch (err) {
-        console.error("Trial heartbeat recording failed:", err);
+        log.warn("trial_heartbeat_record_failed", "Trial heartbeat recording failed", {
+          errorMessage: err?.message,
+        });
         // Non-critical - continue with success response
       }
 
       // Get version config for auto-update notification (B2)
       const versionConfig = await getVersionConfig();
 
+      log.response(200, "Trial heartbeat recorded", { status: "trial" });
       return NextResponse.json({
         valid: true,
         status: "trial",
@@ -160,7 +180,7 @@ export async function POST(request) {
       const hasBearerToken =
         typeof authHeader === "string" && authHeader.startsWith("Bearer ");
 
-      console.warn("[license/heartbeat] Licensed heartbeat rejected (401)", {
+      log.warn("licensed_heartbeat_unauthorized", "Licensed heartbeat rejected", {
         reason: hasBearerToken
           ? "token_verification_failed"
           : "missing_or_malformed_bearer",
@@ -170,10 +190,9 @@ export async function POST(request) {
         hasFingerprint: Boolean(fingerprint),
         hasMachineId: Boolean(machineId),
         hasBodyUserId: Boolean(userId),
-        fingerprintPrefix:
-          typeof fingerprint === "string" ? fingerprint.slice(0, 12) : null,
       });
 
+      log.response(401, "Heartbeat rejected", { reason: "unauthorized" });
       return NextResponse.json(
         {
           error: "Unauthorized",
@@ -186,6 +205,10 @@ export async function POST(request) {
 
     // SessionId required for licensed users
     if (!sessionId) {
+      log.decision("session_id_missing", "Heartbeat rejected", {
+        reason: "session_id_missing",
+      });
+      log.response(400, "Heartbeat rejected", { reason: "session_id_missing" });
       return NextResponse.json(
         { error: "Session ID is required" },
         { status: 400 },
@@ -195,6 +218,10 @@ export async function POST(request) {
     // Validate license key format before any server calls (CWE-306 mitigation)
     const formatValidation = validateLicenseKeyFormat(licenseKey);
     if (!formatValidation.valid) {
+      log.decision("invalid_license_format", "Heartbeat rejected", {
+        reason: "invalid_license_format",
+      });
+      log.response(400, "Heartbeat rejected", { reason: "invalid_license_format" });
       return NextResponse.json(
         {
           valid: false,
@@ -212,6 +239,10 @@ export async function POST(request) {
 
     if (!heartbeatResult.success) {
       // Machine not found or inactive - license may have been revoked
+      log.decision("machine_not_found", "Heartbeat rejected", {
+        reason: "machine_not_found",
+      });
+      log.response(200, "Heartbeat machine not found", { status: "machine_not_found" });
       return NextResponse.json({
         valid: false,
         status: "machine_not_found",
@@ -256,7 +287,9 @@ export async function POST(request) {
         fingerprint,
         authedUserId,
       ).catch((err) => {
-        console.error("Device last seen update failed:", err);
+        log.warn("device_last_seen_update_failed", "Device last seen update failed", {
+          errorMessage: err?.message,
+        });
       });
     }
 
@@ -274,7 +307,9 @@ export async function POST(request) {
         );
         concurrentMachines = activeDevices.length;
       } catch (err) {
-        console.error("Failed to fetch active device count:", err);
+        log.warn("active_device_count_fetch_failed", "Failed to fetch active device count", {
+          errorMessage: err?.message,
+        });
       }
     }
 
@@ -282,6 +317,7 @@ export async function POST(request) {
     const overLimit = maxMachines && concurrentMachines > maxMachines;
 
     if (overLimit) {
+      log.response(200, "Heartbeat over device limit", { status: "over_limit" });
       return NextResponse.json({
         valid: true,
         status: "over_limit",
@@ -301,6 +337,7 @@ export async function POST(request) {
     // Get version config for auto-update notification (B2)
     const versionConfig = await getVersionConfig();
 
+    log.response(200, "Heartbeat succeeded", { status: overLimit ? "over_limit" : "active" });
     return NextResponse.json(
       {
         valid: true,
@@ -326,9 +363,10 @@ export async function POST(request) {
       { headers: rateLimitHeaders },
     );
   } catch (error) {
-    console.error("Heartbeat error:", error);
+    log.exception(error, "license_heartbeat_failed", "Heartbeat failed");
 
     // Don't expose internal errors
+    log.response(500, "Heartbeat failed", { reason: "unhandled_error" });
     return NextResponse.json(
       {
         valid: false,
