@@ -3,7 +3,7 @@
 **Date:** 2026-02-15
 **Author:** GitHub Copilot (GC) with SWR
 **Classification:** Security — CWE-312 (Cleartext Storage of Sensitive Information)
-**Status:** Findings documented, remediation plan approved
+**Status:** Phase 1 complete (FINDING-1, FINDING-2 remediated 2026-02-15); Phase 2 pending validation
 **Branch:** `development`
 
 ---
@@ -13,6 +13,8 @@
 A comprehensive secrets hygiene audit was conducted across all secret storage locations used by the PLG website: AWS SSM Parameter Store, AWS Secrets Manager, Amplify environment variables, and GitHub Actions Secrets. The audit identified **one genuine security issue** (a Stripe test API key stored in plaintext in Amplify environment variables), **one legacy artifact** (a 25-key mega-secret in Secrets Manager that no code references), and **architectural concerns** around dual-storage and fallback patterns that will become liabilities when we deploy to production.
 
 The good news: the core secrets architecture is sound. Secrets Manager and SSM Parameter Store are used correctly with proper encryption. The structured logging adapter (`api-log`) already sanitizes sensitive field names. The issues are peripheral and fixable without code changes to the secrets resolution chain itself.
+
+**Phase 1 Update (2026-02-15):** FINDING-1 (Stripe test key in Amplify env vars) and FINDING-2 (legacy mega-secret) have been remediated. `E2E_STRIPE_TEST_KEY` was removed from both app-level and branch-level Amplify environment variables. `plg/staging/env` was soft-deleted from Secrets Manager with a 30-day recovery window (recoverable until 2026-03-17). Validation via CI/CD pipeline and smoke tests is pending before proceeding to FINDING-3 and FINDING-4 (code changes to `secrets.js`).
 
 ---
 
@@ -163,6 +165,16 @@ The `update-amplify-env.sh` script does not support key removal (it only adds/up
 
 Or use direct AWS CLI to reconstruct the environment without the key.
 
+#### Status: ✅ REMEDIATED (2026-02-15)
+
+`E2E_STRIPE_TEST_KEY` was removed from both Amplify app-level and branch-level environment variables. Amplify now has 17 environment variables (was 18). Backups saved to `plg-website/scripts/backups/amplify-env-development-20260215_115424.json` and `C:/tmp/amplify_{app,branch}_env_BACKUP_*.json`.
+
+Verification:
+- `aws amplify get-app` → 17 keys, no `E2E_STRIPE_TEST_KEY`
+- `aws amplify get-branch` → 17 keys, no `E2E_STRIPE_TEST_KEY`
+- SSM Parameter Store: 5 params (unchanged)
+- Secrets Manager: 4 active secrets (unchanged at time of this fix)
+
 ---
 
 ### 4.2 FINDING-2: Legacy Mega-Secret `plg/staging/env`
@@ -206,6 +218,15 @@ aws secretsmanager delete-secret \
 ```
 
 The 30-day recovery window allows restoration if we discover an unexpected dependency.
+
+#### Status: ✅ REMEDIATED (2026-02-15)
+
+Deleted via `aws secretsmanager delete-secret --recovery-window-in-days 30`.
+- **ARN:** `arn:aws:secretsmanager:us-east-1:496998973008:secret:plg/staging/env-XWESvA`
+- **Deletion date:** 2026-03-17 (recoverable until then)
+- **Secrets Manager post-deletion:** 3 active secrets (`plg/staging/stripe`, `plg/staging/keygen`, `plg/staging/app`)
+
+If no unexpected dependencies surface during smoke testing and CI/CD validation, the secret can be left to expire. If needed, `aws secretsmanager restore-secret --secret-id plg/staging/env` restores it.
 
 ---
 
@@ -318,13 +339,13 @@ The audit is not all findings — several things are correctly implemented:
 
 ## 6. Remediation Plan
 
-### Phase 1: Immediate Fixes (Today)
+### Phase 1: Immediate Fixes — ✅ COMPLETE (2026-02-15)
 
-| # | Action | Risk | Reversible |
-|---|--------|------|:---:|
-| 1a | Remove `E2E_STRIPE_TEST_KEY` from Amplify branch-level env vars | None — CI/CD uses GitHub Secrets | ✅ |
-| 1b | Remove `E2E_STRIPE_TEST_KEY` from Amplify app-level env vars | None — same rationale | ✅ |
-| 1c | Delete `plg/staging/env` from Secrets Manager (30-day recovery) | None — no code references it | ✅ |
+| # | Action | Risk | Reversible | Status |
+|---|--------|------|:---:|:---:|
+| 1a | Remove `E2E_STRIPE_TEST_KEY` from Amplify branch-level env vars | None — CI/CD uses GitHub Secrets | ✅ | ✅ Done |
+| 1b | Remove `E2E_STRIPE_TEST_KEY` from Amplify app-level env vars | None — same rationale | ✅ | ✅ Done |
+| 1c | Delete `plg/staging/env` from Secrets Manager (30-day recovery) | None — no code references it | ✅ | ✅ Done |
 
 ### Phase 2: Pre-Production Consolidation
 
@@ -369,7 +390,66 @@ The Amplify environment variables follow the same principle — `NEXT_PUBLIC_APP
 
 ---
 
-## 8. Reference
+## 8. Validation Plan (Post-Phase 1)
+
+Before proceeding to Phase 2 (code changes to `secrets.js`), the following validation steps confirm Phase 1 remediation caused no regressions:
+
+### 8.1 CI/CD Pipeline Validation
+
+Push the updated report to `development` to trigger the full CI/CD pipeline:
+- Unit tests (1388+ tests in existing suite)
+- E2E tests (source `E2E_STRIPE_TEST_KEY` from GitHub Actions Secrets, not Amplify env vars)
+- Amplify deployment to `staging.hic-ai.com`
+
+**Expected result:** All tests pass. The removal of `E2E_STRIPE_TEST_KEY` from Amplify env vars should have zero impact because E2E tests run in GitHub Actions, which sources the key from `${{ secrets.STRIPE_TEST_SECRET_KEY }}`.
+
+### 8.2 Smoke Test: Checkout Endpoint
+
+After Amplify deployment completes, verify the Stripe-dependent checkout endpoint initializes correctly:
+
+```bash
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-hic-probe-id: probe-post-remediation" \
+  -d '{"plan":"individual","billingCycle":"monthly"}' \
+  "https://staging.hic-ai.com/api/checkout"
+```
+
+**Expected result:** HTTP 401 or structured error response (not a 500 indicating secrets resolution failure). The endpoint should successfully initialize the Stripe client via SSM → Secrets Manager chain before failing on authentication.
+
+### 8.3 CloudWatch Log Verification
+
+Confirm structured logging is still operational after deployment:
+
+```bash
+aws logs filter-log-events \
+  --log-group-name "/aws/amplify/d2yhz9h4xdd5rb" \
+  --filter-pattern '{$.probeId = "probe-post-remediation"}' \
+  --start-time $(date -d '-10 minutes' +%s000)
+```
+
+**Expected result:** Structured JSON log entries from the probe request appear in CloudWatch.
+
+### 8.4 E2E Purchase Flow (Manual)
+
+If CI/CD E2E tests pass, this is likely sufficient. If additional confidence is needed, perform a manual test purchase flow on `staging.hic-ai.com` using Stripe test card `4242 4242 4242 4242` to exercise the full Stripe secret resolution chain.
+
+### 8.5 Secrets Resolution Chain Verification
+
+Verify that `plg/staging/env` deletion has not affected the active secrets:
+
+```bash
+# Confirm active secrets are untouched
+aws secretsmanager list-secrets \
+  --filter Key=name,Values=plg/staging \
+  --query 'SecretList[?!DeletionDate].Name' --output text
+```
+
+**Expected result:** `plg/staging/app  plg/staging/keygen  plg/staging/stripe` (3 active secrets)
+
+---
+
+## 9. Reference
 
 ### AWS Resources
 
