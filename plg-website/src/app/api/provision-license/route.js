@@ -25,15 +25,30 @@ import {
 } from "@/lib/dynamodb";
 // Cognito RBAC for Business plan owner role assignment
 import { assignOwnerRole } from "@/lib/cognito-admin";
+import { createApiLogger } from "@/lib/api-log";
 // NOTE: Email is sent via event-driven architecture:
 // DynamoDB write → DynamoDB Streams → StreamProcessor Lambda → SNS → EmailSender Lambda → SES
 // Do NOT call sendLicenseEmail() directly here.
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-provision-license",
+    request,
+    operation: "provision_license",
+  });
+
+  log.requestReceived();
+
   try {
     // Get authenticated user from Authorization header
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Provision license rejected", {
+        reason: "authentication_required",
+      });
+      log.response(401, "Provision license rejected", {
+        reason: "authentication_required",
+      });
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 },
@@ -62,6 +77,12 @@ export async function POST(request) {
 
     const { sessionId } = await request.json();
     if (!sessionId) {
+      log.decision("session_id_missing", "Provision license rejected", {
+        reason: "session_id_missing",
+      });
+      log.response(400, "Provision license rejected", {
+        reason: "session_id_missing",
+      });
       return NextResponse.json(
         { error: "Missing session_id" },
         { status: 400 },
@@ -78,6 +99,13 @@ export async function POST(request) {
     );
 
     if (checkoutSession.payment_status !== "paid") {
+      log.decision("payment_not_completed", "Provision license rejected", {
+        reason: "payment_not_completed",
+        paymentStatus: checkoutSession.payment_status,
+      });
+      log.response(400, "Provision license rejected", {
+        reason: "payment_not_completed",
+      });
       return NextResponse.json(
         { error: "Payment not completed" },
         { status: 400 },
@@ -87,34 +115,35 @@ export async function POST(request) {
     // Check if this user already has a license (prevent duplicates)
     let existingCustomer = await getCustomerByEmail(user.email);
     if (existingCustomer?.keygenLicenseId) {
-      // User already has a license - return it instead of creating a duplicate
-      console.log("[ProvisionLicense] User already has license:", {
-        email: user.email,
-        existingLicenseId: existingCustomer.keygenLicenseId,
-        existingStripeId: existingCustomer.stripeCustomerId,
-        existingUserId: existingCustomer.userId,
-        cognitoUserId: user.sub,
+      log.decision("existing_license_found", "Existing license found for user", {
+        hasExistingLicenseId: Boolean(existingCustomer.keygenLicenseId),
+        hasExistingStripeCustomerId: Boolean(existingCustomer.stripeCustomerId),
+        hasExistingUserId: Boolean(existingCustomer.userId),
       });
 
       // If the existing customer was created by webhook with temp userId (email:xxx),
       // migrate it to the real Cognito userId so dashboard lookups work
       if (existingCustomer.userId && existingCustomer.userId !== user.sub) {
         if (existingCustomer.userId.startsWith("email:")) {
-          console.log(
-            "[ProvisionLicense] Migrating customer userId from temp to Cognito",
+          log.info(
+            "customer_userid_migration_started",
+            "Migrating customer userId from temp to Cognito",
+            { hasTempUserId: true },
           );
           try {
             existingCustomer = await migrateCustomerUserId(
               existingCustomer.userId,
               user.sub,
             );
-            console.log(
-              "[ProvisionLicense] Customer userId migrated successfully",
+            log.info(
+              "customer_userid_migration_succeeded",
+              "Customer userId migrated successfully",
             );
           } catch (migrateError) {
-            console.error(
-              "[ProvisionLicense] Failed to migrate userId:",
-              migrateError,
+            log.warn(
+              "customer_userid_migration_failed",
+              "Failed to migrate userId",
+              { errorMessage: migrateError?.message },
             );
             // Continue anyway - they still have a valid license
           }
@@ -131,14 +160,15 @@ export async function POST(request) {
       if (existingPlanType === "business") {
         try {
           await assignOwnerRole(user.username);
-          console.log(
-            `[ProvisionLicense] Owner role assigned to ${user.sub} for Business plan`,
-          );
+          log.info("owner_role_assigned", "Owner role assigned for Business plan", {
+            planType: existingPlanType,
+          });
         } catch (roleError) {
           // Non-fatal: Log but continue - user can still use the license
-          console.warn(
-            `[ProvisionLicense] Could not assign owner role:`,
-            roleError.message,
+          log.warn(
+            "owner_role_assignment_failed",
+            "Could not assign owner role",
+            { errorMessage: roleError?.message },
           );
         }
       }
@@ -149,8 +179,10 @@ export async function POST(request) {
         existingCustomer.keygenLicenseId,
       );
       if (!existingLicenseRecord) {
-        console.log(
-          "[ProvisionLicense] Creating DynamoDB license record for email trigger",
+        log.info(
+          "license_record_missing",
+          "Creating DynamoDB license record for email trigger",
+          { reason: "missing_license_record" },
         );
         const planType =
           existingCustomer.accountType ||
@@ -172,8 +204,9 @@ export async function POST(request) {
           expiresAt: null, // Subscription-based, no fixed expiry
           maxDevices: planType === "business" ? 5 : 3,
         });
-        console.log(
-          "[ProvisionLicense] DynamoDB license record created - license email will be sent",
+        log.info(
+          "license_record_created",
+          "DynamoDB license record created for existing customer",
         );
       }
 
@@ -184,6 +217,9 @@ export async function POST(request) {
 
       // If this is from the same Stripe checkout, it's a refresh - just return the info
       // If it's a different Stripe checkout, they already have a license (shouldn't happen due to checkout guard)
+      log.response(200, "Provision license returned existing license", {
+        alreadyProvisioned: true,
+      });
       return NextResponse.json({
         success: true,
         alreadyProvisioned: true,
@@ -211,6 +247,11 @@ export async function POST(request) {
       },
     });
 
+    log.info("keygen_license_created", "Keygen license created", {
+      planType,
+      licenseId: license.id,
+    });
+
     // Store customer in DynamoDB
     await upsertCustomer({
       userId: user.sub,
@@ -225,6 +266,11 @@ export async function POST(request) {
         stripeSubscriptionId: checkoutSession.subscription?.id,
         licenseKeyPreview: `${license.key.slice(0, 8)}...${license.key.slice(-4)}`,
       },
+    });
+
+    log.info("customer_record_upserted", "Customer record upserted", {
+      planType,
+      hasStripeCustomerId: Boolean(checkoutSession.customer?.id),
     });
 
     // Store license record
@@ -242,26 +288,35 @@ export async function POST(request) {
       maxDevices: planType === "business" ? 5 : 3,
     });
 
+    log.info("license_record_created", "License record created", {
+      planType,
+      licenseId: license.id,
+    });
+
     // RBAC: Assign owner role for new Business plan purchases
     // This user signed up first then purchased, so we can assign immediately
     if (planType === "business") {
       try {
         await assignOwnerRole(user.username);
-        console.log(
-          `[ProvisionLicense] Owner role assigned to ${user.sub} for new Business plan`,
-        );
+        log.info("owner_role_assigned", "Owner role assigned for new Business plan", {
+          planType,
+        });
       } catch (roleError) {
         // Non-fatal: Log but continue - user has license, role can be fixed later
-        console.warn(
-          `[ProvisionLicense] Could not assign owner role:`,
-          roleError.message,
-        );
+        log.warn("owner_role_assignment_failed", "Could not assign owner role", {
+          errorMessage: roleError?.message,
+        });
       }
     }
 
     // Email is sent asynchronously via event-driven pipeline
     // (see StreamProcessor Lambda → SNS → EmailSender Lambda)
 
+    log.response(200, "Provision license completed", {
+      success: true,
+      alreadyProvisioned: false,
+      planType,
+    });
     return NextResponse.json({
       success: true,
       licenseKey: license.key,
@@ -269,7 +324,8 @@ export async function POST(request) {
       userName: user.firstName,
     });
   } catch (error) {
-    console.error("[API] Provision license error:", error);
+    log.exception(error, "provision_license_failed", "Provision license failed");
+    log.response(500, "Provision license failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: `Failed to provision license: ${error.message}` },
       { status: 500 },

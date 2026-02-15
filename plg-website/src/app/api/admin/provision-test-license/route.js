@@ -22,6 +22,7 @@ import { headers } from "next/headers";
 import { createLicenseForPlan } from "@/lib/keygen";
 import { upsertCustomer, createLicense, getCustomerByEmail } from "@/lib/dynamodb";
 import { getAppSecrets } from "@/lib/secrets";
+import { createApiLogger } from "@/lib/api-log";
 import crypto from "crypto";
 
 // Only allow in staging (check multiple env var patterns)
@@ -35,7 +36,7 @@ const IS_STAGING =
  * Verify admin key from x-admin-key header
  * Fetches expected key from Secrets Manager at runtime
  */
-async function verifyAdminKey() {
+async function verifyAdminKey(log) {
   const headersList = await headers();
   const adminKey = headersList.get("x-admin-key");
 
@@ -46,19 +47,41 @@ async function verifyAdminKey() {
   try {
     const { TEST_ADMIN_KEY } = await getAppSecrets();
     if (!TEST_ADMIN_KEY) {
-      console.warn("[TestLicense] TEST_ADMIN_KEY not configured in Secrets Manager");
+      log.warn(
+        "test_admin_key_missing",
+        "TEST_ADMIN_KEY not configured in Secrets Manager",
+      );
       return false;
     }
     return adminKey === TEST_ADMIN_KEY;
   } catch (error) {
-    console.error("[TestLicense] Failed to verify admin key:", error.message);
+    log.error(
+      "admin_key_verification_failed",
+      "Failed to verify admin key",
+      error,
+      { errorMessage: error?.message },
+    );
     return false;
   }
 }
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-admin-provision-test",
+    request,
+    operation: "admin_provision_test",
+  });
+
+  log.requestReceived();
+
   // Environment check
   if (!IS_STAGING) {
+    log.decision("environment_restricted", "Test license provisioning rejected", {
+      reason: "non_staging_environment",
+    });
+    log.response(403, "Test license provisioning rejected", {
+      reason: "non_staging_environment",
+    });
     return NextResponse.json(
       { error: "This endpoint is only available in staging" },
       { status: 403 },
@@ -66,8 +89,14 @@ export async function POST(request) {
   }
 
   // Admin key verification
-  const isAdmin = await verifyAdminKey();
+  const isAdmin = await verifyAdminKey(log);
   if (!isAdmin) {
+    log.decision("admin_auth_failed", "Test license provisioning rejected", {
+      reason: "invalid_or_missing_admin_key",
+    });
+    log.response(401, "Test license provisioning rejected", {
+      reason: "invalid_or_missing_admin_key",
+    });
     return NextResponse.json(
       { error: "Invalid or missing admin key" },
       { status: 401 },
@@ -79,12 +108,25 @@ export async function POST(request) {
     const { email, planType = "individual", userName } = body;
 
     if (!email) {
+      log.decision("email_missing", "Test license provisioning rejected", {
+        reason: "email_required",
+      });
+      log.response(400, "Test license provisioning rejected", {
+        reason: "email_required",
+      });
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
     // Validate plan type
     const validPlans = ["individual", "business"];
     if (!validPlans.includes(planType)) {
+      log.decision("invalid_plan_type", "Test license provisioning rejected", {
+        reason: "invalid_plan_type",
+        planType,
+      });
+      log.response(400, "Test license provisioning rejected", {
+        reason: "invalid_plan_type",
+      });
       return NextResponse.json(
         { error: `Invalid planType. Must be one of: ${validPlans.join(", ")}` },
         { status: 400 },
@@ -93,21 +135,30 @@ export async function POST(request) {
 
     // Check for existing customer by email to avoid duplicates
     const existingCustomer = await getCustomerByEmail(email);
-    
+
     // If user already has a license, return it instead of creating a new one
     if (existingCustomer?.keygenLicenseId) {
-      console.log(`[TestLicense] User ${email} already has license: ${existingCustomer.keygenLicenseId}`);
+      log.decision("existing_license_found", "Returning existing test license", {
+        hasLicenseId: Boolean(existingCustomer.keygenLicenseId),
+        hasUserId: Boolean(existingCustomer.userId),
+        accountType: existingCustomer.accountType || "individual",
+      });
+      log.response(200, "Returned existing test license", {
+        alreadyExists: true,
+      });
       return NextResponse.json({
         success: true,
         alreadyExists: true,
         message: "User already has a license",
         licenseId: existingCustomer.keygenLicenseId,
-        licenseKeyPreview: existingCustomer.metadata?.licenseKeyPreview || "Already provisioned",
-        planName: existingCustomer.accountType === "business" ? "Business" : "Individual",
+        licenseKeyPreview:
+          existingCustomer.metadata?.licenseKeyPreview || "Already provisioned",
+        planName:
+          existingCustomer.accountType === "business" ? "Business" : "Individual",
         userId: existingCustomer.userId,
       });
     }
-    
+
     // Generate new IDs for new customer
     const testUserId = `test-user-${crypto.randomBytes(8).toString("hex")}`;
     const testStripeCustomerId = `cus_test_${crypto.randomBytes(12).toString("hex")}`;
@@ -116,9 +167,10 @@ export async function POST(request) {
     // Human-readable plan name (only individual and business exist)
     const planName = planType === "business" ? "Business" : "Individual";
 
-    console.log(
-      `[TestLicense] Creating test license for ${email} (${planType})`,
-    );
+    log.info("test_provision_started", "Creating test license", {
+      planType,
+      hasUserName: Boolean(userName),
+    });
 
     // Create REAL Keygen license
     const license = await createLicenseForPlan(planType, {
@@ -133,7 +185,10 @@ export async function POST(request) {
       },
     });
 
-    console.log(`[TestLicense] Keygen license created: ${license.id}`);
+    log.info("keygen_license_created", "Keygen license created for test provisioning", {
+      licenseId: license.id,
+      planType,
+    });
 
     // Store customer in DynamoDB (for Admin Portal)
     await upsertCustomer({
@@ -151,7 +206,10 @@ export async function POST(request) {
       },
     });
 
-    console.log(`[TestLicense] Customer record created in DynamoDB`);
+    log.info("customer_record_created", "Customer record created in DynamoDB", {
+      planType,
+      hasStripeCustomerId: true,
+    });
 
     // Store license record (triggers email via DynamoDB Streams)
     // This write triggers:
@@ -165,17 +223,21 @@ export async function POST(request) {
       planName, // Human-readable plan name for email template
       status: "active",
       expiresAt: license.expiresAt,
-      maxDevices:
-        planType === "business" ? 5 : 3,
+      maxDevices: planType === "business" ? 5 : 3,
       metadata: {
         testMode: true,
       },
     });
 
-    console.log(
-      `[TestLicense] License record created - email should trigger via DynamoDB Streams`,
-    );
+    log.info("license_record_created", "License record created for test provisioning", {
+      licenseId: license.id,
+      planType,
+    });
 
+    log.response(200, "Test license provisioned successfully", {
+      success: true,
+      planType,
+    });
     return NextResponse.json({
       success: true,
       message: "Test license provisioned successfully",
@@ -199,7 +261,14 @@ export async function POST(request) {
       ],
     });
   } catch (error) {
-    console.error("[TestLicense] Error:", error);
+    log.exception(
+      error,
+      "test_license_provision_failed",
+      "Test license provisioning failed",
+    );
+    log.response(500, "Test license provisioning failed", {
+      reason: "unhandled_error",
+    });
     return NextResponse.json(
       { error: `Failed to provision test license: ${error.message}` },
       { status: 500 },
@@ -210,14 +279,31 @@ export async function POST(request) {
 /**
  * GET - Endpoint documentation
  */
-export async function GET() {
+export async function GET(request) {
+  const log = createApiLogger({
+    service: "plg-api-admin-provision-test",
+    request,
+    operation: "admin_provision_test_check",
+  });
+
+  log.requestReceived();
+
   if (!IS_STAGING) {
+    log.decision("environment_restricted", "Provision test endpoint rejected", {
+      reason: "non_staging_environment",
+    });
+    log.response(403, "Provision test endpoint rejected", {
+      reason: "non_staging_environment",
+    });
     return NextResponse.json(
       { error: "This endpoint is only available in staging" },
       { status: 403 },
     );
   }
 
+  log.response(200, "Provision test endpoint documentation returned", {
+    success: true,
+  });
   return NextResponse.json({
     endpoint: "POST /api/admin/provision-test-license",
     description:
@@ -228,8 +314,7 @@ export async function GET() {
     },
     body: {
       email: "Required. Email address for license delivery",
-      planType:
-        "Optional. One of: individual (default), business",
+      planType: "Optional. One of: individual (default), business",
       userName: "Optional. Display name for the user",
     },
     example: {

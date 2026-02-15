@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-15
 **Author:** GitHub Copilot (GC) with SWR
-**Status:** Phase 1 In Progress — Commits 1, 2, 3, and 4 Complete (28 Handlers Wired)
+**Status:** Phase 1 In Progress — Commits 1, 2, 3, 4, and 5 Complete (31 Handlers Wired)
 **Branch:** `development`
 **Commit Range:** `094edf8..fb12b60`
 
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-This report documents the end-to-end investigation, root cause analysis, and resolution of the structured logging integration for the HIC PLG website running on AWS Amplify Gen 2 (WEB_COMPUTE). What began as a diagnostic session — "I wired `api-log` but can't find logs in CloudWatch" — uncovered multiple infrastructure gaps, culminated in a manually created log group, and validated the structured logging pattern. As of this update, the pattern is wired and validated across 28 handlers (checkout domain + Commits 1–4 endpoints), with 5 handlers remaining.
+This report documents the end-to-end investigation, root cause analysis, and resolution of the structured logging integration for the HIC PLG website running on AWS Amplify Gen 2 (WEB_COMPUTE). What began as a diagnostic session — "I wired `api-log` but can't find logs in CloudWatch" — uncovered multiple infrastructure gaps, culminated in a manually created log group, and validated the structured logging pattern. As of this update, the pattern is wired and validated across 31 handlers (checkout domain + Commits 1–5 endpoints), with 2 handlers remaining.
 
 ---
 
@@ -233,9 +233,9 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 
 | #   | Endpoint                            | Method | Lines | Status |
 | --- | ----------------------------------- | ------ | ----- | ------ |
-| 31  | `/api/provision-license`            | POST   | 278   | ⬜     |
-| 32  | `/api/admin/provision-test-license` | POST   | 247   | ⬜     |
-| 33  | `/api/admin/provision-test-license` | GET    | 247   | ⬜     |
+| 31  | `/api/provision-license`            | POST   | 278   | ✅ Wired and validated |
+| 32  | `/api/admin/provision-test-license` | POST   | 247   | ✅ Wired and validated |
+| 33  | `/api/admin/provision-test-license` | GET    | 247   | ✅ Wired and validated |
 
 ### 6.6 Summary
 
@@ -244,8 +244,8 @@ aws logs create-log-group --log-group-name /aws/amplify/d2yhz9h4xdd5rb
 | Total route files       | 24                                                        |
 | Total handler functions | 33                                                        |
 | Total lines of code     | 5,679                                                     |
-| Wired and validated     | 28 handlers (checkout + Commits 1, 2, 3, and 4 endpoints)  |
-| Remaining to wire       | 5 handlers across 4 route files                           |
+| Wired and validated     | 31 handlers (checkout + Commits 1, 2, 3, 4, and 5 endpoints) |
+| Remaining to wire       | 2 handlers across 2 route files                           |
 
 ---
 
@@ -294,7 +294,7 @@ git add <file> && git commit -m "feat(logging): wire <endpoint> to api-log" && g
 
 ### Batching Strategy — Detailed Implementation Plan
 
-The rollout scope remains **33 handlers across 24 route files** total. After completing 28 handlers, **5 handlers remain across 4 route files** (~95 console calls), organized into **2 remaining commits** across the remaining complexity tiers. Each commit is independently testable and deployable.
+The rollout scope remains **33 handlers across 24 route files** total. After completing 31 handlers, **2 handlers remain across 2 route files** (~76 console calls), organized into **1 remaining commit** in the highest complexity tier. Each commit is independently testable and deployable.
 
 #### Complexity Tiers
 
@@ -384,7 +384,7 @@ Higher-traffic endpoints with nested try/catch, helper functions, and business-c
 
 ---
 
-### Commit 5: Provisioning & Admin (2 files, 3 handlers, ~19 console calls)
+### Commit 5: Provisioning & Admin (2 files, 3 handlers, ~19 console calls) ✅ COMPLETE
 
 | #     | File                                    | Handlers  | Console Calls | Service Name                   | Operation(s)                                         |
 | ----- | --------------------------------------- | --------- | ------------- | ------------------------------ | ---------------------------------------------------- |
@@ -399,11 +399,13 @@ Higher-traffic endpoints with nested try/catch, helper functions, and business-c
 
 **Commit message:** `feat(logging): wire provision-license and admin/provision-test-license to api-log`
 
+**Completion note (2026-02-15):** Implemented for `provision-license` (POST) and `admin/provision-test-license` (POST/GET), with new contract coverage in `commit5-logging.contract.test.js`, full suite passing (1451/1451), and CI/CD + Amplify deployment validated.
+
 ---
 
 ### Commit 6: Webhooks — Stripe + Keygen (2 files, 2 handlers, ~76 console calls)
 
-The most complex commit. These two files account for 57% of all remaining console calls.
+The most complex commit. These two files account for all remaining console calls.
 
 | #   | File                       | Handlers | Console Calls | Service Name              | Operation(s)     |
 | --- | -------------------------- | -------- | ------------- | ------------------------- | ---------------- |
