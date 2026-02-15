@@ -20,7 +20,9 @@
     "test:e2e:staging": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js",
     "test:e2e:arch": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js --arch",
     "test:e2e:journey": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js --journey",
-    "test:e2e:all": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js --all"
+    "test:e2e:all": "node --loader ../dm/facade/utils/test-loader.js __tests__/e2e/runner.js --all",
+    "test:logging-wireup": "node __tests__/e2e/verify-logging-wireup.js",
+    "test:logging-wireup:http": "node __tests__/e2e/verify-logging-wireup.js --skip-cloudwatch"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.980.0",
