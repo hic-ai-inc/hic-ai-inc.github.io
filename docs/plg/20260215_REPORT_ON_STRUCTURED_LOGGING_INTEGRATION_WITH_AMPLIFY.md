@@ -280,16 +280,206 @@ cd plg-website && npm run test
 git add <file> && git commit -m "feat(logging): wire <endpoint> to api-log" && git push origin development
 ```
 
-### Batching Strategy
+### Batching Strategy — Detailed Implementation Plan
 
-Given 31 remaining handlers across 22 files, the recommended batching order by domain:
+The 31 remaining handlers (22 files, ~134 console calls) are organized into **6 commits** across 3 tiers of complexity. Each commit is independently testable and deployable.
 
-1. **License domain** (6 files, 8 handlers) — highest traffic, highest diagnostic value
-2. **Portal domain** (9 files, 16 handlers) — user-facing, moderate complexity
-3. **Webhooks** (2 files, 2 handlers) — critical path, highest complexity per file
-4. **Provisioning/Admin** (2 files, 3 handlers) — lowest traffic, can batch together
+#### Complexity Tiers
 
-Each batch: wire all handlers → run tests → single commit per batch → push → verify one representative endpoint in CloudWatch.
+| Tier | Description | Files | Handlers | Console Calls | Effort |
+|------|-------------|-------|----------|---------------|--------|
+| **Tier 1** | Mechanical — 0–4 console calls, single try/catch | 14 | 20 | ~30 | Low |
+| **Tier 2** | Moderate — multiple exports or deep nesting | 6 | 9 | ~28 | Medium |
+| **Tier 3** | Complex — webhook handlers with sub-functions | 2 | 2 | ~76 | High |
+
+---
+
+### Commit 1: Portal — Simple Endpoints (7 files, 8 handlers, ~11 console calls)
+
+All single-export, single-try/catch files with 1–3 console calls. Pure mechanical replacement.
+
+| # | File | Handlers | Console Calls | Service Name | Operation(s) |
+|---|------|----------|---------------|--------------|---------------|
+| 11 | `portal/billing/route.js` | GET | 1 | `plg-api-portal-billing` | `portal_billing` |
+| 12 | `portal/devices/route.js` | GET | 1 | `plg-api-portal-devices` | `portal_devices` |
+| 15 | `portal/license/route.js` | GET | 2 | `plg-api-portal-license` | `portal_license` |
+| 24 | `portal/status/route.js` | GET | 3 | `plg-api-portal-status` | `portal_status` |
+| 25 | `portal/stripe-session/route.js` | POST | 1 | `plg-api-portal-stripe-session` | `portal_stripe_session` |
+| 22 | `portal/settings/export/route.js` | POST | 3 | `plg-api-portal-settings-export` | `portal_settings_export` |
+| 23 | `portal/settings/leave-organization/route.js` | POST | 4 (1 warn) | `plg-api-portal-settings-leave-org` | `portal_settings_leave_org` |
+
+**Commit message:** `feat(logging): wire 7 simple portal endpoints to api-log`
+
+---
+
+### Commit 2: Portal — Multi-Handler Endpoints (4 files, 10 handlers, ~16 console calls)
+
+Files with 2–3 exported handlers. Each handler needs its own `createApiLogger()` call.
+
+| # | File | Handlers | Console Calls | Service Name | Operation(s) |
+|---|------|----------|---------------|--------------|---------------|
+| 13–14 | `portal/invite/[token]/route.js` | GET, POST | 4 | `plg-api-portal-invite` | `portal_invite_check`, `portal_invite_accept` |
+| 16–17 | `portal/seats/route.js` | GET, POST | 4 | `plg-api-portal-seats` | `portal_seats_list`, `portal_seats_update` |
+| 18–19 | `portal/settings/route.js` | GET, PATCH | 2 | `plg-api-portal-settings` | `portal_settings_get`, `portal_settings_update` |
+| 20–21 | `portal/settings/delete-account/route.js` | POST, DELETE | 6 | `plg-api-portal-settings-delete` | `portal_settings_delete_request`, `portal_settings_delete_confirm` |
+
+**Note on multi-handler files:** Each exported function (GET, POST, DELETE, PATCH) gets its own `const log = createApiLogger(...)` with a unique `operation` value. The `service` name stays the same across all handlers in the same file.
+
+**Commit message:** `feat(logging): wire 4 multi-handler portal endpoints to api-log`
+
+---
+
+### Commit 3: Portal — Team Endpoint + License Simple (4 files, 6 handlers, ~7 console calls)
+
+The team endpoint (3 exports, 585 lines) is the largest portal file. Bundle with the simpler license endpoints.
+
+| # | File | Handlers | Console Calls | Service Name | Operation(s) |
+|---|------|----------|---------------|--------------|---------------|
+| 26–28 | `portal/team/route.js` | GET, POST, DELETE | 3 | `plg-api-portal-team` | `portal_team_list`, `portal_team_invite`, `portal_team_remove` |
+| 4 | `license/check/route.js` | GET | 1 | `plg-api-license-check` | `license_check` |
+| 5–6 | `license/deactivate/route.js` | DELETE, POST | 1 | `plg-api-license-deactivate` | `license_deactivate` |
+
+**Commit message:** `feat(logging): wire portal/team and license/check,deactivate to api-log`
+
+---
+
+### Commit 4: License Domain — Complex Endpoints (4 files, 5 handlers, ~13 console calls)
+
+Higher-traffic endpoints with nested try/catch, helper functions, and business-critical logging.
+
+| # | File | Handlers | Console Calls | Service Name | Operation(s) |
+|---|------|----------|---------------|--------------|---------------|
+| 3 | `license/activate/route.js` | POST | 2 | `plg-api-license-activate` | `license_activate` |
+| 7 | `license/heartbeat/route.js` | POST | 5 (1 warn) | `plg-api-license-heartbeat` | `license_heartbeat` |
+| 8 | `license/validate/route.js` | POST | 4 | `plg-api-license-validate` | `license_validate` |
+| 9–10 | `license/trial/init/route.js` | POST, GET | 2 | `plg-api-license-trial-init` | `license_trial_init`, `license_trial_check` |
+
+**Special attention:**
+- `heartbeat` has 2 helper functions (`processHeartbeat`, `calculateActiveDevices`) — `log` should be passed as a parameter or closured
+- `validate` has a nested try/catch for self-healing heartbeat — inner catch should use `log.warn()` not `log.exception()`
+- `trial/init` has 2 exports sharing helper functions — each export gets its own logger
+
+**Commit message:** `feat(logging): wire license domain (activate, heartbeat, validate, trial) to api-log`
+
+---
+
+### Commit 5: Provisioning & Admin (2 files, 3 handlers, ~19 console calls)
+
+| # | File | Handlers | Console Calls | Service Name | Operation(s) |
+|---|------|----------|---------------|--------------|---------------|
+| 31 | `provision-license/route.js` | POST | 11 (2 warn) | `plg-api-provision-license` | `provision_license` |
+| 32–33 | `admin/provision-test-license/route.js` | POST, GET | 8 | `plg-api-admin-provision-test` | `admin_provision_test`, `admin_provision_test_check` |
+
+**Special attention:**
+- `provision-license` has deeply nested multi-step flow (Stripe verify → Keygen create → DynamoDB write → SES email). Each step should get a distinct `log.info()` event name: `stripe_session_verified`, `keygen_license_created`, `dynamodb_record_written`, `welcome_email_sent`
+- Inline `console.log` progress messages map to `log.info()` with meaningful event names
+- `console.warn` calls map to `log.warn()`
+
+**Commit message:** `feat(logging): wire provision-license and admin/provision-test-license to api-log`
+
+---
+
+### Commit 6: Webhooks — Stripe + Keygen (2 files, 2 handlers, ~76 console calls)
+
+The most complex commit. These two files account for 57% of all remaining console calls.
+
+| # | File | Handlers | Console Calls | Service Name | Operation(s) |
+|---|------|----------|---------------|--------------|---------------|
+| 29 | `webhooks/stripe/route.js` | POST | 53 | `plg-api-webhooks-stripe` | `webhook_stripe` |
+| 30 | `webhooks/keygen/route.js` | POST | 23 | `plg-api-webhooks-keygen` | `webhook_keygen` |
+
+**Design decision for Stripe webhook (718 lines, 8 private sub-handlers):**
+
+The `POST` function is the only export. It dispatches to 8 private async handler functions based on the Stripe event type. The `request` object is only available in `POST` — the sub-handlers receive domain objects (`session`, `subscription`, `invoice`, `dispute`).
+
+**Recommended pattern — create logger in POST, pass to sub-handlers:**
+
+```javascript
+export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-webhooks-stripe",
+    request,
+    operation: "webhook_stripe",
+  });
+
+  log.requestReceived({ eventType: event.type });
+
+  // Dispatch to sub-handler with logger
+  await handleCheckoutCompleted(session, log);
+}
+
+async function handleCheckoutCompleted(session, log) {
+  log.info("checkout_completed", "Processing checkout.session.completed", {
+    sessionId: session.id,
+    customerEmail: session.customer_details?.email,
+  });
+  // ... existing logic with console.log → log.info/warn/error ...
+}
+```
+
+Each sub-handler's `console.log` calls get domain-specific event names:
+- `handleCheckoutCompleted` → `checkout_completed`, `license_created`, `dynamodb_updated`
+- `handleSubscriptionUpdated` → `subscription_updated`, `status_change`
+- `handleInvoicePaymentFailed` → `invoice_payment_failed`, `suspension_applied`
+- etc.
+
+**Keygen webhook (315 lines)** follows the same pattern but is simpler — single POST handler with event-type dispatch, no sub-functions.
+
+**Commit message:** `feat(logging): wire Stripe and Keygen webhook handlers to api-log`
+
+---
+
+### Implementation Checklist (Per File)
+
+For each file, the implementing agent must:
+
+- [ ] Add `import { createApiLogger } from "@/lib/api-log";`
+- [ ] Create `const log = createApiLogger({...})` at the top of each exported handler
+- [ ] Add `log.requestReceived({...})` with safe metadata (booleans, counts — no secrets)
+- [ ] Replace every `console.log(...)` with `log.info(eventName, message, { metadata })`
+- [ ] Replace every `console.error(...)` with `log.error(eventName, message, error, { metadata })` or `log.exception(error, eventName, message)` in catch blocks
+- [ ] Replace every `console.warn(...)` with `log.warn(eventName, message, { metadata })`
+- [ ] Add `log.response(statusCode, message)` before every `return NextResponse.json(...)`
+- [ ] Add `log.decision(eventName, message, { reason })` at key branching points
+- [ ] Verify **zero** `console.log|error|warn` calls remain in the file
+- [ ] Run `npm run test` from `plg-website/` and confirm all tests pass
+
+### Event Naming Convention
+
+Event names use `snake_case` and follow `{domain}_{action}` pattern:
+- `request_received` (automatic via `log.requestReceived()`)
+- `body_parsed`, `body_parse_failed`
+- `auth_verified`, `auth_failed`
+- `validation_failed`, `validation_passed`
+- `{resource}_created`, `{resource}_updated`, `{resource}_deleted`, `{resource}_found`, `{resource}_not_found`
+- `response` (automatic via `log.response()`)
+- `exception` (automatic via `log.exception()`)
+
+### Metadata Guidelines
+
+Safe to log (include in metadata):
+- Boolean presence: `hasEmail: Boolean(email)`, `hasLicenseKey: Boolean(key)`
+- Counts: `deviceCount: devices.length`, `seatCount`
+- IDs: `licenseId`, `sessionId`, `subscriptionId` (non-secret identifiers)
+- Status values: `paymentStatus`, `licenseStatus`, `planType`
+- Error types: `error.name`, `error.message`
+
+**Never log directly** (the sanitizer will catch these, but don't rely on it):
+- Secret keys, tokens, passwords
+- Full email addresses (use `hasEmail: Boolean(email)` instead)
+- Authorization headers
+- Request/response bodies containing PII
+
+### Validation Gate
+
+After all 6 commits, run the console call elimination gate:
+
+```bash
+# Must return zero matches
+grep -r "console\.\(log\|error\|warn\)" plg-website/src/app/api/**/route.js
+```
+
+Any remaining `console.*` calls indicate an incomplete wiring.
 
 ---
 
