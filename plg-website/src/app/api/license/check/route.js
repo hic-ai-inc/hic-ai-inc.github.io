@@ -14,16 +14,29 @@ import { NextResponse } from "next/server";
 import { getLicensesByEmail } from "@/lib/keygen";
 import { getCustomerByEmail } from "@/lib/dynamodb";
 import { checkRateLimit, RATE_LIMIT_PRESETS } from "@/lib/rate-limit";
+import { createApiLogger } from "@/lib/api-log";
 
 // Rate limit preset (uses heartbeat: 10 requests per minute)
 const RATE_LIMIT_KEY_PREFIX = "license-check:";
 
 export async function GET(request) {
+  const log = createApiLogger({
+    service: "plg-api-license-check",
+    request,
+    operation: "license_check",
+  });
+
+  log.requestReceived();
+
   try {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
 
     if (!email) {
+      log.decision("email_missing", "License check rejected", {
+        reason: "email_missing",
+      });
+      log.response(400, "License check rejected", { reason: "email_missing" });
       return NextResponse.json(
         { error: "Email parameter is required" },
         { status: 400 },
@@ -33,6 +46,12 @@ export async function GET(request) {
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      log.decision("invalid_email_format", "License check rejected", {
+        reason: "invalid_email_format",
+      });
+      log.response(400, "License check rejected", {
+        reason: "invalid_email_format",
+      });
       return NextResponse.json(
         { error: "Invalid email format" },
         { status: 400 },
@@ -52,6 +71,12 @@ export async function GET(request) {
       keyPrefix: RATE_LIMIT_KEY_PREFIX,
     });
     if (!rateLimitResult.allowed) {
+      log.decision("rate_limit_exceeded", "License check rejected", {
+        reason: "rate_limit_exceeded",
+      });
+      log.response(429, "License check rate limited", {
+        reason: "rate_limit_exceeded",
+      });
       return NextResponse.json(
         { error: "Rate limit exceeded. Try again later." },
         {
@@ -78,6 +103,10 @@ export async function GET(request) {
       );
 
       if (hasActiveSubscription) {
+        log.info("customer_license_found", "Active customer license found", {
+          source: "dynamodb",
+        });
+        log.response(200, "License check completed", { status: "active" });
         return NextResponse.json({
           status: "active",
           licenseKey: customer.keygenLicenseKey || null,
@@ -97,6 +126,10 @@ export async function GET(request) {
     );
 
     if (activeLicense) {
+      log.info("active_license_found", "Active license found", {
+        source: "keygen",
+      });
+      log.response(200, "License check completed", { status: "active" });
       return NextResponse.json({
         status: "active",
         licenseKey: activeLicense.key,
@@ -112,6 +145,12 @@ export async function GET(request) {
     // Check for any license (might be suspended, expired, etc)
     const anyLicense = licenses[0];
     if (anyLicense) {
+      log.info("non_active_license_found", "Non-active license found", {
+        status: anyLicense.status?.toLowerCase() || "unknown",
+      });
+      log.response(200, "License check completed", {
+        status: anyLicense.status?.toLowerCase() || "unknown",
+      });
       return NextResponse.json({
         status: anyLicense.status.toLowerCase(),
         licenseKey: anyLicense.key,
@@ -125,13 +164,16 @@ export async function GET(request) {
     }
 
     // No license found
+    log.info("license_not_found", "No license found for email");
+    log.response(200, "License check completed", { status: "none" });
     return NextResponse.json({
       status: "none",
       licenseKey: null,
       email: email.toLowerCase(),
     });
   } catch (error) {
-    console.error("[License Check] Error:", error);
+    log.exception(error, "license_check_failed", "License check failed");
+    log.response(500, "License check failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Failed to check license status" },
       { status: 500 },

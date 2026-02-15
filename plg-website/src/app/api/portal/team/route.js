@@ -27,6 +27,7 @@ import {
   getOrganizationByStripeCustomer,
   getOrganization,
 } from "@/lib/dynamodb";
+import { createApiLogger } from "@/lib/api-log";
 
 /**
  * GET /api/portal/team
@@ -34,11 +35,21 @@ import {
  * Get team members, pending invites, and seat usage.
  * Requires business subscription.
  */
-export async function GET() {
+export async function GET(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-team",
+    request,
+    operation: "portal_team_list",
+  });
+
+  log.requestReceived();
+
   try {
     // Verify JWT from Authorization header
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Team list rejected", { reason: "unauthorized" });
+      log.response(401, "Team list rejected", { reason: "unauthorized" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -62,6 +73,12 @@ export async function GET() {
 
     // Check for business account
     if (accountType !== "business") {
+      log.decision("business_tier_required", "Team list rejected", {
+        reason: "business_tier_required",
+      });
+      log.response(403, "Team list rejected", {
+        reason: "business_tier_required",
+      });
       return NextResponse.json(
         { error: "Team management requires a business subscription" },
         { status: 403 },
@@ -82,6 +99,12 @@ export async function GET() {
     }
 
     if (!orgId) {
+      log.decision("organization_not_configured", "Team list rejected", {
+        reason: "organization_not_configured",
+      });
+      log.response(400, "Team list rejected", {
+        reason: "organization_not_configured",
+      });
       return NextResponse.json(
         { error: "Organization not configured. Please contact support." },
         { status: 400 },
@@ -116,6 +139,12 @@ export async function GET() {
       ...(i.acceptedAt && { acceptedAt: i.acceptedAt }),
     }));
 
+    log.response(200, "Team list returned", {
+      membersCount: formattedMembers.length,
+      invitesCount: formattedInvites.length,
+      seatLimit: usage.seatLimit,
+      seatsUsed: usage.seatsUsed,
+    });
     return NextResponse.json({
       members: formattedMembers,
       invites: formattedInvites,
@@ -127,7 +156,8 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Team API GET error:", error);
+    log.exception(error, "portal_team_list_failed", "Team list failed");
+    log.response(500, "Team list failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: "Failed to fetch team data" },
       { status: 500 },
@@ -142,10 +172,20 @@ export async function GET() {
  * Body: { action: "invite", email, role } or { action: "update_status", memberId, status }
  */
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-team",
+    request,
+    operation: "portal_team_invite",
+  });
+
+  log.requestReceived();
+
   try {
     // Verify JWT from Authorization header
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Team update rejected", { reason: "unauthorized" });
+      log.response(401, "Team update rejected", { reason: "unauthorized" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -170,6 +210,12 @@ export async function POST(request) {
 
     // Check for business account
     if (accountType !== "business") {
+      log.decision("business_tier_required", "Team remove rejected", {
+        reason: "business_tier_required",
+      });
+      log.response(403, "Team remove rejected", {
+        reason: "business_tier_required",
+      });
       return NextResponse.json(
         { error: "Team management requires a team subscription" },
         { status: 403 },
@@ -177,6 +223,12 @@ export async function POST(request) {
     }
 
     if (!orgId) {
+      log.decision("organization_not_configured", "Team remove rejected", {
+        reason: "organization_not_configured",
+      });
+      log.response(400, "Team remove rejected", {
+        reason: "organization_not_configured",
+      });
       return NextResponse.json(
         { error: "Organization not configured" },
         { status: 400 },
@@ -185,6 +237,12 @@ export async function POST(request) {
 
     // Check admin permissions
     if (userRole !== "owner" && userRole !== "admin") {
+      log.decision("admin_permissions_required", "Team remove rejected", {
+        reason: "admin_permissions_required",
+      });
+      log.response(403, "Team remove rejected", {
+        reason: "admin_permissions_required",
+      });
       return NextResponse.json(
         { error: "Admin permissions required" },
         { status: 403 },
@@ -439,7 +497,8 @@ export async function POST(request) {
         );
     }
   } catch (error) {
-    console.error("Team API POST error:", error);
+    log.exception(error, "portal_team_update_failed", "Team update failed");
+    log.response(500, "Team update failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: error.message || "Failed to process request" },
       { status: 500 },
@@ -454,10 +513,20 @@ export async function POST(request) {
  * Body: { type: "member", memberId } or { type: "invite", inviteId }
  */
 export async function DELETE(request) {
+  const log = createApiLogger({
+    service: "plg-api-portal-team",
+    request,
+    operation: "portal_team_remove",
+  });
+
+  log.requestReceived();
+
   try {
     // Verify JWT from Authorization header
     const tokenPayload = await verifyAuthToken();
     if (!tokenPayload) {
+      log.decision("auth_failed", "Team remove rejected", { reason: "unauthorized" });
+      log.response(401, "Team remove rejected", { reason: "unauthorized" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -482,6 +551,12 @@ export async function DELETE(request) {
 
     // Check for business account
     if (accountType !== "business") {
+      log.decision("business_tier_required", "Team update rejected", {
+        reason: "business_tier_required",
+      });
+      log.response(403, "Team update rejected", {
+        reason: "business_tier_required",
+      });
       return NextResponse.json(
         { error: "Team management requires a team subscription" },
         { status: 403 },
@@ -489,6 +564,12 @@ export async function DELETE(request) {
     }
 
     if (!orgId) {
+      log.decision("organization_not_configured", "Team update rejected", {
+        reason: "organization_not_configured",
+      });
+      log.response(400, "Team update rejected", {
+        reason: "organization_not_configured",
+      });
       return NextResponse.json(
         { error: "Organization not configured" },
         { status: 400 },
@@ -497,6 +578,12 @@ export async function DELETE(request) {
 
     // Check admin permissions
     if (userRole !== "owner" && userRole !== "admin") {
+      log.decision("admin_permissions_required", "Team update rejected", {
+        reason: "admin_permissions_required",
+      });
+      log.response(403, "Team update rejected", {
+        reason: "admin_permissions_required",
+      });
       return NextResponse.json(
         { error: "Admin permissions required" },
         { status: 403 },
@@ -576,7 +663,8 @@ export async function DELETE(request) {
         );
     }
   } catch (error) {
-    console.error("Team API DELETE error:", error);
+    log.exception(error, "portal_team_remove_failed", "Team remove failed");
+    log.response(500, "Team remove failed", { reason: "unhandled_error" });
     return NextResponse.json(
       { error: error.message || "Failed to process request" },
       { status: 500 },
