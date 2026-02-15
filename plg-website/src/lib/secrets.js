@@ -206,9 +206,11 @@ export async function getSecret(secretName) {
  *
  * Priority order:
  * 1. Local development: process.env (from .env.local)
- * 2. Amplify Gen 2 SSM Parameter Store (/amplify/shared/app-id/SECRET)
- * 3. AWS Secrets Manager (plg/staging/stripe or plg/production/stripe)
- * 4. Emergency fallback: process.env
+ * 2. AWS Secrets Manager (plg/{env}/stripe) — canonical source
+ * 3. SSM Parameter Store (legacy fallback, pending removal)
+ *
+ * Throws if all sources fail — no silent fallback to process.env.
+ * See: FINDING-3, FINDING-4 in 20260215_AUDIT_REPORT_ON_SECRETS_HYGIENE.md
  *
  * @returns {Promise<{STRIPE_SECRET_KEY: string, STRIPE_WEBHOOK_SECRET: string}>}
  */
@@ -224,21 +226,8 @@ export async function getStripeSecrets() {
     };
   }
 
-  // Production/staging: Try Gen 2 SSM Parameter Store first
-  console.log("[Secrets] Production mode - trying SSM Parameter Store (Gen 2)...");
-  const ssmSecretKey = await getSSMParameter(SSM_SECRET_PATHS.STRIPE_SECRET_KEY);
-  const ssmWebhookSecret = await getSSMParameter(SSM_SECRET_PATHS.STRIPE_WEBHOOK_SECRET);
-
-  if (ssmSecretKey && ssmWebhookSecret) {
-    console.log("[Secrets] SSM secrets found - using Gen 2 secrets");
-    return {
-      STRIPE_SECRET_KEY: ssmSecretKey,
-      STRIPE_WEBHOOK_SECRET: ssmWebhookSecret,
-    };
-  }
-
-  // Fallback to Secrets Manager (original approach)
-  console.log("[Secrets] SSM not available, trying Secrets Manager...");
+  // Production/staging: Secrets Manager is the canonical source
+  console.log("[Secrets] Production mode - trying Secrets Manager...");
   try {
     const secrets = await getSecret(SECRET_PATHS.stripe);
     console.log("[Secrets] Secrets Manager success");
@@ -250,13 +239,22 @@ export async function getStripeSecrets() {
     console.warn("[Secrets] Secrets Manager unavailable:", error.message);
   }
 
-  // Emergency fallback to env vars (shouldn't reach here in production)
-  console.warn("[Secrets] All secret sources failed, falling back to process.env");
-  console.warn("[Secrets] STRIPE_SECRET_KEY in env:", !!process.env.STRIPE_SECRET_KEY);
-  return {
-    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-  };
+  // Fallback to SSM Parameter Store (legacy, pending removal)
+  console.log("[Secrets] Trying SSM Parameter Store fallback...");
+  const ssmSecretKey = await getSSMParameter(SSM_SECRET_PATHS.STRIPE_SECRET_KEY);
+  const ssmWebhookSecret = await getSSMParameter(SSM_SECRET_PATHS.STRIPE_WEBHOOK_SECRET);
+
+  if (ssmSecretKey && ssmWebhookSecret) {
+    console.log("[Secrets] SSM secrets found - using SSM fallback");
+    return {
+      STRIPE_SECRET_KEY: ssmSecretKey,
+      STRIPE_WEBHOOK_SECRET: ssmWebhookSecret,
+    };
+  }
+
+  // No silent fallback — fail loudly (FINDING-4)
+  console.error("CRITICAL: All secret sources failed for Stripe");
+  throw new Error("Stripe secrets unavailable");
 }
 
 /**
@@ -264,9 +262,11 @@ export async function getStripeSecrets() {
  *
  * Priority order:
  * 1. Local development: process.env (from .env.local)
- * 2. SSM Parameter Store: /plg/secrets/<app-id>/KEYGEN_PRODUCT_TOKEN
- * 3. AWS Secrets Manager: plg/staging/keygen (fallback)
- * 4. Environment variables (emergency fallback)
+ * 2. AWS Secrets Manager (plg/{env}/keygen) — canonical source
+ * 3. SSM Parameter Store (legacy fallback, pending removal)
+ *
+ * Throws if all sources fail — no silent fallback to process.env.
+ * See: FINDING-3, FINDING-4 in 20260215_AUDIT_REPORT_ON_SECRETS_HYGIENE.md
  *
  * @returns {Promise<{KEYGEN_PRODUCT_TOKEN: string}>}
  */
@@ -281,19 +281,8 @@ export async function getKeygenSecrets() {
     };
   }
 
-  // Production/staging: Try SSM Parameter Store first
-  console.log("[Secrets] Production mode - trying SSM for Keygen...");
-  const ssmToken = await getSSMParameter(SSM_SECRET_PATHS.KEYGEN_PRODUCT_TOKEN);
-
-  if (ssmToken) {
-    console.log("[Secrets] SSM Keygen token found");
-    return {
-      KEYGEN_PRODUCT_TOKEN: ssmToken,
-    };
-  }
-
-  // Fallback to Secrets Manager
-  console.log("[Secrets] SSM not available, trying Secrets Manager for Keygen...");
+  // Production/staging: Secrets Manager is the canonical source
+  console.log("[Secrets] Production mode - trying Secrets Manager for Keygen...");
   try {
     const secrets = await getSecret(SECRET_PATHS.keygen);
     console.log("[Secrets] Secrets Manager success for Keygen");
@@ -304,11 +293,20 @@ export async function getKeygenSecrets() {
     console.warn("[Secrets] Secrets Manager unavailable for Keygen:", error.message);
   }
 
-  // Emergency fallback to env vars
-  console.warn("[Secrets] All Keygen secret sources failed, falling back to process.env");
-  return {
-    KEYGEN_PRODUCT_TOKEN: process.env.KEYGEN_PRODUCT_TOKEN,
-  };
+  // Fallback to SSM Parameter Store (legacy, pending removal)
+  console.log("[Secrets] Trying SSM Parameter Store fallback for Keygen...");
+  const ssmToken = await getSSMParameter(SSM_SECRET_PATHS.KEYGEN_PRODUCT_TOKEN);
+
+  if (ssmToken) {
+    console.log("[Secrets] SSM Keygen token found via fallback");
+    return {
+      KEYGEN_PRODUCT_TOKEN: ssmToken,
+    };
+  }
+
+  // No silent fallback — fail loudly (FINDING-4)
+  console.error("CRITICAL: All secret sources failed for Keygen");
+  throw new Error("Keygen secrets unavailable");
 }
 
 /**
@@ -351,13 +349,9 @@ export async function getKeygenPolicyIds() {
     };
   }
 
-  // Fallback to env vars (shouldn't reach here in production)
-  console.warn("[Secrets] SSM policy IDs not found, falling back to process.env");
-  console.warn("[Secrets] process.env values - individual:", process.env.KEYGEN_POLICY_ID_INDIVIDUAL || "UNDEFINED", "business:", process.env.KEYGEN_POLICY_ID_BUSINESS || "UNDEFINED");
-  return {
-    individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
-    business: process.env.KEYGEN_POLICY_ID_BUSINESS,
-  };
+  // No silent fallback — fail loudly (FINDING-4)
+  console.error("CRITICAL: SSM policy IDs not found for Keygen");
+  throw new Error("Keygen policy IDs unavailable");
 }
 
 
