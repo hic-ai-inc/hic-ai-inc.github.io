@@ -20,6 +20,7 @@ import {
 // NOTE: Emails are sent via event-driven architecture:
 // updateLicenseStatus() with eventType → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
 import crypto from "crypto";
+import { createApiLogger } from "@/lib/api-log";
 
 // Ed25519 public key from KeyGen webhook configuration
 // Format: base64-encoded public key
@@ -36,20 +37,23 @@ const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
  * @param {Request} request - Original request for reconstructing signing string
  * @returns {boolean} - Whether signature is valid
  */
-function verifySignature(payload, signatureHeader, request) {
+function verifySignature(payload, signatureHeader, request, log) {
   if (!KEYGEN_WEBHOOK_PUBLIC_KEY) {
-    console.error("KEYGEN_WEBHOOK_PUBLIC_KEY not configured - rejecting request");
+    log.error(
+      "webhook_public_key_missing",
+      "KEYGEN_WEBHOOK_PUBLIC_KEY not configured - rejecting request",
+      null,
+      { reason: "missing_public_key" },
+    );
     return false;
   }
 
   if (!signatureHeader) {
-    console.warn("No Keygen-Signature header present");
+    log.warn("signature_missing", "No Keygen-Signature header present");
     return false;
   }
 
   try {
-    // Parse the signature header
-    // Format: keyid="..." algorithm="ed25519" signature="<base64>" headers="(request-target) host date digest"
     const parts = {};
     const regex = /(\w+)="([^"]+)"/g;
     let match;
@@ -60,20 +64,26 @@ function verifySignature(payload, signatureHeader, request) {
     const { algorithm, signature, headers } = parts;
 
     if (!algorithm || !signature || !headers) {
-      console.error("Missing required signature parts:", {
-        algorithm: !!algorithm,
-        signature: !!signature,
-        headers: !!headers,
-      });
+      log.error(
+        "signature_parts_missing",
+        "Missing required Keygen signature parts",
+        null,
+        {
+          hasAlgorithm: Boolean(algorithm),
+          hasSignature: Boolean(signature),
+          hasHeaders: Boolean(headers),
+        },
+      );
       return false;
     }
 
     if (algorithm !== "ed25519") {
-      console.error(`Unexpected algorithm: ${algorithm}`);
+      log.error("signature_algorithm_invalid", "Unexpected Keygen signature algorithm", null, {
+        algorithm,
+      });
       return false;
     }
 
-    // Reconstruct the signing string based on headers
     const headerList = headers.split(" ");
     const signingParts = [];
 
@@ -81,7 +91,6 @@ function verifySignature(payload, signatureHeader, request) {
       if (header === "(request-target)") {
         signingParts.push(`(request-target): post /api/webhooks/keygen`);
       } else if (header === "digest") {
-        // Digest is SHA-256 of the body
         const digest = crypto
           .createHash("sha256")
           .update(payload)
@@ -103,7 +112,6 @@ function verifySignature(payload, signatureHeader, request) {
 
     const signingString = signingParts.join("\n");
 
-    // Verify the Ed25519 signature
     const publicKey = crypto.createPublicKey({
       key: Buffer.from(KEYGEN_WEBHOOK_PUBLIC_KEY, "base64"),
       format: "der",
@@ -111,7 +119,7 @@ function verifySignature(payload, signatureHeader, request) {
     });
 
     const isValid = crypto.verify(
-      null, // Ed25519 doesn't use a separate hash algorithm
+      null,
       Buffer.from(signingString),
       publicKey,
       Buffer.from(signature, "base64"),
@@ -119,97 +127,119 @@ function verifySignature(payload, signatureHeader, request) {
 
     return isValid;
   } catch (error) {
-    console.error("Signature verification error:", error);
+    log.error(
+      "signature_verification_error",
+      "Keygen signature verification error",
+      error,
+      { errorMessage: error?.message },
+    );
     return false;
   }
 }
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-webhooks-keygen",
+    request,
+    operation: "webhook_keygen",
+  });
+
+  log.requestReceived();
+
   try {
     const payload = await request.text();
     const signatureHeader = request.headers.get("keygen-signature");
 
-    // Verify webhook signature (Ed25519)
-    if (!verifySignature(payload, signatureHeader, request)) {
-      console.error("Invalid Keygen webhook signature");
+    if (!verifySignature(payload, signatureHeader, request, log)) {
+      log.decision("signature_invalid", "Invalid Keygen webhook signature", {
+        reason: "signature_invalid",
+      });
+      log.response(401, "Keygen webhook rejected", { reason: "signature_invalid" });
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const event = JSON.parse(payload);
     const { data, meta } = event;
 
-    console.log(`Keygen webhook: ${meta.event}`, data.id);
+    log.info("keygen_webhook_received", "Keygen webhook event received", {
+      eventType: meta?.event,
+      resourceId: data?.id,
+    });
 
     switch (meta.event) {
-      // License Events
       case "license.created":
-        // License created - handled in checkout flow
-        // Webhook just acknowledges; actual customer record is created by Stripe webhook
-        console.log("Keygen license.created acknowledged:", data.id);
+        log.info("license_created_acknowledged", "Keygen license.created acknowledged", {
+          licenseId: data.id,
+        });
         break;
 
       case "license.deleted":
-        // License deleted - cleanup any orphaned records
-        console.log("Keygen license.deleted acknowledged:", data.id);
-        // Note: Actual deletion is handled by admin scripts or Stripe cancellation flow
+        log.info("license_deleted_acknowledged", "Keygen license.deleted acknowledged", {
+          licenseId: data.id,
+        });
         break;
 
       case "license.expired":
-        await handleLicenseExpired(data);
+        await handleLicenseExpired(data, log);
         break;
 
       case "license.suspended":
-        await handleLicenseSuspended(data);
+        await handleLicenseSuspended(data, log);
         break;
 
       case "license.reinstated":
-        await handleLicenseReinstated(data);
+        await handleLicenseReinstated(data, log);
         break;
 
       case "license.renewed":
-        await handleLicenseRenewed(data);
+        await handleLicenseRenewed(data, log);
         break;
 
       case "license.revoked":
-        await handleLicenseRevoked(data);
+        await handleLicenseRevoked(data, log);
         break;
 
-      // Machine Events
       case "machine.created":
-        console.log("Machine activated:", data.id);
+        log.info("machine_created_acknowledged", "Machine activated event acknowledged", {
+          machineId: data.id,
+        });
         break;
 
       case "machine.deleted":
-        await handleMachineDeleted(data);
+        await handleMachineDeleted(data, log);
         break;
 
       case "machine.heartbeat.ping":
-        // Device heartbeat received - Keygen tracks this internally
-        // DynamoDB lastSeen is updated via our heartbeat API endpoint
+        log.info("machine_heartbeat_ping", "Machine heartbeat ping received", {
+          machineId: data.id,
+        });
         break;
 
       case "machine.heartbeat.dead":
-        // Device missed heartbeat deadline - Keygen will auto-deactivate
-        // (DEACTIVATE_DEAD strategy) and send machine.deleted webhook
-        console.log(
-          "Machine heartbeat dead:",
-          data.id,
-          "- will be auto-deactivated",
-        );
+        log.info("machine_heartbeat_dead", "Machine heartbeat dead event received", {
+          machineId: data.id,
+        });
         break;
 
-      // Policy Events
       case "policy.updated":
-        console.log("Policy updated:", data.id);
+        log.info("policy_updated_acknowledged", "Policy updated event acknowledged", {
+          policyId: data.id,
+        });
         break;
 
       default:
-        console.log(`Unhandled Keygen event: ${meta.event}`);
+        log.info("event_unhandled", "Unhandled Keygen webhook event", {
+          eventType: meta.event,
+        });
     }
 
+    log.response(200, "Keygen webhook processed", { eventType: meta?.event });
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Keygen webhook error:", error);
+    log.exception(error, "keygen_webhook_failed", "Keygen webhook processing failed");
+    log.response(500, "Keygen webhook processing failed", {
+      reason: "unhandled_error",
+    });
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 },
@@ -221,59 +251,59 @@ export async function POST(request) {
 // EVENT HANDLERS
 // ===========================================
 
-async function handleLicenseExpired(data) {
+async function handleLicenseExpired(data, log) {
   const licenseId = data.id;
-  console.log("License expired:", licenseId);
+  log.info("license_expired", "License expired event received", { licenseId });
 
   await updateLicenseStatus(licenseId, "expired", {
     expiredAt: new Date().toISOString(),
   });
 
-  // Get license to find owner email
   const license = await getLicense(licenseId);
   if (license?.email) {
-    // Note: License expiration is handled by Stripe subscription end
-    // No separate notification needed - user already got cancellation email
-    console.log(`License ${licenseId} expired for ${license.email}`);
+    log.info("license_expired_processed", "License expiration processed", {
+      hasEmail: true,
+      licenseId,
+    });
   }
 }
 
-async function handleLicenseSuspended(data) {
+async function handleLicenseSuspended(data, log) {
   const licenseId = data.id;
-  console.log("License suspended:", licenseId);
+  log.info("license_suspended", "License suspended event received", { licenseId });
 
-  // Get license first to include email in update (for event-driven email)
   const license = await getLicense(licenseId);
 
-  // Update with eventType to trigger email via DynamoDB Streams pipeline
   await updateLicenseStatus(licenseId, "suspended", {
     suspendedAt: new Date().toISOString(),
     eventType: "LICENSE_SUSPENDED",
     email: license?.email,
   });
 
-  // Suspension email is sent via event-driven pipeline:
-  // updateLicenseStatus() → DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
   if (license?.email) {
-    console.log(
-      `License ${licenseId} suspended - email will be sent via event pipeline`,
-    );
+    log.info("license_suspended_email_pipeline_triggered", "License suspension email will be sent via event pipeline", {
+      hasEmail: true,
+      licenseId,
+    });
   }
 }
 
-async function handleLicenseReinstated(data) {
+async function handleLicenseReinstated(data, log) {
   const licenseId = data.id;
-  console.log("License reinstated:", licenseId);
+  log.info("license_reinstated", "License reinstated event received", { licenseId });
 
   await updateLicenseStatus(licenseId, "active", {
     reinstatedAt: new Date().toISOString(),
   });
 }
 
-async function handleLicenseRenewed(data) {
+async function handleLicenseRenewed(data, log) {
   const licenseId = data.id;
   const newExpiry = data.attributes.expiry;
-  console.log("License renewed:", licenseId, "new expiry:", newExpiry);
+  log.info("license_renewed", "License renewed event received", {
+    licenseId,
+    hasNewExpiry: Boolean(newExpiry),
+  });
 
   await updateLicenseStatus(licenseId, "active", {
     expiresAt: newExpiry,
@@ -281,14 +311,12 @@ async function handleLicenseRenewed(data) {
   });
 }
 
-async function handleLicenseRevoked(data) {
+async function handleLicenseRevoked(data, log) {
   const licenseId = data.id;
-  console.log("License revoked:", licenseId);
+  log.info("license_revoked", "License revoked event received", { licenseId });
 
-  // Get license first to include email in update (for event-driven email)
   const license = await getLicense(licenseId);
 
-  // Update with eventType to trigger email via DynamoDB Streams pipeline
   await updateLicenseStatus(licenseId, "revoked", {
     revokedAt: new Date().toISOString(),
     eventType: "LICENSE_REVOKED",
@@ -296,18 +324,20 @@ async function handleLicenseRevoked(data) {
     organizationName: license?.organizationName,
   });
 
-  // Revocation email is sent via event-driven pipeline:
-  // updateLicenseStatus() → DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
-  console.log(
-    `License ${licenseId} revoked - email will be sent via event pipeline`,
-  );
+  log.info("license_revoked_email_pipeline_triggered", "License revocation email will be sent via event pipeline", {
+    licenseId,
+    hasEmail: Boolean(license?.email),
+  });
 }
 
-async function handleMachineDeleted(data) {
+async function handleMachineDeleted(data, log) {
   const machineId = data.id;
   const licenseId = data.relationships?.license?.data?.id;
 
-  console.log("Machine deleted:", machineId, "license:", licenseId);
+  log.info("machine_deleted", "Machine deleted event received", {
+    machineId,
+    hasLicenseId: Boolean(licenseId),
+  });
 
   if (licenseId) {
     await removeDeviceActivation(licenseId, machineId);

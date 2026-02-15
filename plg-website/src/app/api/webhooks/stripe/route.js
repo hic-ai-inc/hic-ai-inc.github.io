@@ -12,7 +12,6 @@
  */
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { getStripeClient, getWebhookSecret } from "@/lib/stripe";
 import {
   getCustomerByStripeId,
@@ -39,13 +38,25 @@ import {
 import { sendDisputeAlert } from "@/lib/ses";
 // Cognito admin operations for RBAC group assignment
 import { assignOwnerRole } from "@/lib/cognito-admin";
+import { createApiLogger } from "@/lib/api-log";
 
 export async function POST(request) {
+  const log = createApiLogger({
+    service: "plg-api-webhooks-stripe",
+    request,
+    operation: "webhook_stripe",
+  });
+
   const body = await request.text();
-  const headersList = await headers();
-  const signature = headersList.get("stripe-signature");
+  const signature = request.headers.get("stripe-signature");
+
+  log.requestReceived({ hasSignature: Boolean(signature) });
 
   if (!signature) {
+    log.decision("signature_missing", "Stripe webhook rejected", {
+      reason: "signature_missing",
+    });
+    log.response(400, "Stripe webhook rejected", { reason: "signature_missing" });
     return NextResponse.json(
       { error: "Missing stripe-signature header" },
       { status: 400 },
@@ -55,58 +66,71 @@ export async function POST(request) {
   let event;
 
   try {
-    // Get Stripe client and webhook secret from Secrets Manager
-    // getStripeClient() must be called first - it populates the secret cache
     const stripe = await getStripeClient();
     const webhookSecret = getWebhookSecret();
 
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
-    console.error("Webhook signature verification failed:", err.message);
+    log.warn("signature_verification_failed", "Stripe webhook signature verification failed", {
+      errorMessage: err?.message,
+    });
+    log.response(400, "Stripe webhook rejected", { reason: "invalid_signature" });
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   try {
     switch (event.type) {
       case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object);
+        await handleCheckoutCompleted(event.data.object, log);
         break;
 
       case "customer.subscription.created":
-        await handleSubscriptionCreated(event.data.object);
+        await handleSubscriptionCreated(event.data.object, log);
         break;
 
       case "customer.subscription.updated":
-        await handleSubscriptionUpdated(event.data.object);
+        await handleSubscriptionUpdated(event.data.object, log);
         break;
 
       case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(event.data.object);
+        await handleSubscriptionDeleted(event.data.object, log);
         break;
 
       case "invoice.payment_succeeded":
-        await handlePaymentSucceeded(event.data.object);
+        await handlePaymentSucceeded(event.data.object, log);
         break;
 
       case "invoice.payment_failed":
-        await handlePaymentFailed(event.data.object);
+        await handlePaymentFailed(event.data.object, log);
         break;
 
       case "charge.dispute.created":
-        await handleDisputeCreated(event.data.object);
+        await handleDisputeCreated(event.data.object, log);
         break;
 
       case "charge.dispute.closed":
-        await handleDisputeClosed(event.data.object);
+        await handleDisputeClosed(event.data.object, log);
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        log.info("event_unhandled", "Unhandled Stripe webhook event type", {
+          eventType: event.type,
+        });
     }
 
+    log.response(200, "Stripe webhook processed", { eventType: event.type });
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error(`Webhook handler error for ${event.type}:`, error);
+    log.exception(
+      error,
+      "stripe_webhook_handler_failed",
+      "Stripe webhook handler failed",
+      { eventType: event?.type || null },
+    );
+    log.response(500, "Stripe webhook handler failed", {
+      reason: "handler_error",
+      eventType: event?.type || null,
+    });
     return NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 },
@@ -118,36 +142,33 @@ export async function POST(request) {
  * Handle successful checkout session
  * Creates KeyGen license, upserts customer record, sends welcome email
  */
-async function handleCheckoutCompleted(session) {
-  console.log("Checkout completed:", session.id);
+async function handleCheckoutCompleted(session, log) {
+  log.info("checkout_completed", "Checkout completed webhook received", {
+    sessionId: session.id,
+  });
 
   const { customer, customer_email, metadata, subscription } = session;
 
-  // Extract plan details from metadata
   const plan = metadata?.plan || metadata?.planType || "individual";
   const seats = parseInt(metadata?.seats || "1", 10);
 
-  // Determine the KeyGen policy based on plan (fetched from SSM at runtime)
   const planType = plan === "business" ? "business" : "individual";
   const policyId = await getPolicyId(planType);
 
-  // Check if this customer already exists (by Stripe ID or email)
   const existingByStripeId = await getCustomerByStripeId(customer);
   const existingByEmail = await getCustomerByEmail(customer_email);
   const existingCustomer = existingByStripeId || existingByEmail;
 
-  // If user already has a license, don't create a duplicate
   if (existingCustomer?.keygenLicenseId) {
-    console.log(
-      `Customer ${customer_email} already has license ${existingCustomer.keygenLicenseId}, skipping creation`,
-    );
-    return; // Webhook processed successfully, no action needed
+    log.decision("existing_license_found", "Skipping duplicate license creation", {
+      hasExistingLicenseId: Boolean(existingCustomer.keygenLicenseId),
+    });
+    return;
   }
 
   let licenseKey = null;
   let licenseId = null;
 
-  // Create KeyGen license if we have a policy configured
   if (policyId) {
     try {
       const license = await createLicense({
@@ -164,20 +185,22 @@ async function handleCheckoutCompleted(session) {
       });
       licenseKey = license.key;
       licenseId = license.id;
-      console.log(`KeyGen license created: ${licenseId} for ${customer_email}`);
+      log.info("keygen_license_created", "Keygen license created", {
+        licenseId,
+        plan,
+      });
     } catch (error) {
-      console.error("Failed to create KeyGen license:", error);
-      // Continue anyway - we can create the license later
+      log.warn("keygen_license_create_failed", "Failed to create Keygen license", {
+        errorMessage: error?.message,
+      });
     }
   }
 
   if (!existingCustomer) {
-    // New customer - create record in DynamoDB
-    // Use email as temporary userId until they create a Cognito account
     const tempUserId = `email:${customer_email.toLowerCase()}`;
 
     await upsertCustomer({
-      userId: tempUserId, // Will be updated when they sign in with Cognito
+      userId: tempUserId,
       email: customer_email,
       stripeCustomerId: customer,
       keygenLicenseId: licenseId,
@@ -188,15 +211,15 @@ async function handleCheckoutCompleted(session) {
         stripeSubscriptionId: subscription,
         seats,
         createdFromCheckout: session.id,
-        // Event-driven email fields
         eventType: "CUSTOMER_CREATED",
         sessionId: session.id,
       },
     });
-    console.log(`New customer record created for ${customer_email}`);
+    log.info("customer_record_created", "New customer record created", {
+      plan,
+      seats,
+    });
 
-    // Create separate LICENSE# record for event-driven license key email
-    // This will trigger LICENSE_CREATED event → license key email
     if (licenseId && licenseKey) {
       try {
         const planName = plan === "business" ? "Business" : "Individual";
@@ -206,7 +229,7 @@ async function handleCheckoutCompleted(session) {
           licenseKey,
           policyId,
           status: "active",
-          expiresAt: null, // Set by Keygen or webhook later
+          expiresAt: null,
           maxDevices: plan === "business" ? 5 : 3,
           email: customer_email,
           planName,
@@ -215,36 +238,35 @@ async function handleCheckoutCompleted(session) {
             stripeSubscriptionId: subscription,
           },
         });
-        console.log(
-          `LICENSE# record created for ${licenseId}, license key email will be sent`,
-        );
+        log.info("license_record_created", "LICENSE# record created", {
+          licenseId,
+          isExistingCustomer: false,
+        });
       } catch (error) {
-        console.error("Failed to create LICENSE# record:", error);
-        // Don't fail checkout if this fails - license key email can be sent manually
+        log.warn("license_record_create_failed", "Failed to create LICENSE# record", {
+          errorMessage: error?.message,
+          isExistingCustomer: false,
+        });
       }
     }
 
-    // Welcome email is sent via event-driven pipeline:
-    // upsertCustomer() with eventType: "CUSTOMER_CREATED" triggers
-    // DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES
-    console.log(
-      `Customer created - welcome email will be sent via event pipeline`,
-    );
+    log.info("welcome_email_pipeline_triggered", "Welcome email will be sent via event pipeline");
   } else {
-    // Existing customer - update their subscription info
-    // IMPORTANT: Include stripeCustomerId for users who signed up before checkout
     await updateCustomerSubscription(existingCustomer.userId, {
       subscriptionStatus: "active",
-      stripeCustomerId: customer, // B0 FIX: Was missing, causing billing page to show "No subscription"
+      stripeCustomerId: customer,
       stripeSubscriptionId: subscription,
       keygenLicenseId: licenseId || existingCustomer.keygenLicenseId,
       keygenLicenseKey: licenseKey || existingCustomer.keygenLicenseKey,
       accountType: plan,
       seats,
     });
-    console.log(`Updated existing customer ${existingCustomer.userId}`);
+    log.info("customer_subscription_updated", "Updated existing customer subscription", {
+      hasLicenseId: Boolean(licenseId || existingCustomer.keygenLicenseId),
+      plan,
+      seats,
+    });
 
-    // If creating a license for existing customer, also create LICENSE# record
     if (licenseId && licenseKey && !existingCustomer.keygenLicenseId) {
       try {
         const planName = plan === "business" ? "Business" : "Individual";
@@ -263,52 +285,54 @@ async function handleCheckoutCompleted(session) {
             stripeSubscriptionId: subscription,
           },
         });
-        console.log(
-          `LICENSE# record created for existing customer ${existingCustomer.userId}`,
-        );
+        log.info("license_record_created", "LICENSE# record created for existing customer", {
+          licenseId,
+          isExistingCustomer: true,
+        });
       } catch (error) {
-        console.error(
-          "Failed to create LICENSE# record for existing customer:",
-          error,
+        log.warn(
+          "license_record_create_failed",
+          "Failed to create LICENSE# record for existing customer",
+          {
+            errorMessage: error?.message,
+            isExistingCustomer: true,
+          },
         );
       }
     }
   }
 
-  console.log(
-    `New subscription: ${plan} plan with ${seats} seats for ${customer_email}`,
-  );
+  log.info("subscription_created", "Processed new subscription from checkout", {
+    plan,
+    seats,
+  });
 
-  // RBAC: Assign owner role for Business plan purchases
-  // The purchaser becomes the organization owner with full portal access
   if (plan === "business") {
-    // Get the actual Cognito user ID if available
-    // existingCustomer.userId might be a real Cognito sub or temporary email-based ID
     const cognitoUserId = existingCustomer?.userId || null;
-    
-    // Only attempt if user has a real Cognito ID (not email-prefixed temp ID)
+
     if (cognitoUserId && !cognitoUserId.startsWith("email:")) {
       try {
         await assignOwnerRole(cognitoUserId);
-        console.log(`Owner role assigned to ${cognitoUserId} for Business plan`);
+        log.info("owner_role_assigned", "Owner role assigned for Business plan", {
+          hasCognitoUserId: true,
+        });
       } catch (error) {
-        // Non-fatal: User might not exist in Cognito yet (purchased before signup)
-        // Role will be assigned when they first log in via invite/signup flow
-        console.warn(`Could not assign owner role to ${cognitoUserId}:`, error.message);
+        log.warn("owner_role_assign_failed", "Could not assign owner role", {
+          errorMessage: error?.message,
+          hasCognitoUserId: true,
+        });
       }
     } else {
-      console.log(
-        `Business purchase by ${customer_email} - owner role will be assigned on first Cognito login`,
-      );
+      log.info("owner_role_deferred", "Owner role will be assigned on first Cognito login", {
+        hasCognitoUserId: false,
+      });
     }
 
-    // Create organization record for Business plan
-    // Uses stripeCustomerId as orgId for easy lookup from webhooks
     try {
       const ownerId = existingCustomer?.userId || `email:${customer_email.toLowerCase()}`;
-      
+
       await upsertOrganization({
-        orgId: customer, // Stripe customer ID
+        orgId: customer,
         name: `${customer_email.split("@")[0]}'s Organization`,
         seatLimit: seats,
         ownerId,
@@ -316,9 +340,10 @@ async function handleCheckoutCompleted(session) {
         stripeCustomerId: customer,
         stripeSubscriptionId: subscription,
       });
-      console.log(`Organization created for ${customer_email} with ${seats} seats`);
+      log.info("organization_created", "Organization created for business subscription", {
+        seatLimit: seats,
+      });
 
-      // Add owner as a member of the organization (for seat counting)
       await addOrgMember({
         orgId: customer,
         userId: ownerId,
@@ -326,18 +351,17 @@ async function handleCheckoutCompleted(session) {
         name: customer_email.split("@")[0],
         role: "owner",
       });
-      console.log(`Owner ${ownerId} added as member to organization ${customer}`);
+      log.info("organization_owner_added", "Owner added as organization member");
 
-      // Link the owner to the organization in their customer record
-      // This enables the Team Management UI in the portal
       await updateCustomerSubscription(ownerId, {
-        orgId: customer, // Same as org's orgId (Stripe customer ID)
+        orgId: customer,
         orgRole: "owner",
       });
-      console.log(`Owner ${ownerId} linked to organization ${customer}`);
+      log.info("organization_owner_linked", "Owner linked to organization in customer record");
     } catch (error) {
-      console.error("Failed to create organization:", error);
-      // Non-fatal - org can be created later via admin tools
+      log.warn("organization_create_failed", "Failed to create or link organization", {
+        errorMessage: error?.message,
+      });
     }
   }
 }
@@ -347,30 +371,31 @@ async function handleCheckoutCompleted(session) {
  * Note: License is already created by handleCheckoutCompleted.
  * Status updates are handled by handleSubscriptionUpdated/Deleted.
  */
-async function handleSubscriptionCreated(subscription) {
-  console.log("Subscription created:", subscription.id);
+async function handleSubscriptionCreated(subscription, log) {
+  log.info("subscription_created_event", "Subscription created event received", {
+    subscriptionId: subscription.id,
+  });
 }
 
 /**
  * Handle subscription updates (plan changes, renewals, seat count changes)
  */
-async function handleSubscriptionUpdated(subscription) {
-  console.log("Subscription updated:", subscription.id);
+async function handleSubscriptionUpdated(subscription, log) {
+  log.info("subscription_updated", "Subscription updated event received", {
+    subscriptionId: subscription.id,
+  });
 
   const { status, cancel_at_period_end, customer, items } = subscription;
-  
-  // Extract seat quantity from subscription items
-  // Business subscriptions have quantity > 1 for multiple seats
   const seatQuantity = items?.data?.[0]?.quantity || 1;
 
-  // Find customer by Stripe ID
   const dbCustomer = await getCustomerByStripeId(customer);
   if (!dbCustomer) {
-    console.log("Customer not found for subscription update");
+    log.decision("customer_not_found", "Customer not found for subscription update", {
+      reason: "customer_not_found",
+    });
     return;
   }
 
-  // Map Stripe status to our status
   const statusMap = {
     active: "active",
     past_due: "past_due",
@@ -384,8 +409,6 @@ async function handleSubscriptionUpdated(subscription) {
 
   const newStatus = statusMap[status] || status;
 
-  // Update customer subscription status
-  // If cancelling, include eventType to trigger email via event pipeline
   const subscriptionUpdate = {
     subscriptionStatus: newStatus,
     cancelAtPeriodEnd: cancel_at_period_end,
@@ -406,16 +429,16 @@ async function handleSubscriptionUpdated(subscription) {
 
   await updateCustomerSubscription(dbCustomer.userId, subscriptionUpdate);
 
-  // Update license status in DynamoDB
   if (dbCustomer.keygenLicenseId) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, newStatus);
 
-    // Handle Keygen license status
     if (status === "unpaid" || status === "canceled") {
       try {
         await suspendLicense(dbCustomer.keygenLicenseId);
       } catch (e) {
-        console.error("Failed to suspend Keygen license:", e);
+        log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
+          errorMessage: e?.message,
+        });
       }
     } else if (
       status === "active" &&
@@ -424,33 +447,31 @@ async function handleSubscriptionUpdated(subscription) {
       try {
         await reinstateLicense(dbCustomer.keygenLicenseId);
       } catch (e) {
-        console.error("Failed to reinstate Keygen license:", e);
+        log.warn("license_reinstate_failed", "Failed to reinstate Keygen license", {
+          errorMessage: e?.message,
+        });
       }
     }
   }
 
-  // Cancellation email is sent via event-driven pipeline
-  // updateCustomerSubscription() with eventType triggers the email
   if (cancel_at_period_end) {
-    console.log(
-      `Cancellation recorded - email will be sent via event pipeline`,
-    );
+    log.info("cancellation_email_pipeline_triggered", "Cancellation email will be sent via event pipeline");
   }
 
-  // Sync seat count to organization record for Business plans
-  // This updates the seatLimit when customer changes quantity in Stripe Portal
   if (seatQuantity > 0) {
     try {
       const org = await getOrganizationByStripeCustomer(customer);
       if (org && org.seatLimit !== seatQuantity) {
         await updateOrgSeatLimit(customer, seatQuantity);
-        console.log(
-          `Organization seat limit synced: ${org.seatLimit} → ${seatQuantity}`,
-        );
+        log.info("organization_seat_limit_synced", "Organization seat limit synced", {
+          previousSeatLimit: org.seatLimit,
+          newSeatLimit: seatQuantity,
+        });
       }
     } catch (error) {
-      // Non-fatal - log but don't fail webhook
-      console.error("Failed to sync organization seat limit:", error);
+      log.warn("organization_seat_sync_failed", "Failed to sync organization seat limit", {
+        errorMessage: error?.message,
+      });
     }
   }
 }
@@ -458,19 +479,21 @@ async function handleSubscriptionUpdated(subscription) {
 /**
  * Handle subscription cancellation
  */
-async function handleSubscriptionDeleted(subscription) {
-  console.log("Subscription deleted:", subscription.id);
+async function handleSubscriptionDeleted(subscription, log) {
+  log.info("subscription_deleted", "Subscription deleted event received", {
+    subscriptionId: subscription.id,
+  });
 
   const { customer } = subscription;
 
-  // Find customer by Stripe ID
   const dbCustomer = await getCustomerByStripeId(customer);
   if (!dbCustomer) {
-    console.log("Customer not found for subscription deletion");
+    log.decision("customer_not_found", "Customer not found for subscription deletion", {
+      reason: "customer_not_found",
+    });
     return;
   }
 
-  // Update customer status with eventType to trigger cancellation email
   const cancelAt = new Date().toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -484,46 +507,49 @@ async function handleSubscriptionDeleted(subscription) {
     accessUntil: cancelAt,
   });
 
-  // Suspend license in Keygen
   if (dbCustomer.keygenLicenseId) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, "canceled");
     try {
       await suspendLicense(dbCustomer.keygenLicenseId);
     } catch (e) {
-      console.error("Failed to suspend Keygen license:", e);
+      log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
+        errorMessage: e?.message,
+      });
     }
   }
 
-  console.log(`Subscription canceled for customer ${dbCustomer.userId}`);
+  log.info("subscription_cancellation_processed", "Subscription cancellation processed", {
+    hasLicenseId: Boolean(dbCustomer.keygenLicenseId),
+  });
 }
 
 /**
  * Handle successful payment
  */
-async function handlePaymentSucceeded(invoice) {
-  console.log("Payment succeeded:", invoice.id);
+async function handlePaymentSucceeded(invoice, log) {
+  log.info("payment_succeeded", "Payment succeeded event received", {
+    invoiceId: invoice.id,
+  });
 
   const { customer, lines } = invoice;
 
-  // Find customer by Stripe ID
   const dbCustomer = await getCustomerByStripeId(customer);
   if (!dbCustomer) {
-    console.log("Customer not found for payment success");
+    log.decision("customer_not_found", "Customer not found for payment success", {
+      reason: "customer_not_found",
+    });
     return;
   }
 
-  // Get subscription period end from line items
   const periodEnd = lines.data[0]?.period?.end;
   const expiresAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
 
-  // Update license with new expiry
   if (dbCustomer.keygenLicenseId && expiresAt) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, "active", {
       expiresAt,
     });
   }
 
-  // If was past_due, restore to active and send reactivation email (A.2)
   if (dbCustomer.subscriptionStatus === "past_due") {
     await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "active",
@@ -531,47 +557,47 @@ async function handlePaymentSucceeded(invoice) {
       email: dbCustomer.email,
     });
 
-    // Reinstate Keygen license
     if (dbCustomer.keygenLicenseId) {
       try {
         await reinstateLicense(dbCustomer.keygenLicenseId);
       } catch (e) {
-        console.error("Failed to reinstate Keygen license:", e);
+        log.warn("license_reinstate_failed", "Failed to reinstate Keygen license", {
+          errorMessage: e?.message,
+        });
       }
     }
 
-    // Reactivation email is sent via event-driven pipeline
-    // updateCustomerSubscription() with eventType triggers the email
-    console.log(
-      `Reactivation recorded - email will be sent via event pipeline`,
-    );
+    log.info("reactivation_email_pipeline_triggered", "Reactivation email will be sent via event pipeline");
   }
 
-  console.log(`Payment succeeded for customer ${dbCustomer.userId}`);
+  log.info("payment_success_processed", "Payment success processed", {
+    hasLicenseId: Boolean(dbCustomer.keygenLicenseId),
+  });
 }
 
 /**
  * Handle failed payment
  */
-async function handlePaymentFailed(invoice) {
-  console.log("Payment failed:", invoice.id);
+async function handlePaymentFailed(invoice, log) {
+  log.info("payment_failed", "Payment failed event received", {
+    invoiceId: invoice.id,
+  });
 
   const { customer_email, attempt_count, customer, next_payment_attempt } =
     invoice;
 
-  // Find customer by Stripe ID
   const dbCustomer = await getCustomerByStripeId(customer);
   if (!dbCustomer) {
-    console.log("Customer not found for payment failure");
+    log.decision("customer_not_found", "Customer not found for payment failure", {
+      reason: "customer_not_found",
+    });
     return;
   }
 
-  // Calculate retry date for email
   const retryDate = next_payment_attempt
     ? new Date(next_payment_attempt * 1000).toLocaleDateString()
     : null;
 
-  // Update customer status with eventType to trigger payment failed email
   await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "past_due",
     paymentFailedCount: attempt_count,
@@ -581,20 +607,18 @@ async function handlePaymentFailed(invoice) {
     retryDate,
   });
 
-  // Update license status
   if (dbCustomer.keygenLicenseId) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, "past_due");
   }
 
-  // Payment failed email is sent via event-driven pipeline
-  // updateCustomerSubscription() with eventType: "PAYMENT_FAILED" triggers the email
-  console.log(
-    `Payment failure recorded - email will be sent via event pipeline`,
-  );
+  log.info("payment_failure_email_pipeline_triggered", "Payment failure email will be sent via event pipeline", {
+    attemptCount: attempt_count,
+  });
 
-  // After 3 attempts, suspend license
   if (attempt_count >= 3) {
-    console.log("Max payment attempts reached, suspending license");
+    log.decision("max_payment_attempts_reached", "Max payment attempts reached, suspending license", {
+      attemptCount: attempt_count,
+    });
 
     await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "suspended",
@@ -605,7 +629,9 @@ async function handlePaymentFailed(invoice) {
       try {
         await suspendLicense(dbCustomer.keygenLicenseId);
       } catch (e) {
-        console.error("Failed to suspend Keygen license:", e);
+        log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
+          errorMessage: e?.message,
+        });
       }
     }
   }
@@ -613,42 +639,38 @@ async function handlePaymentFailed(invoice) {
 
 /**
  * Handle dispute created (chargeback) - Addendum A.6.2
- *
- * When a dispute is created:
- * 1. Immediately suspend the license
- * 2. Update customer status to DISPUTED
- * 3. Alert support team for evidence gathering
  */
-async function handleDisputeCreated(dispute) {
-  console.log("Dispute created:", dispute.id);
+async function handleDisputeCreated(dispute, log) {
+  log.info("dispute_created", "Dispute created event received", {
+    disputeId: dispute.id,
+  });
 
   const { customer, amount, reason, id: disputeId } = dispute;
 
-  // Find customer by Stripe ID
   const dbCustomer = await getCustomerByStripeId(customer);
   if (!dbCustomer) {
-    console.log("Customer not found for dispute");
-    // Still alert support even if customer not found
+    log.decision("customer_not_found", "Customer not found for dispute", {
+      reason: "customer_not_found",
+    });
     await sendDisputeAlert("unknown", amount, reason, disputeId);
     return;
   }
 
-  // Immediately suspend access
   if (dbCustomer.keygenLicenseId) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, "disputed");
     try {
       await suspendLicense(dbCustomer.keygenLicenseId);
     } catch (e) {
-      console.error("Failed to suspend Keygen license:", e);
+      log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
+        errorMessage: e?.message,
+      });
     }
   }
 
-  // Update customer status to disputed
   await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "disputed",
   });
 
-  // Alert support team
   await sendDisputeAlert(
     dbCustomer.email || "unknown",
     amount,
@@ -656,44 +678,41 @@ async function handleDisputeCreated(dispute) {
     disputeId,
   );
 
-  console.log(`License suspended for disputed customer ${dbCustomer.userId}`);
+  log.info("dispute_handled", "License suspended for disputed customer", {
+    hasLicenseId: Boolean(dbCustomer.keygenLicenseId),
+  });
 }
 
 /**
  * Handle dispute closed - Addendum A.6.2
- *
- * When a dispute is resolved:
- * - If won: reinstate license (customer was legitimate)
- * - If lost: keep license suspended (fraud confirmed)
- * - If withdrawn: reinstate license
  */
-async function handleDisputeClosed(dispute) {
-  console.log("Dispute closed:", dispute.id, "Status:", dispute.status);
+async function handleDisputeClosed(dispute, log) {
+  log.info("dispute_closed", "Dispute closed event received", {
+    disputeId: dispute.id,
+    disputeStatus: dispute.status,
+  });
 
   const { customer, status } = dispute;
 
-  // Find customer by Stripe ID
   const dbCustomer = await getCustomerByStripeId(customer);
   if (!dbCustomer) {
-    console.log("Customer not found for dispute closure");
+    log.decision("customer_not_found", "Customer not found for dispute closure", {
+      reason: "customer_not_found",
+    });
     return;
   }
 
-  // Dispute outcomes:
-  // - won: We won, reinstate
-  // - lost: We lost, keep suspended
-  // - withdrawn: Customer withdrew, reinstate
-  // - warning_closed: Handled as inquiry, reinstate
   const reinstateStatuses = ["won", "withdrawn", "warning_closed"];
 
   if (reinstateStatuses.includes(status)) {
-    // Reinstate license
     if (dbCustomer.keygenLicenseId) {
       await updateLicenseStatus(dbCustomer.keygenLicenseId, "active");
       try {
         await reinstateLicense(dbCustomer.keygenLicenseId);
       } catch (e) {
-        console.error("Failed to reinstate Keygen license:", e);
+        log.warn("license_reinstate_failed", "Failed to reinstate Keygen license", {
+          errorMessage: e?.message,
+        });
       }
     }
 
@@ -701,18 +720,17 @@ async function handleDisputeClosed(dispute) {
       subscriptionStatus: "active",
     });
 
-    console.log(
-      `Dispute ${status}: License reinstated for ${dbCustomer.userId}`,
-    );
+    log.info("dispute_reinstated", "License reinstated after dispute resolution", {
+      disputeStatus: status,
+    });
   } else {
-    // Lost dispute - keep suspended, mark as fraud
     await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "suspended",
       fraudulent: true,
     });
 
-    console.log(
-      `Dispute lost: License remains suspended for ${dbCustomer.userId}`,
-    );
+    log.info("dispute_lost_suspended", "License remains suspended after lost dispute", {
+      disputeStatus: status,
+    });
   }
 }
