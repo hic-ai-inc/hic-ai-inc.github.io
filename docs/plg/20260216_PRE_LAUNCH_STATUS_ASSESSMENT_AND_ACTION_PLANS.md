@@ -176,22 +176,22 @@ The project is in significantly stronger shape than the PLG Roadmap v7.0 (dated 
 
 ## Action Plans Overview
 
-| #   | Action Plan                         | Est. Effort | Priority                                | Dependencies                  |
-| --- | ----------------------------------- | ----------- | --------------------------------------- | ----------------------------- |
-| 1   | Front-End UX & Content              | 6–8h        | High-value, not blocking                | None                          |
-| 2a  | Website Surface Security Review     | 2–3h        | Pre-LS (strengthens application)        | AP 1 (near-final site)        |
-| 2b  | Comprehensive Security Audit        | 4–5h        | **LAUNCH BLOCKER**                      | AP 9.8–9.10 (code finalized)  |
-| 3   | Marketing Plan                      | 8–12h       | Post-launch OK, prep in advance         | AP 1 (content finalized)      |
-| 4   | Launch Plan & Deployment            | 6–8h        | **LAUNCH BLOCKER**                      | AP 2, AP 8 substantially done |
-| 5   | Documentation Plan                  | 6–10h       | High-value, near-blocker                | None                          |
-| 6   | Support Infrastructure              | 4–6h        | Should-have for launch                  | AP 5 (docs)                   |
-| 7   | Email Verification & Deliverability | 3–4h        | **LAUNCH BLOCKER**                      | None                          |
+| #   | Action Plan                         | Est. Effort | Priority                                 | Dependencies                  |
+| --- | ----------------------------------- | ----------- | ---------------------------------------- | ----------------------------- |
+| 1   | Front-End UX & Content              | 6–8h        | High-value, not blocking                 | None                          |
+| 2a  | Website Surface Security Review     | 2–3h        | Pre-LS (strengthens application)         | AP 1 (near-final site)        |
+| 2b  | Comprehensive Security Audit        | 4–5h        | **LAUNCH BLOCKER**                       | AP 9.8–9.10 (code finalized)  |
+| 3   | Marketing Plan                      | 8–12h       | Post-launch OK, prep in advance          | AP 1 (content finalized)      |
+| 4   | Launch Plan & Deployment            | 6–8h        | **LAUNCH BLOCKER**                       | AP 2, AP 8 substantially done |
+| 5   | Documentation Plan                  | 6–10h       | High-value, near-blocker                 | None                          |
+| 6   | Support Infrastructure              | 4–6h        | Should-have for launch                   | AP 5 (docs)                   |
+| 7   | Email Verification & Deliverability | 3–4h        | **LAUNCH BLOCKER**                       | None                          |
 | 8   | Payments & Lemon Squeezy Migration  | 6–10h       | **LAUNCH BLOCKER** (LS application ASAP) | AP 1, AP 5, AP 7 (LS prereqs) |
-| 9   | Interoperability & Compatibility    | 4–6h        | **Contains TIER 1 blockers** (9.8–9.10) | Mouse v0.10.10 VSIX           |
-| 10  | Monitoring & Observability          | 6–8h        | **LAUNCH BLOCKER** (items 10.1–10.6)    | Structured logging ✅         |
-| 11  | Legal Review                        | 4–6h        | **LAUNCH BLOCKER**                      | None                          |
+| 9   | Interoperability & Compatibility    | 4–6h        | **Contains TIER 1 blockers** (9.8–9.10)  | Mouse v0.10.10 VSIX           |
+| 10  | Monitoring & Observability          | 6–8h        | **LAUNCH BLOCKER** (items 10.1–10.6)     | Structured logging ✅         |
+| 11  | Legal Review                        | 4–6h        | **LAUNCH BLOCKER**                       | None                          |
 | 12  | Personal Social Media Cleanup       | 1–2h        | Pre-launch (12b blocks marketing/launch) | 12a: None; 12b: AP 13         |
-| 13  | Private Pre-Launch Disclosure       | 3–5 days     | Pre-launch (blocks AP 12b)              | AP 8A submitted (certainty)   |
+| 13  | Private Pre-Launch Disclosure       | 3–5 days    | Pre-launch (blocks AP 12b)               | AP 8A submitted (certainty)   |
 
 ---
 
@@ -224,15 +224,16 @@ The project is in significantly stronger shape than the PLG Roadmap v7.0 (dated 
 
 Focused review of the public-facing website for anything an LS reviewer might notice or that could cause rejection. This is **not** the comprehensive audit — that’s AP 2b.
 
-| #    | Item                                                                                                    | Current Status                        | Effort |
-| ---- | ------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------ |
-| 2a.1 | Run `npm audit --production` on plg-website — flag/fix criticals and highs                              | Open                                  | 30m    |
-| 2a.2 | Review 4 unauthenticated endpoints (trial init, Stripe webhook, Keygen webhook, public routes)          | Open                                  | 45m    |
-| 2a.3 | Verify P0/P1/P2 safeJsonParse fixes deployed to staging                                                 | ✅ Fixes implemented Feb 15           | 15m    |
-| 2a.4 | Check HTTP security headers on staging.hic-ai.com (CSP, HSTS, X-Frame-Options)                          | Open                                  | 15m    |
-| 2a.5 | Scan client-side bundle for leaked secrets/keys (build output inspection)                                | Open                                  | 15m    |
-| 2a.6 | Verify error responses don’t leak stack traces or internal details on unauthenticated routes              | Open                                  | 15m    |
-| 2a.7 | Produce brief findings note (not full CWE/CVE memo — that’s AP 2b)                                       | Open                                  | 15m    |
+| #    | Item                                                                                                                                                                   | Current Status              | Effort |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------ |
+| 2a.1 | Run `npm audit --production` on plg-website — flag/fix criticals and highs                                                                                             | Open                        | 30m    |
+| 2a.2 | Review 4 unauthenticated endpoints (trial init, Stripe webhook, Keygen webhook, public routes)                                                                         | Open                        | 45m    |
+| 2a.3 | Verify P0/P1/P2 safeJsonParse fixes deployed to staging                                                                                                                | ✅ Fixes implemented Feb 15 | 15m    |
+| 2a.4 | Check HTTP security headers on staging.hic-ai.com (CSP, HSTS, X-Frame-Options)                                                                                         | Open                        | 15m    |
+| 2a.5 | Scan client-side bundle for leaked secrets/keys (build output inspection)                                                                                              | Open                        | 15m    |
+| 2a.6 | Verify error responses don’t leak stack traces or internal details on unauthenticated routes                                                                           | Open                        | 15m    |
+| 2a.7 | Review all `package.json` files in website repo for `publishConfig.access` settings, license field consistency, and accidental public exposure of proprietary packages | Open                        | 15m    |
+| 2a.8 | Produce brief findings note (not full CWE/CVE memo — that’s AP 2b)                                                                                                     | Open                        | 15m    |
 
 **What’s already done:** safeJsonParse P0/P1/P2 fixes (Feb 15), secrets audit (4 findings remediated), structured logging (33 handlers).
 
@@ -248,16 +249,17 @@ Focused review of the public-facing website for anything an LS reviewer might no
 
 Full security audit covering both repos, deep auth/authz review, and formal documented findings. Builds on AP 2a’s website surface review.
 
-| #    | Item                                                                                                               | Current Status                                       | Effort     |
-| ---- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ---------- |
-| 2b.1 | Run `npm audit` on hic/mouse, hic/licensing, hic/mouse-vscode                                                      | Open                                                 | 15m        |
-| 2b.2 | Run SAST tool (CodeQL or Snyk) on both repos                                                                       | Open                                                 | 1–2h       |
-| 2b.3 | Manual review: authentication flows (Cognito OAuth, JWT verification, token refresh, browser-delegated activation) | Open                                                 | 1h         |
-| 2b.4 | Manual review: authorization checks (per-user device scoping, role-based API access, seat enforcement)             | Open                                                 | 1h         |
-| 2b.5 | Review OAuth PKCE implementation in browser-delegated activation flow                                              | Open                                                 | 30m        |
-| 2b.6 | Verify all 4 secrets audit findings remain remediated                                                              | ✅ Done Feb 15                                       | 15m verify |
-| 2b.7 | Verify no hardcoded credentials in committed code (full scan)                                                      | Partially done via secrets audit                     | 30m        |
-| 2b.8 | Document all findings with CWE/CVE references (per HIC coding standards)                                           | Open                                                 | 1h         |
+| #    | Item                                                                                                                                                                                                | Current Status                   | Effort     |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | ---------- |
+| 2b.1 | Run `npm audit` on hic/mouse, hic/licensing, hic/mouse-vscode                                                                                                                                       | Open                             | 15m        |
+| 2b.2 | Run SAST tool (CodeQL or Snyk) on both repos                                                                                                                                                        | Open                             | 1–2h       |
+| 2b.3 | Manual review: authentication flows (Cognito OAuth, JWT verification, token refresh, browser-delegated activation)                                                                                  | Open                             | 1h         |
+| 2b.4 | Manual review: authorization checks (per-user device scoping, role-based API access, seat enforcement)                                                                                              | Open                             | 1h         |
+| 2b.5 | Review OAuth PKCE implementation in browser-delegated activation flow                                                                                                                               | Open                             | 30m        |
+| 2b.6 | Audit all `package.json` files across both repos for: `publishConfig.access` (no accidental `public`), license field consistency (`UNLICENSED` vs proprietary), repository URLs, and package naming | Open                             | 30m        |
+| 2b.7 | Verify all 4 secrets audit findings remain remediated                                                                                                                                               | ✅ Done Feb 15                   | 15m verify |
+| 2b.8 | Verify no hardcoded credentials in committed code (full scan)                                                                                                                                       | Partially done via secrets audit | 30m        |
+| 2b.9 | Document all findings with CWE/CVE references (per HIC coding standards)                                                                                                                            | Open                             | 1h         |
 
 **What’s already done and doesn’t need repeating:**
 
@@ -400,48 +402,48 @@ LS previously rejected our application citing lack of "website and social media 
 
 ### Phase A: LS Application (Do Immediately)
 
-| #    | Item                                                                                     | Current Status                          | Effort |
-| ---- | ---------------------------------------------------------------------------------------- | --------------------------------------- | ------ |
-| 8.1  | Ensure website is presentable for LS review (AP 1 items 1.1, 1.5, 1.6 at minimum)       | In progress                             | 2–4h   |
-| 8.2  | Ensure documentation is accurate and matches product (AP 5 items 5.1, 5.2, 5.6)         | In progress                             | 2–4h   |
-| 8.3  | Create social media presence (Twitter/X account for HIC AI at minimum)                   | Open                                    | 30m    |
-| 8.4  | Submit Lemon Squeezy MoR application with link to `staging.hic-ai.com`                   | Open — previously rejected, invited to reapply | 30m    |
-| 8.5  | Wait for LS review (~1 week estimated)                                                   | Blocked on 8.4                          | 0h     |
+| #   | Item                                                                              | Current Status                                 | Effort |
+| --- | --------------------------------------------------------------------------------- | ---------------------------------------------- | ------ |
+| 8.1 | Ensure website is presentable for LS review (AP 1 items 1.1, 1.5, 1.6 at minimum) | In progress                                    | 2–4h   |
+| 8.2 | Ensure documentation is accurate and matches product (AP 5 items 5.1, 5.2, 5.6)   | In progress                                    | 2–4h   |
+| 8.3 | Create social media presence (Twitter/X account for HIC AI at minimum)            | Open                                           | 30m    |
+| 8.4 | Submit Lemon Squeezy MoR application with link to `staging.hic-ai.com`            | Open — previously rejected, invited to reapply | 30m    |
+| 8.5 | Wait for LS review (~1 week estimated)                                            | Blocked on 8.4                                 | 0h     |
 
 ### Phase B: Stripe Maintenance (While Waiting for LS)
 
 Keep Stripe operational as fallback and for test validation:
 
-| #    | Item                                                                                     | Current Status                          | Effort |
-| ---- | ---------------------------------------------------------------------------------------- | --------------------------------------- | ------ |
-| 8.6  | Verify all 4 Stripe test-mode checkout paths still work (Individual/Business × Monthly/Annual) | Open                                    | 30m    |
-| 8.7  | Create `EARLYADOPTER20` coupon in Stripe (20% off first year, time-boxed)                | Open                                    | 15m    |
-| 8.8  | Ensure refund policy is referenced in Terms of Service (policy exists on `/faq`)         | Partial — exists on FAQ, not in ToS     | 30m    |
+| #   | Item                                                                                           | Current Status                      | Effort |
+| --- | ---------------------------------------------------------------------------------------------- | ----------------------------------- | ------ |
+| 8.6 | Verify all 4 Stripe test-mode checkout paths still work (Individual/Business × Monthly/Annual) | Open                                | 30m    |
+| 8.7 | Create `EARLYADOPTER20` coupon in Stripe (20% off first year, time-boxed)                      | Open                                | 15m    |
+| 8.8 | Ensure refund policy is referenced in Terms of Service (policy exists on `/faq`)               | Partial — exists on FAQ, not in ToS | 30m    |
 
 ### Phase C: If LS Approves — Migration (Pre-Launch)
 
-| #    | Item                                                                                     | Current Status                          | Effort |
-| ---- | ---------------------------------------------------------------------------------------- | --------------------------------------- | ------ |
-| 8.9  | Create LS products + variants (Individual Monthly/Annual, Business Monthly/Annual)        | Blocked on LS approval                  | 1h     |
-| 8.10 | Integrate LS checkout SDK / hosted checkout into website (replace Stripe checkout)        | Blocked on LS approval                  | 2–3h   |
-| 8.11 | Update webhook handler for LS events (replace Stripe webhook handler)                    | Blocked on LS approval                  | 2–3h   |
-| 8.12 | Update license provisioning flow (LS purchase → Keygen license creation)                 | Blocked on LS approval                  | 1–2h   |
-| 8.13 | Update Customer Portal link (LS provides its own portal)                                 | Blocked on LS approval                  | 30m    |
-| 8.14 | Create `EARLYADOPTER20` equivalent coupon in LS                                          | Blocked on LS approval                  | 15m    |
-| 8.15 | E2E test all 4 checkout paths through LS                                                 | Blocked on LS approval                  | 1h     |
-| 8.16 | Remove or archive Stripe integration code                                                | Blocked on LS approval                  | 30m    |
+| #    | Item                                                                               | Current Status         | Effort |
+| ---- | ---------------------------------------------------------------------------------- | ---------------------- | ------ |
+| 8.9  | Create LS products + variants (Individual Monthly/Annual, Business Monthly/Annual) | Blocked on LS approval | 1h     |
+| 8.10 | Integrate LS checkout SDK / hosted checkout into website (replace Stripe checkout) | Blocked on LS approval | 2–3h   |
+| 8.11 | Update webhook handler for LS events (replace Stripe webhook handler)              | Blocked on LS approval | 2–3h   |
+| 8.12 | Update license provisioning flow (LS purchase → Keygen license creation)           | Blocked on LS approval | 1–2h   |
+| 8.13 | Update Customer Portal link (LS provides its own portal)                           | Blocked on LS approval | 30m    |
+| 8.14 | Create `EARLYADOPTER20` equivalent coupon in LS                                    | Blocked on LS approval | 15m    |
+| 8.15 | E2E test all 4 checkout paths through LS                                           | Blocked on LS approval | 1h     |
+| 8.16 | Remove or archive Stripe integration code                                          | Blocked on LS approval | 30m    |
 
 ### Phase D: If LS Rejects — Stripe Live Mode (Fallback)
 
-| #    | Item                                                                                     | Current Status                          | Effort |
-| ---- | ---------------------------------------------------------------------------------------- | --------------------------------------- | ------ |
-| 8.17 | Switch Stripe from test to live mode                                                     | Open — currently `sk_test_*`            | 30m    |
-| 8.18 | Create live-mode products + price IDs                                                    | Open                                    | 30m    |
-| 8.19 | Update webhook endpoint to production URL with live signing secret                       | Open                                    | 15m    |
-| 8.20 | Test all 4 checkout paths on live mode                                                   | Open                                    | 1h     |
-| 8.21 | Verify proration handling for seat changes                                               | Open                                    | 30m    |
-| 8.22 | Research manual tax compliance obligations (immediate-term workaround)                    | Open                                    | 2h     |
-| 8.23 | Reapply to LS again post-launch with demonstrated traction                               | Deferred                                | N/A    |
+| #    | Item                                                                   | Current Status               | Effort |
+| ---- | ---------------------------------------------------------------------- | ---------------------------- | ------ |
+| 8.17 | Switch Stripe from test to live mode                                   | Open — currently `sk_test_*` | 30m    |
+| 8.18 | Create live-mode products + price IDs                                  | Open                         | 30m    |
+| 8.19 | Update webhook endpoint to production URL with live signing secret     | Open                         | 15m    |
+| 8.20 | Test all 4 checkout paths on live mode                                 | Open                         | 1h     |
+| 8.21 | Verify proration handling for seat changes                             | Open                         | 30m    |
+| 8.22 | Research manual tax compliance obligations (immediate-term workaround) | Open                         | 2h     |
+| 8.23 | Reapply to LS again post-launch with demonstrated traction             | Deferred                     | N/A    |
 
 **Definition of done (LS path):** LS application approved, all 4 checkout paths working through LS, webhook events trigger license provisioning, Customer Portal functional, refund policy referenced in ToS.
 **Definition of done (Stripe fallback):** Live-mode Stripe configured, all 4 checkout paths tested, webhook receiving confirmed, refund policy in ToS, tax compliance plan documented.
@@ -537,10 +539,10 @@ Keep Stripe operational as fallback and for test validation:
 
 AP 12 is split into two sub-tasks with different risk profiles:
 
-| #     | Item                                                                                   | Current Status | Effort | Risk Profile              |
-| ----- | -------------------------------------------------------------------------------------- | -------------- | ------ | ------------------------- |
-| 12a   | Delete personal Facebook account (reduces public surface area, zero disclosure content) | Open           | 30m    | Safe anytime — no signal  |
-| 12b   | Update LinkedIn profile (headline, about, experience entry for HIC AI Inc.)             | Open           | 1h     | **Disclosure event** — irreversible public signal |
+| #   | Item                                                                                    | Current Status | Effort | Risk Profile                                      |
+| --- | --------------------------------------------------------------------------------------- | -------------- | ------ | ------------------------------------------------- |
+| 12a | Delete personal Facebook account (reduces public surface area, zero disclosure content) | Open           | 30m    | Safe anytime — no signal                          |
+| 12b | Update LinkedIn profile (headline, about, experience entry for HIC AI Inc.)             | Open           | 1h     | **Disclosure event** — irreversible public signal |
 
 **Key constraint:** 12b (LinkedIn update) is an irreversible public disclosure. Once updated, the professional network sees the venture. This creates a hard dependency: AP 13 (private disclosures) must be fully complete before 12b.
 
@@ -556,12 +558,12 @@ AP 12 is split into two sub-tasks with different risk profiles:
 
 Private, in-person or direct conversations with key individuals before any public disclosure.
 
-| #    | Item                                                                                    | Current Status | Effort     | Sequencing                |
-| ---- | --------------------------------------------------------------------------------------- | -------------- | ---------- | ------------------------- |
-| 13.1 | Disclose to law firm partner (professional courtesy, potential conflict check)           | Open           | 1 meeting  | **First** — professional obligation |
-| 13.2 | Disclose to key client (strategic — $4B fund manager who is also a software engineer)   | Open           | 1 meeting  | **Second** — highest-value early adopter candidate |
-| 13.3 | Disclose to remaining close contacts (friends, family, select colleagues)                | Open           | 1–3 days   | **Third** — broader circle, lower urgency |
-| 13.4 | Observe silence period (allow private disclosures to settle before public signal)        | Open           | 1–2 days   | **Fourth** — buffer before AP 12b |
+| #    | Item                                                                                  | Current Status | Effort    | Sequencing                                         |
+| ---- | ------------------------------------------------------------------------------------- | -------------- | --------- | -------------------------------------------------- |
+| 13.1 | Disclose to law firm partner (professional courtesy, potential conflict check)        | Open           | 1 meeting | **First** — professional obligation                |
+| 13.2 | Disclose to key client (strategic — $4B fund manager who is also a software engineer) | Open           | 1 meeting | **Second** — highest-value early adopter candidate |
+| 13.3 | Disclose to remaining close contacts (friends, family, select colleagues)             | Open           | 1–3 days  | **Third** — broader circle, lower urgency          |
+| 13.4 | Observe silence period (allow private disclosures to settle before public signal)     | Open           | 1–2 days  | **Fourth** — buffer before AP 12b                  |
 
 **Sequencing rationale:** Partner first (professional obligation and potential conflict), key client second (strategic relationship — a $4B fund manager who happens to be a software engineer is the ideal early-adopter), remaining contacts third, then a silence buffer before the irreversible LinkedIn update.
 
@@ -575,46 +577,47 @@ Private, in-person or direct conversations with key individuals before any publi
 
 The Lemon Squeezy application has an external dependency (~1 week review time) that makes it the most time-sensitive item. Work should be front-loaded to get the application submitted ASAP, then other critical-path items can proceed in parallel while waiting for LS review.
 
-| Order | Action Plan                                                  | Key Rationale                                                           |
-| ----- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| **1** | **AP 1 (essential items)** — Website polish                  | LS requires a presentable website; fix broken links, proofread copy     |
-| **2** | **AP 5 (essential items)** — Documentation accuracy          | LS will review docs; ensure they match actual product                   |
-| **3** | **AP 2a** — Website surface security review                   | Catch visible vulnerabilities before LS reviewer sees the site          |
-| **4** | **AP 7 (item 7.1)** — DMARC record                          | Quick DNS change; improves email deliverability before LS reviews       |
-| **5** | **AP 8 Phase A** — Submit LS application                     | Submit ASAP; ~1 week external wait time                                 |
+| Order | Action Plan                                         | Key Rationale                                                       |
+| ----- | --------------------------------------------------- | ------------------------------------------------------------------- |
+| **1** | **AP 1 (essential items)** — Website polish         | LS requires a presentable website; fix broken links, proofread copy |
+| **1a** | **AP 9 (items 9.1–9.7)** — E2E client verification (hic repo) | Verify all 5 clients E2E before writing docs; claims must match reality |
+| **2** | **AP 5 (essential items)** — Documentation accuracy | LS will review docs; must describe verified per-client flows (needs AP 9.1–9.7) |
+| **3** | **AP 2a** — Website surface security review         | Catch visible vulnerabilities before LS reviewer sees the site      |
+| **4** | **AP 7 (item 7.1)** — DMARC record                  | Quick DNS change; improves email deliverability before LS reviews   |
+| **5** | **AP 8 Phase A** — Submit LS application            | Submit ASAP; ~1 week external wait time                             |
 
 ### While Waiting for LS Review (~1 week): Critical Path
 
-| Order | Action Plan                                         | Key Rationale                                                    |
-| ----- | --------------------------------------------------- | ---------------------------------------------------------------- |
-| **6** | **AP 9 (items 9.8–9.10)** — Version update wire-up  | Last true Tier 1 feature blocker; everything else is operational |
-| **7** | **AP 10 (items 10.1–10.6)** — Monitoring essentials | Cannot launch blind; need health endpoint and alarms             |
-| **8** | **AP 2b** — Comprehensive security audit             | Formal SAST + auth review covering both repos; builds on AP 2a   |
-| **9** | **AP 11** — Legal review                            | Privacy/ToS must be accurate before accepting payments           |
-| **9a**| **AP 12a** — Delete Facebook                        | Zero-risk cleanup; can be done anytime during wait               |
-| **9b**| **AP 13** — Private disclosures (13.1→13.2→13.3→13.4) | Fits LS wait window; must complete before AP 12b              |
-| **9c**| **AP 12b** — Update LinkedIn                        | After AP 13 completes; irreversible public disclosure            |
-| **10**| **AP 7 (remaining items)** — Email deliverability   | DMARC + verification of all transactional email flows            |
+| Order  | Action Plan                                           | Key Rationale                                                    |
+| ------ | ----------------------------------------------------- | ---------------------------------------------------------------- |
+| **6**  | **AP 9 (items 9.8–9.10)** — Version update wire-up    | Last true Tier 1 feature blocker; everything else is operational |
+| **7**  | **AP 10 (items 10.1–10.6)** — Monitoring essentials   | Cannot launch blind; need health endpoint and alarms             |
+| **8**  | **AP 2b** — Comprehensive security audit              | Formal SAST + auth review covering both repos; builds on AP 2a   |
+| **9**  | **AP 11** — Legal review                              | Privacy/ToS must be accurate before accepting payments           |
+| **9a** | **AP 12a** — Delete Facebook                          | Zero-risk cleanup; can be done anytime during wait               |
+| **9b** | **AP 13** — Private disclosures (13.1→13.2→13.3→13.4) | Fits LS wait window; must complete before AP 12b                 |
+| **9c** | **AP 12b** — Update LinkedIn                          | After AP 13 completes; irreversible public disclosure            |
+| **10** | **AP 7 (remaining items)** — Email deliverability     | DMARC + verification of all transactional email flows            |
 
 ### On LS Decision: Payment Integration
 
-| Order  | Action Plan                                                  | Key Rationale                                                    |
-| ------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| **11** | **AP 8 Phase C** (if approved) or **Phase D** (if rejected)  | Payment integration is gate to production launch                 |
-| **12** | **AP 4** — Launch plan + production deployment               | Creates the production environment; depends on payment decision  |
+| Order  | Action Plan                                                 | Key Rationale                                                   |
+| ------ | ----------------------------------------------------------- | --------------------------------------------------------------- |
+| **11** | **AP 8 Phase C** (if approved) or **Phase D** (if rejected) | Payment integration is gate to production launch                |
+| **12** | **AP 4** — Launch plan + production deployment              | Creates the production environment; depends on payment decision |
 
 ### High-Value Work (parallel with critical path where possible)
 
-| Order  | Action Plan                  | Key Rationale                                    |
-| ------ | ---------------------------- | ------------------------------------------------ |
-| **13** | **AP 5 (remaining)** — Docs  | Can work in parallel; reduces support burden     |
-| **14** | **AP 1 (remaining)** — UX    | Can work in parallel; improves first impressions |
-| **15** | **AP 6** — Support setup     | Should be ready at launch                        |
-| **16** | **AP 3** — Marketing         | Post-launch OK but prepare materials in advance  |
+| Order  | Action Plan                 | Key Rationale                                    |
+| ------ | --------------------------- | ------------------------------------------------ |
+| **13** | **AP 5 (remaining)** — Docs | Can work in parallel; reduces support burden     |
+| **14** | **AP 1 (remaining)** — UX   | Can work in parallel; improves first impressions |
+| **15** | **AP 6** — Support setup    | Should be ready at launch                        |
+| **16** | **AP 3** — Marketing        | Post-launch OK but prepare materials in advance  |
 
 ### Parallelization Opportunities
 
-- **AP 1 + AP 5 + AP 11** can be worked simultaneously (content, docs, legal all independent)
+- **AP 1 → AP 9.1–9.7 → AP 5** are sequential (verify clients before writing docs); **AP 11** can run in parallel with any of them
 - **AP 7 item 7.1** (DMARC) can be done in minutes — do it first
 - **AP 2a** can run pre-LS (website surface review has no hard dependencies); **AP 2b** starts after AP 9 feature code finalizes
 - **AP 9 (9.8–9.10)** is the only feature development work and can start any time

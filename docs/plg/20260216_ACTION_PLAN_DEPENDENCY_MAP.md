@@ -39,6 +39,10 @@ AP 11.1–11.3: Privacy/ToS              ▼
 AP 1: Front-end UX/content             ▼
     (includes legal pages)         AP 10: Monitoring & observability
     │                                   (health endpoint, alarms)
+    ▼                                   │
+AP 9.1–9.7: E2E client                 │
+    verification (hic repo)             │
+    │                                   │
     ├──▶ AP 5: Docs accuracy            │
     │                                   │
     ▼                                   │
@@ -115,11 +119,29 @@ Proofread all copy, fix broken links, add sitemap, verify OG image, responsive c
 - **Checkpoint:** All public pages proofread, no 404s, sitemap live, responsive check passed
 - **Unlocks:** AP 8A (website presentable for LS), AP 3 (marketing references final content)
 
+### Step A3.5: E2E Client Verification Pass (AP 9.1–9.7, hic repo)
+
+Smoke-test the installation, activation, and MCP tool invocation flow for each supported client: Copilot, Cursor, Kiro, Claude Code CLI, and Roo Code. This is a context switch back to the hic repo, but it must happen before the documentation rewrite because the docs need to describe verified, accurate per-client flows.
+
+**Scope (hic repo — 1–2 hours):**
+- Verify `Initialize Workspace` generates correct MCP config per client (`.vscode/mcp.json`, `.cursor/mcp.json`, `.kiro/settings/mcp.json`, `.mcp.json`, global config)
+- Confirm CJS build loads in Cursor and Kiro (CJS was added at v0.10.9)
+- Confirm Claude Code CLI connects via stdio and can invoke Mouse tools
+- Confirm Roo Code global config path works
+- Document any client-specific quirks, workarounds, or known issues
+- Fix any discovered issues before returning to website repo for documentation
+
+**What this is NOT:** This is not AP 9.8–9.10 (version update wire-up). Those remain in Track B for the LS wait window.
+
+- **Depends on:** A3 (front-end polish complete — natural context-switch point; compatibility claims on the website should be reviewed first)
+- **Checkpoint:** All 5 supported clients verified E2E; any fixes committed; client compatibility matrix confirmed accurate
+- **Unlocks:** A4 (documentation rewrite can proceed with verified per-client installation/activation flows)
+
 ### Step A4: Documentation Accuracy (AP 5 essential items: 5.1, 5.2, 5.6)
 
 Audit existing docs pages, verify Getting Started guide, confirm docs link resolves. LS reviewers may click through to docs — they should be accurate and functional.
 
-- **Depends on:** Nothing (can run in parallel with A2/A3 since docs content is independent of legal pages)
+- **Depends on:** A3.5 (E2E client verification — docs must describe verified per-client flows, not assumptions)
 - **Checkpoint:** Every docs slug visited and content verified, no 404s from navigation
 - **Unlocks:** AP 8A (docs accuracy for LS application), AP 6 (support infra references docs)
 
@@ -128,11 +150,13 @@ Audit existing docs pages, verify Getting Started guide, confirm docs link resol
 Focused security review of the public-facing website before submitting to LS. This is not the comprehensive audit (that's AP 2b in Track B) — it's specifically looking for anything an LS reviewer might notice or that could cause rejection: unprotected endpoints, `npm audit` criticals, missing HTTP security headers, information leakage in error responses.
 
 **Scope (website repo only):**
+
 - `npm audit --production` on plg-website — flag/fix any critical or high vulnerabilities
 - Review the 4 unauthenticated endpoints (`/api/license/trial/init`, `/api/webhooks/stripe`, `/api/webhooks/keygen`, public routes) — verify webhook signature validation, rate limiting, error response sanitization
 - Verify P0/P1/P2 safeJsonParse fixes are deployed to staging
 - Check HTTP security headers on staging.hic-ai.com (CSP, HSTS, X-Frame-Options)
 - Quick scan for secrets/keys in client-side bundle (build output inspection)
+- Review all `package.json` files in website repo for `publishConfig.access` settings, license field consistency, and accidental public exposure of proprietary packages
 - Brief findings note (not the full CWE/CVE memo — that's AP 2b)
 
 **What this is NOT:** This is not the comprehensive SAST scan, auth flow review, PKCE audit, or full credential scan. Those remain in AP 2b after all feature code is finalized.
@@ -165,7 +189,7 @@ Create Twitter/X account for HIC AI. This is a **company** account only — do N
 - **Checkpoint:** HIC AI Twitter/X account exists with bio, link to hic-ai.com, and at least one post
 - **Unlocks:** AP 8A (LS application can reference social media)
 
-> **Critical distinction:** Creating HIC AI company accounts (AP 8.3) is safe before private disclosures. Updating SWR's *personal* LinkedIn profile (AP 12b) is the disclosure event and must wait until after AP 13.
+> **Critical distinction:** Creating HIC AI company accounts (AP 8.3) is safe before private disclosures. Updating SWR's _personal_ LinkedIn profile (AP 12b) is the disclosure event and must wait until after AP 13.
 
 ### Step A7: Submit LS Application (AP 8.4)
 
@@ -185,18 +209,18 @@ Private conversations with key individuals who must learn about HIC AI directly 
 
 Recommended internal sequence:
 
-| Order | Who                               | Why First                                                                                  | Suggested Frame                                                                                         |
-| ----- | --------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| 1     | Law partner                       | Non-negotiable first. Must hear from SWR in person or by phone, never from LinkedIn.        | "Built a software product on my own time, incorporating, doesn't affect my commitment to [practice]."   |
-| 2     | Key client ($4B fund / SW engineer)| Likely the most *interested* rather than concerned. Potential early supporter or even investor. | "My public profile is about to change — wanted you to hear it from me directly."                       |
-| 3     | Other key clients/contacts         | Brief, professional. Anyone close enough to warrant a private heads-up.                     | "Nothing changes about my availability to you."                                                        |
-| 4     | Silence                           | Let the LinkedIn update do the rest. Anyone not on the private list learns organically.     | —                                                                                                       |
+| Order | Who                                 | Why First                                                                                       | Suggested Frame                                                                                       |
+| ----- | ----------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1     | Law partner                         | Non-negotiable first. Must hear from SWR in person or by phone, never from LinkedIn.            | "Built a software product on my own time, incorporating, doesn't affect my commitment to [practice]." |
+| 2     | Key client ($4B fund / SW engineer) | Likely the most _interested_ rather than concerned. Potential early supporter or even investor. | "My public profile is about to change — wanted you to hear it from me directly."                      |
+| 3     | Other key clients/contacts          | Brief, professional. Anyone close enough to warrant a private heads-up.                         | "Nothing changes about my availability to you."                                                       |
+| 4     | Silence                             | Let the LinkedIn update do the rest. Anyone not on the private list learns organically.         | —                                                                                                     |
 
 - **Depends on:** A7 (LS application submitted — SWR now has certainty of imminent launch)
 - **Checkpoint:** All private disclosure conversations completed. SWR confirms "everyone who needs to hear from me directly has heard from me."
 - **Unlocks:** AP 12b (LinkedIn/personal profile update — the irreversible public disclosure)
 
-> **Note on the "neglecting their matters" concern:** The timing works in SWR's favor. This is not a retirement announcement. SWR built this on personal time. Being proactive about telling clients *before* it becomes public demonstrates exactly the attentiveness they want to see.
+> **Note on the "neglecting their matters" concern:** The timing works in SWR's favor. This is not a retirement announcement. SWR built this on personal time. Being proactive about telling clients _before_ it becomes public demonstrates exactly the attentiveness they want to see.
 
 ### Step A7.6: LinkedIn / Personal Profile Update (AP 12b)
 
@@ -234,10 +258,10 @@ The last true feature development work. Parse `latestVersion` from heartbeat res
 
 Full SAST/CodeQL scan across both repos, complete auth flow review (Cognito OAuth, PKCE, token refresh, browser-delegated activation), authorization review (per-user device scoping, seat enforcement, role-based access), and documented findings memo. Must be done **after** B1 because the security audit should cover the final codebase, not an intermediate state that will change.
 
-This is the thorough audit — AP 2a (website surface review, done pre-LS in Track A) already caught the most visible issues. AP 2b covers the deeper attack surface: extension code, auth protocols, cross-repo credential flow, and the formal CWE/CVE documentation.
+This is the thorough audit — AP 2a (website surface review, done pre-LS in Track A) already caught the most visible issues. AP 2b covers the deeper attack surface: extension code, auth protocols, cross-repo credential flow, comprehensive `package.json` audit across both repos, and the formal CWE/CVE documentation.
 
 - **Depends on:** B1 (all feature code finalized — auditing code that's about to change is wasted effort), AP 2a (website surface review done — no need to repeat those checks)
-- **Checkpoint:** SAST scan clean or all findings triaged, `npm audit` clean across all packages, auth flow review documented with CWE/CVE references, findings memo produced
+- **Checkpoint:** SAST scan clean or all findings triaged, `npm audit` clean across all packages, all `package.json` files audited for `publishConfig.access` (no accidental `public`), license field consistency (`UNLICENSED` vs proprietary), repository URLs, and package naming — auth flow review documented with CWE/CVE references, findings memo produced
 - **Unlocks:** AP 4 (production deployment requires security sign-off)
 
 ### Step B3: Monitoring & Observability (AP 10.1–10.6)
@@ -279,7 +303,6 @@ Level 0 (no dependencies — start immediately):
 ├── AP 12a   Delete Facebook (no disclosure risk)
 ├── AP 7.1   DMARC record
 ├── AP 8.3   HIC AI company socials (NOT personal profiles)
-├── AP 5*    Docs accuracy (essential items)
 ├── AP 9.8   Version update wire-up ─┐
 ├── AP 9.9   Update Version command  ├── AP 9 (feature dev)
 ├── AP 9.10  Version notification   ─┘
@@ -294,7 +317,11 @@ Level 2 (depends on Level 1 items):
 ├── AP 2a  Website surface security review  [needs: AP 1 near-final, or parallel with A3/A4]
 └── AP 7   Email deliverability (remaining items 7.2–7.6)  [better after: AP 7.1 DMARC]
 
-Level 3 (depends on Level 2 items):
+Level 2.5 (hic repo context switch after front-end polish):
+└── AP 9.1–9.7  E2E client verification  [needs: AP 1 front-end polish — verify claims before docs]
+
+Level 3 (depends on Level 2 / 2.5 items):
+├── AP 5   Docs accuracy (essential items)  [needs: AP 9.1–9.7 E2E verification — docs must describe verified flows]
 ├── AP 8A  LS application  [needs: AP 1 website presentable, AP 2a surface review, AP 5 docs, AP 7.1, AP 8.3 social]
 └── AP 3   Marketing plan  [needs: AP 1 content finalized]
 
@@ -320,27 +347,27 @@ Level 6:
 
 Each checkpoint is a verifiable gate that must be passed before dependent work proceeds.
 
-| ID    | Checkpoint                    | Verification Method                                                         | Gate For                     |
-| ----- | ----------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
-| CP-1  | Plausible analytics wired up  | Visit staging site → verify network request to Plausible → verify dashboard | AP 11.1 (Privacy Policy)     |
-| CP-2  | Privacy Policy accurate       | SWR attorney review of `/privacy` page on staging                           | AP 1, AP 8A                  |
-| CP-3  | Terms of Service accurate     | SWR attorney review of `/terms` page on staging; refund xref from `/faq`    | AP 1, AP 8A                  |
-| CP-4  | Website presentable           | All pages proofread, no 404s, sitemap live, responsive check, OG verified   | AP 8A (LS application)       |
-| CP-5  | Docs functional               | Every docs slug loads, Getting Started guide complete, no nav 404s          | AP 8A (LS application)       |
-| CP-6  | DMARC live                    | `dig TXT _dmarc.hic-ai.com` returns valid record                            | AP 7, AP 8A                  |
-| CP-7  | Social media exists           | Twitter/X account live with bio + link + at least 1 post                    | AP 8A (LS application)       |
-| CP-8  | LS application submitted      | Confirmation email from Lemon Squeezy                                       | AP 8C/8D (after ~1 week)     |
-| CP-9  | Version update working        | Extension detects newer version, notification shows, `Update Version` works | AP 2b (comprehensive audit)  |
-| CP-10 | All extension tests pass      | `npm test` in mouse, mouse-vscode, licensing — 0 failures                   | AP 2b (comprehensive audit)  |
-| CP-10a| Website surface security OK   | `npm audit` clean, headers verified, unauthenticated endpoints reviewed     | AP 8A (LS application)       |
-| CP-11 | Comprehensive audit complete  | Findings memo produced with CWE/CVE refs, SAST clean or triaged             | AP 4 (production deployment) |
-| CP-12 | Monitoring operational        | `/api/health` returns 200, metric alarms configured, runbook exists         | AP 4 (production deployment) |
-| CP-13 | Email deliverability verified | Test emails reach Gmail + Outlook inboxes (not spam), all types fire        | AP 4 (production deployment) |
-| CP-14 | Payment integration tested    | All 4 checkout paths E2E tested, webhooks firing, license provisioned       | AP 4 (production deployment) |
-| CP-15 | Production environment ready  | Amplify prod env created, secrets populated, CF deployed, webhooks pointed  | LAUNCH                       |
-| CP-16 | Facebook deletion initiated   | Account deletion request submitted (30-day grace period)                    | Nothing (housekeeping)       |
-| CP-17 | Private disclosures complete  | SWR confirms: partner, key clients, and contacts have been told personally  | AP 12b (LinkedIn update)     |
-| CP-18 | Personal profiles updated     | LinkedIn reflects CEO/Founder HIC AI, Inc.; no surprised messages received  | LAUNCH, AP 3 (marketing)    |
+| ID     | Checkpoint                    | Verification Method                                                         | Gate For                     |
+| ------ | ----------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
+| CP-1   | Plausible analytics wired up  | Visit staging site → verify network request to Plausible → verify dashboard | AP 11.1 (Privacy Policy)     |
+| CP-2   | Privacy Policy accurate       | SWR attorney review of `/privacy` page on staging                           | AP 1, AP 8A                  |
+| CP-3   | Terms of Service accurate     | SWR attorney review of `/terms` page on staging; refund xref from `/faq`    | AP 1, AP 8A                  |
+| CP-4   | Website presentable           | All pages proofread, no 404s, sitemap live, responsive check, OG verified   | AP 8A (LS application)       |
+| CP-5   | Docs functional               | Every docs slug loads, Getting Started guide complete, no nav 404s          | AP 8A (LS application)       |
+| CP-6   | DMARC live                    | `dig TXT _dmarc.hic-ai.com` returns valid record                            | AP 7, AP 8A                  |
+| CP-7   | Social media exists           | Twitter/X account live with bio + link + at least 1 post                    | AP 8A (LS application)       |
+| CP-8   | LS application submitted      | Confirmation email from Lemon Squeezy                                       | AP 8C/8D (after ~1 week)     |
+| CP-9   | Version update working        | Extension detects newer version, notification shows, `Update Version` works | AP 2b (comprehensive audit)  |
+| CP-10  | All extension tests pass      | `npm test` in mouse, mouse-vscode, licensing — 0 failures                   | AP 2b (comprehensive audit)  |
+| CP-10a | Website surface security OK   | `npm audit` clean, headers verified, unauthenticated endpoints reviewed     | AP 8A (LS application)       |
+| CP-11  | Comprehensive audit complete  | Findings memo produced with CWE/CVE refs, SAST clean or triaged             | AP 4 (production deployment) |
+| CP-12  | Monitoring operational        | `/api/health` returns 200, metric alarms configured, runbook exists         | AP 4 (production deployment) |
+| CP-13  | Email deliverability verified | Test emails reach Gmail + Outlook inboxes (not spam), all types fire        | AP 4 (production deployment) |
+| CP-14  | Payment integration tested    | All 4 checkout paths E2E tested, webhooks firing, license provisioned       | AP 4 (production deployment) |
+| CP-15  | Production environment ready  | Amplify prod env created, secrets populated, CF deployed, webhooks pointed  | LAUNCH                       |
+| CP-16  | Facebook deletion initiated   | Account deletion request submitted (30-day grace period)                    | Nothing (housekeeping)       |
+| CP-17  | Private disclosures complete  | SWR confirms: partner, key clients, and contacts have been told personally  | AP 12b (LinkedIn update)     |
+| CP-18  | Personal profiles updated     | LinkedIn reflects CEO/Founder HIC AI, Inc.; no surprised messages received  | LAUNCH, AP 3 (marketing)     |
 
 ---
 
@@ -357,17 +384,17 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 
 ### AP 2a: Website Surface Security Review (pre-LS)
 
-| Dependency          | Type | Reason                                                                                          |
-| ------------------- | ---- | ----------------------------------------------------------------------------------------------- |
-| AP 1 (UX/Content)   | Soft | Better to review the site in near-final state, but API routes can be reviewed any time            |
+| Dependency        | Type | Reason                                                                                 |
+| ----------------- | ---- | -------------------------------------------------------------------------------------- |
+| AP 1 (UX/Content) | Soft | Better to review the site in near-final state, but API routes can be reviewed any time |
 
 **Depended on by:** AP 8A (LS application — submit with confidence the site has been security-reviewed)
 
 ### AP 2b: Comprehensive Security Audit (post-feature-freeze)
 
-| Dependency            | Type | Reason                                                                                   |
-| --------------------- | ---- | ---------------------------------------------------------------------------------------- |
-| AP 9.8–9.10 (Phase 6) | Hard | Security audit should cover the _final_ codebase — auditing before last feature is waste |
+| Dependency             | Type | Reason                                                                                   |
+| ---------------------- | ---- | ---------------------------------------------------------------------------------------- |
+| AP 9.8–9.10 (Phase 6)  | Hard | Security audit should cover the _final_ codebase — auditing before last feature is waste |
 | AP 2a (Surface review) | Soft | Avoids re-checking what AP 2a already covered; builds on AP 2a findings                  |
 
 **Depended on by:** AP 4 (cannot deploy to production without security clearance)
@@ -382,13 +409,13 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 
 ### AP 4: Launch Plan & Production Deployment
 
-| Dependency          | Type | Reason                                                        |
-| ------------------- | ---- | ------------------------------------------------------------- |
+| Dependency          | Type | Reason                                                              |
+| ------------------- | ---- | ------------------------------------------------------------------- |
 | AP 2b (Security)    | Hard | Cannot deploy to production without comprehensive security sign-off |
-| AP 8C/8D (Payments) | Hard | Must know which payment provider to configure in production   |
-| AP 10 (Monitoring)  | Hard | Cannot launch blind — health endpoint and alarms must exist   |
-| AP 7 (Email)        | Hard | Transactional emails must work before accepting real payments |
-| AP 11 (Legal)       | Hard | Privacy/ToS must be accurate before production accepts users  |
+| AP 8C/8D (Payments) | Hard | Must know which payment provider to configure in production         |
+| AP 10 (Monitoring)  | Hard | Cannot launch blind — health endpoint and alarms must exist         |
+| AP 7 (Email)        | Hard | Transactional emails must work before accepting real payments       |
+| AP 11 (Legal)       | Hard | Privacy/ToS must be accurate before production accepts users        |
 
 **Depended on by:** LAUNCH
 
@@ -457,17 +484,17 @@ AP 12 is split into two parts with very different risk profiles:
 
 **AP 12a: Delete Facebook**
 
-| Dependency | Type | Reason                                               |
-| ---------- | ---- | ---------------------------------------------------- |
-| None       | —    | Removing a profile discloses nothing; safe any time   |
+| Dependency | Type | Reason                                              |
+| ---------- | ---- | --------------------------------------------------- |
+| None       | —    | Removing a profile discloses nothing; safe any time |
 
 **Depended on by:** Nothing — this is personal housekeeping
 
 **AP 12b: LinkedIn / Personal Profile Update**
 
-| Dependency                     | Type | Reason                                                                                 |
-| ------------------------------ | ---- | -------------------------------------------------------------------------------------- |
-| AP 13 (Private Disclosures)    | Hard | Partner and key clients must hear from SWR directly BEFORE LinkedIn announces anything  |
+| Dependency                  | Type | Reason                                                                                 |
+| --------------------------- | ---- | -------------------------------------------------------------------------------------- |
+| AP 13 (Private Disclosures) | Hard | Partner and key clients must hear from SWR directly BEFORE LinkedIn announces anything |
 
 **Depended on by:** AP 3 (marketing can reference founder story publicly), LAUNCH (profile should reflect founder role at launch)
 
@@ -475,9 +502,9 @@ AP 12 is split into two parts with very different risk profiles:
 
 ### AP 13: Private Pre-Launch Disclosure
 
-| Dependency                   | Type | Reason                                                                                        |
-| ---------------------------- | ---- | --------------------------------------------------------------------------------------------- |
-| AP 8A (LS application filed) | Soft | SWR should have certainty that launch is imminent before initiating disclosure conversations    |
+| Dependency                   | Type | Reason                                                                                       |
+| ---------------------------- | ---- | -------------------------------------------------------------------------------------------- |
+| AP 8A (LS application filed) | Soft | SWR should have certainty that launch is imminent before initiating disclosure conversations |
 
 **Internal ordering:** Law partner (first, non-negotiable) → key client ($4B fund / SW engineer) → other key clients/contacts → silence (let LinkedIn do the rest)
 
@@ -501,15 +528,15 @@ AP 12 is split into two parts with very different risk profiles:
 
 ### Fully Independent (zero overlap, can be done simultaneously)
 
-| Track A Work                         | Track B Work                       |
-| ------------------------------------ | ---------------------------------- |
-| AP 11.4 Plausible integration        | AP 9.8–9.10 Version update wire-up |
-| AP 11.1–11.3 Legal review            | AP 2b Comprehensive security audit |
-| AP 1 Front-end polish                | AP 10 Monitoring setup             |
-| AP 2a Website surface security review|                                    |
-| AP 5 Documentation            |                                    |
-| AP 7 Email deliverability     |                                    |
-| AP 8A LS application          |                                    |
+| Track A Work                          | Track B Work                       |
+| ------------------------------------- | ---------------------------------- |
+| AP 11.4 Plausible integration         | AP 9.8–9.10 Version update wire-up |
+| AP 11.1–11.3 Legal review             | AP 2b Comprehensive security audit |
+| AP 1 Front-end polish                 | AP 10 Monitoring setup             |
+| AP 2a Website surface security review |                                    |
+| AP 5 Documentation                    |                                    |
+| AP 7 Email deliverability             |                                    |
+| AP 8A LS application                  |                                    |
 
 ### Safe Parallel Within Track A
 
@@ -523,14 +550,14 @@ AP 12 is split into two parts with very different risk profiles:
 
 ### NOT Safe to Parallelize
 
-| Work Item                  | Must Wait For                | Why                                         |
-| -------------------------- | ---------------------------- | ------------------------------------------- |
-| AP 11.1 (Privacy Policy)   | AP 11.4 (Plausible wired up) | Policy must describe actual analytics state |
-| AP 1 (Full site proofread) | AP 11.1–11.3 (Legal review)  | Don't proofread pages that will change      |
-| AP 2b (Comprehensive audit)| AP 9.8–9.10 (Feature code)   | Audit the final code, not intermediate      |
-| AP 8A (LS application)     | AP 1 + AP 5 + AP 8.3         | Application needs presentable site + docs   |
-| AP 12b (LinkedIn update)   | AP 13 (Private disclosures)  | Public profile change is the disclosure event |
-| AP 4 (Production deploy)   | AP 2 + AP 8C/8D + AP 10      | All convergence dependencies                |
+| Work Item                   | Must Wait For                | Why                                           |
+| --------------------------- | ---------------------------- | --------------------------------------------- |
+| AP 11.1 (Privacy Policy)    | AP 11.4 (Plausible wired up) | Policy must describe actual analytics state   |
+| AP 1 (Full site proofread)  | AP 11.1–11.3 (Legal review)  | Don't proofread pages that will change        |
+| AP 2b (Comprehensive audit) | AP 9.8–9.10 (Feature code)   | Audit the final code, not intermediate        |
+| AP 8A (LS application)      | AP 1 + AP 5 + AP 8.3         | Application needs presentable site + docs     |
+| AP 12b (LinkedIn update)    | AP 13 (Private disclosures)  | Public profile change is the disclosure event |
+| AP 4 (Production deploy)    | AP 2 + AP 8C/8D + AP 10      | All convergence dependencies                  |
 
 ---
 
@@ -538,27 +565,27 @@ AP 12 is split into two parts with very different risk profiles:
 
 ### Known Wait Times
 
-| Blocker                    | Estimated Wait | What Can Proceed During Wait                                                        |
-| -------------------------- | -------------- | ----------------------------------------------------------------------------------- |
-| LS application review      | ~1 week        | All of Track B (AP 9, AP 2b, AP 10), AP 7 remainder, AP 5 remainder, AP 6, AP 3 prep |
-| DMARC DNS propagation      | 1–48 hours     | Everything — propagation is passive                                                 |
-| Plausible account setup    | Minutes        | N/A — effectively instant                                                           |
-| Twitter/X account creation | Minutes        | N/A — effectively instant                                                           |
+| Blocker                    | Estimated Wait | What Can Proceed During Wait                                                                   |
+| -------------------------- | -------------- | ---------------------------------------------------------------------------------------------- |
+| LS application review      | ~1 week        | All of Track B (AP 9, AP 2b, AP 10), AP 7 remainder, AP 5 remainder, AP 6, AP 3 prep           |
+| DMARC DNS propagation      | 1–48 hours     | Everything — propagation is passive                                                            |
+| Plausible account setup    | Minutes        | N/A — effectively instant                                                                      |
+| Twitter/X account creation | Minutes        | N/A — effectively instant                                                                      |
 | Private disclosure convos  | 1–5 days       | All of Track B; AP 8C/8D when LS decides (disclosures and payment integration are independent) |
 
 ### Require Investigation (work to be done in hic-ai-inc.github.io repo)
 
 The following transitions all occur near the end of the critical path (AP 4 / AP 8C/8D). Any unexpected delay at this stage would push launch. Each needs documented expected wait time and a go-live checklist.
 
-| Blocker                                   | Estimated Wait      | Status         | Notes                                                                                               |
-| ----------------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------- |
-| **VS Code Marketplace publishing**         | **24–48h** (known)  | ⚠️ Needs verify | Publisher ID believed to be `hic-ai` (`hic-ai.mouse`). Review process is out of our hands once submitted. Must plan submission timing ≥ 2 days before launch. |
-| **Open VSX publishing**                    | **Unknown**         | ❌ Investigate  | Need to research Open VSX review/approval timeline and account setup requirements. May differ significantly from VS Code Marketplace. |
-| **Stripe test → live mode**                | **Unknown**         | ❌ Investigate  | Currently in test mode. Need to check: account verification requirements, payout schedule activation, webhook endpoint re-pointing, any review period. |
-| **Lemon Squeezy sandbox → live** (if AP 8C) | **Unknown**         | ❌ Investigate  | If LS approves MoR application: what are the steps to go from sandbox/test to live payment processing? Any additional review? |
-| **SES staging → production**               | **Unknown**         | ❌ Investigate  | SES is approved for production (50K/day) on current staging stack. Need to verify: does the new Amplify production environment inherit SES production access, or does a new SES identity/configuration need approval? |
-| **Keygen endpoint re-pointing**            | **Unknown**         | ❌ Investigate  | When deploying production environment, Keygen webhook URLs and API endpoints must point to production. Research whether this is instant config change or requires Keygen-side verification/propagation. |
-| **Amplify production environment**         | **Unknown**         | ❌ Investigate  | Creating a new Amplify environment (production branch) — need to document: CloudFormation deployment time, Cognito user pool creation, DynamoDB table provisioning, Secrets Manager population. |
+| Blocker                                     | Estimated Wait     | Status          | Notes                                                                                                                                                                                                                 |
+| ------------------------------------------- | ------------------ | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VS Code Marketplace publishing**          | **24–48h** (known) | ⚠️ Needs verify | Publisher ID believed to be `hic-ai` (`hic-ai.mouse`). Review process is out of our hands once submitted. Must plan submission timing ≥ 2 days before launch.                                                         |
+| **Open VSX publishing**                     | **Unknown**        | ❌ Investigate  | Need to research Open VSX review/approval timeline and account setup requirements. May differ significantly from VS Code Marketplace.                                                                                 |
+| **Stripe test → live mode**                 | **Unknown**        | ❌ Investigate  | Currently in test mode. Need to check: account verification requirements, payout schedule activation, webhook endpoint re-pointing, any review period.                                                                |
+| **Lemon Squeezy sandbox → live** (if AP 8C) | **Unknown**        | ❌ Investigate  | If LS approves MoR application: what are the steps to go from sandbox/test to live payment processing? Any additional review?                                                                                         |
+| **SES staging → production**                | **Unknown**        | ❌ Investigate  | SES is approved for production (50K/day) on current staging stack. Need to verify: does the new Amplify production environment inherit SES production access, or does a new SES identity/configuration need approval? |
+| **Keygen endpoint re-pointing**             | **Unknown**        | ❌ Investigate  | When deploying production environment, Keygen webhook URLs and API endpoints must point to production. Research whether this is instant config change or requires Keygen-side verification/propagation.               |
+| **Amplify production environment**          | **Unknown**        | ❌ Investigate  | Creating a new Amplify environment (production branch) — need to document: CloudFormation deployment time, Cognito user pool creation, DynamoDB table provisioning, Secrets Manager population.                       |
 
 > **Why this matters:** The timeline currently assumes Day 10–11 is payment integration + production deployment. If any of these transitions involve a multi-day review or approval process, the true launch date shifts. Investigating all of them in the companion repo before reaching that stage prevents surprises.
 
