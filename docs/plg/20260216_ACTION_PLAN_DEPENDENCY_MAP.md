@@ -29,20 +29,20 @@ The remaining work falls into two largely independent tracks that converge at la
 ```
 TRACK A (Website + LS)              TRACK B (Extension + Audit)
 ─────────────────────               ────────────────────────────
-AP 11.4: Wire up Plausible         AP 9.8–9.10: Heartbeat version
-    │                                   wire-up + Update command
+AP 11.4: Wire up Plausible         D1–D8: Resolve open decisions
+    │                                   (~15 min with SWR)
     ▼                                   │
 AP 11.1–11.3: Privacy/ToS              ▼
-    review (reflects Plausible)    AP 2b: Comprehensive security
-    │                                   audit (after code finalized)
+    review (reflects Plausible)    AP 9.8–9.10: Heartbeat version
+    │                                   wire-up + Update command
     ▼                                   │
 AP 1: Front-end UX/content             ▼
-    (includes legal pages)         AP 10: Monitoring & observability
-    │                                   (health endpoint, alarms)
+    (includes legal pages)         AP 2b: Comprehensive security
+    │                                   audit (after code finalized)
     ▼                                   │
-AP 9.1–9.7: E2E client                 │
-    verification (hic repo)             │
-    │                                   │
+AP 9.1–9.7: E2E client                 ▼
+    verification (hic repo)        AP 10: Monitoring & observability
+    │                                   (health endpoint, alarms)
     ├──▶ AP 5: Docs accuracy            │
     │                                   │
     ▼                                   │
@@ -246,11 +246,32 @@ If approved: Integrate LS checkout, webhooks, license provisioning, Customer Por
 
 This track has no external wait times. It is purely development and verification work.
 
+### Step B0: Resolve Open Decisions (D1–D8)
+
+Eight business decisions must be resolved before autonomous execution of Track B can begin. These are documented in the companion assessment doc under "Track B: Open Decisions Before Starting Work." All 8 can be addressed in a single ~15-minute decision session with SWR.
+
+| Decision | Topic | Affects |
+|----------|-------|--------|
+| D1 | `/api/version` endpoint: create or remove `checkForUpdates()`? | B1 scope |
+| D2 | "Update Now" UX: browser redirect acceptable for v1? | B1 scope |
+| D3 | EventBridge `readyVersion` gating: deploy or launch without? | B1 scope |
+| D4 | SAST tool choice: CodeQL, Snyk, or ESLint plugin? | B2 scope |
+| D5 | `package.json` field standardization: `private`/`license` values | B2 scope |
+| D6 | Security findings memo: format and location | B2 scope |
+| D7 | Log retention: 14 or 30 days? | B3 scope |
+| D8 | Production API base URL for `constants.js` | Convergence (AP 4) |
+
+> **Important context (D1–D3):** Investigation on Feb 16 revealed that the heartbeat `onSuccess` version parsing, `mouse.checkForUpdates`, `mouse.showUpdateInfo`, and `StatusBarManager.showUpdateAvailable()` are all **already implemented.** B1 may need verification and decision-driven cleanup, not greenfield implementation. The scope of AP 9.8–9.10 should be reassessed once D1–D3 are resolved.
+
+- **Depends on:** Nothing (decisions only, no code dependencies)
+- **Checkpoint:** All 8 decisions documented with chosen option; B1 scope revised if needed
+- **Unlocks:** B1, B2, B3 (all Track B steps depend on these decisions being resolved)
+
 ### Step B1: Version Update Wire-up (AP 9.8–9.10)
 
 The last true feature development work. Parse `latestVersion` from heartbeat response, implement `Mouse: Update Version` command, add status bar notification. This is Phase 6 completion.
 
-- **Depends on:** Nothing (server-side heartbeat already returns version fields)
+- **Depends on:** B0 (decisions D1–D3 resolved — scope depends on chosen options)
 - **Checkpoint:** Extension detects newer version from heartbeat, notification appears, `Mouse: Update Version` downloads and installs VSIX. All tests pass.
 - **Unlocks:** AP 2 (security audit should come after this — it's the last code change)
 
@@ -260,7 +281,7 @@ Full SAST/CodeQL scan across both repos, complete auth flow review (Cognito OAut
 
 This is the thorough audit — AP 2a (website surface review, done pre-LS in Track A) already caught the most visible issues. AP 2b covers the deeper attack surface: extension code, auth protocols, cross-repo credential flow, comprehensive `package.json` audit across both repos, and the formal CWE/CVE documentation.
 
-- **Depends on:** B1 (all feature code finalized — auditing code that's about to change is wasted effort), AP 2a (website surface review done — no need to repeat those checks)
+- **Depends on:** B0 (decisions D4–D6 resolved), B1 (all feature code finalized — auditing code that's about to change is wasted effort), AP 2a (website surface review done — no need to repeat those checks)
 - **Checkpoint:** SAST scan clean or all findings triaged, `npm audit` clean across all packages, all `package.json` files audited for `publishConfig.access` (no accidental `public`), license field consistency (`UNLICENSED` vs proprietary), repository URLs, and package naming — auth flow review documented with CWE/CVE references, findings memo produced
 - **Unlocks:** AP 4 (production deployment requires security sign-off)
 
@@ -268,11 +289,11 @@ This is the thorough audit — AP 2a (website surface review, done pre-LS in Tra
 
 Health endpoint, metric filters, log retention, severity definitions, incident runbook. This is infrastructure work in the website repo but is sequenced here because it's operationally tied to the extension's backend.
 
-- **Depends on:** Nothing (structured logging is already complete; this builds on it)
+- **Depends on:** B0 (decision D7 resolved — log retention period needed for configuration)
 - **Checkpoint:** `/api/health` returns 200, metric filters deployed, alarms configured, log retention set, runbook exists
 - **Unlocks:** AP 4 (cannot deploy to production without monitoring)
 
-> **Note:** B3 can actually run in parallel with B1 and B2. It's independent infrastructure work. Listed here because it feeds into the same convergence point.
+> **Note:** B3 can actually run in parallel with B1 and B2 (after B0 decisions are resolved). It's independent infrastructure work. Listed here because it feeds into the same convergence point.
 
 ---
 
@@ -303,14 +324,17 @@ Level 0 (no dependencies — start immediately):
 ├── AP 12a   Delete Facebook (no disclosure risk)
 ├── AP 7.1   DMARC record
 ├── AP 8.3   HIC AI company socials (NOT personal profiles)
+└── D1–D8   Resolve open decisions (~15 min with SWR) ── Track B gate
+
+Level 0.5 (depends on D1–D8 decisions):
 ├── AP 9.8   Version update wire-up ─┐
-├── AP 9.9   Update Version command  ├── AP 9 (feature dev)
+├── AP 9.9   Update Version command  ├── AP 9 (feature dev) [needs: D1–D3]
 ├── AP 9.10  Version notification   ─┘
-└── AP 10    Monitoring (10.1–10.6)
+└── AP 10    Monitoring (10.1–10.6)  [needs: D7]
 
 Level 1 (depends on Level 0 items):
 ├── AP 11.1–11.3  Privacy/ToS review  [needs: AP 11.4 Plausible]
-└── AP 2b         Comprehensive audit  [needs: AP 9.8–9.10 code finalized, AP 2a done]
+└── AP 2b         Comprehensive audit  [needs: D4–D6, AP 9.8–9.10 code finalized, AP 2a done]
 
 Level 2 (depends on Level 1 items):
 ├── AP 1   Front-end UX polish  [needs: AP 11.1–11.3 legal pages finalized]
