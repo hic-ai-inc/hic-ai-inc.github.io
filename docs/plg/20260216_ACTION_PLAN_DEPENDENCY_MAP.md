@@ -536,6 +536,8 @@ AP 12 is split into two parts with very different risk profiles:
 
 ## External Blockers & Wait Times
 
+### Known Wait Times
+
 | Blocker                    | Estimated Wait | What Can Proceed During Wait                                                        |
 | -------------------------- | -------------- | ----------------------------------------------------------------------------------- |
 | LS application review      | ~1 week        | All of Track B (AP 9, AP 2b, AP 10), AP 7 remainder, AP 5 remainder, AP 6, AP 3 prep |
@@ -544,13 +546,31 @@ AP 12 is split into two parts with very different risk profiles:
 | Twitter/X account creation | Minutes        | N/A — effectively instant                                                           |
 | Private disclosure convos  | 1–5 days       | All of Track B; AP 8C/8D when LS decides (disclosures and payment integration are independent) |
 
+### Require Investigation (work to be done in hic-ai-inc.github.io repo)
+
+The following transitions all occur near the end of the critical path (AP 4 / AP 8C/8D). Any unexpected delay at this stage would push launch. Each needs documented expected wait time and a go-live checklist.
+
+| Blocker                                   | Estimated Wait      | Status         | Notes                                                                                               |
+| ----------------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------- |
+| **VS Code Marketplace publishing**         | **24–48h** (known)  | ⚠️ Needs verify | Publisher ID believed to be `hic-ai` (`hic-ai.mouse`). Review process is out of our hands once submitted. Must plan submission timing ≥ 2 days before launch. |
+| **Open VSX publishing**                    | **Unknown**         | ❌ Investigate  | Need to research Open VSX review/approval timeline and account setup requirements. May differ significantly from VS Code Marketplace. |
+| **Stripe test → live mode**                | **Unknown**         | ❌ Investigate  | Currently in test mode. Need to check: account verification requirements, payout schedule activation, webhook endpoint re-pointing, any review period. |
+| **Lemon Squeezy sandbox → live** (if AP 8C) | **Unknown**         | ❌ Investigate  | If LS approves MoR application: what are the steps to go from sandbox/test to live payment processing? Any additional review? |
+| **SES staging → production**               | **Unknown**         | ❌ Investigate  | SES is approved for production (50K/day) on current staging stack. Need to verify: does the new Amplify production environment inherit SES production access, or does a new SES identity/configuration need approval? |
+| **Keygen endpoint re-pointing**            | **Unknown**         | ❌ Investigate  | When deploying production environment, Keygen webhook URLs and API endpoints must point to production. Research whether this is instant config change or requires Keygen-side verification/propagation. |
+| **Amplify production environment**         | **Unknown**         | ❌ Investigate  | Creating a new Amplify environment (production branch) — need to document: CloudFormation deployment time, Cognito user pool creation, DynamoDB table provisioning, Secrets Manager population. |
+
+> **Why this matters:** The timeline currently assumes Day 10–11 is payment integration + production deployment. If any of these transitions involve a multi-day review or approval process, the true launch date shifts. Investigating all of them in the companion repo before reaching that stage prevents surprises.
+
 ### Time-Sensitivity Ranking
 
-1. **LS application** — longest external wait (~1 week); submit as early as structurally possible
-2. **Private disclosures (AP 13)** — human conversations take calendar time; start during LS wait
-3. **DMARC record** — propagation delay; do Day 1 even though it's a 5-minute task
-4. **Facebook deletion (AP 12a)** — 30-day grace period before permanent; start whenever convenient
-5. **Everything else** — no external waits; pure development/review effort
+1. **VS Code Marketplace** — 24–48h review is a hard external wait; must submit ≥ 2 days before intended launch
+2. **LS application** — longest known external wait (~1 week); submit as early as structurally possible
+3. **Private disclosures (AP 13)** — human conversations take calendar time; start during LS wait
+4. **DMARC record** — propagation delay; do Day 1 even though it’s a 5-minute task
+5. **Stripe/LS/SES/Keygen transitions** — assumed fast but uninvestigated; research ASAP to de-risk
+6. **Facebook deletion (AP 12a)** — 30-day grace period before permanent; start whenever convenient
+7. **Everything else** — no external waits; pure development/review effort
 
 ---
 
@@ -586,10 +606,18 @@ Days 8–9: AP 12b: LinkedIn update [all private disclosures complete]
           Remaining AP 3 prep (can now reference founder story publicly)
 
 Day 10: LS decision → AP 8C (migration, 8–10h) or AP 8D (Stripe live, 3–4h)
+        ⚠️ Stripe/LS transition time TBD — may add 0–3 days
 
 Day 11: AP 4 (production deployment, 6–8h)
+        ⚠️ Amplify prod env + SES + Keygen re-pointing time TBD
 
-Day 12: Final verification → LAUNCH
+Day 12: Submit to VS Code Marketplace + Open VSX
+        ⚠️ VS Code Marketplace: 24–48h review
+        ⚠️ Open VSX: TBD
+
+Day 13–14: Extension goes live → LAUNCH
 ```
 
-This is optimistic but structurally sound. The critical path runs through: Plausible → Legal → UX → LS application → LS wait (during which: private disclosures → LinkedIn update) → Payment integration → Production deploy.
+This is optimistic but structurally sound. The critical path runs through: Plausible → Legal → UX → LS application → LS wait (during which: private disclosures → LinkedIn update) → Payment integration → Production deploy → Marketplace publishing.
+
+> **⚠️ Timeline risk:** Days 10–14 contain multiple uninvestigated external transitions (Stripe/LS go-live, SES production, Keygen re-pointing, Amplify production deploy, marketplace review). Research in the companion repo is needed to firm up these estimates and prevent surprises.
