@@ -179,7 +179,8 @@ The project is in significantly stronger shape than the PLG Roadmap v7.0 (dated 
 | #   | Action Plan                         | Est. Effort | Priority                                | Dependencies                  |
 | --- | ----------------------------------- | ----------- | --------------------------------------- | ----------------------------- |
 | 1   | Front-End UX & Content              | 6–8h        | High-value, not blocking                | None                          |
-| 2   | Security Audit                      | 6–8h        | **LAUNCH BLOCKER**                      | None                          |
+| 2a  | Website Surface Security Review     | 2–3h        | Pre-LS (strengthens application)        | AP 1 (near-final site)        |
+| 2b  | Comprehensive Security Audit        | 4–5h        | **LAUNCH BLOCKER**                      | AP 9.8–9.10 (code finalized)  |
 | 3   | Marketing Plan                      | 8–12h       | Post-launch OK, prep in advance         | AP 1 (content finalized)      |
 | 4   | Launch Plan & Deployment            | 6–8h        | **LAUNCH BLOCKER**                      | AP 2, AP 8 substantially done |
 | 5   | Documentation Plan                  | 6–10h       | High-value, near-blocker                | None                          |
@@ -215,33 +216,58 @@ The project is in significantly stronger shape than the PLG Roadmap v7.0 (dated 
 
 ---
 
-## Action Plan 2: Security Audit
+## Action Plan 2a: Website Surface Security Review (Pre-LS)
 
-**Estimated effort:** 6–8 hours across 1–2 sessions
+**Estimated effort:** 2–3 hours in a single session
+**Priority:** Pre-LS application (strengthens LS submission; catches visible vulnerabilities)
+**Dependencies:** AP 1 (site near-final) — or can run in parallel with AP 1 since API routes are independent of content
+
+Focused review of the public-facing website for anything an LS reviewer might notice or that could cause rejection. This is **not** the comprehensive audit — that’s AP 2b.
+
+| #    | Item                                                                                                    | Current Status                        | Effort |
+| ---- | ------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------ |
+| 2a.1 | Run `npm audit --production` on plg-website — flag/fix criticals and highs                              | Open                                  | 30m    |
+| 2a.2 | Review 4 unauthenticated endpoints (trial init, Stripe webhook, Keygen webhook, public routes)          | Open                                  | 45m    |
+| 2a.3 | Verify P0/P1/P2 safeJsonParse fixes deployed to staging                                                 | ✅ Fixes implemented Feb 15           | 15m    |
+| 2a.4 | Check HTTP security headers on staging.hic-ai.com (CSP, HSTS, X-Frame-Options)                          | Open                                  | 15m    |
+| 2a.5 | Scan client-side bundle for leaked secrets/keys (build output inspection)                                | Open                                  | 15m    |
+| 2a.6 | Verify error responses don’t leak stack traces or internal details on unauthenticated routes              | Open                                  | 15m    |
+| 2a.7 | Produce brief findings note (not full CWE/CVE memo — that’s AP 2b)                                       | Open                                  | 15m    |
+
+**What’s already done:** safeJsonParse P0/P1/P2 fixes (Feb 15), secrets audit (4 findings remediated), structured logging (33 handlers).
+
+**Definition of done:** `npm audit` clean or criticals documented, unauthenticated endpoints verified (webhook signatures, rate limits, error sanitization), HTTP headers confirmed, no secrets in client bundle, brief security note produced.
+
+---
+
+## Action Plan 2b: Comprehensive Security Audit (Post-Feature-Freeze)
+
+**Estimated effort:** 4–5 hours across 1–2 sessions
 **Priority:** LAUNCH BLOCKER
-**Dependencies:** None — feature set is effectively frozen
+**Dependencies:** AP 9.8–9.10 (feature code finalized); AP 2a (avoids re-checking website surface)
+
+Full security audit covering both repos, deep auth/authz review, and formal documented findings. Builds on AP 2a’s website surface review.
 
 | #    | Item                                                                                                               | Current Status                                       | Effort     |
 | ---- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ---------- |
-| 2.1  | Run `npm audit` on all packages (hic/mouse, hic/licensing, hic/mouse-vscode, plg-website)                          | Open                                                 | 30m        |
-| 2.2  | Run SAST tool (CodeQL or Snyk) on both repos                                                                       | Open                                                 | 1–2h       |
-| 2.3  | Manual review: authentication flows (Cognito OAuth, JWT verification, token refresh, browser-delegated activation) | Open                                                 | 1h         |
-| 2.4  | Manual review: authorization checks (per-user device scoping, role-based API access, seat enforcement)             | Open                                                 | 1h         |
-| 2.5  | Review all 24 API route files for proper auth verification                                                         | Partially done — structured logging added visibility | 1h         |
-| 2.6  | Review OAuth PKCE implementation in browser-delegated activation flow                                              | Open                                                 | 30m        |
-| 2.7  | Document findings with CWE/CVE references (per HIC coding standards)                                               | Open                                                 | 1h         |
-| 2.8  | Verify all 4 secrets audit findings remain remediated                                                              | ✅ Done Feb 15                                       | 15m verify |
-| 2.9  | Verify P0/P1/P2 safe JSON parsing fixes                                                                            | ✅ Done Feb 15                                       | 15m verify |
-| 2.10 | Verify no hardcoded credentials in committed code                                                                  | Partially done via secrets audit                     | 30m        |
+| 2b.1 | Run `npm audit` on hic/mouse, hic/licensing, hic/mouse-vscode                                                      | Open                                                 | 15m        |
+| 2b.2 | Run SAST tool (CodeQL or Snyk) on both repos                                                                       | Open                                                 | 1–2h       |
+| 2b.3 | Manual review: authentication flows (Cognito OAuth, JWT verification, token refresh, browser-delegated activation) | Open                                                 | 1h         |
+| 2b.4 | Manual review: authorization checks (per-user device scoping, role-based API access, seat enforcement)             | Open                                                 | 1h         |
+| 2b.5 | Review OAuth PKCE implementation in browser-delegated activation flow                                              | Open                                                 | 30m        |
+| 2b.6 | Verify all 4 secrets audit findings remain remediated                                                              | ✅ Done Feb 15                                       | 15m verify |
+| 2b.7 | Verify no hardcoded credentials in committed code (full scan)                                                      | Partially done via secrets audit                     | 30m        |
+| 2b.8 | Document all findings with CWE/CVE references (per HIC coding standards)                                           | Open                                                 | 1h         |
 
-**What's already done and doesn't need repeating:**
+**What’s already done and doesn’t need repeating:**
 
+- AP 2a website surface review (npm audit, headers, unauthenticated endpoints)
 - Secrets hygiene audit (4 findings — all remediated, E2E validated)
 - Structured logging (33 handlers across 24 route files)
 - Safe JSON parsing (P0/P1/P2 fixes + test coverage)
 - IAM hardening (AmplifyComputeRole in CloudFormation, ARN-based DynamoDB scope)
 
-**Definition of done:** SAST scan clean (or all findings triaged), `npm audit` clean or documented, auth flow review documented, all endpoints confirmed auth-gated, findings memo written with CWE/CVE codes.
+**Definition of done:** SAST scan clean (or all findings triaged), `npm audit` clean across all packages, auth flow review documented, PKCE reviewed, all endpoints confirmed auth-gated, findings memo written with CWE/CVE codes.
 
 ---
 
@@ -553,43 +579,44 @@ The Lemon Squeezy application has an external dependency (~1 week review time) t
 | ----- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | **1** | **AP 1 (essential items)** — Website polish                  | LS requires a presentable website; fix broken links, proofread copy     |
 | **2** | **AP 5 (essential items)** — Documentation accuracy          | LS will review docs; ensure they match actual product                   |
-| **3** | **AP 7 (item 7.1)** — DMARC record                          | Quick DNS change; improves email deliverability before LS reviews       |
-| **4** | **AP 8 Phase A** — Submit LS application                     | Submit ASAP; ~1 week external wait time                                 |
+| **3** | **AP 2a** — Website surface security review                   | Catch visible vulnerabilities before LS reviewer sees the site          |
+| **4** | **AP 7 (item 7.1)** — DMARC record                          | Quick DNS change; improves email deliverability before LS reviews       |
+| **5** | **AP 8 Phase A** — Submit LS application                     | Submit ASAP; ~1 week external wait time                                 |
 
 ### While Waiting for LS Review (~1 week): Critical Path
 
 | Order | Action Plan                                         | Key Rationale                                                    |
 | ----- | --------------------------------------------------- | ---------------------------------------------------------------- |
-| **5** | **AP 9 (items 9.8–9.10)** — Version update wire-up  | Last true Tier 1 feature blocker; everything else is operational |
-| **6** | **AP 10 (items 10.1–10.6)** — Monitoring essentials | Cannot launch blind; need health endpoint and alarms             |
-| **7** | **AP 2** — Security audit                           | Formal SAST + auth review before opening to the public           |
-| **8** | **AP 11** — Legal review                            | Privacy/ToS must be accurate before accepting payments           |
-| **8a**| **AP 12a** — Delete Facebook                        | Zero-risk cleanup; can be done anytime during wait               |
-| **8b**| **AP 13** — Private disclosures (13.1→13.2→13.3→13.4) | Fits LS wait window; must complete before AP 12b              |
-| **8c**| **AP 12b** — Update LinkedIn                        | After AP 13 completes; irreversible public disclosure            |
-| **9** | **AP 7 (remaining items)** — Email deliverability   | DMARC + verification of all transactional email flows            |
+| **6** | **AP 9 (items 9.8–9.10)** — Version update wire-up  | Last true Tier 1 feature blocker; everything else is operational |
+| **7** | **AP 10 (items 10.1–10.6)** — Monitoring essentials | Cannot launch blind; need health endpoint and alarms             |
+| **8** | **AP 2b** — Comprehensive security audit             | Formal SAST + auth review covering both repos; builds on AP 2a   |
+| **9** | **AP 11** — Legal review                            | Privacy/ToS must be accurate before accepting payments           |
+| **9a**| **AP 12a** — Delete Facebook                        | Zero-risk cleanup; can be done anytime during wait               |
+| **9b**| **AP 13** — Private disclosures (13.1→13.2→13.3→13.4) | Fits LS wait window; must complete before AP 12b              |
+| **9c**| **AP 12b** — Update LinkedIn                        | After AP 13 completes; irreversible public disclosure            |
+| **10**| **AP 7 (remaining items)** — Email deliverability   | DMARC + verification of all transactional email flows            |
 
 ### On LS Decision: Payment Integration
 
 | Order  | Action Plan                                                  | Key Rationale                                                    |
 | ------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| **10** | **AP 8 Phase C** (if approved) or **Phase D** (if rejected)  | Payment integration is gate to production launch                 |
-| **11** | **AP 4** — Launch plan + production deployment               | Creates the production environment; depends on payment decision  |
+| **11** | **AP 8 Phase C** (if approved) or **Phase D** (if rejected)  | Payment integration is gate to production launch                 |
+| **12** | **AP 4** — Launch plan + production deployment               | Creates the production environment; depends on payment decision  |
 
 ### High-Value Work (parallel with critical path where possible)
 
 | Order  | Action Plan                  | Key Rationale                                    |
 | ------ | ---------------------------- | ------------------------------------------------ |
-| **12** | **AP 5 (remaining)** — Docs  | Can work in parallel; reduces support burden     |
-| **13** | **AP 1 (remaining)** — UX    | Can work in parallel; improves first impressions |
-| **14** | **AP 6** — Support setup     | Should be ready at launch                        |
-| **15** | **AP 3** — Marketing         | Post-launch OK but prepare materials in advance  |
+| **13** | **AP 5 (remaining)** — Docs  | Can work in parallel; reduces support burden     |
+| **14** | **AP 1 (remaining)** — UX    | Can work in parallel; improves first impressions |
+| **15** | **AP 6** — Support setup     | Should be ready at launch                        |
+| **16** | **AP 3** — Marketing         | Post-launch OK but prepare materials in advance  |
 
 ### Parallelization Opportunities
 
 - **AP 1 + AP 5 + AP 11** can be worked simultaneously (content, docs, legal all independent)
 - **AP 7 item 7.1** (DMARC) can be done in minutes — do it first
-- **AP 2** can start immediately (security audit has no dependencies)
+- **AP 2a** can run pre-LS (website surface review has no hard dependencies); **AP 2b** starts after AP 9 feature code finalizes
 - **AP 9 (9.8–9.10)** is the only feature development work and can start any time
 - Most critical-path work (AP 2, 7, 9, 10, 11) can proceed during LS review wait
 

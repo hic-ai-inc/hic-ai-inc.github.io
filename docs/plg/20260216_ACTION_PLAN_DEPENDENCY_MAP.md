@@ -33,13 +33,18 @@ AP 11.4: Wire up Plausible         AP 9.8–9.10: Heartbeat version
     │                                   wire-up + Update command
     ▼                                   │
 AP 11.1–11.3: Privacy/ToS              ▼
-    review (reflects Plausible)    AP 2: Security audit
-    │                                   (after code is finalized)
+    review (reflects Plausible)    AP 2b: Comprehensive security
+    │                                   audit (after code finalized)
     ▼                                   │
 AP 1: Front-end UX/content             ▼
     (includes legal pages)         AP 10: Monitoring & observability
     │                                   (health endpoint, alarms)
     ├──▶ AP 5: Docs accuracy            │
+    │                                   │
+    ▼                                   │
+AP 2a: Website surface security        │
+    review (npm audit, headers,         │
+    unauthenticated endpoints)          │
     │                                   │
     ▼                                   │
 AP 12a: Delete Facebook                │
@@ -117,6 +122,24 @@ Audit existing docs pages, verify Getting Started guide, confirm docs link resol
 - **Depends on:** Nothing (can run in parallel with A2/A3 since docs content is independent of legal pages)
 - **Checkpoint:** Every docs slug visited and content verified, no 404s from navigation
 - **Unlocks:** AP 8A (docs accuracy for LS application), AP 6 (support infra references docs)
+
+### Step A4.5: Website Surface Security Review (AP 2a)
+
+Focused security review of the public-facing website before submitting to LS. This is not the comprehensive audit (that's AP 2b in Track B) — it's specifically looking for anything an LS reviewer might notice or that could cause rejection: unprotected endpoints, `npm audit` criticals, missing HTTP security headers, information leakage in error responses.
+
+**Scope (website repo only):**
+- `npm audit --production` on plg-website — flag/fix any critical or high vulnerabilities
+- Review the 4 unauthenticated endpoints (`/api/license/trial/init`, `/api/webhooks/stripe`, `/api/webhooks/keygen`, public routes) — verify webhook signature validation, rate limiting, error response sanitization
+- Verify P0/P1/P2 safeJsonParse fixes are deployed to staging
+- Check HTTP security headers on staging.hic-ai.com (CSP, HSTS, X-Frame-Options)
+- Quick scan for secrets/keys in client-side bundle (build output inspection)
+- Brief findings note (not the full CWE/CVE memo — that's AP 2b)
+
+**What this is NOT:** This is not the comprehensive SAST scan, auth flow review, PKCE audit, or full credential scan. Those remain in AP 2b after all feature code is finalized.
+
+- **Depends on:** A3 (front-end polish — so the site is in its near-final state when reviewed) or can run in parallel with A3/A4 since it targets API routes and infrastructure, not content
+- **Checkpoint:** `npm audit` clean or criticals documented, unauthenticated endpoints verified, HTTP headers confirmed, no secrets in client bundle, brief security note produced
+- **Unlocks:** AP 8A (LS application strengthened — SWR can submit with confidence that the site has been security-reviewed)
 
 ### Step A5: DMARC Record (AP 7.1)
 
@@ -207,12 +230,14 @@ The last true feature development work. Parse `latestVersion` from heartbeat res
 - **Checkpoint:** Extension detects newer version from heartbeat, notification appears, `Mouse: Update Version` downloads and installs VSIX. All tests pass.
 - **Unlocks:** AP 2 (security audit should come after this — it's the last code change)
 
-### Step B2: Security Audit (AP 2)
+### Step B2: Comprehensive Security Audit (AP 2b)
 
-SAST scan, `npm audit`, manual auth flow review, PKCE review, credential scan. Must be done **after** B1 because the security audit should cover the final codebase, not an intermediate state that will change.
+Full SAST/CodeQL scan across both repos, complete auth flow review (Cognito OAuth, PKCE, token refresh, browser-delegated activation), authorization review (per-user device scoping, seat enforcement, role-based access), and documented findings memo. Must be done **after** B1 because the security audit should cover the final codebase, not an intermediate state that will change.
 
-- **Depends on:** B1 (all feature code finalized — auditing code that's about to change is wasted effort)
-- **Checkpoint:** SAST scan clean or all findings triaged, `npm audit` clean, auth flow review documented with CWE/CVE references, findings memo produced
+This is the thorough audit — AP 2a (website surface review, done pre-LS in Track A) already caught the most visible issues. AP 2b covers the deeper attack surface: extension code, auth protocols, cross-repo credential flow, and the formal CWE/CVE documentation.
+
+- **Depends on:** B1 (all feature code finalized — auditing code that's about to change is wasted effort), AP 2a (website surface review done — no need to repeat those checks)
+- **Checkpoint:** SAST scan clean or all findings triaged, `npm audit` clean across all packages, auth flow review documented with CWE/CVE references, findings memo produced
 - **Unlocks:** AP 4 (production deployment requires security sign-off)
 
 ### Step B3: Monitoring & Observability (AP 10.1–10.6)
@@ -235,7 +260,8 @@ Both tracks must complete before production deployment.
 
 - **Depends on:**
   - Track A: A8 ✅ (payment provider locked in and integrated)
-  - Track B: B2 ✅ (security audit complete), B3 ✅ (monitoring in place)
+  - Track A: A4.5 ✅ (website surface security review done pre-LS)
+  - Track B: B2 ✅ (comprehensive security audit complete), B3 ✅ (monitoring in place)
   - AP 7 ✅ (email deliverability verified — transactional emails must work before accepting payments)
   - AP 11 ✅ (legal review complete — ToS/Privacy must be accurate before accepting payments)
 - **Checkpoint:** Production environment created in Amplify, secrets populated, CloudFormation deployed, webhooks pointed at production, rollback procedures documented, DNS cut-over plan ready
@@ -261,14 +287,15 @@ Level 0 (no dependencies — start immediately):
 
 Level 1 (depends on Level 0 items):
 ├── AP 11.1–11.3  Privacy/ToS review  [needs: AP 11.4 Plausible]
-└── AP 2          Security audit       [needs: AP 9.8–9.10 code finalized]
+└── AP 2b         Comprehensive audit  [needs: AP 9.8–9.10 code finalized, AP 2a done]
 
 Level 2 (depends on Level 1 items):
 ├── AP 1   Front-end UX polish  [needs: AP 11.1–11.3 legal pages finalized]
+├── AP 2a  Website surface security review  [needs: AP 1 near-final, or parallel with A3/A4]
 └── AP 7   Email deliverability (remaining items 7.2–7.6)  [better after: AP 7.1 DMARC]
 
 Level 3 (depends on Level 2 items):
-├── AP 8A  LS application  [needs: AP 1 website presentable, AP 5 docs, AP 7.1, AP 8.3 social]
+├── AP 8A  LS application  [needs: AP 1 website presentable, AP 2a surface review, AP 5 docs, AP 7.1, AP 8.3 social]
 └── AP 3   Marketing plan  [needs: AP 1 content finalized]
 
 Level 3.5 (during LS wait — personal/disclosure track):
@@ -279,7 +306,7 @@ Level 4 (depends on Level 3 + external wait):
 └── AP 8C/8D  Payment integration  [needs: AP 8A + LS decision]
 
 Level 5 (convergence):
-├── AP 4   Production deployment  [needs: AP 8C/8D, AP 2, AP 10, AP 7, AP 11]
+├── AP 4   Production deployment  [needs: AP 8C/8D, AP 2b, AP 10, AP 7, AP 11]
 ├── AP 6   Support infrastructure [needs: AP 5 docs]
 └── AP 3   Marketing (finalize)   [needs: AP 1 content, AP 12b LinkedIn done]
 
@@ -303,9 +330,10 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 | CP-6  | DMARC live                    | `dig TXT _dmarc.hic-ai.com` returns valid record                            | AP 7, AP 8A                  |
 | CP-7  | Social media exists           | Twitter/X account live with bio + link + at least 1 post                    | AP 8A (LS application)       |
 | CP-8  | LS application submitted      | Confirmation email from Lemon Squeezy                                       | AP 8C/8D (after ~1 week)     |
-| CP-9  | Version update working        | Extension detects newer version, notification shows, `Update Version` works | AP 2 (security audit)        |
-| CP-10 | All extension tests pass      | `npm test` in mouse, mouse-vscode, licensing — 0 failures                   | AP 2 (security audit)        |
-| CP-11 | Security audit complete       | Findings memo produced with CWE/CVE refs, SAST clean or triaged             | AP 4 (production deployment) |
+| CP-9  | Version update working        | Extension detects newer version, notification shows, `Update Version` works | AP 2b (comprehensive audit)  |
+| CP-10 | All extension tests pass      | `npm test` in mouse, mouse-vscode, licensing — 0 failures                   | AP 2b (comprehensive audit)  |
+| CP-10a| Website surface security OK   | `npm audit` clean, headers verified, unauthenticated endpoints reviewed     | AP 8A (LS application)       |
+| CP-11 | Comprehensive audit complete  | Findings memo produced with CWE/CVE refs, SAST clean or triaged             | AP 4 (production deployment) |
 | CP-12 | Monitoring operational        | `/api/health` returns 200, metric alarms configured, runbook exists         | AP 4 (production deployment) |
 | CP-13 | Email deliverability verified | Test emails reach Gmail + Outlook inboxes (not spam), all types fire        | AP 4 (production deployment) |
 | CP-14 | Payment integration tested    | All 4 checkout paths E2E tested, webhooks firing, license provisioned       | AP 4 (production deployment) |
@@ -327,11 +355,20 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 
 **Depended on by:** AP 3 (marketing references content), AP 8A (LS wants presentable site)
 
-### AP 2: Security Audit
+### AP 2a: Website Surface Security Review (pre-LS)
+
+| Dependency          | Type | Reason                                                                                          |
+| ------------------- | ---- | ----------------------------------------------------------------------------------------------- |
+| AP 1 (UX/Content)   | Soft | Better to review the site in near-final state, but API routes can be reviewed any time            |
+
+**Depended on by:** AP 8A (LS application — submit with confidence the site has been security-reviewed)
+
+### AP 2b: Comprehensive Security Audit (post-feature-freeze)
 
 | Dependency            | Type | Reason                                                                                   |
 | --------------------- | ---- | ---------------------------------------------------------------------------------------- |
 | AP 9.8–9.10 (Phase 6) | Hard | Security audit should cover the _final_ codebase — auditing before last feature is waste |
+| AP 2a (Surface review) | Soft | Avoids re-checking what AP 2a already covered; builds on AP 2a findings                  |
 
 **Depended on by:** AP 4 (cannot deploy to production without security clearance)
 
@@ -347,7 +384,7 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 
 | Dependency          | Type | Reason                                                        |
 | ------------------- | ---- | ------------------------------------------------------------- |
-| AP 2 (Security)     | Hard | Cannot deploy to production without security sign-off         |
+| AP 2b (Security)    | Hard | Cannot deploy to production without comprehensive security sign-off |
 | AP 8C/8D (Payments) | Hard | Must know which payment provider to configure in production   |
 | AP 10 (Monitoring)  | Hard | Cannot launch blind — health endpoint and alarms must exist   |
 | AP 7 (Email)        | Hard | Transactional emails must work before accepting real payments |
@@ -386,6 +423,7 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 | Dependency           | Type | Reason                                                           |
 | -------------------- | ---- | ---------------------------------------------------------------- |
 | AP 1 (UX/Content)    | Hard | LS requires presentable website for MoR application              |
+| AP 2a (Surface sec.) | Soft | Ensures no visible vulnerabilities before LS reviewer sees site  |
 | AP 5 (Docs)          | Hard | LS reviewers may check docs — must be functional                 |
 | AP 7.1 (DMARC)       | Soft | Strengthens application (professional email setup)               |
 | AP 8.3 (Social)      | Hard | LS previously rejected citing no social media                    |
@@ -463,11 +501,12 @@ AP 12 is split into two parts with very different risk profiles:
 
 ### Fully Independent (zero overlap, can be done simultaneously)
 
-| Track A Work                  | Track B Work                       |
-| ----------------------------- | ---------------------------------- |
-| AP 11.4 Plausible integration | AP 9.8–9.10 Version update wire-up |
-| AP 11.1–11.3 Legal review     | AP 2 Security audit                |
-| AP 1 Front-end polish         | AP 10 Monitoring setup             |
+| Track A Work                         | Track B Work                       |
+| ------------------------------------ | ---------------------------------- |
+| AP 11.4 Plausible integration        | AP 9.8–9.10 Version update wire-up |
+| AP 11.1–11.3 Legal review            | AP 2b Comprehensive security audit |
+| AP 1 Front-end polish                | AP 10 Monitoring setup             |
+| AP 2a Website surface security review|                                    |
 | AP 5 Documentation            |                                    |
 | AP 7 Email deliverability     |                                    |
 | AP 8A LS application          |                                    |
@@ -488,7 +527,7 @@ AP 12 is split into two parts with very different risk profiles:
 | -------------------------- | ---------------------------- | ------------------------------------------- |
 | AP 11.1 (Privacy Policy)   | AP 11.4 (Plausible wired up) | Policy must describe actual analytics state |
 | AP 1 (Full site proofread) | AP 11.1–11.3 (Legal review)  | Don't proofread pages that will change      |
-| AP 2 (Security audit)      | AP 9.8–9.10 (Feature code)   | Audit the final code, not intermediate      |
+| AP 2b (Comprehensive audit)| AP 9.8–9.10 (Feature code)   | Audit the final code, not intermediate      |
 | AP 8A (LS application)     | AP 1 + AP 5 + AP 8.3         | Application needs presentable site + docs   |
 | AP 12b (LinkedIn update)   | AP 13 (Private disclosures)  | Public profile change is the disclosure event |
 | AP 4 (Production deploy)   | AP 2 + AP 8C/8D + AP 10      | All convergence dependencies                |
@@ -499,7 +538,7 @@ AP 12 is split into two parts with very different risk profiles:
 
 | Blocker                    | Estimated Wait | What Can Proceed During Wait                                                        |
 | -------------------------- | -------------- | ----------------------------------------------------------------------------------- |
-| LS application review      | ~1 week        | All of Track B (AP 9, AP 2, AP 10), AP 7 remainder, AP 5 remainder, AP 6, AP 3 prep |
+| LS application review      | ~1 week        | All of Track B (AP 9, AP 2b, AP 10), AP 7 remainder, AP 5 remainder, AP 6, AP 3 prep |
 | DMARC DNS propagation      | 1–48 hours     | Everything — propagation is passive                                                 |
 | Plausible account setup    | Minutes        | N/A — effectively instant                                                           |
 | Twitter/X account creation | Minutes        | N/A — effectively instant                                                           |
@@ -529,11 +568,11 @@ Day 2:  AP 11.1–11.3 (Legal review, 2.5h) [Plausible now wired]
         AP 10 begin (monitoring, 4–6h)
 
 Day 3:  AP 1 (Front-end polish, 6–8h) [legal pages now final]
-        AP 2 begin (security audit) [version code now final]
+        AP 2a (Website surface security review, 2–3h) [site near-final]
         AP 8.3 (HIC AI Twitter/X account, 30m) [company account only]
 
-Day 4:  AP 8A: Submit LS application [site presentable, docs functional, social exists]
-        AP 2 continue/complete
+Day 4:  AP 8A: Submit LS application [site presentable, security-reviewed, docs functional, social exists]
+        AP 2b begin (comprehensive security audit) [version code now final]
         AP 7 remainder (email testing, 2–3h)
         AP 10 continue/complete
 
