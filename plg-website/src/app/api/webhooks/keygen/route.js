@@ -21,6 +21,7 @@ import {
 // updateLicenseStatus() with eventType → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
 import crypto from "crypto";
 import { createApiLogger } from "@/lib/api-log";
+import { safeJsonParse } from "../../../../../../dm/layers/base/src/index.js";
 
 // Ed25519 public key from KeyGen webhook configuration
 // Format: base64-encoded public key
@@ -158,7 +159,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    const event = JSON.parse(payload);
+    const event = safeJsonParse(payload, { source: "keygen-webhook" });
     const { data, meta } = event;
 
     log.info("keygen_webhook_received", "Keygen webhook event received", {

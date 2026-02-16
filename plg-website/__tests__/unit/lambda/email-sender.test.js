@@ -610,4 +610,105 @@ describe("Email Sender Lambda", async () => {
     });
 
   });
+  describe("Safe JSON Parsing (CWE-20/400/502)", () => {
+    test("counts malformed JSON record body as failure via safeJsonParse", async () => {
+      const event = {
+        Records: [
+          {
+            messageId: "msg-malformed-json",
+            body: "this is not valid json",
+          },
+        ],
+      };
+
+      const result = await handler(event);
+
+      // safeJsonParse throws inside try/catch -> counted as failed
+      expect(result.failed).toBe(1);
+      expect(result.success).toBe(0);
+      expect(result.batchItemFailures.length).toBe(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe("msg-malformed-json");
+    });
+
+    test("counts empty body record as failure via safeJsonParse", async () => {
+      const event = {
+        Records: [
+          {
+            messageId: "msg-empty-body",
+            body: "",
+          },
+        ],
+      };
+
+      const result = await handler(event);
+
+      expect(result.failed).toBe(1);
+      expect(result.batchItemFailures.length).toBe(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe("msg-empty-body");
+    });
+
+    test("counts deeply nested JSON body as failure (maxDepth)", async () => {
+      let nested = { eventType: { S: "LICENSE_CREATED" } };
+      for (let i = 0; i < 15; i++) {
+        nested = { wrapper: nested };
+      }
+      const event = {
+        Records: [
+          {
+            messageId: "msg-deep-nesting",
+            body: JSON.stringify({ newImage: nested }),
+          },
+        ],
+      };
+
+      const result = await handler(event);
+
+      expect(result.failed).toBe(1);
+      expect(result.batchItemFailures.length).toBe(1);
+    });
+
+    test("counts record with excessive keys as failure (maxKeys)", async () => {
+      const bigObj = {};
+      for (let i = 0; i < 1100; i++) {
+        bigObj[`k${i}`] = { S: `v${i}` };
+      }
+      const event = {
+        Records: [
+          {
+            messageId: "msg-too-many-keys",
+            body: JSON.stringify({ newImage: bigObj }),
+          },
+        ],
+      };
+
+      const result = await handler(event);
+
+      expect(result.failed).toBe(1);
+      expect(result.batchItemFailures.length).toBe(1);
+    });
+
+    test("processes valid records normally alongside malformed ones", async () => {
+      const event = {
+        Records: [
+          {
+            messageId: "msg-bad",
+            body: "{{{not-json",
+          },
+          createSqsRecord("LICENSE_CREATED", "user@example.com", {
+            licenseKey: { S: "KEY-123" },
+            planName: { S: "PRO" },
+          }),
+        ],
+      };
+
+      const result = await handler(event);
+
+      // First record fails, second succeeds
+      expect(result.failed).toBe(1);
+      expect(result.success).toBe(1);
+      expect(result.batchItemFailures.length).toBe(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe("msg-bad");
+    });
+  });
+
 });

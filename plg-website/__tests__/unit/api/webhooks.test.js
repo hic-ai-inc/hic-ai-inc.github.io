@@ -7,7 +7,7 @@
  * - Handler behaviors
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, before, beforeEach, mock } from "node:test";
 import assert from "node:assert";
 import crypto from "crypto";
 
@@ -381,6 +381,78 @@ describe("webhooks/keygen API logic", () => {
       assert.strictEqual(mapEventToStatus("license.created"), null);
     });
   });
+
+describe("webhooks/keygen - safeJsonParse integration (CWE-20/400/502)", () => {
+  /**
+   * Validates that safeJsonParse protects the keygen webhook handler
+   * against malformed, oversized, and deeply-nested JSON payloads.
+   * In production, safeJsonParse throws on invalid input and the outer
+   * try/catch in POST() returns 500.
+   *
+   * These tests exercise safeJsonParse directly with the same source label
+   * used in production code.
+   */
+  let safeJsonParse;
+
+  before(async () => {
+    const mod = await import("../../../../dm/layers/base/src/index.js");
+    safeJsonParse = mod.safeJsonParse;
+  });
+
+  it("should reject invalid JSON payload", () => {
+    assert.throws(
+      () => safeJsonParse("not valid json at all", { source: "keygen-webhook" }),
+      { message: /JSON parse failed for keygen-webhook/ }
+    );
+  });
+
+  it("should reject empty string payload", () => {
+    assert.throws(
+      () => safeJsonParse("", { source: "keygen-webhook" }),
+      { message: /Invalid JSON input: keygen-webhook/ }
+    );
+  });
+
+  it("should reject deeply nested JSON payload exceeding maxDepth", () => {
+    let nested = { data: "leaf" };
+    for (let i = 0; i < 15; i++) {
+      nested = { wrapper: nested };
+    }
+    const deepJson = JSON.stringify(nested);
+
+    assert.throws(
+      () => safeJsonParse(deepJson, { source: "keygen-webhook" }),
+      { message: /too deeply nested/ }
+    );
+  });
+
+  it("should reject JSON payload with excessive keys", () => {
+    const bigObj = {};
+    for (let i = 0; i < 1100; i++) {
+      bigObj[`k${i}`] = i;
+    }
+    const bigJson = JSON.stringify(bigObj);
+
+    assert.throws(
+      () => safeJsonParse(bigJson, { source: "keygen-webhook" }),
+      { message: /too complex/ }
+    );
+  });
+
+  it("should accept well-formed webhook payload", () => {
+    const validPayload = JSON.stringify({
+      data: { id: "lic_abc123", type: "licenses" },
+      meta: { event: "license.created" },
+    });
+
+    const result = safeJsonParse(validPayload, { source: "keygen-webhook" });
+
+    assert.strictEqual(result.meta.event, "license.created");
+    assert.strictEqual(result.data.id, "lic_abc123");
+  });
+});
+
+
 });
 
 describe("webhook handler patterns", () => {

@@ -584,3 +584,90 @@ console.log("All tests passed! ✅");
 console.log(
   "\nNote: These tests use mock data. Run 'npm run metrics' with real API keys to test against live APIs.",
 );
+
+// ============================================================================
+// Safe JSON Parsing Tests (CWE-20/400/502)
+// ============================================================================
+
+console.log("\n=== tryJsonParse Integration Tests ===\n");
+
+// Test: tryJsonParse returns ok:false for invalid JSON
+{
+  const { tryJsonParse } = await import("../../../../dm/layers/base/src/index.js");
+
+  const result = tryJsonParse("not-valid-json", { source: "plg-metrics-api" });
+  expect(result.ok).toBe(false);
+  expect(typeof result.error).toBe("string");
+  expect(result.error).toContain("plg-metrics-api");
+  console.log("\u2713 tryJsonParse: returns ok:false for invalid JSON with source label");
+}
+
+// Test: tryJsonParse returns ok:false for empty string
+{
+  const { tryJsonParse } = await import("../../../../dm/layers/base/src/index.js");
+
+  const result = tryJsonParse("", { source: "plg-metrics-api" });
+  expect(result.ok).toBe(false);
+  console.log("\u2713 tryJsonParse: returns ok:false for empty string");
+}
+
+// Test: tryJsonParse returns ok:true with parsed value for valid JSON
+{
+  const { tryJsonParse } = await import("../../../../dm/layers/base/src/index.js");
+
+  const validJson = JSON.stringify({ status: 200, data: [1, 2, 3] });
+  const result = tryJsonParse(validJson, { source: "plg-metrics-api" });
+  expect(result.ok).toBe(true);
+  expect(result.value.status).toBe(200);
+  expect(result.value.data.length).toBe(3);
+  console.log("\u2713 tryJsonParse: returns ok:true with parsed value for valid JSON");
+}
+
+// Test: tryJsonParse rejects deeply nested JSON (maxDepth)
+{
+  const { tryJsonParse } = await import("../../../../dm/layers/base/src/index.js");
+
+  let nested = { data: "leaf" };
+  for (let i = 0; i < 15; i++) {
+    nested = { wrapper: nested };
+  }
+  const result = tryJsonParse(JSON.stringify(nested), { source: "plg-metrics-api" });
+  expect(result.ok).toBe(false);
+  expect(result.error).toContain("deeply nested");
+  console.log("\u2713 tryJsonParse: rejects deeply nested JSON (maxDepth)");
+}
+
+// Test: tryJsonParse rejects JSON with excessive keys (maxKeys)
+{
+  const { tryJsonParse } = await import("../../../../dm/layers/base/src/index.js");
+
+  const bigObj = {};
+  for (let i = 0; i < 1100; i++) {
+    bigObj[`k${i}`] = i;
+  }
+  const result = tryJsonParse(JSON.stringify(bigObj), { source: "plg-metrics-api" });
+  expect(result.ok).toBe(false);
+  expect(result.error).toContain("complex");
+  console.log("\u2713 tryJsonParse: rejects JSON with excessive keys (maxKeys)");
+}
+
+// Test: stripeRequest correctly passes through httpsRequest response data
+{
+  setupMocks();
+
+  // Mock httpsRequest to return a valid response structure.
+  // Note: the mock bypasses the real httpsRequest (which contains tryJsonParse),
+  // so we verify the stripeRequest → httpsRequest contract instead.
+  __setHttpsRequestForTests(async () => {
+    return { status: 200, data: { charges: [{ id: "ch_test" }] } };
+  });
+
+  const result = await stripeRequest("/v1/charges", {});
+  // stripeRequest returns response.data when status is 200
+  expect(result.charges).toBeDefined();
+  expect(result.charges[0].id).toBe("ch_test");
+
+  cleanupMocks();
+  console.log("\u2713 stripeRequest: passes through httpsRequest response data correctly");
+}
+console.log("\n=== tryJsonParse Integration Tests Complete ===\n");

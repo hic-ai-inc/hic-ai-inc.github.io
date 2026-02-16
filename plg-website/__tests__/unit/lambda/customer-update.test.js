@@ -495,4 +495,107 @@ describe("Customer Update Lambda", () => {
       );
     });
   });
+  describe("Safe JSON Parsing (CWE-20/400/502)", () => {
+    test("skips records with malformed JSON body via tryJsonParse", async () => {
+      const event = {
+        Records: [
+          {
+            messageId: "msg-malformed",
+            receiptHandle: "receipt-0",
+            body: "this is not json",
+            attributes: {},
+            messageAttributes: {},
+            eventSource: "aws:sqs",
+          },
+          {
+            messageId: "msg-valid",
+            receiptHandle: "receipt-1",
+            body: JSON.stringify({
+              newImage: createNewImage({ eventType: "unknown.event" }),
+            }),
+            attributes: {},
+            messageAttributes: {},
+            eventSource: "aws:sqs",
+          },
+        ],
+      };
+
+      // Should NOT throw — malformed record is skipped, valid record processed
+      const result = await handler(event);
+      expect(result.processed).toBe(2);
+    });
+
+    test("skips records with empty body via tryJsonParse", async () => {
+      const event = {
+        Records: [
+          {
+            messageId: "msg-empty",
+            receiptHandle: "receipt-0",
+            body: "",
+            attributes: {},
+            messageAttributes: {},
+            eventSource: "aws:sqs",
+          },
+        ],
+      };
+
+      const result = await handler(event);
+      expect(result.processed).toBe(1);
+    });
+
+    test("skips records with deeply nested JSON body (maxDepth)", async () => {
+      let nested = { eventType: { S: "test" } };
+      for (let i = 0; i < 15; i++) {
+        nested = { level: nested };
+      }
+      const event = {
+        Records: [
+          {
+            messageId: "msg-deep",
+            receiptHandle: "receipt-0",
+            body: JSON.stringify({ newImage: nested }),
+            attributes: {},
+            messageAttributes: {},
+            eventSource: "aws:sqs",
+          },
+        ],
+      };
+
+      const result = await handler(event);
+      expect(result.processed).toBe(1);
+    });
+
+    test("skips records with excessive keys in body (maxKeys)", async () => {
+      const bigObj = {};
+      for (let i = 0; i < 1100; i++) {
+        bigObj[`key_${i}`] = { S: `val_${i}` };
+      }
+      const event = {
+        Records: [
+          {
+            messageId: "msg-bigkeys",
+            receiptHandle: "receipt-0",
+            body: JSON.stringify({ newImage: bigObj }),
+            attributes: {},
+            messageAttributes: {},
+            eventSource: "aws:sqs",
+          },
+        ],
+      };
+
+      const result = await handler(event);
+      expect(result.processed).toBe(1);
+    });
+
+    test("processes valid JSON records normally through tryJsonParse", async () => {
+      const event = createSQSEvent([
+        { newImage: createNewImage({ eventType: "unknown.event" }) },
+      ]);
+
+      const result = await handler(event);
+      expect(result).toHaveProperty("processed");
+      expect(result.processed).toBe(1);
+    });
+  });
+
 });

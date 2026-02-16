@@ -19,7 +19,7 @@ import {
   PutCommand,
 } from "hic-dynamodb-layer";
 import { SecretsManagerClient, GetSecretValueCommand } from "hic-config-layer";
-import { HicLog } from "hic-base-layer";
+import { HicLog, tryJsonParse } from "hic-base-layer";
 
 // ============================================================================
 // Injectable Clients for Testing
@@ -473,7 +473,13 @@ export const handler = async (event) => {
   log.info("start", { recordCount: event.Records.length });
 
   for (const record of event.Records) {
-    const message = JSON.parse(record.body);
+    const { ok, value: message, error: parseError } = tryJsonParse(record.body, {
+      source: `customer-update-sqs-${record.messageId}`,
+    });
+    if (!ok) {
+      log.error("sqs-parse-failed", { messageId: record.messageId, error: parseError });
+      continue;
+    }
     const eventType = message.newImage?.eventType?.S;
 
     const handler = EVENT_HANDLERS[eventType];

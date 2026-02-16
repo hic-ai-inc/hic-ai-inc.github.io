@@ -25,7 +25,7 @@ import {
   DynamoDBDocumentClient,
   UpdateCommand,
 } from "hic-dynamodb-layer";
-import { HicLog } from "hic-base-layer";
+import { HicLog, safeJsonParse } from "hic-base-layer";
 
 // ============================================================================
 // Injectable Clients for Testing
@@ -98,7 +98,7 @@ export const handler = async (event) => {
   for (const record of event.Records) {
     try {
       // Parse SNS → SQS message
-      const message = JSON.parse(record.body);
+      const message = safeJsonParse(record.body, { source: "email-sender-sqs" });
       const newImage = message.newImage;
       const eventName = message.eventName; // INSERT, MODIFY, REMOVE
 

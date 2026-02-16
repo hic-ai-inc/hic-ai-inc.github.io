@@ -25,6 +25,7 @@ import {
 } from "@/lib/rate-limit";
 import { getAppSecrets } from "@/lib/secrets";
 import { createApiLogger } from "@/lib/api-log";
+import { safeJsonParse } from "../../../../../../../dm/layers/base/src/index.js";
 
 // Trial configuration
 const TRIAL_DURATION_DAYS = 14;
@@ -115,7 +116,7 @@ export function verifyTrialToken(token, expectedFingerprint) {
 
     // Decode and parse payload
     const payloadStr = Buffer.from(payloadB64, "base64url").toString("utf-8");
-    const payload = JSON.parse(payloadStr);
+    const payload = safeJsonParse(payloadStr, { source: "trial-token-payload" });
 
     // Verify signature
     const hmac = crypto.createHmac("sha256", TRIAL_SECRET);

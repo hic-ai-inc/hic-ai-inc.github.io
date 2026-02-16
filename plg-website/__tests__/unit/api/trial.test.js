@@ -21,6 +21,7 @@ import {
 } from "../../../../dm/facade/test-helpers/index.js";
 import { clearAllRateLimits } from "../../../src/lib/rate-limit.js";
 import crypto from "crypto";
+import { safeJsonParse } from "../../../../dm/layers/base/src/index.js";
 
 // ===========================================
 // TEST UTILITIES
@@ -78,7 +79,7 @@ function verifyTrialToken(token, expectedFingerprint) {
     }
 
     const payloadStr = Buffer.from(payloadB64, "base64url").toString("utf-8");
-    const payload = JSON.parse(payloadStr);
+    const payload = safeJsonParse(payloadStr, { source: "trial-token-payload" });
 
     const hmac = crypto.createHmac("sha256", TRIAL_SECRET);
     hmac.update(payloadStr);
@@ -438,6 +439,79 @@ describe("Trial API - token verification", () => {
 
 // ===========================================
 // RATE LIMITING TESTS
+
+// ===========================================
+// SAFE JSON PARSING TESTS (CWE-20/400/502)
+// ===========================================
+
+describe("Trial API - safeJsonParse integration", () => {
+  /**
+   * Validates that the trial token verification rejects payloads that
+   * would violate safeJsonParse safety limits. The production code
+   * (route.js) now uses safeJsonParse inside verifyTrialToken, so
+   * malformed/oversized/deeply-nested payloads should be caught by
+   * the outer try/catch and return { valid: false }.
+   */
+
+  test("rejects token with invalid JSON payload via safeJsonParse", () => {
+    // Base64url-encode something that is NOT valid JSON
+    const invalidPayloadB64 = Buffer.from("not-json-at-all{{{").toString("base64url");
+    const fakeSignature = "fakesignature";
+    const token = `${invalidPayloadB64}.${fakeSignature}`;
+
+    const result = verifyTrialToken(token, generateValidFingerprint());
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe("Token parsing failed");
+  });
+
+  test("rejects token with empty payload (caught by token format check)", () => {
+    const emptyPayloadB64 = Buffer.from("").toString("base64url");
+    const token = `${emptyPayloadB64}.fakesig`;
+
+    // Empty base64url encode of "" is "", which is falsy → format check catches first
+    const result = verifyTrialToken(token, generateValidFingerprint());
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe("Invalid token format");
+  });
+
+  test("rejects token with deeply nested JSON payload (maxDepth)", () => {
+    let nested = { fingerprint: generateValidFingerprint() };
+    for (let i = 0; i < 15; i++) {
+      nested = { level: nested };
+    }
+    const payloadStr = JSON.stringify(nested);
+    const payloadB64 = Buffer.from(payloadStr).toString("base64url");
+    const token = `${payloadB64}.fakesig`;
+
+    const result = verifyTrialToken(token, "any-fingerprint");
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe("Token parsing failed");
+  });
+
+  test("rejects token with excessive keys in payload (maxKeys)", () => {
+    const oversizedPayload = {};
+    for (let i = 0; i < 1100; i++) {
+      oversizedPayload[`key_${i}`] = i;
+    }
+    const payloadStr = JSON.stringify(oversizedPayload);
+    const payloadB64 = Buffer.from(payloadStr).toString("base64url");
+    const token = `${payloadB64}.fakesig`;
+
+    const result = verifyTrialToken(token, "any-fingerprint");
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe("Token parsing failed");
+  });
+
+  test("accepts valid token with well-formed payload through safeJsonParse", () => {
+    const fingerprint = generateValidFingerprint();
+    const { token } = generateTrialToken(fingerprint);
+    const result = verifyTrialToken(token, fingerprint);
+    expect(result.valid).toBe(true);
+    expect(result.payload.fingerprint).toBe(fingerprint);
+    expect(result.payload.type).toBe("trial");
+  });
+});
+
 // ===========================================
 
 describe("Trial API - rate limiting", () => {

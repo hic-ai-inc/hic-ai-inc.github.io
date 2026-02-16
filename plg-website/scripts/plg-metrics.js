@@ -20,6 +20,7 @@
  * @see PLG Roadmap v3 Section 1.3 - PLG Metrics to Track (7 Core)
  */
 
+import { tryJsonParse } from "../../dm/layers/base/src/index.js";
 import https from "https";
 
 // ============================================================================
@@ -82,11 +83,8 @@ function httpsRequest(options, postData = null) {
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
-        try {
-          resolve({ status: res.statusCode, data: JSON.parse(data) });
-        } catch {
-          resolve({ status: res.statusCode, data });
-        }
+        const { ok, value } = tryJsonParse(data, { source: "plg-metrics-api" });
+        resolve({ status: res.statusCode, data: ok ? value : data });
       });
     });
     req.on("error", reject);

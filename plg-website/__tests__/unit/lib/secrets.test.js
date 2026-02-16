@@ -16,6 +16,7 @@ import {
   afterEach,
   expect,
 } from "../../../../dm/facade/test-helpers/index.js";
+import { safeJsonParse as _safeJsonParse } from "../../../../dm/layers/base/src/index.js";
 
 // ============================================
 // Mock AWS SDK Clients
@@ -1117,3 +1118,62 @@ describe("secrets.js", () => {
     });
   });
 });
+
+  describe("safeJsonParse integration (CWE-20/400/502)", () => {
+    /**
+     * Validates that the secrets module uses safeJsonParse to parse
+     * Secrets Manager responses. The production code (secrets.js)
+     * now uses safeJsonParse(response.SecretString, { source: ... })
+     * instead of bare JSON.parse.
+     *
+     * These tests exercise safeJsonParse directly with the same error
+     * patterns that would be encountered in production.
+     */
+    const safeJsonParse = _safeJsonParse;
+
+    it("should reject non-JSON SecretString via safeJsonParse", () => {
+      expect(() => {
+        safeJsonParse("this-is-not-json", { source: "secrets-manager-test" });
+      }).toThrow();
+    });
+
+    it("should reject empty SecretString via safeJsonParse", () => {
+      expect(() => {
+        safeJsonParse("", { source: "secrets-manager-test" });
+      }).toThrow();
+    });
+
+    it("should reject deeply nested SecretString (maxDepth)", () => {
+      let nested = { key: "value" };
+      for (let i = 0; i < 15; i++) {
+        nested = { level: nested };
+      }
+      const deepJson = JSON.stringify(nested);
+
+      expect(() => {
+        safeJsonParse(deepJson, { source: "secrets-manager-depth-test" });
+      }).toThrow();
+    });
+
+    it("should parse valid Secrets Manager JSON response", () => {
+      const secretData = JSON.stringify({
+        STRIPE_SECRET_KEY: "sk_test_abc123",
+        STRIPE_WEBHOOK_SECRET: "whsec_xyz789",
+      });
+
+      const result = safeJsonParse(secretData, { source: "secrets-manager-plg" });
+      expect(result.STRIPE_SECRET_KEY).toBe("sk_test_abc123");
+      expect(result.STRIPE_WEBHOOK_SECRET).toBe("whsec_xyz789");
+    });
+
+    it("should include source label in error messages", () => {
+      let errorMsg = "";
+      try {
+        safeJsonParse("invalid", { source: "secrets-manager-stripe" });
+      } catch (e) {
+        errorMsg = e.message;
+      }
+      expect(errorMsg).toContain("secrets-manager-stripe");
+    });
+  });
+

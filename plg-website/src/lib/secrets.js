@@ -22,6 +22,7 @@ import {
   GetParameterCommand,
 } from "@aws-sdk/client-ssm";
 
+import { safeJsonParse } from "../../../dm/layers/base/src/index.js";
 // ═══════════════════════════════════════════════════════════════════
 // Configuration
 // ═══════════════════════════════════════════════════════════════════
@@ -184,7 +185,7 @@ export async function getSecret(secretName) {
       throw new Error(`Secret ${secretName} has no string value`);
     }
 
-    const parsed = JSON.parse(response.SecretString);
+    const parsed = safeJsonParse(response.SecretString, { source: `secrets-manager-${secretName}` });
 
     // Cache the result
     setCachedSecret(secretName, parsed);
