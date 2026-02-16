@@ -198,37 +198,37 @@ The project is in significantly stronger shape than the PLG Roadmap v7.0 (dated 
 
 ## Track B: Open Decisions Before Starting Work
 
-Track B (AP 9, AP 2b, AP 10 — all in the hic repo) is well-specified at the task level, but **8 business decisions must be resolved before an agent can execute autonomously.** These should be addressed in a single decision session (~15 minutes) at the start of Track B work.
+Track B (AP 9, AP 2b, AP 10 — all in the hic repo) is well-specified at the task level, but **8 business decisions (B-D1–B-D8) must be resolved before an agent can execute autonomously.** These should be addressed in a single decision session (~15 minutes) at the start of Track B work.
 
 ### AP 9: Version Update (3 decisions)
 
-> **Important context:** Investigation on Feb 16 revealed that the Feb 5 auto-update report's findings about "onSuccess ignoring version fields" have been **subsequently implemented.** Heartbeat `onSuccess` now parses `readyVersion || latestVersion`, compares against installed version, and calls `statusBarManager.showUpdateAvailable()`. The `mouse.checkForUpdates` and `mouse.showUpdateInfo` commands are registered and functional. **B1 may need verification, not implementation.** The scope of AP 9.8–9.10 should be reassessed at the start of Track B.
+> **Important context:** Investigation on Feb 16 revealed that the Feb 5 auto-update report's findings about "onSuccess ignoring version fields" have been **subsequently implemented.** Heartbeat `onSuccess` now parses `readyVersion || latestVersion`, compares against installed version, and calls `statusBarManager.showUpdateAvailable()`. The `mouse.checkForUpdates` and `mouse.showUpdateInfo` commands are registered and functional. **B1 may need verification, not implementation.** The scope of AP 9.8–9.10 should be reassessed once B-D1–B-D3 are resolved.
 
 | # | Decision | Context | Options |
 |---|----------|---------|--------|
-| **D1** | `/api/version` endpoint — create it, or remove `checkForUpdates()`? | `mouse.checkForUpdates` calls `https://api.hic-ai.com/version`, which may not exist in the website repo. The heartbeat-delivered version data already works as an alternative. | (a) Create endpoint in website repo; (b) Remove `checkForUpdates()` and rely solely on heartbeat |
-| **D2** | "Update Now" UX — is browser redirect acceptable for v1? | When the user clicks "Update Now," the extension either opens a browser to the download URL (manual VSIX install) or calls `workbench.extensions.installExtension` (only works if published on Marketplace). VS Code's API has no automated VSIX-download-and-install mechanism. | (a) Accept browser redirect for v1; (b) Defer "Update Now" entirely, show notification only |
-| **D3** | EventBridge rule for `readyVersion` daily gating — deploy, or launch with immediate notifications? | CloudFormation template exists but the rule isn't deployed to AWS. Without it, `latestVersion` is used directly (users see update notifications immediately upon release, with no 24-hour soak period). | (a) Deploy EventBridge rule (adds soak period); (b) Launch without it (immediate notification) |
+| **B-D1** | `/api/version` endpoint — create it, or remove `checkForUpdates()`? | `mouse.checkForUpdates` calls `https://api.hic-ai.com/version`, which may not exist in the website repo. The heartbeat-delivered version data already works as an alternative. | (a) Create endpoint in website repo; (b) Remove `checkForUpdates()` and rely solely on heartbeat |
+| **B-D2** | "Update Now" UX — is browser redirect acceptable for v1? | When the user clicks "Update Now," the extension either opens a browser to the download URL (manual VSIX install) or calls `workbench.extensions.installExtension` (only works if published on Marketplace). VS Code's API has no automated VSIX-download-and-install mechanism. | (a) Accept browser redirect for v1; (b) Defer "Update Now" entirely, show notification only |
+| **B-D3** | EventBridge rule for `readyVersion` daily gating — deploy, or launch with immediate notifications? | CloudFormation template exists but the rule isn't deployed to AWS. Without it, `latestVersion` is used directly (users see update notifications immediately upon release, with no 24-hour soak period). | (a) Deploy EventBridge rule (adds soak period); (b) Launch without it (immediate notification) |
 
 ### AP 2b: Security Audit (3 decisions)
 
 | # | Decision | Context | Options |
 |---|----------|---------|--------|
-| **D4** | Which SAST tool? | No SAST config exists beyond `npm audit`. AP 2b.2 estimates 1–2h for setup. | (a) CodeQL (free, GitHub-native); (b) Snyk (free tier, needs account); (c) ESLint security plugin (lightweight) |
-| **D5** | `package.json` field standardization | Inconsistent across 8 packages. `mouse/` and `mcp/` lack `"private": true` (accidental `npm publish` risk). `mouse/benchmark/package.json` has `"license": "MIT"` (wrong for proprietary code). `llm/` uses `PROPRIETARY`; `mouse-vscode/` uses `SEE LICENSE IN LICENSE.md`; others have no license field. | (a) All non-published: `"private": true` + `"license": "UNLICENSED"`; (b) Same but `"license": "PROPRIETARY"`; (c) Per-package decision |
-| **D6** | Security findings memo — format and location? | Coding standards require CWE/CVE documentation, but no template or prior example exists in `docs/security/`. | (a) Markdown memo in `docs/security/`; (b) Memo in `plg/docs/`; (c) Inline in PR description only |
+| **B-D4** | Which SAST tool? | No SAST config exists beyond `npm audit`. AP 2b.2 estimates 1–2h for setup. | (a) CodeQL (free, GitHub-native); (b) Snyk (free tier, needs account); (c) ESLint security plugin (lightweight) |
+| **B-D5** | `package.json` field standardization | Inconsistent across 8 packages. `mouse/` and `mcp/` lack `"private": true` (accidental `npm publish` risk). `mouse/benchmark/package.json` has `"license": "MIT"` (wrong for proprietary code). `llm/` uses `PROPRIETARY`; `mouse-vscode/` uses `SEE LICENSE IN LICENSE.md`; others have no license field. | (a) All non-published: `"private": true` + `"license": "UNLICENSED"`; (b) Same but `"license": "PROPRIETARY"`; (c) Per-package decision |
+| **B-D6** | Security findings memo — format and location? | Coding standards require CWE/CVE documentation, but no template or prior example exists in `docs/security/`. | (a) Markdown memo in `docs/security/`; (b) Memo in `plg/docs/`; (c) Inline in PR description only |
 
 ### AP 10: Monitoring (1 decision)
 
 | # | Decision | Context | Options |
 |---|----------|---------|--------|
-| **D7** | Log retention period — 14 or 30 days? | AP 10.3 lists both. Shorter = lower cost; longer = more debugging runway. | (a) 14 days; (b) 30 days |
+| **B-D7** | Log retention period — 14 or 30 days? | AP 10.3 lists both. Shorter = lower cost; longer = more debugging runway. | (a) 14 days; (b) 30 days |
 
 ### AP 4: Launch Deployment (1 decision)
 
 | # | Decision | Context | Options |
 |---|----------|---------|--------|
-| **D8** | Production API base URL? | `licensing/constants.js` has `API_BASE_URL` hardcoded to `https://staging.hic-ai.com`. Must be changed before production VSIX release. | (a) `https://hic-ai.com`; (b) `https://api.hic-ai.com`; (c) Other |
+| **B-D8** | Production API base URL? | `licensing/constants.js` has `API_BASE_URL` hardcoded to `https://staging.hic-ai.com`. Must be changed before production VSIX release. | (a) `https://hic-ai.com`; (b) `https://api.hic-ai.com`; (c) Other |
 
 ---
 
