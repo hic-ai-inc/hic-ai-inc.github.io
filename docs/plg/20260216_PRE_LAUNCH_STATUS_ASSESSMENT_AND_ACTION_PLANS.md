@@ -26,8 +26,10 @@
 15. [Action Plan 9: Interoperability & Compatibility](#action-plan-9-interoperability--compatibility)
 16. [Action Plan 10: Monitoring & Observability](#action-plan-10-monitoring--observability)
 17. [Action Plan 11: Legal Review](#action-plan-11-legal-review)
-18. [Recommended Execution Order](#recommended-execution-order)
-19. [Bottom Line](#bottom-line)
+18. [Action Plan 12: Personal Social Media Cleanup](#action-plan-12-personal-social-media-cleanup)
+19. [Action Plan 13: Private Pre-Launch Disclosure](#action-plan-13-private-pre-launch-disclosure)
+20. [Recommended Execution Order](#recommended-execution-order)
+21. [Bottom Line](#bottom-line)
 
 ---
 
@@ -187,6 +189,8 @@ The project is in significantly stronger shape than the PLG Roadmap v7.0 (dated 
 | 9   | Interoperability & Compatibility    | 4–6h        | **Contains TIER 1 blockers** (9.8–9.10) | Mouse v0.10.10 VSIX           |
 | 10  | Monitoring & Observability          | 6–8h        | **LAUNCH BLOCKER** (items 10.1–10.6)    | Structured logging ✅         |
 | 11  | Legal Review                        | 4–6h        | **LAUNCH BLOCKER**                      | None                          |
+| 12  | Personal Social Media Cleanup       | 1–2h        | Pre-launch (12b blocks marketing/launch) | 12a: None; 12b: AP 13         |
+| 13  | Private Pre-Launch Disclosure       | 3–5 days     | Pre-launch (blocks AP 12b)              | AP 8A submitted (certainty)   |
 
 ---
 
@@ -499,6 +503,46 @@ Keep Stripe operational as fallback and for test validation:
 
 ---
 
+## Action Plan 12: Personal Social Media Cleanup
+
+**Estimated effort:** 1–2 hours
+**Priority:** Pre-launch (12b is a public disclosure event — must follow AP 13)
+**Dependencies:** 12a: None; 12b: AP 13 (all private disclosures completed)
+
+AP 12 is split into two sub-tasks with different risk profiles:
+
+| #     | Item                                                                                   | Current Status | Effort | Risk Profile              |
+| ----- | -------------------------------------------------------------------------------------- | -------------- | ------ | ------------------------- |
+| 12a   | Delete personal Facebook account (reduces public surface area, zero disclosure content) | Open           | 30m    | Safe anytime — no signal  |
+| 12b   | Update LinkedIn profile (headline, about, experience entry for HIC AI Inc.)             | Open           | 1h     | **Disclosure event** — irreversible public signal |
+
+**Key constraint:** 12b (LinkedIn update) is an irreversible public disclosure. Once updated, the professional network sees the venture. This creates a hard dependency: AP 13 (private disclosures) must be fully complete before 12b.
+
+**Definition of done:** Facebook account deleted or deactivated. LinkedIn updated with HIC AI Inc. details. All updates made only after AP 13 private disclosures are complete.
+
+---
+
+## Action Plan 13: Private Pre-Launch Disclosure
+
+**Estimated effort:** 3–5 days (elapsed time; actual effort ~3–5 hours across conversations)
+**Priority:** Pre-launch (blocks AP 12b; fits perfectly in LS wait window)
+**Dependencies:** AP 8A submitted (provides certainty of direction)
+
+Private, in-person or direct conversations with key individuals before any public disclosure.
+
+| #    | Item                                                                                    | Current Status | Effort     | Sequencing                |
+| ---- | --------------------------------------------------------------------------------------- | -------------- | ---------- | ------------------------- |
+| 13.1 | Disclose to law firm partner (professional courtesy, potential conflict check)           | Open           | 1 meeting  | **First** — professional obligation |
+| 13.2 | Disclose to key client (strategic — $4B fund manager who is also a software engineer)   | Open           | 1 meeting  | **Second** — highest-value early adopter candidate |
+| 13.3 | Disclose to remaining close contacts (friends, family, select colleagues)                | Open           | 1–3 days   | **Third** — broader circle, lower urgency |
+| 13.4 | Observe silence period (allow private disclosures to settle before public signal)        | Open           | 1–2 days   | **Fourth** — buffer before AP 12b |
+
+**Sequencing rationale:** Partner first (professional obligation and potential conflict), key client second (strategic relationship — a $4B fund manager who happens to be a software engineer is the ideal early-adopter), remaining contacts third, then a silence buffer before the irreversible LinkedIn update.
+
+**Definition of done:** All planned private conversations completed. Silence period observed. SWR confirms readiness for public disclosure (AP 12b).
+
+---
+
 ## Recommended Execution Order
 
 ### Immediate Priority: LS Application Prerequisites
@@ -520,6 +564,9 @@ The Lemon Squeezy application has an external dependency (~1 week review time) t
 | **6** | **AP 10 (items 10.1–10.6)** — Monitoring essentials | Cannot launch blind; need health endpoint and alarms             |
 | **7** | **AP 2** — Security audit                           | Formal SAST + auth review before opening to the public           |
 | **8** | **AP 11** — Legal review                            | Privacy/ToS must be accurate before accepting payments           |
+| **8a**| **AP 12a** — Delete Facebook                        | Zero-risk cleanup; can be done anytime during wait               |
+| **8b**| **AP 13** — Private disclosures (13.1→13.2→13.3→13.4) | Fits LS wait window; must complete before AP 12b              |
+| **8c**| **AP 12b** — Update LinkedIn                        | After AP 13 completes; irreversible public disclosure            |
 | **9** | **AP 7 (remaining items)** — Email deliverability   | DMARC + verification of all transactional email flows            |
 
 ### On LS Decision: Payment Integration
@@ -552,7 +599,7 @@ The Lemon Squeezy application has an external dependency (~1 week review time) t
 
 The project's actual state is dramatically ahead of what the PLG Roadmap v7.0 documents. The largest body of technical work — multi-seat device management Phase 3 — is complete. Security hardening that the roadmap called "blocked" is well underway. The extension works across 3 clients (VS Code, Cursor, Kiro) with CJS compatibility. 3,459 tests pass with zero failures.
 
-**The true distance to launch is approximately 45–65 hours of focused work** across the 11 action plans, of which perhaps 25–35 hours are on the critical path. The remaining work is predominantly operational (deploy to production, integrate payment provider, verify emails, write launch plan) and quality assurance (security audit, legal review, monitoring) rather than new feature development. The sole remaining feature gap is the version update wire-up (Action Plan 9, items 9.8–9.10), estimated at 4–6 hours.
+**The true distance to launch is approximately 45–65 hours of focused work** across the 13 action plans (11 technical/operational + 2 personal/disclosure), of which perhaps 25–35 hours are on the critical path. The remaining work is predominantly operational (deploy to production, integrate payment provider, verify emails, write launch plan) and quality assurance (security audit, legal review, monitoring) rather than new feature development. The sole remaining feature gap is the version update wire-up (Action Plan 9, items 9.8–9.10), estimated at 4–6 hours.
 
 **Critical sequencing insight:** The Lemon Squeezy MoR application is the single most time-sensitive item because it has an external review period (~1 week) that cannot be compressed. Submitting the application early — after minimal website polish and docs cleanup — allows all other critical-path work to proceed in parallel. If LS approves, payment migration is straightforward pre-launch (no existing subscribers). If LS rejects, Stripe live mode is a well-understood fallback with the significant caveat that SWR would bear global tax compliance obligations directly until an MoR is eventually secured.
 

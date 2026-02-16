@@ -17,6 +17,8 @@
 7. [Action Plan Dependency Detail](#action-plan-dependency-detail)
 8. [What Can Run in Parallel](#what-can-run-in-parallel)
 9. [External Blockers & Wait Times](#external-blockers--wait-times)
+10. [Action Plan 12: Personal Social Media Cleanup](#action-plan-12-personal-social-media-cleanup)
+11. [Action Plan 13: Private Pre-Launch Disclosure](#action-plan-13-private-pre-launch-disclosure)
 
 ---
 
@@ -40,12 +42,31 @@ AP 1: Front-end UX/content             ▼
     ├──▶ AP 5: Docs accuracy            │
     │                                   │
     ▼                                   │
+AP 12a: Delete Facebook                │
+    (no disclosure risk)                │
+    │                                   │
+    ▼                                   │
 AP 7.1: DMARC record                   │
+    │                                   │
+    ▼                                   │
+AP 8.3: HIC AI company socials         │
+    (Twitter/X — NOT personal)          │
     │                                   │
     ▼                                   │
 AP 8A: LS application ─────────────────┤
     │                                   │
     │  ~~~~ ~1 week wait ~~~~           │
+    │                                   │
+    │  During wait:                     │
+    │                                   │
+    ▼                                   │
+AP 13: Private disclosures             │
+    (partner → key clients)             │
+    │                                   │
+    ▼                                   │
+AP 12b: LinkedIn update                │
+    (AFTER all private                  │
+     disclosures complete)              │
     │                                   │
     ▼                                   ▼
 AP 8C/8D: Payment integration     ◄── Both tracks must complete
@@ -105,13 +126,23 @@ Single DNS TXT record addition in GoDaddy. Takes 5 minutes of work plus propagat
 - **Checkpoint:** `dig TXT _dmarc.hic-ai.com` returns valid DMARC record
 - **Unlocks:** AP 8A (strengthens LS application — shows professional email setup), AP 7 remainder (email deliverability testing is more meaningful with DMARC in place)
 
-### Step A6: Social Media Presence (AP 8.3)
+### Step A5.5: Delete Facebook (AP 12a)
 
-Create Twitter/X account for HIC AI. Minimal but required — LS previously cited lack of social media.
+Delete personal Facebook account. This is social media cleanup with zero disclosure risk — removing a profile announces nothing. Sequenced here because SWR is already in the social media headspace while working on DMARC and HIC AI accounts.
+
+- **Depends on:** Nothing (safe anytime; placed here for workflow convenience)
+- **Checkpoint:** Facebook account deletion initiated (note: Facebook has a 30-day grace period before permanent deletion)
+- **Unlocks:** Nothing directly — this is personal housekeeping
+
+### Step A6: HIC AI Social Media Presence (AP 8.3)
+
+Create Twitter/X account for HIC AI. This is a **company** account only — do NOT update personal profiles (LinkedIn, etc.) at this stage. LS previously cited lack of social media.
 
 - **Depends on:** Nothing
-- **Checkpoint:** Twitter/X account exists with bio, link to hic-ai.com, and at least one post
+- **Checkpoint:** HIC AI Twitter/X account exists with bio, link to hic-ai.com, and at least one post
 - **Unlocks:** AP 8A (LS application can reference social media)
+
+> **Critical distinction:** Creating HIC AI company accounts (AP 8.3) is safe before private disclosures. Updating SWR's *personal* LinkedIn profile (AP 12b) is the disclosure event and must wait until after AP 13.
 
 ### Step A7: Submit LS Application (AP 8.4)
 
@@ -121,6 +152,37 @@ Submit Lemon Squeezy Merchant of Record application. This is the trigger for the
 - **Checkpoint:** Application submitted, confirmation email received
 - **Unlocks:** ~1 week wait, then AP 8C (if approved) or AP 8D (if rejected)
 
+### Step A7.5: Private Pre-Launch Disclosure (AP 13)
+
+Private conversations with key individuals who must learn about HIC AI directly from SWR before any public profile changes. This slots into the LS wait window (~1 week) for three reasons:
+
+1. **Certainty.** The LS application is submitted, technical work is substantially done, launch is real and imminent. SWR is disclosing a fact, not a hypothetical.
+2. **Availability.** The LS wait is dead time for Track A. Track B dev sessions fill some hours, but the disclosure conversations are a different kind of work that fits the interstitial time.
+3. **Reversibility.** If LS rejects and launch needs more time, nobody told is waiting on a public announcement. Private disclosures create no public clock.
+
+Recommended internal sequence:
+
+| Order | Who                               | Why First                                                                                  | Suggested Frame                                                                                         |
+| ----- | --------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| 1     | Law partner                       | Non-negotiable first. Must hear from SWR in person or by phone, never from LinkedIn.        | "Built a software product on my own time, incorporating, doesn't affect my commitment to [practice]."   |
+| 2     | Key client ($4B fund / SW engineer)| Likely the most *interested* rather than concerned. Potential early supporter or even investor. | "My public profile is about to change — wanted you to hear it from me directly."                       |
+| 3     | Other key clients/contacts         | Brief, professional. Anyone close enough to warrant a private heads-up.                     | "Nothing changes about my availability to you."                                                        |
+| 4     | Silence                           | Let the LinkedIn update do the rest. Anyone not on the private list learns organically.     | —                                                                                                       |
+
+- **Depends on:** A7 (LS application submitted — SWR now has certainty of imminent launch)
+- **Checkpoint:** All private disclosure conversations completed. SWR confirms "everyone who needs to hear from me directly has heard from me."
+- **Unlocks:** AP 12b (LinkedIn/personal profile update — the irreversible public disclosure)
+
+> **Note on the "neglecting their matters" concern:** The timing works in SWR's favor. This is not a retirement announcement. SWR built this on personal time. Being proactive about telling clients *before* it becomes public demonstrates exactly the attentiveness they want to see.
+
+### Step A7.6: LinkedIn / Personal Profile Update (AP 12b)
+
+Update LinkedIn profile to reflect "CEO/Founder, HIC AI, Inc." and any other personal social media updates. This is the **irreversible public disclosure event** — once LinkedIn is updated, the information is public and discoverable.
+
+- **Depends on:** A7.5 ✅ (ALL private disclosures complete — partner, key clients, contacts)
+- **Checkpoint:** LinkedIn updated, no surprised messages from anyone on the private disclosure list
+- **Unlocks:** AP 3 (marketing can now reference SWR's founder story publicly), general public awareness of SWR's role
+
 ### Step A8: LS Decision → Payment Integration (AP 8C or 8D)
 
 If approved: Integrate LS checkout, webhooks, license provisioning, Customer Portal. If rejected: Switch Stripe to live mode.
@@ -128,6 +190,8 @@ If approved: Integrate LS checkout, webhooks, license provisioning, Customer Por
 - **Depends on:** A7 + LS decision (external)
 - **Checkpoint:** All 4 checkout paths tested E2E through chosen provider, webhook events confirmed firing
 - **Unlocks:** AP 4 (production deployment can proceed with payment provider locked in)
+
+> **Sequencing note:** A8 (payment integration) and A7.5/A7.6 (disclosures/LinkedIn) are independent of each other after A7 (LS submission). They can proceed in parallel during the LS wait. However, A7.6 (LinkedIn) should ideally be done before or at the same time as LAUNCH — there should be no gap where the product is live but SWR's public profile doesn't acknowledge it.
 
 ---
 
@@ -186,8 +250,9 @@ Arrows indicate "must complete before." Items at the same depth level can run in
 ```
 Level 0 (no dependencies — start immediately):
 ├── AP 11.4  Plausible integration
+├── AP 12a   Delete Facebook (no disclosure risk)
 ├── AP 7.1   DMARC record
-├── AP 8.3   Social media presence
+├── AP 8.3   HIC AI company socials (NOT personal profiles)
 ├── AP 5*    Docs accuracy (essential items)
 ├── AP 9.8   Version update wire-up ─┐
 ├── AP 9.9   Update Version command  ├── AP 9 (feature dev)
@@ -206,16 +271,20 @@ Level 3 (depends on Level 2 items):
 ├── AP 8A  LS application  [needs: AP 1 website presentable, AP 5 docs, AP 7.1, AP 8.3 social]
 └── AP 3   Marketing plan  [needs: AP 1 content finalized]
 
+Level 3.5 (during LS wait — personal/disclosure track):
+├── AP 13   Private pre-launch disclosures  [needs: AP 8A submitted — gives SWR certainty]
+└── AP 12b  LinkedIn / personal profile update  [needs: AP 13 ALL disclosures complete]
+
 Level 4 (depends on Level 3 + external wait):
 └── AP 8C/8D  Payment integration  [needs: AP 8A + LS decision]
 
 Level 5 (convergence):
 ├── AP 4   Production deployment  [needs: AP 8C/8D, AP 2, AP 10, AP 7, AP 11]
 ├── AP 6   Support infrastructure [needs: AP 5 docs]
-└── AP 3   Marketing (finalize)   [needs: AP 1 content]
+└── AP 3   Marketing (finalize)   [needs: AP 1 content, AP 12b LinkedIn done]
 
 Level 6:
-└── LAUNCH  [needs: AP 4]
+└── LAUNCH  [needs: AP 4, AP 12b (personal profile reflects founder role)]
 ```
 
 ---
@@ -241,6 +310,9 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 | CP-13 | Email deliverability verified | Test emails reach Gmail + Outlook inboxes (not spam), all types fire        | AP 4 (production deployment) |
 | CP-14 | Payment integration tested    | All 4 checkout paths E2E tested, webhooks firing, license provisioned       | AP 4 (production deployment) |
 | CP-15 | Production environment ready  | Amplify prod env created, secrets populated, CF deployed, webhooks pointed  | LAUNCH                       |
+| CP-16 | Facebook deletion initiated   | Account deletion request submitted (30-day grace period)                    | Nothing (housekeeping)       |
+| CP-17 | Private disclosures complete  | SWR confirms: partner, key clients, and contacts have been told personally  | AP 12b (LinkedIn update)     |
+| CP-18 | Personal profiles updated     | LinkedIn reflects CEO/Founder HIC AI, Inc.; no surprised messages received  | LAUNCH, AP 3 (marketing)    |
 
 ---
 
@@ -341,6 +413,40 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 
 **Depended on by:** AP 4 (cannot deploy to production without monitoring)
 
+### AP 12: Personal Social Media Cleanup
+
+AP 12 is split into two parts with very different risk profiles:
+
+**AP 12a: Delete Facebook**
+
+| Dependency | Type | Reason                                               |
+| ---------- | ---- | ---------------------------------------------------- |
+| None       | —    | Removing a profile discloses nothing; safe any time   |
+
+**Depended on by:** Nothing — this is personal housekeeping
+
+**AP 12b: LinkedIn / Personal Profile Update**
+
+| Dependency                     | Type | Reason                                                                                 |
+| ------------------------------ | ---- | -------------------------------------------------------------------------------------- |
+| AP 13 (Private Disclosures)    | Hard | Partner and key clients must hear from SWR directly BEFORE LinkedIn announces anything  |
+
+**Depended on by:** AP 3 (marketing can reference founder story publicly), LAUNCH (profile should reflect founder role at launch)
+
+> **Why the split?** Deleting an account (12a) and updating an account (12b) have opposite disclosure profiles. 12a removes information — zero risk. 12b adds information — it is the public disclosure event. They must be treated as entirely separate actions with different dependency gates.
+
+### AP 13: Private Pre-Launch Disclosure
+
+| Dependency                   | Type | Reason                                                                                        |
+| ---------------------------- | ---- | --------------------------------------------------------------------------------------------- |
+| AP 8A (LS application filed) | Soft | SWR should have certainty that launch is imminent before initiating disclosure conversations    |
+
+**Internal ordering:** Law partner (first, non-negotiable) → key client ($4B fund / SW engineer) → other key clients/contacts → silence (let LinkedIn do the rest)
+
+**Depended on by:** AP 12b (LinkedIn update — the irreversible public disclosure event)
+
+> **Timing rationale:** The LS wait window (~1 week) is the pragmatically ideal time. SWR has certainty (application submitted, tech nearly done), has time (LS wait is dead time for Track A), and the sequence is reversible (if LS rejects, no public announcement was made).
+
 ### AP 11: Legal Review
 
 | Dependency          | Type | Reason                                                                      |
@@ -384,6 +490,7 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 | AP 1 (Full site proofread) | AP 11.1–11.3 (Legal review)  | Don't proofread pages that will change      |
 | AP 2 (Security audit)      | AP 9.8–9.10 (Feature code)   | Audit the final code, not intermediate      |
 | AP 8A (LS application)     | AP 1 + AP 5 + AP 8.3         | Application needs presentable site + docs   |
+| AP 12b (LinkedIn update)   | AP 13 (Private disclosures)  | Public profile change is the disclosure event |
 | AP 4 (Production deploy)   | AP 2 + AP 8C/8D + AP 10      | All convergence dependencies                |
 
 ---
@@ -396,12 +503,15 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 | DMARC DNS propagation      | 1–48 hours     | Everything — propagation is passive                                                 |
 | Plausible account setup    | Minutes        | N/A — effectively instant                                                           |
 | Twitter/X account creation | Minutes        | N/A — effectively instant                                                           |
+| Private disclosure convos  | 1–5 days       | All of Track B; AP 8C/8D when LS decides (disclosures and payment integration are independent) |
 
 ### Time-Sensitivity Ranking
 
 1. **LS application** — longest external wait (~1 week); submit as early as structurally possible
-2. **DMARC record** — propagation delay; do Day 1 even though it's a 5-minute task
-3. **Everything else** — no external waits; pure development/review effort
+2. **Private disclosures (AP 13)** — human conversations take calendar time; start during LS wait
+3. **DMARC record** — propagation delay; do Day 1 even though it's a 5-minute task
+4. **Facebook deletion (AP 12a)** — 30-day grace period before permanent; start whenever convenient
+5. **Everything else** — no external waits; pure development/review effort
 
 ---
 
@@ -410,7 +520,7 @@ Each checkpoint is a verifiable gate that must be passed before dependent work p
 The shortest path through the dependency graph, assuming a single developer:
 
 ```
-Day 1:  AP 11.4 (Plausible, 30m) + AP 7.1 (DMARC, 15m) + AP 8.3 (Social, 30m)
+Day 1:  AP 11.4 (Plausible, 30m) + AP 7.1 (DMARC, 15m) + AP 12a (Delete Facebook, 15m)
         AP 9.8–9.10 begin (version wire-up, 4–6h)
         AP 5 essential items begin (docs, 2–4h)
 
@@ -420,19 +530,27 @@ Day 2:  AP 11.1–11.3 (Legal review, 2.5h) [Plausible now wired]
 
 Day 3:  AP 1 (Front-end polish, 6–8h) [legal pages now final]
         AP 2 begin (security audit) [version code now final]
+        AP 8.3 (HIC AI Twitter/X account, 30m) [company account only]
 
 Day 4:  AP 8A: Submit LS application [site presentable, docs functional, social exists]
         AP 2 continue/complete
         AP 7 remainder (email testing, 2–3h)
         AP 10 continue/complete
 
-Days 5–10: LS review wait — Track B completes, AP 6, AP 3 prep
+Days 5–7: LS wait — Track B completes, AP 6, AP 3 prep
+          AP 13: Private disclosures begin
+            Day 5: Law partner conversation (in person or phone)
+            Day 6: Key client ($4B fund / SW engineer)
+            Day 7: Other key clients/contacts as needed
 
-Day 11: LS decision → AP 8C (migration, 8–10h) or AP 8D (Stripe live, 3–4h)
+Days 8–9: AP 12b: LinkedIn update [all private disclosures complete]
+          Remaining AP 3 prep (can now reference founder story publicly)
 
-Day 12: AP 4 (production deployment, 6–8h)
+Day 10: LS decision → AP 8C (migration, 8–10h) or AP 8D (Stripe live, 3–4h)
 
-Day 13: Final verification → LAUNCH
+Day 11: AP 4 (production deployment, 6–8h)
+
+Day 12: Final verification → LAUNCH
 ```
 
-This is optimistic but structurally sound. The critical path runs through: Plausible → Legal → UX → LS application → LS wait → Payment integration → Production deploy.
+This is optimistic but structurally sound. The critical path runs through: Plausible → Legal → UX → LS application → LS wait (during which: private disclosures → LinkedIn update) → Payment integration → Production deploy.
