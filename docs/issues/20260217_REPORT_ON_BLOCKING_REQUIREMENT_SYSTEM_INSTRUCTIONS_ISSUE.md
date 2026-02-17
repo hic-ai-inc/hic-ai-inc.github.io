@@ -200,3 +200,182 @@ All findings verified empirically on 2026-02-17 in a live GitHub Copilot session
 ---
 
 _This report documents a confirmed, reproducible issue with GitHub Copilot's `tool_search_tool_regex` mechanism and its associated system instructions. It is filed for internal reference and as potential supporting material for a bug report to Microsoft._
+
+---
+
+## Addendum A: Mitigation Options Analysis
+
+_Added 2026-02-17. Prepared by GC at SWR's request following extended analysis of the problem space._
+
+The following five options represent the complete set of available mitigations. All five are broken or fragile. No clean solution exists because the two root causes — the false `<mandatory>` system instruction and the keyword-only search algorithm — are both controlled by Microsoft/GitHub, not by us.
+
+### Option 1: Default Configuration (toolSearchTool=true, no instructions override)
+
+**Configuration:** Leave `github.copilot.chat.anthropic.toolSearchTool.enabled` at its default value of `true`. Do not add any override to `copilot-instructions.md`.
+
+**What happens:** The agent receives the false `<mandatory>` instruction. It dutifully searches for MCP tools before each use. For tools with long descriptions or common keywords in their names (e.g., `quick_edit`, `find_in_file`), the search succeeds. For tools with short descriptions or names that don't match natural search queries (e.g., `save_changes`, `cancel_changes`, `get_sum`), the search fails. The agent concludes these tools do not exist and hallucinates workarounds, corrupting the session.
+
+**Risk:** HIGH — This is the failure mode we experienced during the week of 2026-02-10. Estimated cost: $25,000+ in lost human time per week of impaired productivity.
+
+**Verdict:** ❌ Unacceptable.
+
+---
+
+### Option 2: Disable Search Tool, No Instructions Override (toolSearchTool=false, no override)
+
+**Configuration:** Set `"github.copilot.chat.anthropic.toolSearchTool.enabled": false` in VS Code `settings.json`. Do not add any override to `copilot-instructions.md`.
+
+**What happens:** The `tool_search_tool_regex` tool is removed from the agent's available tools. However, the `<mandatory>` system instruction — which is injected by GitHub Copilot and not editable by the user — remains in the agent's context. The agent is told it MUST search for tools before calling them, but the search tool doesn't exist. The agent cannot comply with its own instructions. Depending on model behavior, it may (a) refuse to call any deferred tools, (b) enter a loop trying to find the search tool, or (c) ignore the instruction and proceed — but option (c) requires the agent to independently reason that a `<mandatory>` instruction labeled "BLOCKING REQUIREMENT" is wrong, which is unlikely without explicit guidance.
+
+**Risk:** HIGH — Immediate failure mode. The agent is given contradictory constraints: "you must use this tool" + "this tool doesn't exist."
+
+**Verdict:** ❌ Unacceptable.
+
+---
+
+### Option 3: Disable Search Tool + Instructions Override (toolSearchTool=false, with override)
+
+**Configuration:** Set `"github.copilot.chat.anthropic.toolSearchTool.enabled": false` in VS Code `settings.json`. Also add an override to `copilot-instructions.md` instructing the agent to call MCP tools directly.
+
+**What happens:** The agent receives two contradictory instructions: (1) the built-in `<mandatory>` block saying tools MUST be searched first, and (2) the user's `copilot-instructions.md` saying tools should be called directly. The search tool is unavailable, so the agent cannot comply with instruction (1) even if it tries. The override gives the agent permission to proceed without searching — but the agent must resolve the contradiction, and the built-in instruction carries `<mandatory>` XML tags that may receive higher weight than user-provided instructions.
+
+**Risk:** MEDIUM-HIGH — Internally inconsistent system instructions. The agent may follow the override successfully in some sessions, but in others may give precedence to the `<mandatory>` block, leading to failures. Inconsistent behavior is harder to debug than consistent failure.
+
+**Verdict:** ⚠️ Fragile. Unpredictable session-to-session behavior.
+
+---
+
+### Option 4: Modify Source Code to Accommodate Buggy Search (toolSearchTool=true, description changes)
+
+**Configuration:** Leave `toolSearchTool.enabled` at default `true`. Modify MCP tool descriptions (e.g., `save_changes`) to include keywords that the broken search algorithm can match. For example, adding the word "save" to the body of the `save_changes` description.
+
+**What happens:** The search tool may now surface `save_changes` for queries like "save" because the keyword appears in the description body, not just the tool name. This works around Bug 2 (search ranking) but does not address Bug 1 (false mandatory instruction). If other tools remain undiscoverable (e.g., `get_sum`, `cancel_changes`), those will still trigger the same failure mode.
+
+**Risk:** MEDIUM — Requires modifying stable, tested source code on the eve of product launch to accommodate a bug in a third-party dependency. Sets a precedent of adapting our code to broken external tooling. Does not guarantee all tools become discoverable. Must be re-evaluated every time the search algorithm changes, and every time we add a new tool.
+
+**Verdict:** ⚠️ Partial fix at best. Violates the principle that stable source code should not be modified to accommodate external bugs. SWR has explicitly rejected this option.
+
+---
+
+### Option 5: Current Configuration (toolSearchTool=true, with instructions override)
+
+**Configuration:** Leave `toolSearchTool.enabled` at default `true`. Include an override in `copilot-instructions.md` instructing the agent to call MCP tools directly without searching.
+
+**What happens:** The agent receives the false `<mandatory>` instruction AND the truthful override. Both the search tool and the MCP tools are available. If the agent follows the override: it calls tools directly, tools work, no problem. If the agent ignores the override and searches anyway: the search may or may not find the tool. If it does, it works. If it doesn't, the agent either (a) falls back to the override instruction and calls directly, or (b) concludes the tool doesn't exist and hallucinates — the same failure as Option 1.
+
+**Risk:** MEDIUM — Same internal inconsistency as Option 3, with the added risk that the agent searches anyway, fails, and then **disbelieves** the truthful override because it has "evidence" (from the failed search) that the tool doesn't exist. The override's credibility is undermined by the search result.
+
+**Verdict:** ⚠️ The least bad option, but still fragile. Currently deployed. Works in most sessions but not reliably in all.
+
+---
+
+### Summary Matrix
+
+| Option | toolSearchTool | copilot-instructions override | Risk Level  | Failure Mode                                |
+| ------ | -------------- | ----------------------------- | ----------- | ------------------------------------------- |
+| 1      | true (default) | None                          | HIGH        | Search fails → hallucination spiral         |
+| 2      | false          | None                          | HIGH        | Mandatory + no tool → immediate failure     |
+| 3      | false          | Present                       | MEDIUM-HIGH | Contradictory instructions → unpredictable  |
+| 4      | true (default) | None (source modified)        | MEDIUM      | Partial fix, precedent risk, launch risk    |
+| 5      | true (default) | Present                       | MEDIUM      | Override may be disbelieved after failed search |
+
+**Conclusion:** No option provides reliable, predictable behavior. The root causes are in GitHub Copilot's system prompt and search algorithm, both of which are outside our control. Option 5 is currently deployed and provides the best probability of success, but cannot guarantee consistent behavior across sessions.
+
+---
+
+## Addendum B: Minimal Reproduction Strategy for Microsoft Bug Report
+
+_Added 2026-02-17. Prepared by GC at SWR's request._
+
+### The Disclosure Problem
+
+Mouse is not yet publicly released. The bug manifests because Mouse's MCP tools have concise, well-chosen names that do not redundantly repeat keywords in their descriptions. Reporting the bug to Microsoft requires demonstrating the failure, but we cannot provide Mouse as the reproduction case.
+
+### Solution: Purpose-Built Minimal Reproduction MCP Server
+
+Create a trivial, disposable MCP server specifically for the bug report. This server would have 3-4 tools designed to expose both root causes without revealing any Mouse source code, architecture, or intellectual property.
+
+#### Proposed Reproduction Server: `repro-mcp-server`
+
+**Tool definitions (total: 4 tools):**
+
+```json
+{
+  "tools": [
+    {
+      "name": "apply_edits",
+      "description": "Modify file content at specified locations."
+    },
+    {
+      "name": "persist_state",
+      "description": "Commit current buffer to disk."
+    },
+    {
+      "name": "retrieve_context",
+      "description": "Load workspace information and file metadata."
+    },
+    {
+      "name": "compute_total",
+      "description": "Add numbers together and return the result."
+    }
+  ]
+}
+```
+
+**Why these tools reproduce the bug:**
+
+- `persist_state` — Analogous to `save_changes`. A user searching for "save" or "write" will never find it because neither word appears in the name or description. The word "commit" appears in the description, but a user asking an agent to "save my changes" won't trigger a search for "commit."
+- `compute_total` — Analogous to `get_sum`. A user searching for "sum", "add", or "calculator" will find nothing. The description says "add numbers" but the search may not surface it for "calculator" or "sum."
+- `apply_edits` / `retrieve_context` — Control tools that SHOULD be findable, to demonstrate that the search works for some tools and not others.
+
+#### Reproduction Steps (for the bug report)
+
+1. Install the minimal repro MCP server in VS Code
+2. Open a Copilot chat session with Claude Opus 4.6 (or any Anthropic model that uses `tool_search_tool_regex`)
+3. Ask the agent: "Use the MCP tools to edit a file, save it, and then compute the sum of [1, 2, 3]"
+4. **Observe:** Agent searches for tools. `apply_edits` is found. `persist_state` is not found. `compute_total` is not found.
+5. **Observe:** Agent tells the user it cannot save the file or compute the sum — despite both tools being available and callable.
+6. **Demonstrate:** Call `persist_state` and `compute_total` directly (without searching) — both work.
+7. **Conclusion:** The system instruction falsely claimed these tools were unavailable. The search tool failed to find them. The combined effect corrupted the agent's reasoning.
+
+#### Bug Report Structure
+
+**Repository:** Public GitHub repo `hic-ai-inc/repro-mcp-tool-search-bug` (or similar)
+
+**Contents:**
+- `README.md` — Bug description, repro steps, expected vs. actual behavior
+- `mcp-server-config.json` — The 4-tool server definition above
+- `server.js` — Minimal MCP server implementation (stub responses)
+- `evidence/` — Screenshots or transcripts of the failure
+- References to existing issues: #290738, #290356, #13065
+
+**Title:** `tool_search_tool_regex: false MANDATORY instruction + keyword-only search causes hallucination when MCP tools use synonyms in names/descriptions`
+
+**Key assertions in the report:**
+1. The `<mandatory>` system instruction is factually incorrect — MCP tools work without searching
+2. The search algorithm fails when tool names use synonyms rather than exact keywords
+3. The combination of (1) and (2) causes the agent to hallucinate that working tools don't exist
+4. The word "BLOCKING REQUIREMENT" in the system prompt gives the false instruction disproportionate weight, making user-provided corrections in `copilot-instructions.md` unreliable
+
+#### What This Strategy Protects
+
+- **Mouse source code:** Not included. The repro server is a disposable 4-tool stub.
+- **Mouse architecture:** Not revealed. The repro tools have no relation to Mouse's actual tool structure.
+- **Mouse IP:** Not disclosed. The bug report describes a generic MCP tool discoverability failure.
+- **Mouse tool names:** Not mentioned. The repro uses entirely different names (`persist_state` vs. `save_changes`).
+
+The only thing disclosed is that we are developing an MCP server — which is already public knowledge given the `copilot-instructions.md` file in our public GitHub repository.
+
+#### Estimated Effort
+
+- Repro server creation: 30-60 minutes (trivial MCP server with stub responses)
+- Bug report writing: 30-60 minutes (evidence already gathered in this document)
+- Total: 1-2 hours
+
+#### Timing Consideration
+
+This can be filed at any time — before or after Mouse's public launch. Filing before launch has the advantage of establishing a record and potentially accelerating a fix. Filing after launch allows us to reference Mouse directly as a real-world case study. SWR should decide based on business priorities and launch timeline.
+
+---
+
+_End of Addenda. The original report (Sections 1-9) remains unchanged._
