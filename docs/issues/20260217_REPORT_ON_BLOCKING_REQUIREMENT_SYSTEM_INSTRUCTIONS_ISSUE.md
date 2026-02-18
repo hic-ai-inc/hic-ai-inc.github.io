@@ -14,6 +14,68 @@ A system instruction injected by GitHub Copilot into the AI agent's context fals
 
 ---
 
+## 1a. Release Timeline and Version Pinning
+
+_Added 2026-02-17. Release details researched and confirmed by GC._
+
+### Feature Origin
+
+The `tool_search_tool_regex` feature originates from **Anthropic's Tool Search API**, released approximately **November 19, 2025** (inferred from the tool type identifier suffix `_20251119`). Anthropic offers two variants: `tool_search_tool_regex` (regex-based) and `tool_search_tool_bm25` (BM25 relevance ranking). VS Code uses the **regex variant**.
+
+Anthropic documentation: [Tool Search Tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool)
+
+### VS Code Integration
+
+**VS Code 1.109.0** (titled "January 2026") was **released February 4, 2026**. The release notes explicitly mention the feature under **"Agent Extensibility > Anthropic models"**:
+
+> **Tool search tool:** We enabled the [tool search tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool) to help Claude discover and select the most relevant tools for your task from a larger pool of available tools. This feature can be toggled with the `github.copilot.chat.anthropic.toolSearchTool.enabled` setting.
+
+The release notes present this as a discoverability aid. They do not mention:
+- The `<mandatory>` / `BLOCKING REQUIREMENT` system instruction that forces agents to search before calling tools
+- That the feature is tagged `onExp` (experiment-gated) and not visible in the VS Code Settings UI
+- That the default is `true` (enabled for all users without opt-in)
+
+### Extension Version
+
+**GitHub Copilot Chat 0.37.6** — installed on this machine February 13, 2026. The setting is defined in the extension's `package.json`:
+
+```json
+"github.copilot.chat.anthropic.toolSearchTool.enabled": {
+    "type": "boolean",
+    "default": true,
+    "tags": ["experimental", "onExp"]
+}
+```
+
+The extension's `CHANGELOG.md` is stale — last entry covers version 0.32 (October 8, 2025). Versions 0.33 through 0.37.6 have no changelog entries. The `vscode-copilot-release` GitHub repository has zero published releases.
+
+### Related GitHub Issues
+
+| Issue | Title | Status | Relevance |
+| ----- | ----- | ------ | --------- |
+| [microsoft/vscode#290356](https://github.com/microsoft/vscode/issues/290356) | Hard tool limit (128) blocks agent mode when multiple MCP servers are enabled | Closed (duplicate) | Reports being blocked with "Tool limit exceeded (132/128)". Microsoft response: "This is fixed with virtual tools." |
+| [microsoft/vscode#290738](https://github.com/microsoft/vscode/issues/290738) | Github copilot default enables specific tools for agent mode | Open | Reports `tool_search_tool_regex` is force-included even when all tools are disabled. Confirmed by Microsoft as by-design. Assigned to `bhavyaus` and `connor4312`. |
+
+**Note:** No existing GitHub issue reports the specific combination of problems documented in this report (false mandatory instruction + ranking algorithm failure causing hallucination spirals).
+
+### Predecessor Feature
+
+Before `toolSearchTool`, VS Code had a "Tool grouping" feature (August 7, 2025, Copilot Chat v0.30) controlled by `github.copilot.chat.virtualTools.threshold` (default: 128). This automatically groups tools when the count exceeds the threshold. Both settings coexist in v0.37.6. The tool grouping feature is separate from and does not solve the problems described in this report.
+
+### Timeline Summary
+
+| Date | Event |
+| ---- | ----- |
+| August 7, 2025 | Tool grouping (virtualTools) shipped in Copilot Chat v0.30 |
+| ~November 19, 2025 | Anthropic ships Tool Search API (`_20251119` suffix) |
+| ~Late January 2026 | GitHub issues #290356, #290738 opened re: tool limits and force-inclusion |
+| February 4, 2026 | VS Code 1.109.0 released with `toolSearchTool` enabled by default |
+| February 13, 2026 | Copilot Chat 0.37.6 installed on this machine |
+| Week of February 10, 2026 | Hallucination failures observed; ~$25,000+ in lost productivity |
+| February 17, 2026 | Root cause identified and documented in this report |
+
+---
+
 ## 2. The False System Instruction
 
 GitHub Copilot injects the following into the agent's system prompt (not visible to the user, not editable by the user):
@@ -347,7 +409,7 @@ Create a trivial, disposable MCP server specifically for the bug report. This se
 - `mcp-server-config.json` — The 4-tool server definition above
 - `server.js` — Minimal MCP server implementation (stub responses)
 - `evidence/` — Screenshots or transcripts of the failure
-- References to existing issues: #290738, #290356, #13065
+- References to existing issues: #290738, #290356
 
 **Title:** `tool_search_tool_regex: false MANDATORY instruction + keyword-only search causes hallucination when MCP tools use synonyms in names/descriptions`
 
