@@ -212,6 +212,20 @@ This assessment uses the existing `20260216_PROPOSED_PLANS_FOR_LEMON_SQUEEZY_MIG
 
 ---
 
+#### 0.11 — Check Stripe Dashboard for Managed Payments Availability
+
+**Status:** ✅ COMPLETED (Feb 18, 2026)
+
+**Action:** Navigate to Stripe Dashboard → Settings → Managed Payments. Determine whether Stripe Managed Payments (Stripe's global MoR service, operated by Lemon Squeezy LLC) is available on our existing Stripe account.
+
+**Result:** **Available and active.** Stripe Managed Payments is live on our account. Stripe picked up our existing products and tax category (downloadable software, business use). The integration path requires adding `managed_payments[enabled]=true` to Checkout Session creation, a preview version header, and removing ~16 parameters that Stripe/Link controls when acting as MoR. No separate application or KYB process was required — our existing Stripe verification was sufficient.
+
+**Effort:** 2 minutes (actual)
+
+**Why Phase 0:** This single check potentially eliminates the need for a separate MoR application to LS or Paddle, collapses the ~1 week MoR wait window, and reduces the payment integration effort from 8–14 hours (migration) to 2–4 hours (parameter changes). The downstream impact on AP 8, the Dependency Map, and the Launch Plan is significant. See `20260218_STRIPE_MANAGED_PAYMENTS_DISCOVERY.md` for full analysis.
+
+**Exit criterion:** ✅ Managed Payments available in Dashboard. Preview terms identified for attorney review (AP 11 / Step A2). Progress saved at Step 3 of Stripe's setup flow.
+
 ## Phase 0 Summary
 
 | #    | Item                                    | Effort    | Category       | Depends On |
@@ -226,10 +240,11 @@ This assessment uses the existing `20260216_PROPOSED_PLANS_FOR_LEMON_SQUEEZY_MIG
 | 0.8  | Branch protection rules                 | 15 min    | Infrastructure | —          |
 | 0.9  | Stripe E2E validation                   | 30 min    | Verification   | —          |
 | 0.10 | MoR feasibility assessment              | 45–60 min | Planning       | 0.9        |
+| 0.11 | Stripe Managed Payments check           | 2 min     | Verification   | —          |
 
-**Total estimated effort:** ~3–3.5 hours
+**Total estimated effort:** ~3–3.5 hours (0.11 already completed)
 
-**Internal sequencing:** Items 0.1–0.9 have no dependencies on each other and can be done in any order. Item 0.10 depends on 0.9. Items 0.5 and 0.6 are natural companions (both touch Cognito config). Items 0.7 benefits from being done early (propagation lead time).
+**Internal sequencing:** Items 0.1–0.9 and 0.11 have no dependencies on each other and can be done in any order. Item 0.10 depends on 0.9. Item 0.11 is already complete (Feb 18). Items 0.5 and 0.6 are natural companions (both touch Cognito config). Items 0.7 benefits from being done early (propagation lead time).
 
 **Suggested execution order for a single session:**
 
@@ -265,7 +280,7 @@ The following items were considered for Phase 0 but don't meet the admission cri
 
 ## Phase 0 Exit Gate
 
-Phase 0 is complete when all 10 items are resolved and the following are true:
+Phase 0 is complete when all 11 items are resolved and the following are true:
 
 - [ ] Keygen policies confirmed correct (or fixed)
 - [ ] Marketplace publisher account confirmed functional
@@ -277,8 +292,9 @@ Phase 0 is complete when all 10 items are resolved and the following are true:
 - [ ] Branch protection active on both repos
 - [ ] All 4 Stripe checkout paths verified end-to-end
 - [ ] MoR feasibility assessment complete with go/no-go for LS, Paddle, and Stripe fallback exposure documented
+- [x] Stripe Managed Payments availability confirmed (Feb 18 — available, no separate application needed)
 
-**After Phase 0:** Track A (website + MoR application) and Track B (extension + audit) can begin. The LS/Paddle application emails can be drafted with confidence that the integration is technically feasible.
+**After Phase 0:** Track A (website + MoR application) and Track B (extension + audit) can begin. The discovery that Stripe Managed Payments is available on our account (item 0.11) significantly impacts AP 8 and may eliminate the need for separate LS/Paddle applications. See `20260218_STRIPE_MANAGED_PAYMENTS_DISCOVERY.md` for full impact analysis.
 
 ---
 
@@ -287,3 +303,4 @@ Phase 0 is complete when all 10 items are resolved and the following are true:
 | Date       | Author | Changes                                                          |
 | ---------- | ------ | ---------------------------------------------------------------- |
 | 2026-02-17 | GC     | Initial document — curated Phase 0 items with admission criteria |
+| 2026-02-18 | GC     | Added item 0.11: Stripe Managed Payments dashboard check (completed — available on our account). Updated summary, exit gate, and document history. |
