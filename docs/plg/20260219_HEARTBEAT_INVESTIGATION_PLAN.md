@@ -486,6 +486,153 @@ This is one of the few tests that imports and tests actual production code. The 
 
 **Feeds skeleton sections:** §3.1.3, §6 Journey F
 
+#### Step 11 Findings — Completed 2026-02-19
+
+**Sources examined:**
+
+1. `plg-website/infrastructure/cloudformation/plg-scheduled.yaml` — 152 lines (EventBridge rules)
+2. `plg-website/infrastructure/lambda/scheduled-tasks/index.js` — 526 lines (Lambda handler)
+3. `plg-website/infrastructure/cloudformation/plg-compute.yaml` — lines 270-310 (Lambda definition)
+4. `plg-website/infrastructure/cloudformation/plg-dynamodb.yaml` — 200 lines (table schema)
+5. `plg-website/src/lib/dynamodb.js` — lines 2150-2200 (`getVersionConfig` / `updateVersionConfig`)
+6. `plg-website/src/app/api/license/heartbeat/route.js` — lines 145-382 (version field usage in responses)
+7. **AWS Live Infrastructure:** EventBridge rules, Lambda configuration, DynamoDB records, CloudWatch logs (staging account 496998973008)
+
+---
+
+**Finding 11.1 — EventBridge rule is ENABLED on staging, fires daily at 9 AM UTC**
+
+CloudFormation (plg-scheduled.yaml L62-73): The `MouseVersionNotifyRule` resource defines:
+- Schedule: `cron(0 9 * * ? *)` — daily at 09:00 UTC
+- State: `!If [IsDevelopment, DISABLED, ENABLED]` — disabled only for dev; ENABLED for staging and prod
+- Target: `ScheduledTasksLambda` with input `{"taskType": "mouse-version-notify"}`
+
+**Live AWS confirmation:** `aws events list-rules` shows `plg-mouse-version-notify-staging` with `State: ENABLED`, `ScheduleExpression: cron(0 9 * * ? *)`. The rule targets `arn:aws:lambda:us-east-1:496998973008:function:plg-scheduled-tasks-staging`.
+
+---
+
+**Finding 11.2 — The Lambda ran successfully TODAY at 09:00:44 UTC, promoting version 0.10.10**
+
+CloudWatch log stream `2026/02/19/[$LATEST]173983435f014743b254b00885e963` shows:
+
+```
+09:00:44.112Z INFO {"message":"start","taskType":"mouse-version-notify"}
+09:00:44.117Z INFO {"message":"running-job","job":"mouse-version-notify"}
+09:00:44.491Z INFO {"message":"mouse-version-notify-complete","readyVersion":"0.10.10"}
+09:00:44.492Z INFO {"message":"complete","taskType":"mouse-version-notify","status":"success","updated":true,"readyVersion":"0.10.10"}
+REPORT Duration: 384.62 ms  Billed Duration: 1081 ms  Memory: 104 MB / 512 MB
+```
+
+The pipeline is operational. It reads `VERSION#mouse/CURRENT`, copies `latestVersion` to `readyVersion`, and writes `readyReleaseNotesUrl`, `readyUpdateUrl`, `readyUpdatedAt`.
+
+---
+
+**Finding 11.3 — DynamoDB VERSION#mouse/CURRENT record is live and current**
+
+`aws dynamodb get-item` on table `hic-plg-staging` returns:
+
+| Attribute            | Value |
+|----------------------|-------|
+| PK                   | `VERSION#mouse` |
+| SK                   | `CURRENT` |
+| latestVersion        | `0.10.10` |
+| readyVersion         | `0.10.10` |
+| readyReleaseNotesUrl | `https://github.com/SimonReiff/hic/releases/tag/v0.10.10` |
+| readyUpdateUrl       | `https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse` |
+| readyUpdatedAt       | `2026-02-19T09:00:44.448Z` (today's 9 AM run) |
+| releaseDate          | `2026-02-16T00:00:00Z` |
+| releaseNotesUrl      | `https://github.com/SimonReiff/hic/releases/tag/v0.10.10` |
+| updateUrl            | `{ marketplace: "...hic-ai.mouse", npm: "...@get-hic/mouse", vsix: "...mouse.vsix" }` |
+| updatedAt            | `2026-02-16T03:09:07Z` |
+
+There is a single record with composite key `PK=VERSION#mouse / SK=CURRENT`. No separate `READY` record exists — the `readyVersion` fields are attributes on the same CURRENT record, written by the Lambda's `UpdateCommand` (index.js L468-L479).
+
+---
+
+**Finding 11.4 — The Lambda's promotion logic is a simple blind copy, no 24-hour delay gate**
+
+The `handleMouseVersionNotify` function (index.js L435-L486):
+
+1. Reads `VERSION#mouse/CURRENT` via `QueryCommand` (L441-L450)
+2. Extracts `latestVersion`, `releaseNotesUrl`, `updateUrl.marketplace` (L456-L458)
+3. Writes `readyVersion = latestVersion`, `readyReleaseNotesUrl`, `readyUpdateUrl`, `readyUpdatedAt = now` via `UpdateCommand` (L460-L479)
+
+**There is no delay gate logic.** The Lambda does NOT compare `latestVersion` vs. `readyVersion` or check whether 24 hours have passed since `latestVersion` was written. Every daily run unconditionally promotes whatever `latestVersion` currently is to `readyVersion`. The "24-hour delay" effect comes purely from the schedule being daily at 9 AM — if a new version is published at 8:59 AM, it would be promoted 1 minute later, not 24 hours later.
+
+---
+
+**Finding 11.5 — The `over_limit` response path skips version fields entirely**
+
+Cross-referencing route.js:
+
+- **Trial heartbeat** (L148-L168): Calls `getVersionConfig()` at L149, includes all 7 version fields (`latestVersion`, `releaseNotesUrl`, `updateUrl`, `readyVersion`, `readyReleaseNotesUrl`, `readyUpdateUrl`, `readyUpdatedAt`) in the response.
+- **Licensed success** (L339-L365): Calls `getVersionConfig()` at L339, includes all 7 version fields.
+- **Licensed — license not in DDB** (L258-L281): Calls `getVersionConfig()` at L261, includes version fields.
+- **`over_limit`** (L320-L329): Does NOT call `getVersionConfig()`. Returns `{ valid, status, reason, concurrentMachines, maxMachines, message }` — zero version fields.
+- **`error`** (L369-L379): Does NOT call `getVersionConfig()`. Returns `{ valid, status, reason, concurrentMachines, maxMachines }` — zero version fields.
+
+This confirms Step 1, Finding 5: an over-limit user receives no version notification data. The extension's `checkForUpdates` / version-notification path is dead for any user who exceeds their device limit.
+
+---
+
+**Finding 11.6 — Dead code: the success-path response still references `overLimit` ternary**
+
+Route.js L342: `status: overLimit ? "over_limit" : "active"` appears in the success response (L339-L365). However, the code at L319 (`if (overLimit) { ... return ... }`) already returns early for over-limit cases. The success response at L342 can ONLY be reached when `overLimit === false`, making the ternary `overLimit ? "over_limit" : "active"` equivalent to `"active"` in all reachable cases. Similarly, L348 (`overLimit: overLimit`) will always be `false`, and L349-L351 (`message: overLimit ? ... : null`) will always be `null`.
+
+This dead code was also identified in Step 1 (Finding 6). It is harmless but confusing — it suggests the developer originally intended the success response to handle both cases, then added the early return without cleaning up the ternaries.
+
+---
+
+**Finding 11.7 — Lambda environment and layers match the CloudFormation template**
+
+Live Lambda configuration (`aws lambda get-function`):
+- Runtime: `nodejs20.x`, Handler: `index.handler`, Timeout: 300s, Memory: 512 MB
+- Environment: `DYNAMODB_TABLE_NAME=hic-plg-staging`, `ENVIRONMENT=staging`, `SES_FROM_EMAIL=noreply@staging.hic-ai.com`, `APP_URL=https://staging.hic-ai.com`
+- Layers: `hic-base-layer:13`, `hic-dynamodb-layer:12`, `hic-ses-layer:4`
+- Last modified: `2026-02-09T13:52:07Z`, CodeSize: 6,498 bytes
+- Managed by CloudFormation stack `hic-plg-staging-ComputeStack-ESLC88OSBTBM`
+
+All values match the CloudFormation template (plg-compute.yaml L275-L300).
+
+---
+
+**Finding 11.8 — `updateVersionConfig` in dynamodb.js writes `latestVersion` but NOT `readyVersion`**
+
+The `updateVersionConfig` function (dynamodb.js L2188-L2205) writes only:
+- `latestVersion`, `releaseNotesUrl`, `updatedAt`
+
+It does NOT write `readyVersion`, `readyReleaseNotesUrl`, `readyUpdateUrl`, or `readyUpdatedAt`. This is correct by design — `updateVersionConfig` is the CI/CD entry point that writes the "raw" version, and the daily Lambda run is what promotes it to `ready*` fields. This two-stage model is the intentional delay gate.
+
+However, the `updateUrl` map (containing `marketplace`, `npm`, `vsix` keys visible in the DynamoDB record) is NOT part of the `updateVersionConfig` UpdateExpression. This suggests the `updateUrl` map was either written manually or by a different code path not visible in this function. The Lambda reads `versionConfig?.updateUrl?.marketplace` (index.js L458) to populate `readyUpdateUrl`, so if `updateUrl` were ever missing, `readyUpdateUrl` would be `null`.
+
+---
+
+**Finding 11.9 — DynamoDB table schema is single-table design, no VERSION-specific GSI**
+
+The CloudFormation table definition (plg-dynamodb.yaml) shows:
+- Table: `hic-plg-${Environment}`, PAY_PER_REQUEST billing
+- Primary key: `PK` (String) + `SK` (String) — single-table design
+- 3 GSIs: GSI1 (Stripe customer), GSI2 (License key), GSI3 (Auth0 user)
+- TTL on `ttl` attribute (for EVENT and TRIAL record cleanup)
+- DynamoDB Streams enabled (NEW_AND_OLD_IMAGES)
+- Point-in-time recovery enabled, SSE enabled
+
+VERSION records use the primary key directly (`PK=VERSION#mouse, SK=CURRENT`) — no GSI needed. The table has no VERSION-specific index optimization, but since there's only one record, this is appropriate.
+
+---
+
+**Summary of Step 11 — Version Delivery Pipeline Assessment**
+
+The version notification pipeline is **fully operational**:
+- EventBridge rule fires daily at 9 AM UTC → Lambda promotes `latestVersion` to `readyVersion` → Heartbeat route reads `readyVersion` and returns it to clients
+- The pipeline ran successfully today at 09:00:44 UTC, promoting v0.10.10
+- The DynamoDB record is live and current
+
+**Critical gap confirmed:** The `over_limit` response path (route.js L320-L329) does NOT call `getVersionConfig()` and returns zero version fields. An over-limit user's extension will never receive version notification data via heartbeat, regardless of how well the Lambda pipeline works.
+
+**No 24-hour delay gate exists in code** — the daily schedule IS the delay mechanism. A version published at 8:59 AM would be promoted 1 minute later.
+
+
 ---
 
 ### Step 12 — Examine DynamoDB Schema for Heartbeat and Version Records
