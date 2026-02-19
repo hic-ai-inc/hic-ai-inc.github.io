@@ -326,6 +326,146 @@ The file contains 11 `return NextResponse.json(...)` calls. Every response branc
 
 **Feeds skeleton sections:** §3.1.2, §8.1
 
+#### Step 10 Findings — Completed 2026-02-19
+
+**Files examined (4 files, ~1,795 lines total):**
+
+1. `plg-website/__tests__/unit/api/heartbeat-route.contract.test.js` — 224 lines
+2. `plg-website/__tests__/unit/api/heartbeat.test.js` — 658 lines
+3. `plg-website/__tests__/integration/heartbeat.test.js` — 391 lines
+4. `plg-website/__tests__/e2e/journeys/j5-heartbeat-loop.test.js` — 522 lines
+
+---
+
+**Finding 10.1 — Contract test pins `trial` and `active` response shapes with version fields**
+
+The contract test (heartbeat-route.contract.test.js) is the ONLY test file that calls the actual route handler (`POST` imported from `route.js`, L22). It has 3 tests:
+
+- **Trial heartbeat** (L109-L128): Asserts `valid: true`, `status: "trial"`, `latestVersion: "0.10.0"`, `readyVersion: "0.10.0"`, `readyUpdateUrl` contains marketplace URL, `readyReleaseNotesUrl` present, `readyUpdatedAt` present, `minVersion` absent. This is the only test that pins the `status: "trial"` response shape.
+- **Licensed heartbeat — license missing in DB** (L130-L169): Asserts `valid: true`, `status: "active"`, same version fields, `minVersion` absent. This exercises the "license not in DynamoDB" path (route.js L263) which falls through to the success response.
+- **Licensed heartbeat — known license** (L171-L218): Asserts `valid: true`, `status: "active"`, `maxMachines: 3`, same version fields, `minVersion` absent.
+
+**Critical observation:** The contract test ONLY covers `trial` and `active` status values. No contract test exists for `over_limit`, `machine_not_found`, `invalid`, or `error` response shapes. The `over_limit` response shape — which lacks version fields and `nextHeartbeat` per Step 1, Finding 5 — is not pinned by any contract test.
+
+---
+
+**Finding 10.2 — Unit test uses LOCAL helper functions, NOT the actual route handler**
+
+The unit test (heartbeat.test.js) defines its own local helper functions that REPLICATE route logic rather than importing the actual route handler:
+
+- `validateLicenseKeyFormat()` (L60-L79): Local copy of key validation logic
+- `validateHeartbeatInput()` (L186-L204): Local input validation logic
+- `formatSuccessResponse()` (L237-L244): Returns `{ valid: true, status: "active", reason: "Heartbeat successful", ... }`
+- `formatErrorResponse()` (L246-L253): Returns `{ valid: false, status: code, reason: reason, ... }`
+- `checkRateLimit()` (L339-L363): Local rate-limit simulation
+- `getActiveDevicesInWindow()` (L413-L419): Local concurrent-device simulation
+- `requireHeartbeatAuth()` (L543-L558): Local auth-requirement simulation
+
+**Implication:** These tests verify the intended design of response shapes and validation logic, but they do NOT verify the actual route handler produces these shapes. A drift between the local helpers and route.js would be invisible to these tests.
+
+---
+
+**Finding 10.3 — Unit test uses phantom status `"device_limit_exceeded"` in formatErrorResponse**
+
+At L256-L261, the unit test calls `formatErrorResponse("device_limit_exceeded", "Maximum 3 devices allowed")` and asserts `response.status === "device_limit_exceeded"`. This status value does NOT exist anywhere in route.js (per Step 1, Finding 9). The server emits `"over_limit"` (route.js L310), not `"device_limit_exceeded"`. This test is self-consistent (the local helper returns whatever it's given) but documents an intended status that was never implemented server-side.
+
+---
+
+**Finding 10.4 — Unit test correctly documents `over_limit` as `valid: true`**
+
+The concurrent device enforcement tests (L411-L497) construct over-limit responses inline:
+
+- L465-L473: Builds `{ valid: true, status: "over_limit", reason: "You're using 5 of 3 allowed devices", concurrentMachines: 5, maxMachines: 3 }` and asserts `valid === true` and `status === "over_limit"`.
+
+This confirms the design intent: `over_limit` is informational with `valid: true`, not a blocking error. However, this test only verifies the locally-constructed response, not the actual route handler output.
+
+---
+
+**Finding 10.5 — Integration test also uses local mocks, never calls the actual route handler**
+
+The integration test (heartbeat.test.js, 391 lines) imports `createSpy` from test-helpers and builds mock functions for Keygen and DynamoDB services, but it NEVER imports or calls the actual `POST` handler from route.js. Every test simulates the route logic inline by calling the mocks directly and manually constructing expected response objects.
+
+Key examples:
+- L222-L237 ("should return success response"): Manually constructs `{ valid: true, status: "active", reason: "Heartbeat successful", concurrentMachines: 1, maxMachines: 3 }` — this is an assertion about intended design, not actual behavior.
+- L257-L283 ("should handle device limit exceeded"): Constructs `{ valid: false, status: "device_limit_exceeded" }` — uses the same phantom status from Finding 10.3, and also uses `valid: false` (contradicting the unit test's `valid: true` for over-limit and the actual server's `valid: true`).
+
+**Critical discrepancy:** The integration test asserts `valid: false` for device-limit-exceeded (L279), while the unit test asserts `valid: true` for over_limit (L465-L473), and the actual server returns `valid: true` (route.js L305). The integration test's expected response shape contradicts both the unit test and the actual server behavior.
+
+---
+
+**Finding 10.6 — E2E journey test validates live API behavior but does not pin response shapes**
+
+The e2e journey test (j5-heartbeat-loop.test.js, 522 lines) uses real HTTP calls via `E2EHttpClient` against a live or staging API. It covers 7 scenarios across 13 tests:
+
+- J5.1: Session establishment (first heartbeat, heartbeat interval)
+- J5.2: Consecutive heartbeats (3 consecutive, session continuity)
+- J5.3: Last-seen timestamp update
+- J5.4: Session behavior (new session after gap, invalid session format)
+- J5.5: Performance (fast timeout, rapid heartbeats / rate limiting)
+- J5.6: Payload variations (app version, metrics, missing fingerprint → 400)
+- J5.7: Licensed heartbeat (license key heartbeat)
+
+**However**, the e2e test is overwhelmingly tolerant. Most test assertions follow the pattern `if (response.status === 200) { ... }` with graceful skip/log if the response isn't 200. The test NEVER asserts exact `status`, `valid`, or `reason` field values in the JSON body except:
+- L476 (J5.6): `expectStatus(response, 400)` for missing fingerprint
+- L134-L137 (J5.1): Checks `nextHeartbeat || interval` is a positive number, IF present
+- L277-L280 (J5.3): Checks `lastSeen` date comparison, IF present
+
+The `expectHeartbeat()` assertion (imported from `../lib/assertions.js`, L29) is called at L86 and L495 but its implementation was not examined in this step (it's in the e2e assertions library, not in the test file itself).
+
+**No over_limit, machine_not_found, or error scenario is tested in the e2e suite.**
+
+---
+
+**Finding 10.7 — No test anywhere pins the `over_limit` response shape from the actual server**
+
+Across all 4 test files (~1,795 lines):
+- The contract test (only file calling the real handler) tests `trial` and `active` only
+- The unit test constructs `over_limit` locally with `valid: true` (correct) but never calls the handler
+- The integration test constructs `device_limit_exceeded` locally with `valid: false` (incorrect) and never calls the handler
+- The e2e test never triggers or tests over_limit scenarios
+
+**This means the `over_limit` response — which Step 1 found lacks version fields and `nextHeartbeat` — has zero end-to-end test coverage.**
+
+---
+
+**Finding 10.8 — Phase 3E auth tests are thorough but use local helpers**
+
+The Phase 3E auth requirement tests (heartbeat.test.js L509-L658) correctly document:
+- Trial heartbeats: no auth required (L575-L586)
+- Licensed heartbeats: auth required, 401 if missing (L588-L604)
+- JWT `sub` claim overrides body `userId` to prevent spoofing (L619-L640)
+
+These tests use a local `requireHeartbeatAuth()` helper, not the actual route handler, so they document intent rather than verify implementation.
+
+---
+
+**Finding 10.9 — Rate limiting tests document 10 req/minute preset for heartbeat**
+
+The integration test (L349-L385) imports the actual `checkRateLimit` and `RATE_LIMIT_PRESETS` from `src/lib/rate-limit.js` and asserts:
+- `RATE_LIMIT_PRESETS.heartbeat.maxRequests === 10` (L358)
+- 11th request is blocked (L365)
+- Rate limits are tracked per license key (L376-L385)
+
+This is one of the few tests that imports and tests actual production code. The e2e test (J5.5) also observes rate limiting behavior against the live API (L434-L449, checks for 429 status).
+
+---
+
+**Summary of Step 10 — Test Coverage Assessment**
+
+| Response Status    | Contract Test (real handler) | Unit Test (local helpers) | Integration Test (local mocks) | E2E (live API) |
+|--------------------|------------------------------|---------------------------|-------------------------------|----------------|
+| `trial`            | ✅ Pinned (L109-L128)        | ❌ Not tested              | ❌ Not tested                  | Partial (J5.1) |
+| `active`           | ✅ Pinned (L130-L218)        | ✅ Local helper (L238)     | ✅ Local mock (L222)           | Partial (J5.7) |
+| `over_limit`       | ❌ **Not tested**             | ✅ Local, valid:true (L465)| ❌ Local, valid:**false** (L279)| ❌ Not tested  |
+| `machine_not_found`| ❌ Not tested                | ❌ Not tested              | Partial (L249)                | ❌ Not tested  |
+| `invalid`          | ❌ Not tested                | ❌ Not tested              | ❌ Not tested                  | ❌ Not tested  |
+| `error`            | ❌ Not tested                | ❌ Not tested              | ❌ Not tested                  | ❌ Not tested  |
+| Version fields     | ✅ Pinned for trial/active   | ❌ Not tested              | ❌ Not tested                  | ❌ Not tested  |
+| `minVersion` absent| ✅ Asserted (all 3 tests)    | ❌ Not tested              | ❌ Not tested                  | ❌ Not tested  |
+
+**Key gaps:** 4 of 6 server status values have zero contract-level test coverage. The `over_limit` response shape (the one with the most bugs per Step 1) is the most critical untested path. The integration test CONTRADICTS the server and unit test on `valid` for over_limit.
+
+
 ---
 
 ### Step 11 — Examine the EventBridge / Scheduled Lambda Version Delivery Pipeline
