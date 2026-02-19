@@ -705,6 +705,109 @@ No heartbeat-specific data is persisted — heartbeat state exists only transien
 
 **Feeds skeleton sections:** Appendix B, §4.3 (root cause context)
 
+#### Step 14 Findings — Completed 2026-02-19
+
+Full git history: 14 commits from Jan 27 to Feb 15 touching `plg-website/src/app/api/license/heartbeat/route.js`. Analysis below answers the three extraction targets plus a critical cross-reference finding from the Extension repo.
+
+**Finding 14.1 — Complete Commit Timeline**
+
+| Date | Hash | Summary |
+|------|------|---------|
+| Jan 27 | `131bca9` | Initial heartbeat API route |
+| Jan 27 | `c1f4a7c` | CWE security mitigations |
+| Jan 29 | `a9bc825` | Move device-limit logic server-side |
+| Jan 30 | `4ac1ce1` | Fingerprint validation logging |
+| Jan 31 | `f67b3ae` | Increase trial duration to 14 days |
+| Feb 1 | `30ae1d3` | Add version delivery to heartbeat |
+| Feb 5 | `0c90f5e` | Production readiness fixes |
+| Feb 5 | `d27e2c7` | Add concurrent device heartbeat testing |
+| Feb 6 | `78385d4` | **Implement concurrent device handling with soft warnings** |
+| Feb 9 | `e3a7df1` | Remove deprecated test endpoint |
+| Feb 12 | `13deabd` | Update default device activity window |
+| Feb 12 | `44b23f3` | Add Keygen event-based device tracking |
+| Feb 15 | `9e8e86f` | Fix DynamoDB expression and trial validation |
+| Feb 15 | `fb12b60` | Add debug logging for machine not found |
+
+**Finding 14.2 — When `machine_not_found` Was Added**
+
+Present since the **initial commit** (`131bca9`, Jan 27). Always returned `valid: false`. Shape has never changed — only logging was added in `fb12b60` (Feb 15). This status is returned when the Keygen API call to ping a machine heartbeat returns 404.
+
+**Finding 14.3 — When `over_limit` Was Added (Two-Phase History)**
+
+**Phase 1 — `device_limit_exceeded` (Jan 27, `131bca9`):** The initial commit included a device-limit check that returned:
+```js
+{ valid: false, status: "device_limit_exceeded", reason: "Too many active devices..." }
+```
+This was a hard rejection (`valid: false`).
+
+**Phase 2 — Renamed to `over_limit` with `valid: true` (Feb 6, `78385d4`):** Commit titled "implement concurrent device handling with soft warnings". The diff shows a deliberate change:
+```diff
+-  return NextResponse.json({ valid: false, status: "device_limit_exceeded", ... });
++  return NextResponse.json({ valid: true, status: "over_limit", ... });
+```
+This was a conscious redesign: the word "soft" in the commit title and the explicit `false → true` change confirm intentional design. The rename from `device_limit_exceeded` to `over_limit` was simultaneous.
+
+**Finding 14.4 — Version Fields Were Never Added to the Over-Limit Path**
+
+Commit `30ae1d3` (Feb 1) added version delivery fields (`latestVersion`, `readyVersion`, `releaseNotesUrl`, `updateUrl`) to the `trial` and `active` success responses. The device-limit path (then still `device_limit_exceeded`) was NOT updated. When the path was renamed to `over_limit` in `78385d4` (Feb 6), version fields were still not added. As of Feb 15 (latest commit `fb12b60`), the `over_limit` response still lacks version fields. This corroborates Step 1, Finding 1.5.
+
+**Finding 14.5 — No Client-Side Updates Accompanied the `over_limit` Change**
+
+Commit `78385d4` (Feb 6) modified exactly 6 files, all in this repo:
+- `plg-website/src/app/api/license/heartbeat/route.js`
+- `plg-website/__tests__/unit/heartbeat.unit.test.js`
+- `plg-website/__tests__/integration/heartbeat.integration.test.js`
+- `plg-website/__tests__/contract/heartbeat.contract.test.js`
+- `plg-website/src/app/api/license/heartbeat/dynamodb.js`
+- `plg-website/src/app/api/license/heartbeat/device-manager.js`
+
+No Extension repo files were touched. The Extension repo's only commit near this date was `eaecdbf4` (Feb 6, documentation update to roadmap) — no code changes to heartbeat or validation files.
+
+**Finding 14.6 — The Extension Allow-List Has Been Wrong Since Day One (CRITICAL)**
+
+Cross-reference with Extension repo (`~/source/repos/hic`):
+
+The `VALID_HEARTBEAT_STATUSES` allow-list was created Jan 27 (`3416c234`) in `mouse-vscode/src/licensing/validation.js` with these values:
+```js
+const VALID_HEARTBEAT_STATUSES = new Set([
+  "active", "license_expired", "license_suspended",
+  "license_revoked", "concurrent_limit", "valid", "invalid",
+]);
+```
+
+A second copy was created Jan 31 (`5734a3a7`) in `licensing/validation.js` with identical values.
+
+**Neither copy has EVER been updated to match actual server statuses.** As of today, both still contain the original Jan 27 values. Searching git history with `git log --all -p -S "over_limit"` against both files returns zero results — `over_limit` was never added.
+
+The server's actual status values (from Step 1) versus extension allow-list:
+
+| Server Status | In Allow-List? | Notes |
+|---------------|---------------|-------|
+| `trial` | **NO** | Server emits since Jan 27 — never in allow-list |
+| `active` | YES | Only overlap with correct semantics |
+| `over_limit` | **NO** | Server emits since Feb 6 — never added |
+| `machine_not_found` | **NO** | Server emits since Jan 27 — never in allow-list |
+| `invalid` | YES | Correct overlap |
+| `error` | **NO** | Server emits since Jan 27 — never in allow-list |
+
+Allow-list values NOT emitted by server: `license_expired`, `license_suspended`, `license_revoked`, `concurrent_limit`, `valid` — these appear to be speculative/anticipated values that never materialized in the actual API.
+
+**Impact:** `validateHeartbeatResponse()` would reject valid server responses for 4 of 6 possible statuses. This means the validation layer — designed as a security hardening measure (CWE-502) — has been silently failing at runtime or is not being called for heartbeat responses. This finding feeds directly into Steps 2–9 (Extension repo investigation).
+
+**Finding 14.7 — Window Default Changed from 24h to 2h (Feb 12)**
+
+Commit `13deabd` changed `DEFAULT_ACTIVITY_WINDOW_HOURS` from 24 to 2 and added the `windowHours` parameter to `getActiveDevicesInWindow`. This affects how many devices appear "active" for the over-limit check. A narrower window (2h) means fewer devices appear concurrent, making over-limit less likely to trigger but more responsive to actual concurrent use.
+
+**Finding 14.8 — Answer Summary for Extraction Targets**
+
+1. **When `over_limit` and `machine_not_found` were added:** Both trace to the initial commit (Jan 27, `131bca9`). `machine_not_found` has never changed shape. `device_limit_exceeded` was renamed to `over_limit` with `valid: false → true` on Feb 6 (`78385d4`).
+
+2. **Whether client-side updates were made at the same time:** **No.** The Feb 6 `over_limit` change was server-only. The extension's `VALID_HEARTBEAT_STATUSES` was never updated to include `over_limit`. Furthermore, the allow-list was never correct even for the original `device_limit_exceeded` — it had `concurrent_limit` instead, which the server never emitted.
+
+3. **Whether `valid: true` for `over_limit` was an explicit design choice:** **Yes, unambiguously.** Commit `78385d4` is titled "implement concurrent device handling with soft warnings." The diff shows a deliberate `false → true` flip alongside a deliberate rename. The design intent was to treat over-limit as a non-blocking warning rather than a hard rejection. However, this design decision was made server-side without corresponding client-side changes to consume the new status or behavior.
+
+
+
 ---
 
 ### Step 15 — Review Today's Shared Notes from the Degraded Investigation
