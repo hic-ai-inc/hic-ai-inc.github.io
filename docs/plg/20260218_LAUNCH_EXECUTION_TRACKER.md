@@ -1,0 +1,494 @@
+# Pre-Launch Execution Tracker
+
+**Created:** February 18, 2026
+**Purpose:** Single source of truth for current execution state during the Mouse v0.10.10 pre-launch sprint. Updated daily. Phase-ordered checklists derived from all action plans and the Dependency Map v3.
+**Owner:** GC (updates) | SWR (reviews, attorney items, final authority)
+
+---
+
+## How to Use
+
+Scan §1 top-to-bottom for current state. Each checkbox is one actionable unit of work. Phases are sequential; items within a phase may be parallel (noted). Check off items as completed with date. §2 tracks SWR-specific items with deadlines. §3 logs decisions as they're made. §4 captures plan deviations. §5 maps every item to its source document.
+
+**Status:** ☐ = not started | 🔄 = in progress | ✅ = done (date)
+
+---
+
+## 1. Phase-Ordered Checklists
+
+### Phase 0 — Quick Wins & Initial Setup (~3.5h)
+
+_No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), then parallel._
+
+**Group A: Research & Verification**
+
+- [ ] **0.1** Keygen policy verification — confirm `maxMachines=3`, `ALWAYS_ALLOW_OVERAGE`, `heartbeatDuration=3600` for both policies (15m)
+- [ ] **0.2** VS Code Marketplace publisher — `vsce login hic-ai`, confirm PAT valid, `hic-ai.mouse` ID available (15m)
+- [ ] **0.3** Twitter/X business account research — can business account be created without personal? Handle `@hic_ai` available? (15–30m) → feeds D-5, AP12-H
+- [ ] **0.4** Production `API_BASE_URL` investigation — examine `release-mouse.sh`, esbuild config, document mechanism (30m cap) → feeds B-D8
+
+**Group B: Quick Fixes**
+
+- [ ] **0.5** Fix `setup-cognito.sh` — change `ENVIRONMENT="staging"` to `ENVIRONMENT="${1:-staging}"` (5m)
+- [ ] **0.6** Remove orphaned `vscode://hic-ai.mouse/callback` from staging Cognito client (2m)
+
+**Group C: DNS**
+
+- [ ] **0.7** DMARC record — add `_dmarc.hic-ai.com` TXT in GoDaddy, `p=none` monitor-only (5m active + propagation)
+
+**Group D: SMP Baseline** _(chain: 0.8 → 0.9 → 0.10)_
+
+- [ ] **0.8** Stripe E2E — verify all 4 test-mode checkout paths end-to-end: Individual Monthly/Annual, Business Monthly/Annual (30m)
+- [ ] **0.9** Stripe checkout audit — identify ~16 forbidden parameters against our code per AP 8 AR Phase 1.2 (30m)
+- [ ] **0.10** Comprehensive Stripe dashboard settings review — audit all test-mode settings: email receipts (verify payment receipts enabled in Stripe, not SES), tax settings, refund policy, decline handling, dispute settings, branding. Document promotion code configuration for future reference (promo codes for YouTube tutorials, seasonal discounts, etc.). (45m)
+- [ ] **0.11** SMP integration validation — map verified integration against SMP requirements, produce go/no-go (30–45m)
+
+**Completed:**
+
+- [x] **0.12** Stripe Managed Payments dashboard check — available, active, no KYB needed (Feb 18)
+
+**Phase 0 Checkpoint (CP-0):** All 11 items complete. DMARC propagating. Publisher confirmed. API_BASE_URL documented. SMP baseline established. → Unlocks Phase 1.
+
+---
+
+### Phase 1 — Feature Completion & SMP Code Prep (~2–3 days)
+
+_All 4 streams are independent and can run in parallel._
+
+#### Stream 1A: Version Update Wire-up (AP 9.8–9.10)
+
+_First: SWR resolves B-D1 (keep custom version notification or remove?)_
+
+- [ ] **B-D1 decision** — SWR resolves: keep custom `/api/version` + `checkForUpdates()` layer, or remove and rely on VS Code built-in updates?
+- [ ] **9.8** Parse `latestVersion` from heartbeat response — scope TBD per B-D1 (2–3h)
+- [ ] **9.9** `Mouse: Update Version` command — scope TBD per B-D1 (1–2h)
+- [ ] **9.10** Version notification (status bar) — scope TBD per B-D1 (1h)
+- [ ] **AP9-HB** Heartbeat status alignment — fix or defer decision
+- [ ] Run full test suite — all tests pass post-changes
+
+**Stream 1A Checkpoint (CP-9):** Version notification functional (if keep) or custom code removed (if remove). All tests pass. → Unlocks Phase 2 docs, Phase 3 audit.
+
+#### Stream 1B: SMP Code Integration — AP 8 Phases 1–2
+
+_Note: Steps 1.1–1.2 extend Phase 0 items 0.8–0.9. Phase 0 establishes the raw baseline; Stream 1B applies those findings to SMP-specific code changes. Advanced Stripe dashboard operational settings (dispute handling, notification timing, tax categories) are deferred to Phase 3 Stream 3C where they belong._
+
+- [ ] **1.1** Verify all 4 test-mode checkout paths — baseline confirmation (30m)
+- [ ] **1.2** Audit forbidden parameters against our code (30m)
+- [ ] **1.3** Fee assessment confirmation — document 6.5–8.4% effective rate (15m)
+- [ ] **2.1** Add `managed_payments: { enabled: true }` to Checkout Session creation (15m)
+- [ ] **2.2** Set Preview version header on Stripe client (15m)
+- [ ] **2.3** Remove forbidden parameters — approach per AP8-D1 decision (1–2h)
+- [ ] **2.4** Re-verify all 4 checkout paths with SMP enabled (30m) — resolves AP8-D3 (automatic_tax)
+- [ ] **2.5** Verify webhook flow — 8 events fire correctly (15m)
+- [ ] **2.6** Verify customer portal (15m)
+- [ ] **2.7** Verify email notification flow (15m) — resolves AP8-D4 (duplication assessment)
+- [ ] **2.8** Set all SMP-related Stripe code and test-mode dashboard configurations — API version pinning, payment method types, any remaining settings not covered by 2.1–2.7 (30m)
+- [ ] **2.9** Verify all Stripe configurations end-to-end — dashboard settings consistent with code expectations, all test-mode checkout paths working with all config changes applied (15m)
+- [ ] **2.10** Run full test suite — ≥3,459 tests pass (15m)
+
+**Stream 1B Checkpoint (CP-SMP-2):** SMP parameters added, forbidden params removed, all Stripe configurations set and verified, all 4 checkout paths verified E2E in test mode, webhooks confirmed, all tests pass. → Unlocks Phase 3 Stream 3C.
+
+#### Stream 1C: Email Deliverability (AP 7.2–7.8)
+
+_Start after DMARC (0.7) is propagating._
+
+- [ ] **7.2** Test email delivery to Gmail — inbox, not spam (30m)
+- [ ] **7.3** Test email delivery to Outlook/Hotmail — inbox, not spam (30m)
+- [ ] **7.4** Verify all SES transactional email types fire: welcome, license activation, payment failed, subscription cancelled (1h) — _Note: payment receipts/confirmations are sent by Stripe, not SES; excluded from this check_
+- [ ] **7.5** Bounce/complaint monitoring active in SES console (30m)
+- [ ] **7.6** Verify duplicate email prevention fix is holding (15m)
+- [ ] **7.7** SWR review of all email template copy — verify tone, accuracy, branding, legal compliance across all SES templates (30m)
+- [ ] **7.8** Verify all links in email templates are valid — click every link in every template; confirm correct destinations, no 404s, no broken anchors (30m)
+
+**Stream 1C Checkpoint (CP-13):** Gmail/Outlook inboxes (not spam), all SES types verified, Stripe receipts confirmed, bounce monitoring active, template copy approved by SWR, all template links valid. → Unlocks Phase 4.
+
+#### Stream 1D: E2E Client Verification (AP 9.1–9.11)
+
+- [ ] **9.1** VS Code: Initialize Workspace → tool usage — re-verify (15m)
+- [ ] **9.2** Cursor: Initialize Workspace → tool usage — re-verify (15m)
+- [ ] **9.3** Kiro: Initialize Workspace → tool usage — re-verify (15m)
+- [ ] **9.4** Roo Code: Initialize Workspace → tool usage — new test (1h)
+- [ ] **9.5** Cline: Initialize Workspace → tool usage — new test (1h)
+- [ ] **9.6** Kilo Code: Initialize Workspace → tool usage — new test (1h)
+- [ ] **9.7** CodeGPT: Initialize Workspace → tool usage — new test (1h)
+- [ ] **9.8** Claude Code: Initialize Workspace → tool usage — new test (1h)
+- [ ] **9.9** Claude Code CLI: Initialize Workspace → tool usage — new test (30m)
+- [ ] **9.10** Copilot CLI: Initialize Workspace → tool usage — new test (30m)
+- [ ] **9.11** Other clients — catch-all for any additional MCP-compatible clients discovered during testing (TBD)
+- [ ] Evaluate Windsurf compatibility (promising — skipped in earlier testing, revisit)
+- [ ] Confirm Augment/Blackbox status — currently require paid subscriptions for evaluation; defer unless free trial available
+- [ ] Document client compatibility matrix — finalize supported vs. compatible vs. untested categories
+
+**Stream 1D Checkpoint (CP-E2E):** All tested clients verified. Compatibility matrix finalized (supported / compatible / untested). → Unlocks Phase 2 AP 5.
+
+---
+
+### Phase 2 — Website, Documentation & Legal (~2–3 days)
+
+_Internal sequencing: 2A → 2B → 2C → 2E. Steps 2D and 2F can run in parallel as noted._
+
+#### Step 2A: Plausible Analytics Integration (AP 11.4)
+
+_Note on AP 11 numbering: Assessment V3 §8.8 numbers items by category (11.1–11.3 = legal review, 11.4 = Plausible, 11.5–11.9 = IP/filings). Execution order has always been 11.4 first (Plausible → accurate Privacy Policy), which is why Step 2A precedes Step 2B here. No source document correction needed._
+
+- [ ] **11.4** Wire up Plausible analytics on staging (30m)
+- [ ] Verify data flowing in Plausible dashboard
+
+**Step 2A Checkpoint (CP-1):** Plausible script on staging, data confirmed. → Unlocks 2B.
+
+#### Step 2B: Legal Review — Privacy Policy & ToS (AP 11.1–11.3)
+
+_SWR reviews as attorney. Depends on 2A (Plausible wired so policy is accurate)._
+
+- [ ] **11.1** Privacy Policy review — reflect Plausible (cookieless), Cognito, DynamoDB, SES, SMP/Link (1h)
+- [ ] **11.2** Terms of Service review — pricing, product details, limitations, seller-of-record (Link / Lemon Squeezy LLC) (1h)
+- [ ] **11.3** ToS ↔ refund policy cross-reference — align with SMP's 60-day discretionary window (30m)
+
+**Step 2B Checkpoint (CP-2):** Privacy Policy and ToS updated on staging, approved by SWR. → Unlocks 2C, Phase 4.
+
+#### Step 2C: Front-End UX & Content Polish (AP 1)
+
+_Depends on 2B (legal pages finalized — don't proofread what will change)._
+
+- [ ] **1.1** Fix conflicting pricing on FAQ vs. pricing page (15m)
+- [ ] **1.2** Login page — apply brand styling (1–2h)
+- [ ] **1.3** Invite page — apply brand styling (1h)
+- [ ] **1.4** Mobile navigation — implement responsive nav (1h)
+- [ ] **1.5** Fix dead documentation links (30m)
+- [ ] **1.6** Remove non-functional search bar (5m)
+- [ ] **2.1–2.5** Tier 2 items: sitemap, OG image, 404 page, footer links, accessibility basics
+- [ ] **3.1–3.3** Tier 3 items: animation polish, dark mode refinements, micro-interactions
+- [ ] Final responsive check across breakpoints
+
+**Step 2C Checkpoint (CP-4):** All pages proofread, no 404s, sitemap live, responsive check passed, OG image verified. → Unlocks 2E, AP 12 Phase 2.
+
+#### Step 2D: Social Media Presence (AP 12 Phases 1–2)
+
+_Phase 1 can run parallel with 2A–2C. Phase 2 after 2C near-complete._
+
+**Phase 1 — Personal Account Audit** (parallel, 1.5–2h):
+
+- [ ] Audit 10 platforms per AP 12 Phase 1 checklist
+- [ ] Delete Facebook account
+- [ ] Secure/update remaining personal accounts
+
+**Phase 2 — Business Credibility** (after 2C, 2–3h):
+
+- [ ] Create HIC AI Twitter/X account (per D-5 research)
+- [ ] Create HIC AI LinkedIn company page
+- [ ] Populate GitHub org profile (bio, link, README)
+- [ ] Cross-link website ↔ social accounts
+
+**Step 2D Checkpoint (CP-7):** HIC AI accounts exist with bio, link to hic-ai.com, real content. → Unlocks Phase 5 marketing.
+
+#### Step 2E: Documentation Tier 1 (AP 5)
+
+_Depends on CP-E2E (clients verified) and 2C (site polished)._
+
+- [ ] **DOC-1** Update Getting Started guide — verified per-client flows (1h)
+- [ ] **DOC-2** Update Installation guide (30m)
+- [ ] **DOC-3** Update Configuration guide (30m)
+- [ ] **DOC-4** Update Licensing guide — reflect SMP/Link billing (45m)
+- [ ] **DOC-5** Update Troubleshooting guide (30m)
+- [ ] **DOC-6** NEW: VS Code + Copilot Setup Guide (1h)
+- [ ] **DOC-7** NEW: Cursor Setup Guide (45m)
+- [ ] **DOC-8** NEW: Common Errors & Solutions (45m)
+- [ ] **DOC-9** NEW: Security & Privacy Overview (45m)
+- [ ] **DOC-10** Fix FAQ — accurate pricing, working links (30m)
+- [ ] **DOC-11** NEW: How to Choose an IDE — quick comparison for beginners; highlight Mouse-supported editors, recommend VS Code as default (45m)
+- [ ] **DOC-12** NEW: How to Choose an AI Coding Assistant — overview of Copilot, Cursor, Claude Code, etc.; which ones Mouse supports, advantages/disadvantages (45m)
+- [ ] **DOC-13** NEW: How to Install Mouse — zero-to-coding guide for first-time users; prerequisites, step-by-step, 14-day free trial onramp (30m)
+- [ ] **DOC-14** NEW: How to Create a GitHub Repository — git basics for beginners; connect to IDE, clone, commit, push (30m)
+- [ ] **DOC-15** NEW: Best Practices for Coding with AI Agents Using Mouse — initial guide (will expand significantly post-launch); covers YOLO mode safety, agent supervision, effective prompting, recommended configurations (1h)
+- [ ] Verify every docs slug loads, no nav 404s
+
+**Step 2E Checkpoint (CP-5):** Every docs slug visited, content verified, no 404s from navigation. → Unlocks Phase 3 AP 2b, AP 6.
+
+#### Step 2F: Website Surface Security Review (AP 2a)
+
+_Parallel with 2D/2E. API routes independent of content._
+
+- [ ] **2a.1** `npm audit --production` on plg-website — flag/fix criticals (30m)
+- [ ] **2a.2** Review 4 unauthenticated endpoints — webhook signatures, rate limits, error sanitization (45m)
+- [ ] **2a.3** Verify safeJsonParse fixes deployed (15m)
+- [ ] **2a.4** HTTP security headers — CSP, HSTS, X-Frame-Options (15m)
+- [ ] **2a.5** Scan client-side bundle for leaked secrets (15m)
+- [ ] **2a.6** Verify error responses don't leak stack traces (15m)
+- [ ] **2a.7** Review `package.json` for `publishConfig.access`, license consistency (15m)
+- [ ] **2a.8** Brief findings note (15m)
+
+**Step 2F Checkpoint (CP-10a):** `npm audit` clean or criticals documented, endpoints reviewed, headers confirmed, no secrets in bundle. → Unlocks Phase 4.
+
+---
+
+### Phase 3 — Security, Monitoring & SMP Finalization (~2 days)
+
+_All 5 streams are independent and can run in parallel. 3C requires SMP-GO._
+
+#### Stream 3A: Comprehensive Security Audit (AP 2b)
+
+_Resolve B-D4/B-D5/B-D6 at stream start._
+
+- [ ] **B-D4** decision — SAST tool choice
+- [ ] **B-D5** decision — `package.json` field standardization
+- [ ] **B-D6** decision — security findings memo format
+- [ ] **2b.1** `npm audit` on hic/mouse, hic/licensing, hic/mouse-vscode (15m)
+- [ ] **2b.2** SAST scan on both repos (1–2h)
+- [ ] **2b.3** Manual review: auth flows — Cognito OAuth, JWT, token refresh, browser-delegated activation (1h)
+- [ ] **2b.4** Manual review: authorization — per-user device scoping, role-based access, seat enforcement (1h)
+- [ ] **2b.5** Review OAuth PKCE implementation (30m)
+- [ ] **2b.6** Audit all `package.json` files across both repos (30m)
+- [ ] **2b.7** Verify secrets audit findings remain remediated (15m)
+- [ ] **2b.8** Full scan for hardcoded credentials (30m)
+- [ ] **2b.9** Document findings with CWE/CVE references (1h)
+- [ ] 2FA hardening: GitHub org, Stripe, Keygen dashboards (~1h)
+
+**Stream 3A Checkpoint (CP-11):** SAST clean or triaged, `npm audit` clean, auth review documented, 2FA enabled. → Unlocks Phase 4.
+
+#### Stream 3B: Monitoring & Observability (AP 10.1–10.9)
+
+- [ ] **10.1** `/api/health` endpoint — 200 + DynamoDB connectivity check (30m) — **critical**
+- [ ] **10.2** CloudWatch metric filters + alarms for Amplify SSR logs (2–3h) — **critical**
+- [ ] **10.3** Log retention policy — set to 14 days per B-D7 (15m)
+- [ ] **10.4** Add Amplify SSR log group to CloudFormation (30m)
+- [ ] **10.5** Define severity levels P1–P4 (30m)
+- [ ] **10.6** Minimal incident runbook — top 3 failure modes (1h)
+- [ ] **10.7** Verify DynamoDB PITR enabled — per AP4-D5 decision (15m)
+- [ ] **10.8** Document backup restore procedure (30m)
+- [ ] **10.9** CloudWatch launch day dashboard (1–2h)
+
+**Stream 3B Checkpoint (CP-12):** `/api/health` returns 200, metrics alarming, log retention set, runbook exists, PITR confirmed, dashboard ready. → Unlocks Phase 4.
+
+#### Stream 3C: SMP Finalization — AP 8 Phase 3
+
+_**Gate:** SMP-GO decision (#28) must be issued before this stream begins._
+
+- [ ] **3.1** Complete SMP setup flow in Stripe Dashboard (15m)
+- [ ] **3.2** 2FA on Stripe account (5m)
+- [ ] **3.3** Confirm tax categories — downloadable software, business use (5m)
+- [ ] **3.4** Configure notification settings — 48-hour dispute SLA compliance (5m)
+
+**Stream 3C Checkpoint (CP-SMP-3):** 2FA on Stripe, SMP setup complete, tax categories confirmed, notifications configured. → Unlocks Phase 4.
+
+#### Stream 3D: Support Infrastructure (AP 6)
+
+- [ ] **6.1** Verify `support@hic-ai.com` routes to SWR inbox (30m)
+- [ ] **6.2** Auto-reply template — "received, expect response within 24h" (30m)
+- [ ] **6.3** Create Discord server — #general, #mouse-help, #feature-requests, #bug-reports (1h)
+- [ ] **6.4** Update Discord invite link in `constants.js` (15m)
+- [ ] **6.5** GitHub Issue templates — bug report, feature request (30m)
+- [ ] **6.6** "Report a Bug" link in extension → opens GitHub issue (30m)
+- [ ] **6.7** Internal support triage procedures (1h)
+- [ ] **6.8** Set up `security@hic-ai.com` with 24h response commitment (30m)
+
+**Stream 3D Checkpoint (CP-6):** `support@` reaches SWR, auto-reply works, Discord live, GitHub templates deployed. → Unlocks Phase 5.
+
+#### Stream 3E: Branch Protection Rules
+
+- [ ] Configure `development` branch protection on both repos — require PR, no direct pushes (10m)
+- [ ] Configure `main` branch protection on both repos — require PR, no direct pushes (5m)
+
+---
+
+### Phase 4 — Production Deployment (~1–2 days)
+
+_Mostly sequential. Convergence gate: Phase 3 CP-11 + CP-12 + CP-SMP-3 required._
+
+_First: SWR resolves B-D3 (EventBridge `readyVersion` gating — deploy or launch without?)_
+
+- [ ] **B-D3 decision** — SWR resolves EventBridge gating
+
+#### Step 4A: Foundation — AP 4 P0–P3
+
+- [ ] **P0** Naming standardization — `prod` → `production` across 9 CF templates + scripts + parameters (30m)
+- [ ] **P0** Fix SES bug in plg-iam.yaml (if present)
+- [ ] **P1** Create Cognito production pool + Google OAuth client (D-2) + SES sender (D-3) (1–2h)
+- [ ] **P2** Deploy CloudFormation `hic-plg-production` stack (1–2h)
+- [ ] **P3** Populate production Secrets Manager — Stripe, Keygen, Cognito secrets (30m)
+
+#### Step 4B: Environment & Payment — AP 4 P4–P5 + AP 8 Phase 4
+
+- [ ] **P4** Create Amplify production branch — same app `d2yhz9h4xdd5rb`, `main` branch (30m)
+- [ ] **P5** Verify production build succeeds (30m)
+- [ ] **AP8 4.1** Create live-mode Stripe products + prices: $15/mo, $150/yr, $35/seat/mo, $350/seat/yr with tax codes (30m)
+- [ ] **AP8 4.2** Create live-mode webhook endpoint → `hic-ai.com/api/webhooks/stripe` (15m)
+- [ ] **AP8 4.3** Populate Stripe production secrets in Secrets Manager (15m)
+- [ ] **AP8 4.4** Set Amplify production Stripe env vars (15m)
+- [ ] **AP8 4.5** Confirm SMP active in live mode — resolves AP8-D5 (5m)
+- [ ] **AP8 4.6** Confirm Keygen production webhook (5m)
+- [ ] Set all 17 production env vars per AP 4 §7 table
+
+#### Step 4C: Vendor Endpoints & DNS — AP 4 P6–P7
+
+- [ ] **P6** Point all vendor webhooks to production `hic-ai.com` URLs (30m)
+- [ ] **P7.1** Add custom domain in Amplify Console (15m)
+- [ ] **P7.2** Configure DNS records in GoDaddy (15m)
+- [ ] **P7.3** Wait for SSL certificate validation (5–30m)
+- [ ] **P7.4** Verify `https://hic-ai.com` resolves (5m)
+- [ ] **P7.5** Verify Cognito callback URLs include production domain (5m)
+
+**Step 4C Checkpoint (CP-C1):** `hic-ai.com` loads, SSL valid, marketplace links disabled. → Unlocks Phase 5.
+
+#### Step 4D: Production VSIX Build
+
+- [ ] Build production VSIX with correct `API_BASE_URL` (per B-D8 / Phase 0 item 0.4 findings)
+- [ ] E2E verify production VSIX before Marketplace submission (GC-GAP-2)
+
+**Phase 4 Checkpoint (CP-15):** All services on production config, website live at `hic-ai.com`, VSIX built. → Unlocks Phase 5.
+
+---
+
+### Phase 5 — Launch Sequence (~2–3 days incl. 24–48h Marketplace review)
+
+#### Step 5A: Production E2E & Dogfooding — AP 4 P8 + AP 8 Phase 5
+
+_SWR's dogfooding purchase = AP 4 P8 verification = AP 8 Phase 5 = first real transaction (OI-4)._
+
+> **⚠️ Sequencing tension (flagged for SWR decision at Phase 4 end):** The current plan has Step 5A (dogfooding with production VSIX) before Step 5B (Marketplace submission). However, a true end-to-end customer experience test requires downloading Mouse from the VS Code Marketplace itself — not installing a local VSIX. SWR cannot fully verify the real customer journey until the Marketplace listing is live. **Alternative sequence:** (1) Submit to Marketplace, (2) website goes live, (3) after Marketplace approval (24–48h), SWR downloads from Marketplace and completes full E2E dogfooding purchase of a genuine Business Annual 3-seat license. **Hybrid approach:** Pre-verify with production VSIX (Step 5A as-is), then re-verify from Marketplace download after approval. This provides the most authentic E2E verification at the cost of 24–48h before the dogfooding gate is fully satisfied.
+
+- [ ] **5.1** SWR purchases Mouse Business Annual 3-seat ($350/seat/yr) — live payment, genuine dogfooding (15m)
+- [ ] **5.2** Verify full E2E chain: checkout → webhook → Keygen license → DynamoDB → emails (20m)
+- [ ] **5.3** Verify extension activation: install → Cognito auth → Keygen activate → heartbeat → MCP tools (15m)
+- [ ] **5.4** Verify customer portal — subscription visible and manageable (5m)
+- [ ] **5.5** Verify MoR compliance indicators — Link entity on receipt, statement descriptor (5m)
+- [ ] Verify no errors in CloudWatch production Lambda logs
+- [ ] Production CloudWatch dashboard shows healthy metrics
+
+**Step 5A Checkpoint (CP-C3):** All flows pass. SWR dogfooding subscription active. → Unlocks 5B.
+
+#### Step 5B: Marketplace Submission
+
+_Submit early — review runs in parallel with 5A retesting._
+
+- [ ] Submit Mouse extension to VS Code Marketplace (24–48h review)
+- [ ] Submit to Open VSX (parallel, if timeline allows)
+
+#### Step 5C: Analytics & Traffic Activation — AP 4 P9
+
+_Depends on 5A passing. Sequence: Plausible staging (Phase 2) → Privacy Policy (Phase 2) → P9 production (GC-GAP-6)._
+
+- [ ] **P9.1** Activate Plausible for `hic-ai.com` production domain (15m)
+- [ ] **P9.2** Enable marketplace install links — `MARKETPLACE_ENABLED = true` (5m)
+- [ ] **P9.3** Confirm `hic-ai.com` appears in search engine results (15m)
+- [ ] Revert staging to allowlist-only access
+
+#### Step 5D: Disclosures & Public Launch — AP 13 + AP 12 Phase 3
+
+_SWR personal. Hard sequencing: AP 13 → AP 12 Phase 3 item 3.6 (LinkedIn = irreversible disclosure)._
+
+- [ ] **13.1** Disclose to law firm partner (first — professional obligation)
+- [ ] **13.2** Disclose to key clients
+- [ ] **13.3** Disclose to remaining close contacts
+- [ ] **13.4** Silence period before public signal
+- [ ] **AP12 3.6** Update personal LinkedIn — **irreversible public disclosure**
+- [ ] Execute launch content plan (Show HN, blog post, social media)
+
+**Step 5D Checkpoint (CP-C4):** Extension live on Marketplace, links enabled, Plausible active, disclosures complete, LinkedIn updated. → **LAUNCH.**
+
+---
+
+## 2. SWR Action Items
+
+Items requiring SWR's direct action, extracted from all APs. Grouped by hard deadline.
+
+| #   | Item                                                                                                                                                                                       | Hard Deadline        | Phase/Step    | Source                  | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ------------- | ----------------------- | ------ |
+| S1  | **SMP-GO** — Review 7 SMP Preview Terms provisions (indemnification, liability cap, beta disclaimers, fee changes, data processing, refund policy, 30-day termination). Issue GO or NO-GO. | Before Phase 3 3C    | Begin Phase 0 | AP 8 AR §4.2, OD #28    | ☐      |
+| S2  | **B-D1 decision** — Keep custom version update layer or rely on VS Code built-in?                                                                                                          | Before Phase 1 1A    | Phase 1 start | OD §3c                  | ☐      |
+| S3  | **Privacy Policy review** — Must reflect Plausible, Cognito, DynamoDB, SES, SMP/Link                                                                                                       | Phase 2 Step 2B      | Day 4         | AP 11.1, OD #29         | ☐      |
+| S4  | **ToS review** — Pricing, product details, seller-of-record, SMP 60-day refund window                                                                                                      | Phase 2 Step 2B      | Day 4         | AP 11.2–11.3, OD #30–31 | ☐      |
+| S5  | **B-D3 decision** — EventBridge `readyVersion` gating: deploy or launch without?                                                                                                           | Before Phase 4       | Day 7         | OD §3b                  | ☐      |
+| S6  | **Pre-Sprint Batch** — Confirm/override GC recommendations on OD #6–15 (AP5-Q1–Q4, AP8-D1–D2, AP4-D5, B-D4/D5/D6)                                                                          | Before Phase 1       | Day 1         | OD §2                   | ☐      |
+| S7  | **IP review** — Remove/generalize sensitive technical details from public docs/FAQ                                                                                                         | Before launch        | Phase 3+      | AP 11.5–11.7, OD #32    | ☐      |
+| S8  | **Copyright application** — File for Mouse software                                                                                                                                        | Before launch (rec.) | Phase 3+      | AP 11.8, OD #33         | ☐      |
+| S9  | **Provisional patent** — File before public launch (disclosure starts 1-year clock)                                                                                                        | **Before launch**    | Phase 3+      | AP 11.9, OD #34         | ☐      |
+| S10 | **Private disclosures** — Law partner → key clients → contacts → silence period                                                                                                             | Before AP 12 Phase 3 | Phase 5       | AP 13, OD #35           | ☐      |
+| S11 | **Dogfooding purchase** — Buy Mouse Business Annual 3-seat ($350/seat/yr) as live payment test                                                                                                       | Phase 5 Step 5A      | Day 9         | AP 4 P8, OI-4           | ☐      |
+| S12 | **LS/Paddle insurance** — Optional backup MoR applications (~2h)                                                                                                                           | Optional, anytime    | SWR judgment  | OD #36, OI-3            | ☐      |
+
+---
+
+## 3. Decision Resolution Log
+
+Decisions resolved during the execution sprint. Complements the Open Decisions Register (which organizes by group). This section is chronological.
+
+| Date   | Decision ID | Resolution                    | Impact                                | By  |
+| ------ | ----------- | ----------------------------- | ------------------------------------- | --- |
+| Feb 18 | SEQ-1       | Features first, docs second   | Dep Map v3 Phase 1 → Phase 2 ordering | SWR |
+| Feb 18 | B-D7        | 14-day log retention          | AP 10.3 scope fixed                   | SWR |
+| Feb 18 | B-D1 + B-D2 | Merged → deferred to pre-AP 9 | Phase 1 Stream 1A scope TBD           | SWR |
+| Feb 18 | B-D3        | Deferred to pre-deployment    | Phase 4 decision point                | SWR |
+|        |             |                               |                                       |     |
+|        |             |                               |                                       |     |
+
+_Add rows as decisions are made during execution._
+
+---
+
+## 4. Deviation Log
+
+When the plan changes, document it here. No document currently covers this terrain.
+
+| Date | What Changed | Why | Impact on Timeline | Approved By |
+| ---- | ------------ | --- | ------------------ | ----------- |
+|      |              |     |                    |             |
+
+_Empty at creation. Populated during execution when reality diverges from plan._
+
+---
+
+## 5. Cross-Reference Index
+
+Every checklist item mapped to its authoritative source document and section.
+
+| Phase   | Item(s)              | Source Document                    | Section                            |
+| ------- | -------------------- | ---------------------------------- | ---------------------------------- |
+| **0**   | 0.1–0.11             | AP 0 V2                            | Groups A–D                         |
+| **0**   | 0.12                 | AP 0 V2                            | Group D (completed)                |
+| **1A**  | 9.8–9.10, B-D1       | AP 9 (Assessment V3 §8.6) + OD §3c | Dep Map v3 §4 Stream 1A            |
+| **1B**  | 1.1–1.3, 2.1–2.10    | AP 8 AR                            | §4 (Phase 1) + §5 (Phase 2)        |
+| **1C**  | 7.2–7.8              | Assessment V3 §8.5                 | AP 7 inline                        |
+| **1D**  | 9.1–9.11             | Assessment V3 §8.6                 | AP 9 inline                        |
+| **2A**  | 11.4                 | Assessment V3 §8.8                 | AP 11 inline                       |
+| **2B**  | 11.1–11.3            | Assessment V3 §8.8                 | AP 11 inline                       |
+| **2C**  | 1.1–3.3              | AP 1 V2                            | Tiers 1–3                          |
+| **2D**  | Phases 1–2           | AP 12 V2                           | §4–5                               |
+| **2E**  | DOC-1–DOC-15         | AP 5 V2                            | Tier 1                             |
+| **2F**  | 2a.1–2a.8            | Assessment V3 §8.1                 | AP 2a inline                       |
+| **3A**  | 2b.1–2b.9, B-D4/5/6  | Assessment V3 §8.2 + OD §2d        | AP 2b inline                       |
+| **3B**  | 10.1–10.9            | Assessment V3 §8.7                 | AP 10 inline                       |
+| **3C**  | 3.1–3.4, SMP-GO      | AP 8 AR §6 + OD #28                | Phase 3                            |
+| **3D**  | 6.1–6.8              | Assessment V3 §8.4                 | AP 6 inline                        |
+| **3E**  | Branch protection    | AP 0 V2 (item 0.8)                 | Relocated to Phase 3 by Dep Map v3 |
+| **4A**  | P0–P3                | AP 4 V2                            | §3.1–3.4                           |
+| **4B**  | P4–P5, AP8 4.1–4.6   | AP 4 V2 §3.5–3.6 + AP 8 AR §7      | Phase 4                            |
+| **4C**  | P6–P7                | AP 4 V2                            | §3.7–3.8                           |
+| **4D**  | VSIX build, GC-GAP-2 | Dep Map v3 §7 Step 4D              | Bridge step                        |
+| **5A**  | P8, AP8 5.1–5.5      | AP 4 V2 §3.9 + AP 8 AR §8          | Phase 5                            |
+| **5B**  | Marketplace          | Dep Map v3 §8 Step 5B              | GAP-3                              |
+| **5C**  | P9.1–P9.3            | AP 4 V2 §3.10                      | GC-GAP-6 sequence                  |
+| **5D**  | 13.1–13.4, AP12 3.6  | Assessment V3 §8.9 + AP 12 V2 §6   | AP 13 + AP 12 Phase 3              |
+| **SWR** | S1–S12               | OD §4 + Dep Map v3 §13             | Attorney & Personal Track          |
+
+### Source Document Quick Reference
+
+| Short Name     | Full Path                                                            | Lines |
+| -------------- | -------------------------------------------------------------------- | ----- |
+| AP 0 V2        | `20260218_AP0_QUICK_WINS_AND_INITIAL_SETUP_V2.md`                    | 307   |
+| AP 1 V2        | `20260218_AP1_FRONT_END_UX_PRIORITIZATION_PLAN_V2.md`                | 311   |
+| AP 4 V2        | `20260218_AP4_SWITCH_TO_PRODUCTION_PLAN_V2.md`                       | 938   |
+| AP 5 V2        | `20260218_AP5_DOCUMENTATION_STRATEGY_V2.md`                          | 572   |
+| AP 8 AR        | `20260218_AP8_MOR_STRATEGY_AND_PAYMENT_INTEGRATION_AR.md`            | 753   |
+| AP 12 V2       | `20260218_AP12_SOCIAL_MEDIA_SEO_AND_CONTENT_DISTRIBUTION_PLAN_V2.md` | 546   |
+| Assessment V3  | `20260218_PRE_LAUNCH_STATUS_ASSESSMENT_AND_ACTION_PLANS_V3.md`       | 445   |
+| Dep Map v3     | `20260218_ACTION_PLAN_DEPENDENCY_MAP_V3.md`                          | 853   |
+| Open Decisions | `20260218_OPEN_DECISIONS.md`                                         | 235   |
+
+---
+
+## Document History
+
+| Date       | Author | Changes                                                                                                                                                                               |
+| ---------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-02-18 | GC     | Initial creation — comprehensive phase-ordered checklists extracted from 9 planning documents. 5 sections: checklists, SWR items, decision log, deviation log, cross-reference index. |
+| 2026-02-18 | GC     | SWR review edits: Phase 0 comprehensive Stripe settings review (0.10), Stream 1B dedup note + config/verify steps (2.8–2.9), Stream 1C email fix (7.4 Stripe receipts, add 7.7–7.8 template review), Stream 1D expanded to 9.6–9.11 (Kilo Code, CodeGPT, Claude Code/CLI, Copilot CLI), AP 11 numbering note, DOC-11–DOC-15 onboarding docs, Phase 5 dogfooding sequencing tension flagged, 5.1 changed to Business Annual 3-seat, 13.2 updated, cross-reference index updated. |
