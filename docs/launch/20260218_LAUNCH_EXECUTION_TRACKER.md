@@ -16,6 +16,16 @@ Scan §1 top-to-bottom for current state. Each checkbox is one actionable unit o
 
 ## 1. Phase-Ordered Checklists
 
+### Phase 0.0 — Stream 1A Pre-Scope Investigation (hic repo)
+
+_Prerequisite to Phase 0. Open `~/source/repos/hic` in a new VS Code window. Ask agent the 5 questions in [20260219_DAILY_PLAN.md Addendum](20260219_DAILY_PLAN.md#addendum--5-questions-for-the-hic-repo-agent). Target: 15–20 min reading, 30 min hard cap._
+
+- [ ] **0.0** Heartbeat loop, status allow-list, version wire-up pre-scope — read `licensing/heartbeat.js`, `licensing/validation.js`, `extension.js`; answer all 5 questions; document findings; assess Stream 1A true scope before Phase 0 begins (30m)
+
+**Phase 0.0 Checkpoint:** Stream 1A complexity known. B-D1 decision unblocked. → Proceed to Phase 0.
+
+---
+
 ### Phase 0 — Quick Wins & Initial Setup (~3.5h)
 
 _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), then parallel._
