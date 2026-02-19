@@ -648,6 +648,26 @@ The version notification pipeline is **fully operational**:
 
 **Feeds skeleton sections:** §3.1.4, Appendix C
 
+#### Step 12 Findings — Completed 2026-02-19
+
+Step 11 directly answered the first two extraction targets. The third required additional investigation.
+
+**Table name, partition key, sort key structure:** See Step 11, Finding 11.9. Table `hic-plg-${Environment}`, PK (String) + SK (String), single-table design, 3 GSIs (Stripe, License Key, Auth0).
+
+**Shape of version records:** See Step 11, Finding 11.3 (full attribute table with all values) and Finding 11.8 (two-stage write model: CI/CD writes `latestVersion` via `updateVersionConfig`, daily Lambda promotes to `readyVersion`). VERSION records have NO TTL — the `ttl` attribute (plg-dynamodb.yaml L133) is used only for EVENT and TRIAL records. There is exactly one VERSION record: `PK=VERSION#mouse / SK=CURRENT`. Update frequency: `latestVersion` updated at release time (last: 2026-02-16), `readyVersion` updated daily at 9 AM UTC by Lambda.
+
+**Whether heartbeat records are stored in DynamoDB:** **No.** The heartbeat route does NOT write a "HEARTBEAT" record. It performs two DynamoDB operations during a licensed heartbeat:
+
+1. `getLicense(licenseKey)` — reads `LICENSE#{licenseKey} / DETAILS` (route.js L246)
+2. `updateDeviceLastSeen(keygenLicenseId, fingerprint)` — updates `LICENSE#{keygenLicenseId} / DEVICE#{fingerprint}` setting `lastSeenAt = now` (dynamodb.js L1095-L1148, fire-and-forget at route.js L285)
+
+For concurrent device enforcement, `getActiveDevicesInWindow(keygenLicenseId, windowHours)` (dynamodb.js L889-L919) queries all `DEVICE#*` records under the license and filters by `lastSeenAt > cutoffTime` (default 2-hour window). This is a read, not a write.
+
+Trial heartbeats perform zero DynamoDB writes (only `getVersionConfig` read).
+
+No heartbeat-specific data is persisted — heartbeat state exists only transiently in the Keygen API (machine heartbeat ping) and as a side effect on the `lastSeenAt` attribute of existing DEVICE records.
+
+
 ---
 
 ### Step 13 — Git History for Extension Repo Heartbeat Files
