@@ -33,6 +33,136 @@
 
 **Feeds skeleton sections:** §3.1.1, §4 (all bugs reference server behavior), §6 (user journeys — server side), Appendix A
 
+**Status:** COMPLETE  
+**Completed:** 2026-02-19  
+**File reviewed:** `plg-website/src/app/api/license/heartbeat/route.js` (382 lines, last modified 2026-02-15)
+
+#### Step 1 Findings: Complete Server Response Inventory
+
+The file contains 11 `return NextResponse.json(...)` calls. Every response branch is catalogued below with its HTTP status, body shape, conditions, and whether version fields are included. Line numbers are exact and verified against the file on disk.
+
+**Response 1 — Rate Limit (L103)**
+- **HTTP:** 429
+- **Body:** `rateLimitResult` object (passed through from middleware; contains `retryAfter`, `error`)
+- **`valid`/`status`/`reason`:** None. This is not a heartbeat-shaped response.
+- **Version fields:** No
+- **Condition:** `rateLimitMiddleware` returns a truthy result (>10 heartbeats/minute per license key)
+
+**Response 2 — Missing Fingerprint (L121)**
+- **HTTP:** 400
+- **Body:** `{ error: "Device fingerprint is required" }`
+- **`valid`/`status`/`reason`:** None. Not a heartbeat-shaped response.
+- **Version fields:** No
+- **Condition:** `!fingerprint`
+
+**Response 3 — Trial Heartbeat (L152)**
+- **HTTP:** 200
+- **`valid`:** `true`
+- **`status`:** `"trial"`
+- **`reason`:** `"Trial heartbeat recorded"`
+- **Additional fields:** `concurrentMachines: 1`, `maxMachines: 1`, `nextHeartbeat: 900`
+- **Version fields:** YES — all 7 (`latestVersion`, `releaseNotesUrl`, `updateUrl`, `readyVersion`, `readyReleaseNotesUrl`, `readyUpdateUrl`, `readyUpdatedAt`)
+- **Condition:** `!licenseKey` (request has no license key — trial user path)
+
+**Response 4 — Unauthorized (L196)**
+- **HTTP:** 401
+- **Body:** `{ error: "Unauthorized", detail: "Authentication is required for licensed heartbeats" }`
+- **`valid`/`status`/`reason`:** None. Not a heartbeat-shaped response.
+- **Version fields:** No
+- **Condition:** `verifyAuthToken()` returns falsy (missing or invalid JWT)
+
+**Response 5 — Missing Session ID (L212)**
+- **HTTP:** 400
+- **Body:** `{ error: "Session ID is required" }`
+- **`valid`/`status`/`reason`:** None. Not a heartbeat-shaped response.
+- **Version fields:** No
+- **Condition:** `!sessionId` (after auth verification passes)
+
+**Response 6 — Invalid License Format (L225)**
+- **HTTP:** 400
+- **`valid`:** `false`
+- **`status`:** `"invalid"`
+- **`reason`:** Dynamic — from `validateLicenseKeyFormat()` (one of: `"License key is required"`, `"Invalid license key format"`, `"Invalid license key checksum"`)
+- **Version fields:** No
+- **Condition:** `!formatValidation.valid` (malformed license key)
+
+**Response 7 — Machine Not Found (L246)**
+- **HTTP:** 200
+- **`valid`:** `false`
+- **`status`:** `"machine_not_found"`
+- **`reason`:** `heartbeatResult.error || "Machine not found or deactivated"` — dynamic, depends on what Keygen returns
+- **Additional fields:** `concurrentMachines: 0`, `maxMachines: 0`
+- **Version fields:** No
+- **Condition:** `!heartbeatResult.success` (Keygen machine heartbeat ping failed)
+- **NOTABLE:** The `reason` is potentially any string Keygen returns as `error`. It is NOT the fixed string `"machine_not_found"`. This is critical for any client-side switch that matches on `reason`.
+
+**Response 8 — License Not in DynamoDB (L263)**
+- **HTTP:** 200
+- **`valid`:** `true`
+- **`status`:** `"active"`
+- **`reason`:** `"Heartbeat successful"`
+- **Additional fields:** `concurrentMachines: 1`, `maxMachines: null`, `nextHeartbeat: 900`
+- **Version fields:** YES — all 7
+- **Condition:** `!license` (Keygen machine heartbeat succeeded, but license key not found in DynamoDB)
+- **NOTABLE:** No log statement for this response. The function returns silently with a 200 and `status: "active"` — the client cannot distinguish this from a normal success (Response 10).
+
+**Response 9 — Over Limit, Early Return (L321)**
+- **HTTP:** 200
+- **`valid`:** `true`
+- **`status`:** `"over_limit"`
+- **`reason`:** `` `You're using ${concurrentMachines} of ${maxMachines} allowed devices` `` — dynamic human-readable string
+- **Additional fields:** `concurrentMachines`, `maxMachines`, `message: "Consider upgrading your plan for more concurrent devices."`
+- **Version fields:** No
+- **Condition:** `overLimit` is truthy, where `overLimit = maxMachines && concurrentMachines > maxMachines` (L317)
+- **NOTABLE:** This is a hard early return. The over_limit condition triggers `valid: true` — the server considers the heartbeat accepted. The response lacks ALL version fields and `nextHeartbeat`. Over-limit users receive no version update notifications via heartbeat and no guidance on when to next heartbeat.
+
+**Response 10 — Success (L341)**
+- **HTTP:** 200
+- **`valid`:** `true`
+- **`status`:** `overLimit ? "over_limit" : "active"` — BUT `overLimit` is ALWAYS FALSY at this point because Response 9 already returned for the truthy case. Effective value: **always `"active"`**.
+- **`reason`:** `"Heartbeat successful"`
+- **Additional fields:** `concurrentMachines`, `maxMachines`, `overLimit: overLimit` (always falsy), `message: null` (always null), `nextHeartbeat: 900`
+- **Version fields:** YES — all 7
+- **Condition:** All prior checks passed, `overLimit` is falsy
+- **NOTABLE:** The ternary expressions referencing `overLimit` at L344, L348, L349–351 are **dead code** — they can never produce the `"over_limit"` branch because L319–329 already returned. This is harmless but misleading. The `overLimit` boolean field at L348 is always falsy at this point.
+
+**Response 11 — Server Error (L370)**
+- **HTTP:** 500
+- **`valid`:** `false`
+- **`status`:** `"error"`
+- **`reason`:** `"Server error during heartbeat"`
+- **Additional fields:** `concurrentMachines: 0`, `maxMachines: 0`
+- **Version fields:** No
+- **Condition:** Any unhandled exception in the try block
+
+#### Step 1 Summary: Unique `status` Values Emitted
+
+| `status` value | `valid` | HTTP | Version fields | Lines |
+|---|---|---|---|---|
+| (none — rate limit) | N/A | 429 | No | L103 |
+| (none — 400 errors) | N/A | 400 | No | L121, L212 |
+| `"trial"` | `true` | 200 | Yes | L152 |
+| (none — 401 error) | N/A | 401 | No | L196 |
+| `"invalid"` | `false` | 400 | No | L225 |
+| `"machine_not_found"` | `false` | 200 | No | L246 |
+| `"active"` | `true` | 200 | Yes | L263, L341 |
+| `"over_limit"` | `true` | 200 | **No** | L321 |
+| `"error"` | `false` | 500 | No | L370 |
+
+#### Step 1 Key Observations
+
+1. **Six unique `status` values are emitted:** `"trial"`, `"invalid"`, `"machine_not_found"`, `"active"`, `"over_limit"`, `"error"`. No other status values appear in runtime code.
+2. **`"over_limit"` has `valid: true`.** The server treats the heartbeat as accepted. Any client-side handler that only enters an "invalid heartbeat" path on `valid === false` will never handle `over_limit`.
+3. **`"over_limit"` response (L321) lacks version fields.** Trial (L152), license-not-in-DDB (L263), and normal success (L341) all include version fields. Over-limit does not. Over-limit users will not receive version update notifications via heartbeat.
+4. **`"over_limit"` response (L321) lacks `nextHeartbeat`.** The client receives no server-suggested heartbeat interval for the over-limit case.
+5. **`"machine_not_found"` has `valid: false` and a dynamic `reason`.** The `reason` field is `heartbeatResult.error || "Machine not found or deactivated"` — the actual string depends on what Keygen returns. A client that switches on `reason === "machine_not_found"` will only match if Keygen's error string happens to be exactly `"machine_not_found"`.
+6. **The success path (L341) contains dead over_limit ternaries.** The `overLimit ? "over_limit" : "active"` at L344 can never produce `"over_limit"` because L321 already returned. Same for the message ternary at L349–351 and the `overLimit` boolean field at L348. Harmless but misleading.
+7. **Four responses lack `valid`/`status`/`reason` fields entirely:** Rate limit (L103, HTTP 429), missing fingerprint (L121, HTTP 400), unauthorized (L196, HTTP 401), missing session ID (L212, HTTP 400). These are HTTP error responses with `{ error: "..." }` bodies. They never reach `validateHeartbeatResponse` on the client because the HTTP client should throw on non-200 status codes.
+8. **`"invalid"` (L225) is HTTP 400, not 200.** Unlike all other heartbeat-shaped responses (which are HTTP 200 or 500), invalid license format returns HTTP 400. Client-side behavior depends on whether the HTTP client throws on 400 or passes it to the validation gate.
+9. **No `status` values from the extension's handler exist in server code.** The server never emits `"license_expired"`, `"license_suspended"`, `"license_revoked"`, `"concurrent_limit"`, `"valid"`, or `"device_limit_exceeded"`. These are extension-only constructs with no corresponding server branch.
+10. **Response 8 (license not in DDB, L263) has no log statement.** All other responses are preceded by `log.response(...)` or `log.decision(...)`. This silent return could make debugging difficult if it occurs in production.
+
+
 ---
 
 ### Step 2 — Read the VS Code HeartbeatManager
