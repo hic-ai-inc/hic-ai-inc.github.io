@@ -568,6 +568,8 @@ Two options:
 
 **Dependency:** None. Independent of other fixes.
 
+**SWR Decision (2026-02-20):** Option A confirmed. Remove `checkForUpdates()` entirely.
+
 ### 5.5 Fix 5: Update Tests for New Behavior
 
 **Fixes:** Test coverage gaps identified in Steps 9–10 | **Repo:** Extension | **Priority:** High
@@ -722,6 +724,8 @@ The over-limit user experiences complete silent failure. The extension receives 
 
 After Fixes 1 (allow-list) + 3 (success-path detection) + 7 (mapping): `"over_limit"` passes the gate → HeartbeatManager success path detects `over_limit` → routes to `onConcurrentLimitExceeded` callback → user sees a notification that they are using 4 of 3 allowed devices. The heartbeat continues (soft warning, not blocking). No version fields in this response (HB-7, deferred), so no version notification for this heartbeat cycle.
 
+Additionally, the server-side `over_limit` detection writes the overage event to DynamoDB, which triggers a DDB stream → Lambda stream-processor → SNS topic → SES subscriber, sending an Over-Limit notification email to the user. Analytics consumers on the same SNS topic flag persistent overage users for targeted outreach (e.g., Mouse for Automation upsell). The enforcement model is intentionally soft: never block, never degrade — maximize adoption and dependency, then convert. Enterprises and honest actors pay directly; persistent over-limit users become the highest-value upsell candidates for future license tiers.
+
 ### 6.3 Journey C: Machine Not Found / Deactivated Device
 
 #### Code Path Trace
@@ -736,7 +740,7 @@ The user whose device was deactivated (e.g., by an admin removing it from the li
 
 #### After Fixes
 
-After Fixes 1 (allow-list) + 2 (dispatch field): `"machine_not_found"` passes the gate → `_handleInvalidHeartbeat` → `switch (response.status)` → `case "machine_not_found"` matches → `_attemptMachineRevival()` executes → calls `activateLicense()` to re-register the machine → if successful, updates `machineId` and continues heartbeat loop. If revival fails, the error is handled gracefully (no crash). User may see a brief interruption followed by automatic recovery.
+After Fixes 1 (allow-list) + 2 (dispatch field): `"machine_not_found"` passes the gate → `_handleInvalidHeartbeat` → `switch (response.status)` → `case "machine_not_found"` matches → `_attemptMachineRevival()` executes → calls `activateLicense()` to re-register the machine → if successful, updates `machineId`, continues heartbeat loop, and displays a status notification toast confirming successful device reactivation. The status bar updates to reflect the current license state. If revival fails, the error is handled gracefully (no crash) with an appropriate error toast.
 
 ### 6.4 Journey D: Trial User Heartbeat
 
@@ -752,7 +756,9 @@ Trial users experience silent heartbeat failure. The server correctly returns tr
 
 #### After Fixes
 
-After Fix 1 (allow-list) + Fix 7 (mapping with `trial` → `TRIAL`): `"trial"` passes the gate → HeartbeatManager success path (since trial heartbeats have `valid: true`) → `_mapServerStatusToState("trial")` returns `"TRIAL"` → state manager updated → `onSuccess` fires with version fields → StatusBarManager can display version notification. Trial users now receive version update notifications via heartbeat.
+After Fix 1 (allow-list) + Fix 7 (mapping with `trial` → `TRIAL`): `"trial"` passes the gate → HeartbeatManager success path (since trial heartbeats have `valid: true`) → `_mapServerStatusToState("trial")` returns `"TRIAL"` → state manager updated → `onSuccess` fires with version fields → StatusBarManager can display version notification. Trial users now receive version update notifications via heartbeat. The heartbeat response should also include `trialDaysRemaining` so the client can populate conversion prompts.
+
+> **⚠️ NAG-BANNER DISCLAIMER:** Mouse's PLG trial conversion strategy markets to AI agents directly — the nag-banner system (escalating from ~2% of tool-call responses in days 1–7 to near-continuous by day 14) reminds the AI coding assistant to suggest license purchase to its Human. The heartbeat-delivered `trialDaysRemaining` value enables the client to calibrate this escalation without a separate API call. However, the current state of the nag-banner system has NOT been verified end-to-end. This feature is subject to further investigation to determine whether it is fully functional. If the nag-banner system is non-functional and not trivially easy to wire up, it will be deferred to post-launch — it should not hold up the Mouse v0.10.10 release. (SWR directive, 2026-02-20)
 
 ### 6.5 Journey E: Server Error During Heartbeat
 
@@ -790,7 +796,7 @@ Trial users and over-limit users receive NO version notifications because their 
 
 #### After Fixes
 
-After Fixes 1 + 7: Version notification now works for `active`, `trial`, and (once deferred Fix 5.11 is applied) `over_limit` users. The `_mapServerStatusToState` case mismatch is resolved (Fix 7), so the state manager is correctly updated. If Fix 4 (Option A) is applied, `checkForUpdates()` is removed entirely, simplifying the version notification to a single heartbeat-delivered path.
+After Fixes 1 + 7: Version notification now works for `active`, `trial`, and (once deferred Fix 5.11 is applied) `over_limit` users. The `_mapServerStatusToState` case mismatch is resolved (Fix 7), so the state manager is correctly updated. Per SWR decision, Fix 4 applies Option A: `checkForUpdates()` is removed entirely, simplifying version notification to a single heartbeat-delivered path.
 
 ### 6.7 Journey G: Business License — 6th Device on 5-Device Plan
 
@@ -808,7 +814,7 @@ Identical to Journey B Before Fixes. The Business user on 6 devices experiences 
 
 #### After Fixes
 
-Identical to Journey B After Fixes. The `onConcurrentLimitExceeded` callback fires with `concurrentMachines: 6, maxMachines: 5`. The user sees a notification. All 6 devices continue operating (soft warning, not blocking).
+Identical to Journey B After Fixes, including the SES/SNS downstream notification pipeline and analytics flagging. The `onConcurrentLimitExceeded` callback fires with `concurrentMachines: 6, maxMachines: 5`. The user sees a notification and receives an Over-Limit email. All 6 devices continue operating (soft warning, not blocking).
 
 ### 6.8 Journey H: License Re-Entry While Heartbeat Running (Double-Start)
 
@@ -859,6 +865,8 @@ The following back-end improvements are recommended but do NOT block the active 
 3. **Clean up dead-code ternaries in success response**: `route.js` L342 (`status: overLimit ? "over_limit" : "active"`) is unreachable because L319 returns early for over-limit. Similarly L348 (`overLimit: overLimit`) is always `false` and L349–351 (`message: overLimit ? ... : null`) is always `null`. (Citation: Step 1 Finding 6, Step 11 Finding 11.6)
 
 4. **Reconcile integration test `valid: false` assertion**: The integration test (L279) asserts `valid: false` for device-limit-exceeded, contradicting both the unit test (`valid: true`, L465) and the actual server (`valid: true`, route.js L305). (Citation: Step 10 Finding 10.5)
+
+5. **Verify SES/SNS downstream pipeline for `over_limit` events**: The over-limit detection in `route.js` should write the overage event to DynamoDB, triggering the existing DDB stream → Lambda stream-processor → SNS topic pipeline. Verify that: (a) an SES subscriber sends an Over-Limit notification email to the user, (b) analytics consumers on the SNS topic receive the event for persistent-overage user flagging and targeted outreach (e.g., Mouse for Automation upsell). The infrastructure for this pattern is believed to be configured but has not been verified for this specific use case. (Citation: SWR business requirements, 2026-02-20)
 
 ### 7.3 Implementation Ordering Constraints
 
@@ -1239,3 +1247,4 @@ extension.js
 | 2026-02-19 | GC     | Skeleton created — awaiting population via investigation |
 | 2026-02-20 | Kiro   | Structural expansion: +4 HB issues, +6 bugs, +6 fixes, +1 journey, +8 subsections, +2 appendices |
 | 2026-02-20 | Kiro   | Batches 1–7: Full population of §1–§10 and Appendices A–E from Investigation Plan Steps 1–14 |
+| 2026-02-20 | Kiro   | SWR business-logic revisions: soft enforcement rationale (B/G), SES/SNS downstream pipeline (B/G/§7.2), trial days-remaining + nag-banner disclaimer (D), revival toast (C), Fix 4 Option A confirmed (F/§5.4), Document History |
