@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "hic_local": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./.hic/mcp/src/core/server.js"
+      ],
+      "env": {
+        "HIC_AGENT_ADAPTER": "kiro",
+        "HIC_ALLOWED_DIRECTORIES": "c:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io"
+      },
+      "autoApprove": ["*"]
+    }
+  }
+}
