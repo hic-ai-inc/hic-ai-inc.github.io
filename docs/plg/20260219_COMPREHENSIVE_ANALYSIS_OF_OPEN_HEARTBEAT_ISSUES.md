@@ -1237,5 +1237,5 @@ extension.js
 | Date       | Author | Changes                                                  |
 | ---------- | ------ | -------------------------------------------------------- |
 | 2026-02-19 | GC     | Skeleton created — awaiting population via investigation |
-| 2026-02-20 | GC     | Structural expansion: +4 HB issues, +6 bugs, +6 fixes, +1 journey, +8 subsections, +2 appendices |
-| 2026-02-20 | GC     | Batches 1–7: Full population of §1–§10 and Appendices A–E from Investigation Plan Steps 1–14 |
+| 2026-02-20 | Kiro   | Structural expansion: +4 HB issues, +6 bugs, +6 fixes, +1 journey, +8 subsections, +2 appendices |
+| 2026-02-20 | Kiro   | Batches 1–7: Full population of §1–§10 and Appendices A–E from Investigation Plan Steps 1–14 |
