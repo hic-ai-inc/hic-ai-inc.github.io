@@ -483,29 +483,206 @@ No test catches this because tests mock responses that bypass the validation gat
 
 ### 5.1 Fix 1: Expand `VALID_HEARTBEAT_STATUSES` in Both Copies
 
+**Fixes:** Bug 1 (HB-1) | **Repo:** Extension | **Priority:** Highest (unblocks all other fixes)
+**Files:** `licensing/validation.js` (runtime copy), `mouse-vscode/src/licensing/validation.js` (dead-code copy)
+
+Add `trial`, `over_limit`, `machine_not_found`, `error` to `VALID_HEARTBEAT_STATUSES` in both copies. The runtime copy is the critical change; the dead-code copy should be updated for consistency and to prevent test confusion.
+
+**Before (both copies):**
+```js
+const VALID_HEARTBEAT_STATUSES = new Set([
+  "active", "license_expired", "license_suspended",
+  "license_revoked", "concurrent_limit", "valid", "invalid",
+]);
+```
+
+**After (both copies):**
+```js
+const VALID_HEARTBEAT_STATUSES = new Set([
+  "active", "license_expired", "license_suspended",
+  "license_revoked", "concurrent_limit", "valid", "invalid",
+  "trial", "over_limit", "machine_not_found", "error",
+]);
+```
+
+**Risk:** Low. Adding values to an allow-list is additive — no existing behavior changes. Responses that previously passed the gate (`active`, `invalid`) continue to pass. Responses that were previously rejected now pass through to the HeartbeatManager, where they must be handled (Fixes 2, 3, 7).
+
+**Dependency:** None. This fix can be applied first and independently. However, it should be deployed alongside Fixes 2 and 7 to ensure newly-admitted statuses are handled correctly.
+
 ### 5.2 Fix 2: Switch `_handleInvalidHeartbeat` Dispatch from `response.reason` to `response.status`
+
+**Fixes:** Bug 2 (HB-2) | **Repo:** Extension | **Priority:** Highest (unblocks invalid-path handlers)
+**File:** `mouse-vscode/src/licensing/heartbeat.js` L266
+
+Change `switch (response.reason)` to `switch (response.status)` in `_handleInvalidHeartbeat`.
+
+**Before:**
+```js
+switch (response.reason) {
+```
+
+**After:**
+```js
+switch (response.status) {
+```
+
+**Impact:** All case labels (`license_suspended`, `license_expired`, `license_revoked`, `concurrent_limit`, `machine_not_found`) become reachable. The `machine_not_found` case activates Phase 3D machine recovery. The `concurrent_limit` case activates `_handleConcurrentLimitExceeded`.
+
+**Risk:** Low. The switch was previously unreachable (every case was dead code). Enabling it introduces new behavior for invalid responses, but that behavior was the original design intent. The case labels must be verified against actual server statuses — note that the server sends `over_limit` (not `concurrent_limit`) for device-limit scenarios, so the `concurrent_limit` case may still not match. See Fix 3 for the `over_limit` handling.
+
+**Dependency:** Should be deployed with Fix 1 (allow-list expansion) so that `machine_not_found` and other statuses actually reach this switch.
 
 ### 5.3 Fix 3: Add `over_limit` Detection in Success Path
 
+**Fixes:** Bug 3 (HB-3) | **Repo:** Extension | **Priority:** High
+**File:** `mouse-vscode/src/licensing/heartbeat.js` (success path in `_handleValidHeartbeat`)
+
+The `over_limit` status arrives with `valid: true`, so it takes the success path. The success path must detect `over_limit` and route it to the appropriate handler (`onConcurrentLimitExceeded` callback).
+
+**Proposed approach:** After the `_mapServerStatusToState` call in the success path, add an explicit check:
+```js
+if (response.status === "over_limit") {
+  this._handleConcurrentLimitExceeded(response);
+  return;
+}
+```
+
+Alternatively, add `over_limit` to `_mapServerStatusToState` with a dedicated state value and handle it in the state-change logic.
+
+**Risk:** Medium. This introduces new runtime behavior for over-limit users who previously experienced silent failure. The `onConcurrentLimitExceeded` callback must be verified to handle the response shape correctly (it receives `concurrentMachines` and `maxMachines` from the server response).
+
+**Dependency:** Requires Fix 1 (allow-list) so `over_limit` reaches the HeartbeatManager.
+
 ### 5.4 Fix 4: Remove `checkForUpdates()` and Custom Version Notification Layer
+
+**Fixes:** Bug 4 (HB-4) | **Repo:** Extension | **Priority:** Medium
+**Files:** `extension.js` (command registration), `mouse-vscode/src/licensing/config.js` L11
+
+Two options:
+
+**Option A (Recommended): Remove `checkForUpdates()` entirely.** Version notifications are already delivered via the heartbeat response (when the validation gate passes). The independent `/api/version` endpoint adds complexity, targets a non-existent host, and duplicates functionality. Remove the `mouse.checkForUpdates` command registration and the associated code.
+
+**Option B: Fix the URL.** Change `API_BASE_URL` in `config.js` from `https://api.hic-ai.com` to `https://staging.hic-ai.com` (or the production URL when ready). This requires also implementing the `/api/version` endpoint on the website, which does not currently exist.
+
+**Risk:** Low for Option A (removing dead code). Medium for Option B (requires new endpoint implementation).
+
+**Dependency:** None. Independent of other fixes.
 
 ### 5.5 Fix 5: Update Tests for New Behavior
 
+**Fixes:** Test coverage gaps identified in Steps 9–10 | **Repo:** Extension | **Priority:** High
+**Files:** `mouse-vscode/tests/heartbeat.test.js`, `mouse-vscode/tests/security.test.js`, `licensing/tests/heartbeat.test.js`
+
+Required test changes:
+
+1. **Add tests for actual server statuses:** `trial`, `over_limit`, `machine_not_found`, `error` must be tested through the validation gate (not bypassing it with mocks)
+2. **Fix `concurrent_limit` test:** Update to use `over_limit` (the actual server status) or add `over_limit` as an additional test case
+3. **Fix `device_limit_exceeded` test (shared):** Update to use `over_limit` (the current server status after the Feb 6 rename)
+4. **Add validation gate integration tests:** Test what happens when `validateHeartbeatResponse()` receives each of the 6 server statuses, verifying which pass and which are rejected
+5. **Fix 5 tests asserting incorrect behavior** (identified in Step 9 Finding 9F): security.test.js allow-list iteration, security.test.js dead-code import, VS Code heartbeat.test.js `concurrent_limit`, shared heartbeat.test.js `device_limit_exceeded`, `_mapServerStatusToState` case mismatch
+
+**Risk:** Medium. Test changes must accurately reflect the new behavior after Fixes 1–3 are applied. Tests should be written to match the fixed behavior, not the current broken behavior.
+
+**Dependency:** Should be written after Fixes 1–3 are implemented so tests validate the corrected code.
+
 ### 5.6 Fix 6: Guard Against Double-Start in `startHeartbeatWithCallbacks`
+
+**Fixes:** Bug 7 (HB-10) | **Repo:** Extension | **Priority:** Medium
+**File:** `extension.js`
+
+Add a guard to prevent creating a second HeartbeatManager when one is already running. Options:
+
+1. **Module-level singleton:** Store the HeartbeatManager instance in a module-scoped variable. Before creating a new one, check if one exists and call `stop()` on it first.
+2. **Guard flag:** Add an `isRunning` check before `startHeartbeatWithCallbacks` that returns early if a heartbeat loop is already active.
+
+**Risk:** Low. Preventing double-start is strictly defensive. The only consideration is ensuring the guard doesn't prevent legitimate restart scenarios (e.g., after license re-activation).
+
+**Dependency:** None. Independent of other fixes.
 
 ### 5.7 Fix 7: Add `over_limit`, `trial`, `machine_not_found`, `error` to `_mapServerStatusToState`
 
+**Fixes:** Bug 8 (HB-11) | **Repo:** Extension | **Priority:** High
+**File:** `mouse-vscode/src/licensing/heartbeat.js` L390–415
+
+Update the mapping object to handle lowercase server statuses and add the 4 missing statuses:
+
+**Before:**
+```js
+const mapping = {
+  ACTIVE: "LICENSED",
+  LICENSED: "LICENSED",
+  SUSPENDED: "SUSPENDED",
+  EXPIRED: "EXPIRED",
+  REVOKED: "EXPIRED",
+};
+```
+
+**After:**
+```js
+const mapping = {
+  active: "LICENSED",
+  licensed: "LICENSED",
+  suspended: "SUSPENDED",
+  expired: "EXPIRED",
+  revoked: "EXPIRED",
+  trial: "TRIAL",
+  over_limit: "OVER_LIMIT",
+  machine_not_found: "MACHINE_NOT_FOUND",
+  error: "ERROR",
+};
+```
+
+The state manager and any downstream consumers must also handle the new state values (`TRIAL`, `OVER_LIMIT`, `MACHINE_NOT_FOUND`, `ERROR`). The exact state values should be aligned with the extension's existing state enum.
+
+**Risk:** Medium. This changes the mapping for the `active` happy path (previously returned `null` due to case mismatch, now returns `"LICENSED"`). Verify that downstream code handles `"LICENSED"` correctly — it likely does, since this was the original design intent.
+
+**Dependency:** Should be deployed with Fix 1 (allow-list) so newly-admitted statuses are mapped correctly.
+
 ### 5.8 Fix 8: Add Valid SUSPENDED Status Type to StatusBarManager
+
+**Fixes:** Bug 9 (HB-12) | **Repo:** Extension | **Priority:** Low
+**File:** StatusBarManager (SUSPENDED state handler)
+
+Change the status bar background type from `"warning"` to a valid VS Code `StatusBarItemBackgroundColor`. Use `new vscode.ThemeColor("statusBarItem.warningBackground")` or `new vscode.ThemeColor("statusBarItem.errorBackground")` depending on the desired visual emphasis.
+
+**Risk:** Very low. Cosmetic change only.
+
+**Dependency:** None. Independent of other fixes.
 
 ### 5.9 Fix 9: Move `onSuccess` Below Validity Check
 
+**Fixes:** Bug 11 (minor) | **Repo:** Extension | **Priority:** Low
+**File:** `mouse-vscode/src/licensing/heartbeat.js` L228
+
+Move the `onSuccess(response)` call below the status mapping and validity checks in `_handleValidHeartbeat`. The callback should fire only after the response has been fully processed and determined to be a genuinely successful heartbeat.
+
+**Risk:** Low. Changes the timing of the `onSuccess` callback. Any code that depends on `onSuccess` firing before status processing would need adjustment, but this is unlikely given the callback's purpose.
+
+**Dependency:** None, but best applied after Fix 7 (mapping fix) so the validity check is meaningful.
+
 ### 5.10 Deferred: Consolidate Two HeartbeatManager Implementations
+
+**Relates to:** HB-5 | **Repo:** Extension | **Rationale for deferral:** The two implementations serve different architectural roles (VS Code extension vs shared library). Consolidation requires deciding which patterns to keep (e.g., `setTimeout` chaining vs `setInterval`, options-object vs positional parameters) and updating all consumers. This is a refactoring effort that does not fix any user-facing bug — the active fixes (1–9) address all identified bugs without requiring consolidation.
+
+**Recommended approach when undertaken:** Adopt the shared HeartbeatManager's architecture (`setTimeout` chaining, `result.status` dispatch, options-object constructor) and retrofit the VS Code-specific features (machine revival, 4-callback pattern) into it.
 
 ### 5.11 Deferred: Add Version Fields to `over_limit` Back-End Response
 
+**Relates to:** HB-7 | **Repo:** Website | **Rationale for deferral:** The `over_limit` response path (route.js L320–329) omits version fields. Adding `getVersionConfig()` and version fields to this path is a non-blocking improvement — over-limit users will still receive version notifications on their next successful heartbeat (when they drop below the device limit). The extension-side fixes (1–9) are higher priority because they affect all non-`active` statuses.
+
+**Recommended approach when undertaken:** Add `const versionConfig = await getVersionConfig();` before the over-limit return statement and include the 7 version fields in the response, matching the `trial` and `active` response shapes.
+
 ### 5.12 Deferred: Fix `lastHeartbeat` Type Inconsistency
 
+**Relates to:** Bug 10 | **Repo:** Extension | **Rationale for deferral:** The two HeartbeatManagers are not used interchangeably at runtime. The type inconsistency (`Date.now()` vs `new Date().toISOString()`) only matters if the implementations are consolidated (see §5.10). No user-facing impact.
+
+**Recommended approach when undertaken:** Standardize on ISO 8601 strings (`new Date().toISOString()`) for consistency with the server's `lastSeenAt` format and DynamoDB's `readyUpdatedAt` format.
+
 ### 5.13 Deferred: Redirect `security.test.js` Imports to Shared Validation Module
+
+**Relates to:** HB-6 (partial) | **Repo:** Extension | **Rationale for deferral:** `security.test.js` imports `VALID_HEARTBEAT_STATUSES` from the dead-code VS Code copy (`mouse-vscode/src/licensing/validation.js`) instead of the shared runtime copy (`licensing/validation.js`). The two copies have identical allow-lists today, so test results are currently correct. However, if the copies ever diverge, the security tests would validate the wrong contract.
+
+**Recommended approach when undertaken:** Change the import in `security.test.js` from `'../src/licensing/validation.js'` to `'../../licensing/validation.js'` (the shared runtime copy). Verify all test assertions still pass.
 
 ---
 
