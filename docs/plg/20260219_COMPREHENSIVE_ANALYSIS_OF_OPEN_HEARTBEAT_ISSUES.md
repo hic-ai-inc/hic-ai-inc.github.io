@@ -316,27 +316,166 @@ The VS Code extension and Mouse CLI both target a non-existent API host. Only th
 
 ### HB-Issue to Bug Cross-Reference
 
+| HB Issue | Bug(s) | Primary Root Cause |
+|----------|--------|--------------------|
+| HB-1: Allow-List Mismatch | Bug 1 | Speculative allow-list, never updated |
+| HB-2: Wrong Dispatch Field | Bug 2 | Client written before server; `response.reason` vs `response.status` |
+| HB-3: `over_limit` Never Reaches Invalid Handler | Bug 3 | `valid: true` bypasses invalid path; not in allow-list |
+| HB-4: Non-Existent `/api/version` | Bug 4 | `api.hic-ai.com` does not exist |
+| HB-5: Two Divergent HeartbeatManagers | — | Architectural debt (no direct bug; contributes to confusion) |
+| HB-6: Two Copies of Allow-List | — | Dead-code copy tested instead of runtime copy |
+| HB-7: `over_limit` Missing Version Fields | — | Server-side omission (deferred fix) |
+| HB-8: Dead Code in LicenseChecker | — | Superseded implementation not removed |
+| HB-9: Phase 3D Non-Functional | Bugs 5, 6 | Compound of HB-1 + HB-2 |
+| HB-10: Double-Start Orphaned Timer | Bug 7 | No re-entry guard |
+| HB-11: `_mapServerStatusToState` Returns `null` | Bug 8 | UPPERCASE keys vs lowercase values |
+| HB-12: SUSPENDED Invalid Status Type | Bug 9 | Invalid VS Code API parameter |
+
 ### 4.1 Bug 1: Status Allow-List Blocks Legitimate Server Responses
+
+**Relates to:** HB-1 | **Severity:** CRITICAL | **Repo:** Extension | **Files:** `licensing/validation.js`, `mouse-vscode/src/licensing/validation.js`
+
+**Root cause:** `VALID_HEARTBEAT_STATUSES` was created Jan 27 at 08:12 (`3416c234`), 34 minutes before the server heartbeat route was first committed (`131bca9`, Jan 27 08:46). The 7 values were speculative. The allow-list has never been modified across 6 commits to the shared copy and 2 commits to the VS Code copy. (Investigation Plan, Step 13 Findings 13.6, 13.8)
+
+**Reproduction path:**
+1. Server returns `{ valid: true, status: "trial", ... }` for a trial user
+2. `http-client.js` L195 calls `validateHeartbeatResponse()` from shared `licensing/validation.js`
+3. `validateHeartbeatResponse()` checks `VALID_HEARTBEAT_STATUSES.has("trial")` → `false`
+4. Returns `{ success: false }`
+5. `http-client.js` discards the entire server response, substitutes `{ valid: false, status: "error", reason: "Invalid server response" }`
+6. HeartbeatManager receives the synthetic fallback instead of the real server response
+
+**Affected statuses:** `trial`, `over_limit`, `machine_not_found`, `error` (4 of 6 server-emitted statuses). Only `active` and `invalid` survive the gate. (Investigation Plan, Steps 3, 4, 14 Finding 14.6)
 
 ### 4.2 Bug 2: Handler Dispatch Uses Wrong Field (`reason` vs. `status`)
 
+**Relates to:** HB-2 | **Severity:** CRITICAL | **Repo:** Extension | **File:** `mouse-vscode/src/licensing/heartbeat.js` L266
+
+**Root cause:** The VS Code HeartbeatManager was written Jan 26 at 22:55 (`442e3bfe`), approximately 10 hours before the server route existed. The original author anticipated status tokens in `response.reason`. The server instead put tokens in `response.status` and human-readable descriptions in `response.reason`. The switch was never corrected — not even by commit `25a4c875` (Feb 1, "fix: update heartbeat.js to use canonical status field"), which fixed 6 occurrences of a different naming issue in the same file. (Investigation Plan, Step 13 Findings 13.1–13.3)
+
+**Reproduction path:**
+1. Server returns `{ valid: false, status: "machine_not_found", reason: "Machine not found for this license" }`
+2. Response survives the validation gate (hypothetically, if Bug 1 were fixed)
+3. `_handleInvalidHeartbeat` executes `switch (response.reason)` at L266
+4. `response.reason` is `"Machine not found for this license"` — a human-readable string
+5. No case label matches; falls through to default (silent failure)
+6. The `case "machine_not_found"` at L270 would only match if `response.reason` literally equaled the string `"machine_not_found"`, which the server never sends
+
+**The JSDoc `@typedef HeartbeatResponse`** in this file documents `reason` as "Reason for invalid response" — acknowledging it as a description field, yet the switch treats it as a token field. (Investigation Plan, Step 2 Bug 1)
+
 ### 4.3 Bug 3: `over_limit` Silently Swallowed in Success Path
+
+**Relates to:** HB-3 | **Severity:** HIGH | **Repo:** Extension + Website | **Files:** `mouse-vscode/src/licensing/heartbeat.js` (success path), `route.js` L305
+
+**Root cause:** The server deliberately returns `over_limit` with `valid: true` (commit `78385d4`, Feb 6: "implement concurrent device handling with soft warnings"). This was a conscious redesign from `valid: false` to a soft warning. However, the client was never updated to handle this.
+
+**Reproduction path (compound — requires Bug 1 to be fixed first):**
+1. Server returns `{ valid: true, status: "over_limit", reason: "You're using 3 of 2 allowed devices", concurrentMachines: 3, maxMachines: 2 }`
+2. Because `valid === true`, the HeartbeatManager takes the success path (`_handleValidHeartbeat`)
+3. `onSuccess` fires (L228) — no version fields in this response (HB-7)
+4. `_mapServerStatusToState("over_limit")` returns `null` (not in the mapping table)
+5. Falls through to "unknown status" handling — silent failure
+6. Meanwhile, `_handleConcurrentLimitExceeded` (the intended handler) lives in the invalid path and is never reached because `valid === true`
+
+**Note:** Even before Bug 1 is fixed, `over_limit` is blocked by the allow-list. This bug becomes visible only after Bug 1 is resolved. (Investigation Plan, Steps 1 Finding 1.5, 2 Bugs 3–5, 14 Finding 14.3)
 
 ### 4.4 Bug 4: `checkForUpdates()` References Non-Existent Endpoint and Host
 
+**Relates to:** HB-4 | **Severity:** MEDIUM | **Repo:** Extension | **Files:** `mouse-vscode/src/licensing/config.js` L11, `extension.js`
+
+**Root cause:** The VS Code extension hardcodes `API_BASE_URL` as `https://api.hic-ai.com` (config.js L11). This host does not exist. The `mouse.checkForUpdates` command (registered in `extension.js`) calls `${API_BASE_URL}/api/version`, which always fails silently.
+
+**Three API base URLs exist:**
+- `licensing/constants.js` L13: `https://staging.hic-ai.com` (functional, used by shared runtime)
+- `mouse/src/licensing/constants.js` L204: `https://api.hic-ai.com` (env-overridable, non-existent)
+- `mouse-vscode/src/licensing/config.js` L11: `https://api.hic-ai.com` (hardcoded, non-existent)
+
+Heartbeats work despite this because `http-client.js` uses the shared `licensing/constants.js` URL. Only `checkForUpdates()` uses the VS Code config directly. The `licensing.test.js` L394 confirms: `expect(config.API_BASE_URL).toBe("https://api.hic-ai.com")`. (Investigation Plan, Steps 7, 8, 9 Findings 9D, 9G)
+
 ### 4.5 Bug 5: `machine_not_found` Revival Path Unreachable (Compound Failure)
+
+**Relates to:** HB-9 (partial) | **Severity:** CRITICAL | **Repo:** Extension | **File:** `mouse-vscode/src/licensing/heartbeat.js`
+
+**Root cause:** Compound failure of Bug 1 + Bug 2. The `machine_not_found` status is (1) not in `VALID_HEARTBEAT_STATUSES` so it's rejected at the validation gate, and (2) even if it survived, the switch dispatches on `response.reason` which contains a human-readable string, not the token `"machine_not_found"`.
+
+**Reproduction path:**
+1. User's machine is deactivated in Keygen (e.g., admin removes a device)
+2. Server returns `{ valid: false, status: "machine_not_found", reason: "Machine not found for this license" }`
+3. Validation gate rejects `"machine_not_found"` (not in allow-list) → synthetic fallback
+4. HeartbeatManager receives `{ valid: false, status: "error", reason: "Invalid server response" }`
+5. `_handleInvalidHeartbeat` executes `switch ("Invalid server response")` → no match → silent failure
+6. User's extension continues running with stale license state; no recovery attempted
+
+(Investigation Plan, Steps 2 Bug 5, 4)
 
 ### 4.6 Bug 6: Phase 3D Machine Recovery Dead on Arrival
 
+**Relates to:** HB-9 (full) | **Severity:** CRITICAL | **Repo:** Extension | **File:** `mouse-vscode/src/licensing/heartbeat.js`, commit `307ee22a`
+
+**Root cause:** Phase 3D machine recovery (`_attemptMachineRevival`) was added Feb 12 and wired to `case "machine_not_found"` inside the `switch (response.reason)` block. The developer who added this feature built on top of the existing (broken) switch without realizing the switch field was wrong.
+
+**Why it's dead on arrival:**
+1. `machine_not_found` fails the allow-list (Bug 1) → never reaches HeartbeatManager
+2. Even if it did, `switch (response.reason)` would receive `"Machine not found for this license"`, not `"machine_not_found"` (Bug 2)
+3. `_attemptMachineRevival()` calls `activateLicense()` and updates `machineId` on success — the logic itself appears correct, but it can never execute
+
+The VS Code heartbeat tests DO test machine revival (L323: `reason: "machine_not_found"`) and it passes — because the test mocks bypass the validation gate and feed `reason: "machine_not_found"` directly, which is exactly what the switch expects but the server never sends. (Investigation Plan, Steps 2 Bug 6, 9 Finding 9B, 13 Finding 13.4)
+
 ### 4.7 Bug 7: Double-Start `HeartbeatManager` Orphaned Timer
+
+**Relates to:** HB-10 | **Severity:** MEDIUM | **Repo:** Extension | **File:** `extension.js`
+
+**Root cause:** The extension activation sequence can instantiate a HeartbeatManager in two patterns (pre-validation single heartbeat and ongoing loop with callbacks). No guard prevents `startHeartbeatWithCallbacks` from being called while a HeartbeatManager is already running.
+
+**Reproduction path:**
+1. Extension activates, creates HeartbeatManager #1 with `setInterval` (10-min cycle)
+2. User triggers license re-entry or re-activation flow
+3. `startHeartbeatWithCallbacks` is called again, creating HeartbeatManager #2 with a new `setInterval`
+4. No reference to HeartbeatManager #1's interval ID is retained
+5. HeartbeatManager #1's timer continues firing heartbeats indefinitely — orphaned
+6. Two parallel heartbeat loops now run, doubling API calls and potentially causing race conditions
+
+(Investigation Plan, Step 7)
 
 ### 4.8 Bug 8: `_mapServerStatusToState` Incomplete Mapping Table
 
+**Relates to:** HB-11 | **Severity:** HIGH | **Repo:** Extension | **File:** `mouse-vscode/src/licensing/heartbeat.js` L390–415
+
+**Root cause:** `_mapServerStatusToState()` uses a mapping object with UPPERCASE keys: `ACTIVE`, `LICENSED`, `SUSPENDED`, `EXPIRED`, `REVOKED`. The validation allow-list passes through lowercase values from the server: `active`, `license_suspended`, etc. The lookup `mapping[status]` returns `undefined` for every lowercase key.
+
+**Reproduction path (for `active` status — the only one that survives the gate):**
+1. Server returns `{ valid: true, status: "active" }`
+2. Passes validation gate (`"active"` is in allow-list)
+3. `_handleValidHeartbeat` calls `_mapServerStatusToState("active")`
+4. Mapping object has key `"ACTIVE"` but not `"active"` → returns `null`
+5. Falls through to "unknown status" handling
+6. The heartbeat is effectively treated as unrecognized despite being the happy path
+
+No test catches this because tests mock responses that bypass the validation gate and feed pre-constructed state values. (Investigation Plan, Steps 2, 9 Finding 9B key discrepancy)
+
 ### 4.9 Bug 9: SUSPENDED Status Bar Invalid Status Type
+
+**Relates to:** HB-12 | **Severity:** LOW | **Repo:** Extension | **File:** StatusBarManager
+
+**Root cause:** The SUSPENDED state display sets the status bar background type to `"warning"`. Valid VS Code `StatusBarItem` background types are `StatusBarItemBackgroundColor` instances created from `"error"` or left `undefined`. The string `"warning"` is silently ignored by the VS Code API.
+
+**Impact:** When a license is suspended, the status bar item appears with default styling instead of a visually distinct warning appearance. The text content is correct; only the visual emphasis is missing. (Investigation Plan, Step 8)
 
 ### 4.10 Bug 10: `lastHeartbeat` Type Inconsistency Between HeartbeatManagers
 
+**Relates to:** (no HB issue — minor inconsistency) | **Severity:** LOW | **Repo:** Extension
+
+**Root cause:** The VS Code HeartbeatManager stores `lastHeartbeat` as a Unix timestamp (number via `Date.now()`), while the shared HeartbeatManager stores it as an ISO 8601 string (via `new Date().toISOString()`). Any code that reads `lastHeartbeat` from one implementation and passes it to the other would encounter a type mismatch.
+
+**Current impact:** Minimal — the two HeartbeatManagers are not used interchangeably at runtime. This becomes relevant only if the implementations are consolidated (deferred fix). (Investigation Plan, Step 2 Bug 10)
+
 ### 4.11 Bug 11: `onSuccess` Fires Before Validity Check
+
+**Relates to:** (no HB issue — minor ordering concern) | **Severity:** LOW | **Repo:** Extension | **File:** `mouse-vscode/src/licensing/heartbeat.js` L228
+
+**Root cause:** In `_handleValidHeartbeat`, the `onSuccess` callback fires at L228 before the status mapping and validity checks that follow. This means `onSuccess` is called even for responses that will subsequently be identified as problematic (e.g., unknown status after `_mapServerStatusToState` returns `null`).
+
+**Current impact:** Low — mitigated by the fact that the validation gate's fallback response (`{ valid: false, status: "error", reason: "Invalid server response" }`) lacks version fields, so `onSuccess` receiving it does not trigger version notification UI. However, if Bug 1 is fixed and more statuses survive the gate, `onSuccess` would fire for `over_limit` responses before the success path determines it doesn't know how to handle them. (Investigation Plan, Step 2 Bug 2)
 
 ---
 
