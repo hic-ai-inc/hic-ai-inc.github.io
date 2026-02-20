@@ -2097,6 +2097,11 @@ Commit `13deabd` changed `DEFAULT_ACTIVITY_WINDOW_HOURS` from 24 to 2 and added 
 
 **Feeds skeleton sections:** §1 (Introduction — context on prior investigation), §4 (any additional bugs identified), §9 (risk assessment — reliability of prior findings)
 
+#### Step 15 — WAIVED (2026-02-20)
+
+**Decision:** SWR waives this step. Notepad has not been activated in this repo, so no shared notes exist to review. The degraded investigation's shared notes reside in the Extension repo (`~/source/repos/hic`) and are not accessible from this workspace. Any claims from the degraded investigation that matter will be independently verified against source code during Step 17 synthesis.
+
+
 ---
 
 ### Step 16 — Review the Original Remediation Plan from the Extension Repo
@@ -2114,6 +2119,18 @@ Commit `13deabd` changed `DEFAULT_ACTIVITY_WINDOW_HOURS` from 24 to 2 and added 
 **Feeds skeleton sections:** §1 (Introduction — credibility assessment of prior deliverables), §4 (additional bugs or corrections)
 
 ---
+
+#### Step 16 — WAIVED (2026-02-20)
+
+**Decision:** SWR waives this step. The two documents pertinent to this step are:
+
+1. `~/source/repos/hic/plg/docs/20260219_OPEN_HEARTBEAT_ISSUES_REMEDIATION_PLAN.md` (original, in Extension repo)
+2. `docs/issues/20260219_UPDATE_TO_OPEN_HEARTBEAT_ISSUES_REMEDIATION_PLAN.md` (moved from `docs/launch/` to `docs/issues/` on 2026-02-20)
+
+**⚠️ CORRUPTION WARNING:** Both documents contain AI-degraded output — a mixture of true, untrue, and unverified findings. Neither should be trusted as authoritative. The Update memo was previously located in `docs/launch/` alongside the vetted launch plans and has been relocated to `docs/issues/` to prevent confusion.
+
+Rather than dissecting these corrupted documents claim-by-claim, SWR directs that the comprehensive analysis (Step 17) be built exclusively from the verified source-code findings of Steps 1–14.
+
 
 ### Step 17 — Populate the Skeleton Document
 

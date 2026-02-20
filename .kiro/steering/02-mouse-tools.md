@@ -16,7 +16,7 @@ All file editing in this workspace MUST use Mouse `hic_local` MCP tools.
 
 ## Decision Tree
 
-- Single edit or small change → `quick_edit` (instant save by default)
+- Single edit or small change → `quick_edit` (instant save by default, autoSave: false for important surgical changes)
 - Multiple operations or multi-file edit → `batch_quick_edit` → `save_changes` (required)
 
 ## Key Rules
@@ -32,3 +32,5 @@ All file editing in this workspace MUST use Mouse `hic_local` MCP tools.
 The allowed directory for hic_local tools is: `c:\Users\SimonAdmin\source\repos\hic-ai-inc.github.io`
 
 All file paths passed to hic_local tools must use this absolute path prefix.
+
+**Remember:** Always use `quick_edit` or `batch_quick_edit` for file edits. 
