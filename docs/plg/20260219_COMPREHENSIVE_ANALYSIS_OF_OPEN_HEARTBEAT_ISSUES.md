@@ -1018,21 +1018,217 @@ All "Before Fixes" user journey paths (§6) require live E2E validation by SWR b
 
 ## Appendix A: Complete Server Response Shape Reference
 
+The server (`route.js`, 382 lines) emits 11 `return NextResponse.json(...)` calls across 6 unique heartbeat `status` values. Non-heartbeat HTTP error responses (429, 400, 401) are excluded.
+
+| # | Status | `valid` | HTTP | Version Fields | `nextHeartbeat` | Line | Condition |
+|---|--------|---------|------|----------------|-----------------|------|-----------|
+| 3 | `"trial"` | `true` | 200 | Yes (all 7) | 900 | L152 | No license key (trial user) |
+| 6 | `"invalid"` | `false` | 400 | No | No | L225 | Malformed license key format |
+| 7 | `"machine_not_found"` | `false` | 200 | No | No | L246 | Keygen machine heartbeat ping returns 404 |
+| 8 | `"active"` (license not in DDB) | `true` | 200 | Yes (all 7) | 900 | L263 | Keygen success, license key not in DynamoDB |
+| 9 | `"over_limit"` | `true` | 200 | **No** | **No** | L321 | `concurrentMachines > maxMachines` (early return) |
+| 10 | `"active"` (normal success) | `true` | 200 | Yes (all 7) | 900 | L341 | All checks pass, within device limit |
+| 11 | `"error"` | `false` | 500 | No | No | L370 | Unhandled exception in try block |
+
+Version fields (when present): `latestVersion`, `releaseNotesUrl`, `updateUrl`, `readyVersion`, `readyReleaseNotesUrl`, `readyUpdateUrl`, `readyUpdatedAt`.
+
+Non-heartbeat responses (no `valid`/`status`/`reason` fields): Rate limit (L103, HTTP 429), missing fingerprint (L121, HTTP 400), unauthorized (L196, HTTP 401), missing session ID (L212, HTTP 400).
+
+Notable: Response 10 (L341) contains dead-code ternaries referencing `overLimit` — the `overLimit ? "over_limit" : "active"` expression always evaluates to `"active"` because Response 9 (L321) already returned for the truthy case.
+
+(Citation: Step 1 Findings — Complete Server Response Inventory)
+
 ---
 
 ## Appendix B: Git History of Relevant Files
+
+### Extension Repo (`~/source/repos/hic`)
+
+**`mouse-vscode/src/licensing/heartbeat.js`** (440 lines, 6 commits):
+
+| Date | Hash | Summary | Key Change |
+|------|------|---------|------------|
+| Jan 26 22:55 | `442e3bfe` | Initial VS Code heartbeat | `switch (response.reason)` introduced — never changed |
+| Jan 31 01:48 | `99c8cdba` | Fix fingerprint parameter | Added `fingerprint` as function parameter |
+| Jan 31 09:11 | `5734a3a7` | Create shared licensing core | Import path changes |
+| Feb 1 10:12 | `25a4c875` | "Fix: use canonical status field" | Changed `.state` → `.status` for stateManager (6 occurrences). Did NOT change `switch (response.reason)` |
+| Feb 1 11:10 | `eb4af5f0` | Fix VSIX import paths | Import path change only |
+| Feb 12 20:45 | `307ee22a` | Phase 3D machine recovery | Added `_attemptMachineRevival()` wired to wrong switch field |
+
+**`mouse-vscode/src/licensing/validation.js`** (471 lines, 2 commits — DEAD CODE at runtime):
+
+| Date | Hash | Summary | Key Change |
+|------|------|---------|------------|
+| Jan 27 08:12 | `3416c234` | Initial validation | `VALID_HEARTBEAT_STATUSES` created (7 speculative values) |
+| Feb 5 07:45 | `172feb66` | Production readiness | Added Keygen license response passthrough |
+
+**`licensing/heartbeat.js`** (314 lines, 1 commit — shared, correct `switch (result.status)`):
+
+| Date | Hash | Summary | Key Change |
+|------|------|---------|------------|
+| Feb 1 10:17 | `24a1e547` | Create shared heartbeat | `switch (result.status)` — correct from creation |
+
+**`licensing/validation.js`** (557 lines, 6 commits — ACTIVE at runtime):
+
+| Date | Hash | Summary | Key Change |
+|------|------|---------|------------|
+| Jan 27 08:12 | `3416c234` | Initial creation | `VALID_HEARTBEAT_STATUSES` with 7 speculative values |
+| Jan 31 09:11 | `5734a3a7` | Shared licensing core | Structural reorganization |
+| Jan 31 20:48 | `2da1f5b8` | Version field validation | Added `validateVersionFields()` |
+| Feb 4 22:31 | `6921d389` | Enhanced metadata validation | Stricter validation |
+| Feb 5 07:45 | `172feb66` | Production readiness | Keygen key format, license response passthrough |
+| Feb 12 20:45 | `307ee22a` | Phase 3D machine recovery | Version config validation |
+
+No commit across any branch has ever modified `VALID_HEARTBEAT_STATUSES`. The allow-list has been frozen at the original 7 speculative values since Jan 27. `git log --all -S "over_limit"` across the entire Extension repo returns zero results.
+
+### Website Repo (`~/source/repos/hic-ai-inc.github.io`)
+
+**`plg-website/src/app/api/license/heartbeat/route.js`** (382 lines, 14 commits):
+
+| Date | Hash | Summary | Key Change |
+|------|------|---------|------------|
+| Jan 27 | `131bca9` | Initial heartbeat API route | `machine_not_found`, `device_limit_exceeded` (with `valid: false`) |
+| Jan 27 | `c1f4a7c` | CWE security mitigations | Security hardening |
+| Jan 29 | `a9bc825` | Move device-limit logic server-side | Server-side enforcement |
+| Jan 30 | `4ac1ce1` | Fingerprint validation logging | Logging |
+| Jan 31 | `f67b3ae` | Increase trial duration to 14 days | Trial config |
+| Feb 1 | `30ae1d3` | Add version delivery to heartbeat | Version fields added to `trial` and `active` responses |
+| Feb 5 | `0c90f5e` | Production readiness fixes | Various |
+| Feb 5 | `d27e2c7` | Add concurrent device heartbeat testing | Test infrastructure |
+| Feb 6 | `78385d4` | Concurrent device soft warnings | `device_limit_exceeded` → `over_limit`, `valid: false` → `valid: true` |
+| Feb 9 | `e3a7df1` | Remove deprecated test endpoint | Cleanup |
+| Feb 12 | `13deabd` | Update default device activity window | 24h → 2h window |
+| Feb 12 | `44b23f3` | Add Keygen event-based device tracking | Device tracking |
+| Feb 15 | `9e8e86f` | Fix DynamoDB expression and trial validation | Bug fixes |
+| Feb 15 | `fb12b60` | Add debug logging for machine not found | Logging |
+
+The Feb 6 commit (`78385d4`) is the critical inflection point: it renamed `device_limit_exceeded` to `over_limit` and flipped `valid: false` to `valid: true`. No Extension repo files were modified in this commit. The Extension's allow-list was never updated to include `over_limit`.
+
+(Citation: Step 13 Findings 13.1–13.12, Step 14 Findings 14.1–14.8)
 
 ---
 
 ## Appendix C: DynamoDB Heartbeat Record Schema
 
+Table: `hic-plg-${Environment}` (single-table design, PAY_PER_REQUEST)
+Primary key: `PK` (String) + `SK` (String)
+GSIs: GSI1 (Stripe customer), GSI2 (License key), GSI3 (Auth0 user)
+TTL: on `ttl` attribute (EVENT and TRIAL records only — VERSION records have no TTL)
+Streams: NEW_AND_OLD_IMAGES enabled
+Encryption: SSE enabled, PITR enabled
+
+### Heartbeat-Related Record Types
+
+**VERSION record** (exactly 1 record):
+
+| Attribute | Example Value | Written By |
+|-----------|---------------|------------|
+| PK | `VERSION#mouse` | CI/CD (`updateVersionConfig`) |
+| SK | `CURRENT` | CI/CD |
+| latestVersion | `0.10.10` | CI/CD |
+| readyVersion | `0.10.10` | Daily Lambda (9 AM UTC) |
+| readyReleaseNotesUrl | `https://github.com/SimonReiff/hic/releases/tag/v0.10.10` | Daily Lambda |
+| readyUpdateUrl | `https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse` | Daily Lambda |
+| readyUpdatedAt | `2026-02-19T09:00:44.448Z` | Daily Lambda |
+| releaseDate | `2026-02-16T00:00:00Z` | CI/CD |
+| releaseNotesUrl | `https://github.com/SimonReiff/hic/releases/tag/v0.10.10` | CI/CD |
+| updateUrl | `{ marketplace: "...", npm: "...", vsix: "..." }` | Manual/CI |
+| updatedAt | `2026-02-16T03:09:07Z` | CI/CD |
+
+**DEVICE record** (per device per license):
+
+| Attribute | Example Value | Written By |
+|-----------|---------------|------------|
+| PK | `LICENSE#{keygenLicenseId}` | License activation |
+| SK | `DEVICE#{fingerprint}` | License activation |
+| lastSeenAt | ISO 8601 timestamp | `updateDeviceLastSeen()` (fire-and-forget, route.js L285) |
+| fingerprint | Machine fingerprint hash | License activation |
+| machineId | Keygen machine ID | License activation |
+
+**No HEARTBEAT record exists.** Heartbeat state is transient — it exists only in the Keygen API (machine heartbeat ping) and as a side effect on the `lastSeenAt` attribute of DEVICE records. The `getActiveDevicesInWindow()` function queries DEVICE records filtered by `lastSeenAt > cutoffTime` (default 2-hour window) for concurrent device enforcement.
+
+(Citation: Step 11 Findings 11.3, 11.8, 11.9; Step 12 Findings)
+
 ---
 
 ## Appendix D: Test Coverage Matrix
 
+### Extension Repo Test Coverage
+
+| Test File | Lines | Tests Against | Covers |
+|-----------|-------|---------------|--------|
+| `mouse-vscode/tests/security.test.js` | 744 | Dead-code `validation.js` (VS Code copy) | CWE patterns, allow-list iteration, schema validation |
+| `mouse-vscode/tests/heartbeat.test.js` | 678 | VS Code HeartbeatManager (mocked responses) | Start/stop, retry, state changes via `response.reason`, Phase 3D revival |
+| `licensing/tests/heartbeat.test.js` | 342 | Shared HeartbeatManager (mocked responses) | Start/stop, `result.status` dispatch, interval adjustment |
+| `mouse-vscode/tests/status-bar.test.js` | 442 | StatusBarManager | State display, background colors, version notification UI |
+| `mouse-vscode/tests/update-check.test.js` | 197 | Version comparison | Semver comparison, update URL handling |
+| `mouse-vscode/tests/licensing.test.js` | 395 | Licensing messages | Trial nag frequency, license state, message generation |
+
+### Website Repo Test Coverage
+
+| Test File | Lines | Tests Against | Covers |
+|-----------|-------|---------------|--------|
+| `heartbeat-route.contract.test.js` | 224 | Actual route handler (`POST`) | `trial` and `active` response shapes with version fields |
+| `heartbeat.test.js` (unit) | 658 | Local helper functions (NOT route handler) | Response format, validation, rate limiting, auth |
+| `heartbeat.test.js` (integration) | 391 | Local mocks (NOT route handler) | Service interactions, error handling |
+| `j5-heartbeat-loop.test.js` (E2E) | 522 | Live/staging API | Session lifecycle, rate limiting, payload variations |
+
+### Coverage Gap Summary
+
+| Server Status | Contract Test | Extension Unit Test | Extension Shared Test | E2E Test |
+|---------------|--------------|--------------------|-----------------------|-----------|
+| `trial` | ✅ Pinned | ❌ | ❌ | Partial |
+| `active` | ✅ Pinned | ✅ (local helper) | ❌ | Partial |
+| `over_limit` | ❌ | ❌ | ❌ | ❌ |
+| `machine_not_found` | ❌ | ✅ (as `reason`) | ❌ | ❌ |
+| `invalid` | ❌ | ❌ | ❌ | ❌ |
+| `error` | ❌ | ❌ | ❌ | ❌ |
+
+4 of 6 server statuses have zero contract-level test coverage. The `over_limit` response — the one with the most bugs — has zero test coverage at every level.
+
+(Citation: Step 9 Findings 9A–9G, Step 10 Findings 10.1–10.9)
+
 ---
 
 ## Appendix E: Import Chain and Dead Code Map
+
+### Runtime Import Chain (Heartbeat Flow)
+
+```
+extension.js
+  └─ startHeartbeatWithCallbacks()
+       └─ new HeartbeatManager()  ← mouse-vscode/src/licensing/heartbeat.js (440 lines)
+            ├─ this._httpClient     ← licensing/http-client.js (shared)
+            │    └─ validateHeartbeatResponse()
+            │         └─ VALID_HEARTBEAT_STATUSES  ← licensing/validation.js L16-30 (shared, 557 lines, ACTIVE)
+            ├─ this._stateManager   ← licensing/state.js (shared)
+            └─ switch (response.reason)  ← BUG: should be response.status
+                 ├─ case "machine_not_found" → _attemptMachineRevival()  ← DEAD (wrong field)
+                 ├─ case "license_suspended" → onStateChange(SUSPENDED)  ← DEAD (wrong field)
+                 ├─ case "license_expired"   → onStateChange(EXPIRED)    ← DEAD (wrong field)
+                 └─ case "license_revoked"   → clearLicense(), stop()    ← DEAD (wrong field)
+```
+
+### Dead Code Inventory
+
+| File | Lines | Status | Reason |
+|------|-------|--------|--------|
+| `mouse-vscode/src/licensing/validation.js` | 471 | Dead at runtime | VS Code extension imports from `licensing/validation.js` (shared), not this file |
+| `mouse-vscode/src/licensing/heartbeat.js` L265–290 (switch cases) | ~25 | Dead at runtime | `switch (response.reason)` never matches server status tokens (server puts them in `response.status`) |
+| `mouse-vscode/src/licensing/heartbeat.js` `_attemptMachineRevival` trigger | ~5 | Dead at runtime | Wired to `case "machine_not_found"` inside wrong switch field |
+| `mouse-vscode/src/licensing/config.js` L11 `API_BASE_URL` | 1 | Dead at runtime | Points to `https://api.hic-ai.com` which does not exist; shared `licensing/constants.js` L13 (`https://staging.hic-ai.com`) is used instead |
+| `route.js` L342–351 (overLimit ternaries) | ~10 | Dead at runtime | L319 early return ensures `overLimit` is always falsy at L342 |
+| `extension.js` `mouse.checkForUpdates` command | ~15 | Dead at runtime | Calls `checkForUpdates()` which targets non-existent `api.hic-ai.com` host |
+
+### API Base URL Divergence
+
+| Location | URL | Status |
+|----------|-----|--------|
+| `licensing/constants.js` L13 | `https://staging.hic-ai.com` | ✅ Functional (shared runtime) |
+| `mouse/src/licensing/constants.js` L204 | `https://api.hic-ai.com` (env-overridable) | ❌ Non-existent host |
+| `mouse-vscode/src/licensing/config.js` L11 | `https://api.hic-ai.com` (hardcoded) | ❌ Non-existent host |
+
+(Citation: Steps 2–9 Findings; Step 13 Finding 13.12)
 
 ---
 
@@ -1042,3 +1238,4 @@ All "Before Fixes" user journey paths (§6) require live E2E validation by SWR b
 | ---------- | ------ | -------------------------------------------------------- |
 | 2026-02-19 | GC     | Skeleton created — awaiting population via investigation |
 | 2026-02-20 | GC     | Structural expansion: +4 HB issues, +6 bugs, +6 fixes, +1 journey, +8 subsections, +2 appendices |
+| 2026-02-20 | GC     | Batches 1–7: Full population of §1–§10 and Appendices A–E from Investigation Plan Steps 1–14 |
