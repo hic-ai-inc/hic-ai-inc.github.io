@@ -370,7 +370,7 @@ The VS Code extension and Mouse CLI both target a non-existent API host. Only th
 **Root cause:** The server deliberately returns `over_limit` with `valid: true` (commit `78385d4`, Feb 6: "implement concurrent device handling with soft warnings"). This was a conscious redesign from `valid: false` to a soft warning. However, the client was never updated to handle this.
 
 **Reproduction path (compound — requires Bug 1 to be fixed first):**
-1. Server returns `{ valid: true, status: "over_limit", reason: "You're using 3 of 2 allowed devices", concurrentMachines: 3, maxMachines: 2 }`
+1. Server returns `{ valid: true, status: "over_limit", reason: "You're using 4 of 3 allowed devices", concurrentMachines: 4, maxMachines: 3 }`
 2. Because `valid === true`, the HeartbeatManager takes the success path (`_handleValidHeartbeat`)
 3. `onSuccess` fires (L228) — no version fields in this response (HB-7)
 4. `_mapServerStatusToState("over_limit")` returns `null` (not in the mapping table)
@@ -706,21 +706,21 @@ The happy path works partially. The heartbeat completes, `onSuccess` fires (deli
 
 Identical to Before, except `_mapServerStatusToState("active")` now returns `"LICENSED"` (Fix 7 — lowercase keys). The state manager is formally updated. `onSuccess` fires after the validity check (Fix 9). No functional change to the user experience, but the internal state is now correct.
 
-### 6.2 Journey B: Over-Limit User (e.g., 3 Devices on 2-Device Plan)
+### 6.2 Journey B: Over-Limit User (e.g., 4 Devices on 3-Device Plan)
 
 #### Code Path Trace
 
-`route.js` receives heartbeat → queries `getActiveDevicesInWindow()` → finds 3 active devices, `maxMachines: 2` → `overLimit = true` → early return at L319 → returns `{ valid: true, status: "over_limit", reason: "You're using 3 of 2 allowed devices", concurrentMachines: 3, maxMachines: 2, message: "..." }` (no version fields) → `http-client.js` L195 calls `validateHeartbeatResponse()` → `"over_limit"` is NOT in allow-list → gate rejects → substitutes `{ valid: false, status: "error", reason: "Invalid server response" }` → HeartbeatManager receives synthetic fallback → `_handleInvalidHeartbeat` → `switch ("Invalid server response")` → no match → silent failure.
+`route.js` receives heartbeat → queries `getActiveDevicesInWindow()` → finds 4 active devices, `maxMachines: 3` → `overLimit = true` → early return at L319 → returns `{ valid: true, status: "over_limit", reason: "You're using 4 of 3 allowed devices", concurrentMachines: 4, maxMachines: 3, message: "..." }` (no version fields) → `http-client.js` L195 calls `validateHeartbeatResponse()` → `"over_limit"` is NOT in allow-list → gate rejects → substitutes `{ valid: false, status: "error", reason: "Invalid server response" }` → HeartbeatManager receives synthetic fallback → `_handleInvalidHeartbeat` → `switch ("Invalid server response")` → no match → silent failure.
 
 #### Before Fixes
 
-The over-limit user experiences complete silent failure. The extension receives no indication that the user has exceeded their device limit. No UI notification, no callback to `onConcurrentLimitExceeded`, no state change. The user continues using Mouse normally on all 3 devices with no awareness of the policy violation. The server correctly detects the over-limit condition but the client silently discards the information.
+The over-limit user experiences complete silent failure. The extension receives no indication that the user has exceeded their device limit. No UI notification, no callback to `onConcurrentLimitExceeded`, no state change. The user continues using Mouse normally on all 4 devices with no awareness of the policy violation. The server correctly detects the over-limit condition but the client silently discards the information.
 
-**E2E validation:** Activate a license on 3 devices where `maxMachines: 2`. Trigger a heartbeat from the 3rd device. Observe network traffic to confirm server returns `over_limit` with `valid: true`. Confirm the extension shows no over-limit warning or notification.
+**E2E validation:** Activate a license on 4 devices where `maxMachines: 3`. Trigger a heartbeat from the 4th device. Observe network traffic to confirm server returns `over_limit` with `valid: true`. Confirm the extension shows no over-limit warning or notification.
 
 #### After Fixes
 
-After Fixes 1 (allow-list) + 3 (success-path detection) + 7 (mapping): `"over_limit"` passes the gate → HeartbeatManager success path detects `over_limit` → routes to `onConcurrentLimitExceeded` callback → user sees a notification that they are using 3 of 2 allowed devices. The heartbeat continues (soft warning, not blocking). No version fields in this response (HB-7, deferred), so no version notification for this heartbeat cycle.
+After Fixes 1 (allow-list) + 3 (success-path detection) + 7 (mapping): `"over_limit"` passes the gate → HeartbeatManager success path detects `over_limit` → routes to `onConcurrentLimitExceeded` callback → user sees a notification that they are using 4 of 3 allowed devices. The heartbeat continues (soft warning, not blocking). No version fields in this response (HB-7, deferred), so no version notification for this heartbeat cycle.
 
 ### 6.3 Journey C: Machine Not Found / Deactivated Device
 
