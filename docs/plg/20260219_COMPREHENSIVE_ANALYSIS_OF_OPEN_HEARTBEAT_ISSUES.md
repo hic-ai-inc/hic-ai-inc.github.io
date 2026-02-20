@@ -832,11 +832,63 @@ After Fix 6 (double-start guard): The second call to `startHeartbeatWithCallback
 
 ### 7.1 Extension-Only Fixes (No Back-End Changes Required)
 
+All 9 active fixes (Fixes 1–9) target the Extension repo (`~/source/repos/hic`) exclusively. No changes to the Website repo back-end are required to resolve the identified bugs.
+
+| Fix | File(s) | Repo | Blocking? |
+|-----|---------|------|-----------|
+| Fix 1: Update `VALID_HEARTBEAT_STATUSES` allow-list | `licensing/validation.js` L16–30 | Extension | Yes — gates all other fixes |
+| Fix 2: Switch `response.reason` → `response.status` | `mouse-vscode/src/licensing/heartbeat.js` L265 | Extension | No |
+| Fix 3: Add `over_limit` detection in success path | `mouse-vscode/src/licensing/heartbeat.js` (success path) | Extension | No |
+| Fix 4: Remove `checkForUpdates()` dead code | `extension.js`, `mouse-vscode/src/licensing/config.js` L11 | Extension | No |
+| Fix 5: Update tests for new behavior | `mouse-vscode/tests/heartbeat.test.js`, `security.test.js`, `licensing/tests/heartbeat.test.js` | Extension | No |
+| Fix 6: Guard against double-start | `extension.js` | Extension | No |
+| Fix 7: Add missing statuses to `_mapServerStatusToState` | `mouse-vscode/src/licensing/heartbeat.js` L390–415 | Extension | No |
+| Fix 8: Fix StatusBarManager SUSPENDED background type | StatusBarManager | Extension | No |
+| Fix 9: Move `onSuccess` below validity check | `mouse-vscode/src/licensing/heartbeat.js` L228 | Extension | No |
+
+Citation: Fix-to-file mapping derived from §5 Proposed Fixes; file paths verified in Steps 2–8 of the Investigation Plan.
+
 ### 7.2 Back-End Improvements (Non-Blocking, Recommended)
+
+The following back-end improvements are recommended but do NOT block the active fixes:
+
+1. **Add version fields to `over_limit` response** (Deferred Fix §5.11): `route.js` L320–329 omits `getVersionConfig()` and all 7 version fields. Over-limit users receive zero version notification data. Adding version fields would align the `over_limit` response shape with `trial` and `active` responses. (Citation: Step 1 Finding 5, Step 11 Finding 11.5)
+
+2. **Add contract tests for `over_limit`, `machine_not_found`, `error`, and `invalid` response shapes**: The contract test (`heartbeat-route.contract.test.js`) only pins `trial` and `active` shapes. Four of 6 server statuses have zero contract-level coverage. (Citation: Step 10 Finding 10.7)
+
+3. **Clean up dead-code ternaries in success response**: `route.js` L342 (`status: overLimit ? "over_limit" : "active"`) is unreachable because L319 returns early for over-limit. Similarly L348 (`overLimit: overLimit`) is always `false` and L349–351 (`message: overLimit ? ... : null`) is always `null`. (Citation: Step 1 Finding 6, Step 11 Finding 11.6)
+
+4. **Reconcile integration test `valid: false` assertion**: The integration test (L279) asserts `valid: false` for device-limit-exceeded, contradicting both the unit test (`valid: true`, L465) and the actual server (`valid: true`, route.js L305). (Citation: Step 10 Finding 10.5)
 
 ### 7.3 Implementation Ordering Constraints
 
+Fixes must be applied in the following order due to runtime dependencies:
+
+1. **Fix 1 (allow-list) MUST be first.** All other fixes are ineffective without it — the validation gate in `http-client.js` L195 rejects any status not in `VALID_HEARTBEAT_STATUSES` before the HeartbeatManager ever sees it. (Citation: Step 4 Findings)
+
+2. **Fix 7 (mapping) should accompany Fix 1.** Once new statuses pass the gate, `_mapServerStatusToState` must handle them. Without Fix 7, newly-admitted statuses return `null` from the mapper and fall through to "unknown status" silent failure. (Citation: Step 2 Findings, §4.8 Bug 8)
+
+3. **Fix 2 (switch field) and Fix 3 (success-path detection) can be applied in either order** but both should follow Fix 1. Fix 2 corrects the invalid-path dispatch; Fix 3 adds the valid-path `over_limit` routing.
+
+4. **Fix 5 (tests) should be written AFTER Fixes 1–3 and 7** so tests validate the corrected behavior, not the current broken behavior.
+
+5. **Fixes 4, 6, 8, 9 are independent** and can be applied in any order at any time.
+
+Recommended implementation sequence: Fix 1 → Fix 7 → Fix 2 → Fix 3 → Fix 9 → Fix 5 → Fix 6 → Fix 4 → Fix 8.
+
 ### 7.4 Test Infrastructure Corrections
+
+The existing test infrastructure has structural issues that must be addressed alongside the fixes:
+
+1. **Dead-code import in `security.test.js`**: Imports `VALID_HEARTBEAT_STATUSES` from `mouse-vscode/src/licensing/validation.js` (471 lines, dead code at runtime) instead of `licensing/validation.js` (557 lines, active at runtime). The two copies have identical allow-lists today but testing the dead copy provides zero runtime assurance. (Citation: Step 9 Finding 9A)
+
+2. **Mock bypass of validation gate**: Both VS Code and shared heartbeat tests create mock responses that bypass `validateHeartbeatResponse()` entirely. No test verifies what happens when actual server-format responses pass through the validation gate. (Citation: Step 9 Findings 9B, 9C)
+
+3. **Phantom status values in tests**: Unit test uses `"device_limit_exceeded"` (L256–261) which the server has never emitted since the Feb 6 rename to `"over_limit"`. Shared test uses `"device_limit_exceeded"` (L263) which is also stale. VS Code test uses `"concurrent_limit"` which the server has never emitted. (Citation: Step 9 Finding 9F, Step 10 Finding 10.3)
+
+4. **Case mismatch in `_mapServerStatusToState`**: The mapping expects UPPERCASE keys (`ACTIVE`, `LICENSED`) but the allow-list passes lowercase values (`active`, `license_suspended`). Every valid heartbeat gets `null` from the mapper. No test catches this because mocks bypass validation. (Citation: Step 9 Finding 9B)
+
+5. **Website unit/integration tests use local helpers, not the actual route handler**: Only the contract test calls the real `POST` handler. Unit and integration tests replicate route logic in local functions, meaning drift between helpers and `route.js` is invisible. (Citation: Step 10 Findings 10.2, 10.5)
 
 ---
 
@@ -844,11 +896,61 @@ After Fix 6 (double-start guard): The second call to `startHeartbeatWithCallback
 
 ### 8.1 Automated Test Requirements
 
+After implementing Fixes 1–9, the following automated tests must pass:
+
+**Extension repo — new or updated tests:**
+
+1. Validation gate accepts all 6 server statuses: `trial`, `active`, `over_limit`, `machine_not_found`, `invalid`, `error` (Fix 1 verification)
+2. Validation gate rejects unknown statuses (e.g., `"HACKED"`, `"device_limit_exceeded"`) — existing security test, updated allow-list
+3. VS Code HeartbeatManager invalid-path dispatches on `response.status` (not `response.reason`) for `machine_not_found`, `license_suspended`, `license_expired`, `license_revoked` (Fix 2 verification)
+4. VS Code HeartbeatManager success-path routes `over_limit` to `onConcurrentLimitExceeded` callback (Fix 3 verification)
+5. `_mapServerStatusToState` returns correct state for all lowercase server statuses: `active→LICENSED`, `trial→TRIAL`, `over_limit→OVER_LIMIT`, `machine_not_found→MACHINE_NOT_FOUND`, `error→ERROR` (Fix 7 verification)
+6. Double-start guard prevents second HeartbeatManager creation (Fix 6 verification)
+7. `onSuccess` fires only after status processing completes (Fix 9 verification)
+8. End-to-end flow: server-format response → validation gate → HeartbeatManager → correct callback/state for each of the 6 statuses (integration test, no mock bypass)
+
+**Website repo — recommended new tests:**
+
+9. Contract test for `over_limit` response shape: `valid: true`, `status: "over_limit"`, `concurrentMachines`, `maxMachines` present, version fields absent (current behavior) or present (after §5.11)
+10. Contract test for `machine_not_found` response shape: `valid: false`, `status: "machine_not_found"`
+11. Contract test for `error` response shape: `valid: false`, `status: "error"`
+
 ### 8.2 Manual Smoke Test Plan
+
+Manual smoke tests to perform after deploying fixes to a development build:
+
+1. **Happy path**: Install Mouse on a single device with a valid license. Confirm heartbeat fires every 10 minutes, status bar shows "Licensed", version notification appears if `readyVersion` differs from installed version.
+2. **Over-limit (Individual)**: Activate on 4 devices (limit: 3). Confirm the 4th device shows an over-limit notification via `onConcurrentLimitExceeded`. Confirm Mouse continues to function (soft warning, not blocking).
+3. **Over-limit (Business)**: Activate on 6 devices per seat (limit: 5). Same verification as above with Business license parameters.
+4. **Machine not found**: Deactivate a device via admin portal. Trigger heartbeat from that device. Confirm machine revival attempt fires (`_attemptMachineRevival`). Confirm appropriate notification if revival fails.
+5. **Trial user**: Install Mouse without a license key. Confirm trial heartbeat fires, status bar shows trial state, version notification works.
+6. **Server error**: Simulate a 500 response (e.g., by temporarily misconfiguring the API). Confirm the extension handles the error gracefully — no crash, appropriate retry behavior.
+7. **Double-start**: Trigger license re-entry while heartbeat is running. Confirm no duplicate heartbeat loops are created.
+8. **Version notification**: Publish a new version to DynamoDB. Wait for next heartbeat cycle. Confirm the extension displays the update notification with correct release notes URL.
 
 ### 8.3 Staging Verification Procedure
 
+Staging verification procedure before promoting fixes to production:
+
+1. Deploy Extension fixes to a development VSIX build (not published to Marketplace)
+2. Run full automated test suite — all tests in `mouse-vscode/tests/` and `licensing/tests/` must pass at 100%
+3. Install development VSIX on a clean VS Code instance
+4. Execute all 8 manual smoke tests above against `https://staging.hic-ai.com` back-end
+5. Monitor CloudWatch logs for the heartbeat route during smoke testing — confirm no unexpected errors, correct response shapes in logs
+6. Verify DynamoDB heartbeat records are written correctly (correct `lastSeenAt`, `fingerprint`, `machineId` values)
+7. Run the existing E2E journey test (`j5-heartbeat-loop.test.js`) against staging — confirm no regressions in the 7 existing scenarios
+8. If all pass: tag the VSIX build, publish to VS Code Marketplace and Open VSX via the existing distribution pipeline
+
 ### 8.4 E2E Validation Items Requiring Human Verification
+
+The following items require SWR to perform live E2E validation and cannot be verified by automated tests alone:
+
+1. **Over-limit notification UX**: Confirm the `onConcurrentLimitExceeded` callback produces a user-visible notification with the correct device count and limit. Verify the notification text, placement, and dismissal behavior meet UX expectations.
+2. **Machine revival flow**: Confirm `_attemptMachineRevival` successfully re-activates a deactivated device via the Keygen API. This requires a real Keygen license and machine deactivation — cannot be mocked.
+3. **Version notification end-to-end**: Confirm the full pipeline works: Lambda promotes version → heartbeat response includes version fields → extension displays update notification with correct URL. Requires waiting for a heartbeat cycle after the Lambda runs.
+4. **Trial-to-licensed transition**: Confirm that a trial user who activates a license key mid-session transitions cleanly — heartbeat switches from trial to licensed mode, status bar updates, no duplicate heartbeat loops.
+5. **Network resilience**: Confirm the extension handles intermittent network failures gracefully during heartbeat — exponential backoff works correctly, no crash on timeout, recovery after network restoration.
+6. **All 8 Journey "Before Fixes" paths** (§6): Each journey's "Before Fixes" behavior must be confirmed via E2E testing before fixes are implemented, to validate the analysis and ensure fixes address the actual (not assumed) behavior.
 
 ---
 
@@ -856,15 +958,61 @@ After Fix 6 (double-start guard): The second call to `startHeartbeatWithCallback
 
 ### 9.1 Risk of Proposed Changes to Happy-Path
 
+The happy-path (`active` status, single device, within limit) is the lowest-risk path because:
+
+1. **Fix 1 (allow-list)**: `active` is already in the allow-list. Adding new statuses does not change `active` handling. Risk: negligible.
+2. **Fix 2 (switch field)**: The invalid-path switch is only reached when `valid === false`. Happy-path responses have `valid: true` and never enter this code path. Risk: zero.
+3. **Fix 3 (success-path detection)**: The new `over_limit` check fires only when `response.status === "over_limit"`. Happy-path responses have `status: "active"` and skip this check. Risk: zero.
+4. **Fix 7 (mapping)**: Changes `active` mapping from `null` (due to case mismatch — UPPERCASE `ACTIVE` vs lowercase `active`) to `"LICENSED"`. This is actually a **fix** for the happy path — currently, every valid heartbeat falls through to "unknown status" handling because the mapper returns `null`. After Fix 7, `active` correctly maps to `LICENSED`. Risk: low-positive (fixes existing silent failure on happy path).
+5. **Fix 9 (onSuccess ordering)**: Moves `onSuccess` callback to fire after status processing. Happy-path behavior is unchanged — `onSuccess` still fires, just slightly later in the execution flow. Risk: negligible.
+
+Net assessment: Fixes 1–3 and 9 have zero impact on the happy path. Fix 7 actually improves happy-path behavior by fixing the case-mismatch mapping. The happy path is safer after fixes than before.
+
 ### 9.2 Risk of Deferred Items
+
+| Deferred Item | Risk of Deferral | Mitigation |
+|---------------|-----------------|------------|
+| Consolidate two HeartbeatManagers (§5.10) | Low — the two implementations serve different architectural roles and are not used interchangeably at runtime. No user-facing bug. | Active fixes (1–9) address all identified bugs without requiring consolidation. Revisit during next refactoring cycle. |
+| Add version fields to `over_limit` response (§5.11) | Low-Medium — over-limit users miss version notifications for the heartbeat cycle where they are over-limit. They receive version data on the next successful heartbeat (when they drop below the limit). | Document as known limitation. Over-limit is a transient state for most users. |
+| Fix `lastHeartbeat` type inconsistency (§5.12) | Negligible — the two HeartbeatManagers are not used interchangeably. Type inconsistency (`Date.now()` vs ISO string) only matters if implementations are consolidated. | Defer until consolidation (§5.10). |
+| Redirect `security.test.js` imports (§5.13) | Low — the two validation copies have identical allow-lists today. Risk increases only if the copies diverge in the future. | Include in Fix 5 (test updates) if convenient; otherwise defer. |
 
 ### 9.3 Rollback Plan
 
+If any fix introduces a regression in the happy path (detected via automated tests or staging smoke tests):
+
+1. **Immediate**: Revert the specific fix commit in the Extension repo. All fixes are independent Git commits, enabling surgical revert.
+2. **Rebuild**: Package a new VSIX without the reverted fix. The remaining fixes continue to provide value.
+3. **Investigate**: Determine root cause of the regression. The Investigation Plan (Steps 1–14) provides complete code-path traces for debugging.
+4. **No back-end rollback needed**: All 9 active fixes are Extension-only. The Website repo back-end is unchanged and requires no rollback under any scenario.
+
+Worst-case scenario: Revert all 9 fixes and return to the pre-fix VSIX. The pre-fix state is the current production state — all existing bugs remain but no new bugs are introduced. Users experience the same silent failures they experience today.
+
 ### 9.4 Reliability of Prior AI-Generated Documentation
+
+Two prior AI-generated documents were flagged as corrupted during this investigation:
+
+1. **`docs/plg/20260219_HEARTBEAT_REMEDIATION_PLAN.md`** (Website repo) — Investigation Step 15 found this document to be degraded AI output. It was waived from the investigation and should NOT be relied upon for implementation decisions.
+
+2. **`docs/heartbeat-remediation-plan.md`** (Extension repo) — Investigation Step 16 found this document to be degraded AI output. It was waived from the investigation and should NOT be relied upon.
+
+3. **`docs/plg/20260214_HEARTBEAT_STATUS_ALIGNMENT_MEMO.md`** (Website repo) — While not flagged as corrupted, Step 13 Finding 13.10 identified a critical blind spot: this memo (authored by GPT-5.3-Codex) correctly diagnosed the allow-list mismatch but only examined the shared HeartbeatManager (`licensing/heartbeat.js`), never the VS Code copy (`mouse-vscode/src/licensing/heartbeat.js`). Its recommendations would fix the shared copy but would NOT fix the VS Code extension's `switch (response.reason)` bug — the most critical defect.
+
+This Comprehensive Analysis relies exclusively on the Investigation Plan (Steps 1–14 findings) and direct source-code examination. No content from the corrupted documents was used. As stated in the disclaimer at the top of this document, in the event of any conflict between this analysis and the actual source code, the source code and Git history are the sole source of truth.
 
 ---
 
 ## 10. Conclusion
+
+The heartbeat licensing system has 11 confirmed bugs across 12 open issues, all traceable to a temporal gap in the original implementation: the VS Code heartbeat client was written the night before the server route existed (Jan 26 vs Jan 27), with speculative assumptions about response field names and status values that were never corrected after the server was built.
+
+The most critical defects — the `response.reason` vs `response.status` switch-field bug (Bug 2), the stale validation allow-list (Bug 1), and the `over_limit` silent swallowing (Bug 3) — form a compound failure chain where each bug masks the others. A user exceeding their device limit experiences complete silent failure: the server correctly detects the condition, but the client discards the information at three successive layers.
+
+All 9 active fixes target the Extension repo exclusively. No back-end changes are required. Fix 1 (allow-list update) is the critical gate — all other fixes are ineffective without it. The recommended implementation sequence is: Fix 1 → Fix 7 → Fix 2 → Fix 3 → Fix 9 → Fix 5 → Fix 6 → Fix 4 → Fix 8.
+
+The happy path is at minimal risk from these changes. Fix 7 actually improves happy-path behavior by correcting a case-mismatch in `_mapServerStatusToState` that currently causes every valid heartbeat to fall through to "unknown status" handling.
+
+All "Before Fixes" user journey paths (§6) require live E2E validation by SWR before fixes are implemented, to confirm the analysis matches actual runtime behavior.
 
 ---
 
