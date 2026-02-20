@@ -20,9 +20,9 @@ Scan §1 top-to-bottom for current state. Each checkbox is one actionable unit o
 
 _Prerequisite to Phase 0. Open `~/source/repos/hic` in a new VS Code window. Ask agent the 5 questions in [20260219_DAILY_PLAN.md Addendum](20260219_DAILY_PLAN.md#addendum--5-questions-for-the-hic-repo-agent). Target: 15–20 min reading, 30 min hard cap._
 
-- [ ] **0.0** Heartbeat loop, status allow-list, version wire-up pre-scope — read `licensing/heartbeat.js`, `licensing/validation.js`, `extension.js`; answer all 5 questions; document findings; assess Stream 1A true scope before Phase 0 begins (30m)
+- [x] **0.0** Heartbeat loop, status allow-list, version wire-up pre-scope — read `licensing/heartbeat.js`, `licensing/validation.js`, `extension.js`; answer all 5 questions; document findings; assess Stream 1A true scope before Phase 0 begins (30m) ✅ (Feb 19–20)
 
-**Phase 0.0 Checkpoint:** Stream 1A complexity known. B-D1 decision unblocked. → Proceed to Phase 0.
+**Phase 0.0 Checkpoint:** ✅ Stream 1A complexity known. B-D1 decision resolved. Comprehensive analysis produced: `docs/plg/20260219_COMPREHENSIVE_ANALYSIS_OF_OPEN_HEARTBEAT_ISSUES.md` (1,250 lines, 12 issues, 11 bugs, 9 active fixes, 4 deferred, 8 user journeys). → Proceed to Phase 0.
 
 ---
 
@@ -69,7 +69,7 @@ _All 4 streams are independent and can run in parallel._
 
 _First: SWR resolves B-D1 (keep custom version notification or remove?)_
 
-- [ ] **B-D1 decision** — SWR resolves: keep custom `/api/version` + `checkForUpdates()` layer, or remove and rely on VS Code built-in updates?
+- [x] **B-D1 decision** — SWR resolves: Option A confirmed — remove `checkForUpdates()` entirely. Version notification via heartbeat-delivered path only. ✅ (Feb 20)
 - [ ] **9.8** Parse `latestVersion` from heartbeat response — scope TBD per B-D1 (2–3h)
 - [ ] **9.9** `Mouse: Update Version` command — scope TBD per B-D1 (1–2h)
 - [ ] **9.10** Version notification (status bar) — scope TBD per B-D1 (1h)
@@ -404,7 +404,7 @@ Items requiring SWR's direct action, extracted from all APs. Grouped by hard dea
 | #   | Item                                                                                                                                                                                       | Hard Deadline        | Phase/Step    | Source                  | Status |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ------------- | ----------------------- | ------ |
 | S1  | **SMP-GO** — Review 7 SMP Preview Terms provisions (indemnification, liability cap, beta disclaimers, fee changes, data processing, refund policy, 30-day termination). Issue GO or NO-GO. | Before Phase 3 3C    | Begin Phase 0 | AP 8 AR §4.2, OD #28    | ☐      |
-| S2  | **B-D1 decision** — Keep custom version update layer or rely on VS Code built-in?                                                                                                          | Before Phase 1 1A    | Phase 1 start | OD §3c                  | ☐      |
+| S2  | **B-D1 decision** — Keep custom version update layer or rely on VS Code built-in?                                                                                                          | Before Phase 1 1A    | Phase 1 start | OD §3c                  | ✅ Feb 20 |
 | S3  | **Privacy Policy review** — Must reflect Plausible, Cognito, DynamoDB, SES, SMP/Link                                                                                                       | Phase 2 Step 2B      | Day 4         | AP 11.1, OD #29         | ☐      |
 | S4  | **ToS review** — Pricing, product details, seller-of-record, SMP 60-day refund window                                                                                                      | Phase 2 Step 2B      | Day 4         | AP 11.2–11.3, OD #30–31 | ☐      |
 | S5  | **B-D3 decision** — EventBridge `readyVersion` gating: deploy or launch without?                                                                                                           | Before Phase 4       | Day 7         | OD §3b                  | ☐      |
@@ -428,8 +428,11 @@ Decisions resolved during the execution sprint. Complements the Open Decisions R
 | Feb 18 | B-D7        | 14-day log retention          | AP 10.3 scope fixed                   | SWR |
 | Feb 18 | B-D1 + B-D2 | Merged → deferred to pre-AP 9 | Phase 1 Stream 1A scope TBD           | SWR |
 | Feb 18 | B-D3        | Deferred to pre-deployment    | Phase 4 decision point                | SWR |
-|        |             |                               |                                       |     |
-|        |             |                               |                                       |     |
+| Feb 20 | B-D1        | Option A — remove `checkForUpdates()` entirely | Stream 1A Fix 4 scope locked; version notification via heartbeat only | SWR |
+| Feb 20 | ENFORCE-1   | Soft enforcement model for over-limit: never block, never degrade | Journeys B/G business rationale locked in comprehensive analysis | SWR |
+| Feb 20 | SES-SNS-1   | Over-limit events → DDB stream → Lambda → SNS → SES email + analytics | §7.2 item 5 added; infrastructure verification required | SWR |
+| Feb 20 | TRIAL-1     | Heartbeat to include `trialDaysRemaining`; nag-banner deferred if non-trivial | Journey D updated; nag-banner not launch-blocking | SWR |
+| Feb 20 | REVIVAL-1   | Machine revival to show toast notification on success/failure | Journey C updated | SWR |
 
 _Add rows as decisions are made during execution._
 
@@ -441,9 +444,9 @@ When the plan changes, document it here. No document currently covers this terra
 
 | Date | What Changed | Why | Impact on Timeline | Approved By |
 | ---- | ------------ | --- | ------------------ | ----------- |
-|      |              |     |                    |             |
+| Feb 19–20 | Phase 0.0 expanded from 30-min pre-scope to 2-day comprehensive investigation | Investigation revealed 12 open issues, 11 bugs, and 2 corrupted prior remediation documents requiring full re-analysis from source code. Produced 1,250-line comprehensive analysis with 9 active fixes, 4 deferred items, 8 user journeys, and SWR business-logic decisions. | +1.5 days on Phase 0.0; net positive — Stream 1A scope is now fully defined with zero ambiguity, all SWR business decisions locked, and implementation can proceed without discovery risk. Phase 0 proper remains unblocked. | SWR |
 
-_Empty at creation. Populated during execution when reality diverges from plan._
+_Populated during execution when reality diverges from plan._
 
 ---
 
