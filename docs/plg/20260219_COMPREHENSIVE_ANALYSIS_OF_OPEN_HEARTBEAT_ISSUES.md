@@ -1,5 +1,8 @@
 # Comprehensive Analysis of Open Heartbeat Issues
 
+> **⚠️ DISCLAIMER:** Best efforts have been made to generate this document in alignment with the underlying Findings in the companion [Heartbeat Investigation Plan](20260219_HEARTBEAT_INVESTIGATION_PLAN.md). However, in the event of any conflict between this document and the actual source code or Git history, readers should always rely upon the source code and Git history as the sole source of truth for the actual state of the codebase at any given point in time. This document is a synthesis and analysis — not a substitute for direct examination of the code it describes.
+
+
 **Date:** 2026-02-19  
 **Author:** GC (GitHub Copilot, Claude Opus 4.6)  
 **Owner:** SWR  
@@ -139,33 +142,173 @@ The StatusBarManager's SUSPENDED state display uses a `"warning"` type key that 
 
 #### 3.1.1 Back-End Heartbeat Route (`plg-website/src/app/api/license/heartbeat/route.js`)
 
+The heartbeat API route (`plg-website/src/app/api/license/heartbeat/route.js`, 382 lines) is a Next.js API route handler that processes `POST` requests. It handles two distinct flows:
+
+**Trial heartbeat** (no license key): Validates the fingerprint, calls `getVersionConfig()` (L149), and returns `{ valid: true, status: "trial", ... }` with all 7 version fields (L148–168). No DynamoDB writes; no Keygen interaction.
+
+**Licensed heartbeat** (license key present): Validates the license key format, calls Keygen's machine heartbeat ping API, then branches:
+
+- **License not in DynamoDB** (L258–281): Falls through to the success response with `status: "active"` and version fields. This path calls `getVersionConfig()` at L261.
+- **Over-limit** (L320–329): Returns `{ valid: true, status: "over_limit", reason: "...", concurrentMachines, maxMachines, message }`. Does NOT call `getVersionConfig()` — zero version fields in this response. The `valid: true` was a deliberate design choice (commit `78385d4`, Feb 6: "implement concurrent device handling with soft warnings").
+- **Success** (L339–365): Returns `{ valid: true, status: "active", ... }` with all 7 version fields. Contains dead ternaries at L342 (`overLimit ? "over_limit" : "active"`) and L348–351 that always evaluate to `"active"`, `false`, and `null` respectively, because the over-limit early return at L319 ensures `overLimit === false` at this point.
+- **Machine not found** (L285–295): Returns `{ valid: false, status: "machine_not_found", reason: "Machine not found for this license" }`. Present since the initial commit.
+- **Error** (L369–379): Returns `{ valid: false, status: "error", reason: "...", concurrentMachines, maxMachines }`. No version fields.
+
+The route also performs a fire-and-forget `updateDeviceLastSeen()` call (L285) to update the `lastSeenAt` attribute on the device's DynamoDB record.
+
+**Server-emitted statuses (6 total):** `trial`, `active`, `over_limit`, `machine_not_found`, `invalid`, `error`. (Investigation Plan, Step 1)
+
 #### 3.1.2 Heartbeat Tests (Unit, Contract, Integration, E2E)
+
+Four test files exist (~1,795 lines total):
+
+**Contract test** (`heartbeat-route.contract.test.js`, 224 lines): The ONLY test file that calls the actual route handler. Pins `trial` and `active` response shapes with version fields. Does NOT test `over_limit`, `machine_not_found`, `invalid`, or `error`. (Investigation Plan, Step 10 Finding 10.1)
+
+**Unit test** (`heartbeat.test.js`, 658 lines): Defines local helper functions that replicate route logic rather than importing the actual handler. Tests `over_limit` locally with `valid: true` (correct), but uses phantom status `"device_limit_exceeded"` (never emitted by server). (Investigation Plan, Step 10 Findings 10.2–10.4)
+
+**Integration test** (`heartbeat.test.js`, 391 lines): Also uses local mocks, never calls the actual handler. Critically, asserts `valid: false` for device-limit-exceeded (L279), contradicting both the unit test (`valid: true`) and the actual server (`valid: true`). (Investigation Plan, Step 10 Finding 10.5)
+
+**E2E journey test** (`j5-heartbeat-loop.test.js`, 522 lines): Uses real HTTP calls against staging API. Covers 7 scenarios but is overwhelmingly tolerant — most assertions follow `if (response.status === 200)` with graceful skip. Never asserts exact `status`, `valid`, or `reason` field values. No over-limit, machine-not-found, or error scenarios tested. (Investigation Plan, Step 10 Finding 10.6)
+
+**Key gap:** 4 of 6 server status values have zero contract-level test coverage. The `over_limit` response shape (the one with the most bugs) has zero end-to-end test coverage. The integration test contradicts the server on `valid` for over-limit. (Investigation Plan, Step 10 Finding 10.7)
 
 #### 3.1.3 EventBridge Scheduled Tasks and Version Delivery Pipeline
 
+The version notification pipeline operates independently of `checkForUpdates()`:
+
+**EventBridge rule** (`plg-scheduled.yaml` L62–73): `MouseVersionNotifyRule` fires daily at `cron(0 9 * * ? *)` (9 AM UTC). State is `ENABLED` for staging/prod, `DISABLED` for dev. Confirmed live on AWS: `plg-mouse-version-notify-staging` with `State: ENABLED`. (Investigation Plan, Step 11 Finding 11.1)
+
+**Lambda handler** (`scheduled-tasks/index.js` L435–486, `handleMouseVersionNotify`): Reads `VERSION#mouse/CURRENT` from DynamoDB, copies `latestVersion` to `readyVersion`, writes `readyReleaseNotesUrl`, `readyUpdateUrl`, `readyUpdatedAt`. The promotion is a simple blind copy — no 24-hour delay gate exists in code. The daily schedule IS the delay mechanism. (Investigation Plan, Step 11 Finding 11.4)
+
+**Operational status:** The Lambda ran successfully on 2026-02-19 at 09:00:44 UTC, promoting v0.10.10. CloudWatch logs confirm `{"readyVersion":"0.10.10"}` with 384.62ms duration. (Investigation Plan, Step 11 Finding 11.2)
+
+**Lambda environment:** Runtime `nodejs20.x`, 512 MB memory, 300s timeout. Layers: `hic-base-layer:13`, `hic-dynamodb-layer:12`, `hic-ses-layer:4`. Managed by CloudFormation stack. All values match the template. (Investigation Plan, Step 11 Finding 11.7)
+
 #### 3.1.4 DynamoDB Schema — Heartbeat and Version Records
+
+**Table:** `hic-plg-${Environment}`, single-table design with `PK` (String) + `SK` (String) composite key. PAY_PER_REQUEST billing. 3 GSIs (Stripe customer, License key, Auth0 user). TTL on `ttl` attribute for EVENT and TRIAL records. DynamoDB Streams enabled (NEW_AND_OLD_IMAGES). Point-in-time recovery and SSE enabled. (Investigation Plan, Step 11 Finding 11.9)
+
+**Version record:** Single record at `PK=VERSION#mouse / SK=CURRENT`. No separate READY record — `readyVersion` fields are attributes on the same CURRENT record. Key attributes: `latestVersion` ("0.10.10"), `readyVersion` ("0.10.10"), `readyReleaseNotesUrl`, `readyUpdateUrl`, `readyUpdatedAt` ("2026-02-19T09:00:44.448Z"), `releaseDate`, `releaseNotesUrl`, `updateUrl` (map with `marketplace`, `npm`, `vsix` keys). (Investigation Plan, Step 11 Finding 11.3)
+
+**Two-stage write model:** CI/CD writes `latestVersion` via `updateVersionConfig()` (dynamodb.js L2188–2205) which writes only `latestVersion`, `releaseNotesUrl`, `updatedAt`. The daily Lambda promotes to `readyVersion` fields. The `updateUrl` map is not part of `updateVersionConfig` — it was written by a different code path or manually. (Investigation Plan, Step 11 Finding 11.8)
+
+**Heartbeat records:** The heartbeat route does NOT write heartbeat-specific records. It performs two DynamoDB operations during licensed heartbeats: (1) `getLicense(licenseKey)` reads `LICENSE#{licenseKey}/DETAILS`, and (2) `updateDeviceLastSeen()` updates `LICENSE#{keygenLicenseId}/DEVICE#{fingerprint}` setting `lastSeenAt = now` (fire-and-forget). Concurrent device enforcement uses `getActiveDevicesInWindow()` which queries all `DEVICE#*` records under the license and filters by `lastSeenAt > cutoffTime` (default 2-hour window). Trial heartbeats perform zero DynamoDB writes. (Investigation Plan, Step 12)
 
 ### 3.2 Extension Repo (`hic`)
 
 #### 3.2.1 VS Code HeartbeatManager (`mouse-vscode/src/licensing/heartbeat.js`)
 
+The VS Code HeartbeatManager (`mouse-vscode/src/licensing/heartbeat.js`, 440 lines, 6 commits from Jan 26 – Feb 12) is the primary heartbeat client loaded by the extension at runtime.
+
+**Timer mechanism:** Uses `setInterval` with a 10-minute default interval. Retry logic: exponential backoff (1s base, 3 retries). Timeout: 10s per request.
+
+**Response handling:** Splits on `response.valid` (L227):
+- **Valid path** (`_handleValidHeartbeat`): Calls `onSuccess` callback (L228), then feeds `response.status` through `_mapServerStatusToState()` (L390–415). The mapper expects UPPERCASE keys (`ACTIVE`, `LICENSED`, `SUSPENDED`, `EXPIRED`, `REVOKED`) but receives lowercase values from the server, returning `null` for every status. All valid heartbeats fall through to "unknown status" handling.
+- **Invalid path** (`_handleInvalidHeartbeat`): Dispatches via `switch (response.reason)` at L266. This is the critical bug — the server puts status tokens in `response.status`, not `response.reason`. Every case label (`license_suspended`, `license_expired`, `license_revoked`, `concurrent_limit`, `machine_not_found`) is unreachable.
+
+**Machine recovery** (Phase 3D, commit `307ee22a` Feb 12): `_attemptMachineRevival()` is wired to `case "machine_not_found"` inside the wrong switch. Dead on arrival.
+
+**`onSuccess` timing:** Fires at L228 before the validity/status check, meaning it fires even for responses that will later be identified as problematic. Mitigated by the fact that fallback responses (from validation gate rejection) lack version fields.
+
+**JSDoc `@typedef HeartbeatResponse`:** Documents `reason` as "Reason for invalid response" — a human-readable description, contradicting the switch that treats it as a machine-readable token. (Investigation Plan, Steps 2, 13 Findings 13.1–13.4)
+
 #### 3.2.2 Shared HeartbeatManager (`licensing/heartbeat.js`)
+
+The shared HeartbeatManager (`licensing/heartbeat.js`, 314 lines, 1 commit from Feb 1) is an independent implementation that is NOT loaded by the VS Code extension at runtime. It was written 6 days after the VS Code copy.
+
+**Architecturally superior design:**
+- Uses `setTimeout` chaining (not `setInterval`) — avoids timer drift and overlapping requests
+- Correctly dispatches on `result.status` (not `response.reason`)
+- Constructor uses options-object pattern: `new HeartbeatManager({ stateManager, httpClient, intervalMs })`
+- 314 lines vs VS Code's 440 lines
+
+**Status handling:** Has 8 case labels including `trial` and `device_limit_exceeded`. However, `device_limit_exceeded` was the original server status name before the Feb 6 rename to `over_limit` — the shared copy was never updated to match. Does not handle `over_limit` or `machine_not_found`. No machine revival feature.
+
+**Interval adjustment:** Supports server-directed interval via `nextHeartbeat` field (min 1 min, max 30 min).
+
+Despite being the better implementation, this file is not used by the VS Code extension. It exists in the shared `licensing/` directory and may be intended for other clients (CLI, future IDE integrations). (Investigation Plan, Step 5)
 
 #### 3.2.3 VS Code Validation Module (`mouse-vscode/src/licensing/validation.js`)
 
+The VS Code validation module (`mouse-vscode/src/licensing/validation.js`, 471 lines, 2 commits) is **dead code at runtime**. The extension imports validation functions from the shared copy (`licensing/validation.js`) via `http-client.js`, not from this file.
+
+Exports `VALID_HEARTBEAT_STATUSES` as a `Set` with 7 values: `active`, `license_expired`, `license_suspended`, `license_revoked`, `concurrent_limit`, `valid`, `invalid`. Created Jan 27 at 08:12 — 34 minutes before the server route existed. Never updated.
+
+Also exports `validateHeartbeatResponse()`, `LICENSE_KEY_PATTERN`, and other validation functions. The `LICENSE_KEY_PATTERN` diverges from the shared copy.
+
+**Impact:** `security.test.js` imports from this dead-code copy, meaning all security validation tests validate code that never runs in production. (Investigation Plan, Steps 3, 4, 9 Finding 9A, 13 Finding 13.5)
+
 #### 3.2.4 Shared Validation Module (`licensing/validation.js`)
+
+The shared validation module (`licensing/validation.js`, 557 lines, 6 commits from Jan 27 – Feb 12) is the **active runtime copy** imported by `http-client.js`.
+
+Exports `VALID_HEARTBEAT_STATUSES` with identical content to the VS Code copy (same 7 values). Despite 6 commits with substantive validation changes (version field validation, enhanced metadata validation, Keygen key format, Phase 3D version config validation), none modified `VALID_HEARTBEAT_STATUSES`. The allow-list has been frozen at the original 7 speculative values since Jan 27.
+
+`git log --all -S "over_limit"` across the entire Extension repo returns zero results — `over_limit` has never appeared in any JavaScript file in the repo's history. (Investigation Plan, Steps 3, 13 Findings 13.6, 13.8)
 
 #### 3.2.5 HTTP Client and Validation Gate (`mouse-vscode/src/licensing/http-client.js`)
 
+The HTTP client (`mouse-vscode/src/licensing/http-client.js`) contains the validation gate — the single runtime chokepoint where server responses are validated before reaching the HeartbeatManager.
+
+At L195, `validateHeartbeatResponse()` (imported from the shared `licensing/validation.js`) checks the response. If the response's `status` field is not in `VALID_HEARTBEAT_STATUSES`, the function returns `{ success: false }`. The HTTP client then discards the entire server response and substitutes `{ valid: false, status: "error", reason: "Invalid server response" }`.
+
+This gate is the mechanism by which 4 of 6 server statuses (`trial`, `over_limit`, `machine_not_found`, `error`) are silently rejected. The HeartbeatManager never sees the original server response — it receives only the synthetic fallback.
+
+HTTP 400/401/429 responses throw before the gate is reached, so those error codes are handled separately (not affected by the allow-list bug). (Investigation Plan, Step 4)
+
 #### 3.2.6 LicenseChecker (`mouse-vscode/src/licensing/license-checker.js`)
+
+The LicenseChecker (`mouse-vscode/src/licensing/license-checker.js`) contains `sendHeartbeat()` and `startHeartbeat()` methods that are never called from any runtime or test code. The extension uses `HeartbeatManager` exclusively.
+
+These methods represent an earlier heartbeat implementation that was superseded when `HeartbeatManager` was introduced (Jan 26, commit `442e3bfe`). The LicenseChecker remains in use for other licensing functions (key validation, activation, deactivation) but its heartbeat methods are dead code. (Investigation Plan, Step 6)
 
 #### 3.2.7 Extension Activation and Command Registration (`extension.js`)
 
+The extension activation sequence (`extension.js`) registers the `mouse.checkForUpdates` command and instantiates the HeartbeatManager.
+
+**`mouse.checkForUpdates`:** Calls `https://api.hic-ai.com/api/version` — a host that does not exist. This command always fails silently. (Investigation Plan, Step 7)
+
+**HeartbeatManager instantiation:** Two patterns exist:
+1. **Pre-validation single heartbeat:** Fire-and-forget, no callbacks. Used for initial license validation.
+2. **Ongoing loop with 4 callbacks:** `onSuccess`, `onError`, `onStateChange`, `onConcurrentLimitExceeded`. This is the primary heartbeat loop.
+
+**Double-start risk:** No guard prevents `startHeartbeatWithCallbacks` from being called while a HeartbeatManager is already running. A second call creates a new timer with no reference to the first, orphaning the original interval. The orphaned timer fires heartbeats indefinitely. (Investigation Plan, Step 7)
+
 #### 3.2.8 StatusBarManager and Version Notification UI
+
+The StatusBarManager handles the VS Code status bar UI for license state and version notifications.
+
+**`showUpdateAvailable()`:** Functional — displays a status bar item with the new version number and a click action to open the update URL. Works correctly when version data is delivered via heartbeat (provided the response survives the validation gate).
+
+**Two version notification paths:**
+1. **Heartbeat-delivered** (functional if gate passes): Version fields in the heartbeat response are passed to `showUpdateAvailable()`. This works for `active` status responses.
+2. **Independent `/api/version` endpoint** (broken): `checkForUpdates()` targets `api.hic-ai.com` which doesn't exist.
+
+**SUSPENDED display bug:** Uses `"warning"` as the status bar background type. Valid VS Code `StatusBarItem` background types are `"error"` or `undefined`. The `"warning"` value is silently ignored, resulting in no visual distinction.
+
+**Dead code:** `clearUpdateNotification()` and `showNotification()` methods exist but are never called from any runtime code. (Investigation Plan, Step 8)
 
 #### 3.2.9 Extension Test Coverage — `security.test.js` and Related Suites
 
+**`security.test.js`** (744 lines): Tests CWE-295 (HTTPS enforcement), CWE-306 (license key format), CWE-502 (response schema validation), CWE-693 (offline grace period). Iterates `VALID_HEARTBEAT_STATUSES` confirming each is accepted. However, imports from the dead-code VS Code `validation.js` copy, not the shared runtime copy. Does NOT test `over_limit`, `trial`, `machine_not_found`, or `error` as status values. Does NOT test what happens when a valid-schema but rejected-status response passes through the validation gate. (Investigation Plan, Step 9 Finding 9A)
+
+**`heartbeat.test.js` (VS Code, 678 lines):** Tests start/stop lifecycle, retry logic, state changes via `response.reason` dispatch (correct for the VS Code implementation's actual code, but the code itself is wrong). Tests `machine_not_found` as a reason value and `concurrent_limit` as a reason value — both would never appear in `response.reason` in production. Does NOT test the validation gate. Mock responses bypass `validateHeartbeatResponse()`. (Investigation Plan, Step 9 Finding 9B)
+
+**`heartbeat.test.js` (Shared, 342 lines):** Tests `result.status` dispatch (correct for shared implementation). Tests `device_limit_exceeded` which is NOT in `VALID_HEARTBEAT_STATUSES` and would be rejected at the gate. Does NOT test what happens when the gate returns `{ success: false }`. (Investigation Plan, Step 9 Finding 9C)
+
+**Cross-reference summary:** Tests thoroughly cover statuses the server never emits (`license_expired`, `license_suspended`, `license_revoked`, `concurrent_limit`) while completely missing statuses the server actually emits (`trial`, `over_limit`, `machine_not_found`, `error`). This is the exact inversion of useful test coverage. Five tests assert behavior now known to be incorrect. (Investigation Plan, Step 9 Findings 9E–9F)
+
 #### 3.2.10 Configuration and API Base URL Divergence
+
+Three different API base URLs exist across the codebase:
+
+| Location | URL | Status |
+|----------|-----|--------|
+| `licensing/constants.js` L13 | `https://staging.hic-ai.com` | Functional (shared runtime) |
+| `mouse/src/licensing/constants.js` L204 | `https://api.hic-ai.com` (env-overridable) | Non-existent host |
+| `mouse-vscode/src/licensing/config.js` L11 | `https://api.hic-ai.com` (hardcoded) | Non-existent host |
+
+The VS Code extension and Mouse CLI both target a non-existent API host. Only the shared `licensing/` module targets the real staging endpoint. VS Code heartbeats work ONLY because `http-client.js` (shared) is the actual runtime caller — it uses the shared `licensing/constants.js` URL, not the VS Code config's `API_BASE_URL`. The `checkForUpdates()` command, which uses the VS Code config directly, always fails. (Investigation Plan, Step 9 Finding 9G)
 
 ---
 
