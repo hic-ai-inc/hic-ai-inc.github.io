@@ -688,69 +688,143 @@ Move the `onSuccess(response)` call below the status mapping and validity checks
 
 ## 6. User Journeys Before and After Completion of Proposed Fixes
 
+> **⚠️ E2E VALIDATION REQUIRED:** The "Before Fixes" paths below are derived from source-code analysis (Steps 1–14) and have NOT been validated via live end-to-end testing. Before any fixes are implemented, SWR must perform the E2E validation workflow specified for each journey to confirm the current behavior matches the analysis. If any discrepancy is found, the investigation must be reassessed and findings updated before proceeding. The "After Fixes" paths describe expected behavior contingent on the proposed fixes being correctly implemented.
+
 ### 6.1 Journey A: Happy-Path Active User Heartbeat
 
 #### Code Path Trace
 
+`extension.js` → `HeartbeatManager.start()` → `http-client.js` sends POST to `https://staging.hic-ai.com/api/license/heartbeat` with `{ licenseKey, fingerprint, machineId }` → `route.js` validates key, pings Keygen, queries DynamoDB for active devices → returns `{ valid: true, status: "active", reason: "Heartbeat successful", latestVersion, readyVersion, ... }` → `http-client.js` L195 calls `validateHeartbeatResponse()` → `"active"` is in allow-list → passes gate → HeartbeatManager receives full response → `_handleValidHeartbeat` → `onSuccess(response)` fires → `_mapServerStatusToState("active")` → returns `null` (UPPERCASE key mismatch) → falls to unknown status handling.
+
 #### Before Fixes
 
+The happy path works partially. The heartbeat completes, `onSuccess` fires (delivering version fields to the StatusBarManager for update notification), and the server records the device's `lastSeenAt`. However, `_mapServerStatusToState` returns `null` for `"active"` due to the case mismatch (Bug 8/HB-11), so the license state is never formally updated to `LICENSED` via the state manager. The extension continues operating because the `onSuccess` callback handles version notification independently of the state mapping.
+
+**E2E validation:** Install Mouse on a device with an active license. Observe heartbeat network traffic (DevTools or proxy). Confirm response contains `status: "active"` and version fields. Confirm status bar shows active license. Confirm version notification appears if a newer version exists.
+
 #### After Fixes
+
+Identical to Before, except `_mapServerStatusToState("active")` now returns `"LICENSED"` (Fix 7 — lowercase keys). The state manager is formally updated. `onSuccess` fires after the validity check (Fix 9). No functional change to the user experience, but the internal state is now correct.
 
 ### 6.2 Journey B: Over-Limit User (e.g., 3 Devices on 2-Device Plan)
 
 #### Code Path Trace
 
+`route.js` receives heartbeat → queries `getActiveDevicesInWindow()` → finds 3 active devices, `maxMachines: 2` → `overLimit = true` → early return at L319 → returns `{ valid: true, status: "over_limit", reason: "You're using 3 of 2 allowed devices", concurrentMachines: 3, maxMachines: 2, message: "..." }` (no version fields) → `http-client.js` L195 calls `validateHeartbeatResponse()` → `"over_limit"` is NOT in allow-list → gate rejects → substitutes `{ valid: false, status: "error", reason: "Invalid server response" }` → HeartbeatManager receives synthetic fallback → `_handleInvalidHeartbeat` → `switch ("Invalid server response")` → no match → silent failure.
+
 #### Before Fixes
 
+The over-limit user experiences complete silent failure. The extension receives no indication that the user has exceeded their device limit. No UI notification, no callback to `onConcurrentLimitExceeded`, no state change. The user continues using Mouse normally on all 3 devices with no awareness of the policy violation. The server correctly detects the over-limit condition but the client silently discards the information.
+
+**E2E validation:** Activate a license on 3 devices where `maxMachines: 2`. Trigger a heartbeat from the 3rd device. Observe network traffic to confirm server returns `over_limit` with `valid: true`. Confirm the extension shows no over-limit warning or notification.
+
 #### After Fixes
+
+After Fixes 1 (allow-list) + 3 (success-path detection) + 7 (mapping): `"over_limit"` passes the gate → HeartbeatManager success path detects `over_limit` → routes to `onConcurrentLimitExceeded` callback → user sees a notification that they are using 3 of 2 allowed devices. The heartbeat continues (soft warning, not blocking). No version fields in this response (HB-7, deferred), so no version notification for this heartbeat cycle.
 
 ### 6.3 Journey C: Machine Not Found / Deactivated Device
 
 #### Code Path Trace
 
+`route.js` receives heartbeat → calls Keygen machine heartbeat ping → Keygen returns 404 (machine deactivated) → `route.js` returns `{ valid: false, status: "machine_not_found", reason: "Machine not found for this license" }` → `http-client.js` gate rejects `"machine_not_found"` (not in allow-list) → substitutes synthetic fallback → HeartbeatManager receives `{ valid: false, status: "error", reason: "Invalid server response" }` → `_handleInvalidHeartbeat` → `switch ("Invalid server response")` → no match → silent failure. Phase 3D `_attemptMachineRevival` never triggers.
+
 #### Before Fixes
 
+The user whose device was deactivated (e.g., by an admin removing it from the license) experiences silent failure. The extension continues running with stale license state. No machine revival is attempted. No notification that the device is no longer authorized. The user discovers the problem only when they encounter a different licensing check or when the extension is restarted.
+
+**E2E validation:** Activate a license on a device, then deactivate the machine via Keygen admin or the HIC admin portal. Trigger a heartbeat from the deactivated device. Observe network traffic to confirm server returns `machine_not_found`. Confirm the extension shows no error or recovery prompt.
+
 #### After Fixes
+
+After Fixes 1 (allow-list) + 2 (dispatch field): `"machine_not_found"` passes the gate → `_handleInvalidHeartbeat` → `switch (response.status)` → `case "machine_not_found"` matches → `_attemptMachineRevival()` executes → calls `activateLicense()` to re-register the machine → if successful, updates `machineId` and continues heartbeat loop. If revival fails, the error is handled gracefully (no crash). User may see a brief interruption followed by automatic recovery.
 
 ### 6.4 Journey D: Trial User Heartbeat
 
 #### Code Path Trace
 
+`extension.js` → HeartbeatManager sends POST with fingerprint only (no license key) → `route.js` detects trial flow → calls `getVersionConfig()` → returns `{ valid: true, status: "trial", latestVersion: "0.10.10", readyVersion: "0.10.10", ... }` with all 7 version fields → `http-client.js` gate checks `"trial"` → NOT in allow-list → gate rejects → substitutes `{ valid: false, status: "error", reason: "Invalid server response" }` → HeartbeatManager receives synthetic fallback → `_handleInvalidHeartbeat` → silent failure.
+
 #### Before Fixes
 
+Trial users experience silent heartbeat failure. The server correctly returns trial status with version information, but the client discards it. Trial users receive no version notifications via heartbeat. The trial itself still functions (the extension checks trial status via other mechanisms), but the heartbeat loop provides no value to trial users.
+
+**E2E validation:** Install Mouse without activating a license (trial mode). Trigger a heartbeat. Observe network traffic to confirm server returns `status: "trial"` with version fields. Confirm the extension does not display version update notifications received via heartbeat.
+
 #### After Fixes
+
+After Fix 1 (allow-list) + Fix 7 (mapping with `trial` → `TRIAL`): `"trial"` passes the gate → HeartbeatManager success path (since trial heartbeats have `valid: true`) → `_mapServerStatusToState("trial")` returns `"TRIAL"` → state manager updated → `onSuccess` fires with version fields → StatusBarManager can display version notification. Trial users now receive version update notifications via heartbeat.
 
 ### 6.5 Journey E: Server Error During Heartbeat
 
 #### Code Path Trace
 
+`route.js` encounters an internal error (e.g., DynamoDB timeout, Keygen API failure) → returns `{ valid: false, status: "error", reason: "Internal server error", concurrentMachines, maxMachines }` → `http-client.js` gate checks `"error"` → NOT in allow-list → gate rejects → substitutes `{ valid: false, status: "error", reason: "Invalid server response" }` → HeartbeatManager receives synthetic fallback (which happens to have the same `status: "error"` as the original, but a different `reason`) → `_handleInvalidHeartbeat` → `switch ("Invalid server response")` → no match → silent failure.
+
 #### Before Fixes
 
+Server errors are silently swallowed. The extension's retry logic (exponential backoff, 3 retries) will attempt the heartbeat again, but if the server continues returning `error` status, each attempt is silently discarded. The `onError` callback is never called because the synthetic fallback takes the invalid path, not the error path.
+
+**E2E validation:** This is difficult to trigger intentionally without server-side manipulation. One approach: temporarily misconfigure the DynamoDB table name in the Lambda environment to force an internal error. Alternatively, observe behavior during a known AWS outage or by throttling the DynamoDB table.
+
 #### After Fixes
+
+After Fix 1 (allow-list): `"error"` passes the gate → HeartbeatManager receives the actual server error response → `_handleInvalidHeartbeat` → `switch (response.status)` (Fix 2) → `case "error"` (if added) or default handling → `onError` callback fires → extension can log the error and inform the user if appropriate. Retry logic continues as before.
 
 ### 6.6 Journey F: Version Update Notification via Heartbeat
 
 #### Code Path Trace
 
+`route.js` returns `{ valid: true, status: "active", ..., latestVersion: "0.10.10", readyVersion: "0.10.10", readyUpdateUrl: "https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse", readyReleaseNotesUrl: "...", readyUpdatedAt: "2026-02-19T09:00:44.448Z" }` → passes validation gate (`"active"` in allow-list) → HeartbeatManager `_handleValidHeartbeat` → `onSuccess(response)` fires → StatusBarManager receives version fields → compares `readyVersion` against current extension version → if newer, calls `showUpdateAvailable()` → status bar item appears with update prompt.
+
+The version data originates from the EventBridge/Lambda pipeline: daily at 9 AM UTC, the Lambda reads `VERSION#mouse/CURRENT` from DynamoDB and promotes `latestVersion` to `readyVersion`. The heartbeat route reads these fields via `getVersionConfig()` and includes them in the response.
+
 #### Before Fixes
 
+Version notification via heartbeat works for `active` users — this is the one fully functional path. The `onSuccess` callback receives version fields, and `showUpdateAvailable()` displays the update prompt. However, `_mapServerStatusToState` returns `null` (Bug 8), so the state manager is not updated despite the heartbeat succeeding.
+
+The independent `checkForUpdates()` path (via `mouse.checkForUpdates` command) always fails because it targets `api.hic-ai.com` which doesn't exist (Bug 4). Version notification relies entirely on the heartbeat-delivered path.
+
+Trial users and over-limit users receive NO version notifications because their responses are blocked by the validation gate (Bug 1).
+
+**E2E validation:** With an active license, trigger a heartbeat. Confirm version fields are present in the response. If a newer version exists in DynamoDB (`readyVersion` > installed version), confirm the status bar shows an update notification. Also test `mouse.checkForUpdates` command and confirm it fails silently.
+
 #### After Fixes
+
+After Fixes 1 + 7: Version notification now works for `active`, `trial`, and (once deferred Fix 5.11 is applied) `over_limit` users. The `_mapServerStatusToState` case mismatch is resolved (Fix 7), so the state manager is correctly updated. If Fix 4 (Option A) is applied, `checkForUpdates()` is removed entirely, simplifying the version notification to a single heartbeat-delivered path.
 
 ### 6.7 Journey G: Business License — 6th Device on 5-Device Plan
 
 #### Code Path Trace
 
+Identical to Journey B but with Business license parameters. `route.js` receives heartbeat → `getActiveDevicesInWindow()` finds 6 active devices, `maxMachines: 5` → `overLimit = true` → early return → `{ valid: true, status: "over_limit", reason: "You're using 6 of 5 allowed devices", concurrentMachines: 6, maxMachines: 5 }` → validation gate rejects `"over_limit"` → synthetic fallback → silent failure.
+
+This journey is specifically called out because the corrupted remediation documents contained an internal contradiction: asserting in one place that a Business user adding a 6th device would be "blocked" while concluding elsewhere that the user would never be blocked. The source code confirms: `over_limit` returns `valid: true` (soft warning, not blocking). The user is NOT blocked — they can continue using all 6 devices. The server merely reports the over-limit condition, which the client currently discards.
+
 #### Before Fixes
 
+Identical to Journey B Before Fixes. The Business user on 6 devices experiences complete silent failure. No notification of the policy violation. All 6 devices continue operating normally. The server's soft warning is silently discarded by the client.
+
+**E2E validation:** Activate a Business license (`maxMachines: 5`) on 6 devices. Trigger a heartbeat from the 6th device. Observe network traffic to confirm `over_limit` with `valid: true`, `concurrentMachines: 6`, `maxMachines: 5`. Confirm no UI notification on the extension.
+
 #### After Fixes
+
+Identical to Journey B After Fixes. The `onConcurrentLimitExceeded` callback fires with `concurrentMachines: 6, maxMachines: 5`. The user sees a notification. All 6 devices continue operating (soft warning, not blocking).
 
 ### 6.8 Journey H: License Re-Entry While Heartbeat Running (Double-Start)
 
 #### Code Path Trace
 
+`extension.js` → user triggers license activation or re-entry → `startHeartbeatWithCallbacks` is called → creates new `HeartbeatManager` with `setInterval` → if a previous HeartbeatManager was already running, its interval ID is not stored or cleared → two parallel heartbeat loops now exist.
+
 #### Before Fixes
 
+Two heartbeat timers fire independently at 10-minute intervals. This doubles the API call volume and can cause race conditions if both timers fire simultaneously (e.g., two concurrent `updateDeviceLastSeen` calls, two concurrent state updates). The orphaned timer cannot be stopped because no reference to it is retained.
+
+**E2E validation:** Activate a license, wait for the heartbeat loop to start, then trigger license re-entry (e.g., via the command palette). Monitor network traffic to confirm whether two heartbeat requests fire at the next interval. This may require waiting up to 10 minutes to observe.
+
 #### After Fixes
+
+After Fix 6 (double-start guard): The second call to `startHeartbeatWithCallbacks` either (a) stops the existing HeartbeatManager before creating a new one, or (b) returns early if one is already running. Only one heartbeat loop exists at any time.
 
 ---
 
