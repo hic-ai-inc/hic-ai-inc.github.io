@@ -73,7 +73,7 @@ _First: SWR resolves B-D1 (keep custom version notification or remove?)_
 - [ ] **9.8** Parse `latestVersion` from heartbeat response — scope TBD per B-D1 (2–3h)
 - [ ] **9.9** `Mouse: Update Version` command — scope TBD per B-D1 (1–2h)
 - [ ] **9.10** Version notification (status bar) — scope TBD per B-D1 (1h)
-- [ ] **AP9-HB** Heartbeat status alignment — fix or defer decision
+- [x] **AP9-HB** Heartbeat status alignment — fix in Stream 1A ✅ (Feb 21)
 - [ ] Run full test suite — all tests pass post-changes
 
 **Stream 1A Checkpoint (CP-9):** Version notification functional (if keep) or custom code removed (if remove). All tests pass. → Unlocks Phase 2 docs, Phase 3 audit.
@@ -91,7 +91,7 @@ _Note: Steps 1.1–1.2 extend Phase 0 items 0.8–0.9. Phase 0 establishes the r
 - [ ] **2.4** Re-verify all 4 checkout paths with SMP enabled (30m) — resolves AP8-D3 (automatic_tax)
 - [ ] **2.5** Verify webhook flow — 8 events fire correctly (15m)
 - [ ] **2.6** Verify customer portal (15m)
-- [ ] **2.7** Verify email notification flow (15m) — resolves AP8-D4 (duplication assessment)
+- [ ] **2.7** Verify email notification flow (15m) — AP8-D4 resolved (Feb 21): Stripe/Link handles payment receipts and payment failure notifications as MoR. HIC SES handles license lifecycle emails (suspension warnings, reactivation, cancellation, revocation). No code changes for launch; `paymentFailed` SES template remains as-is, potential duplication with Stripe failure emails deferred to post-launch refinement.
 - [ ] **2.8** Set all SMP-related Stripe code and test-mode dashboard configurations — API version pinning, payment method types, any remaining settings not covered by 2.1–2.7 (30m)
 - [ ] **2.9** Verify all Stripe configurations end-to-end — dashboard settings consistent with code expectations, all test-mode checkout paths working with all config changes applied (15m)
 - [ ] **2.10** Run full test suite — ≥3,459 tests pass (15m)
@@ -239,7 +239,7 @@ _All 5 streams are independent and can run in parallel. 3C requires SMP-GO._
 
 _Resolve B-D4/B-D5/B-D6 at stream start._
 
-- [ ] **B-D4** decision — SAST tool choice
+- [x] **B-D4** decision — Q Developer Code Review ✅ (Feb 21)
 - [ ] **B-D5** decision — `package.json` field standardization
 - [ ] **B-D6** decision — security findings memo format
 - [ ] **2b.1** `npm audit` on hic/mouse, hic/licensing, hic/mouse-vscode (15m)
@@ -431,8 +431,19 @@ Decisions resolved during the execution sprint. Complements the Open Decisions R
 | Feb 20 | B-D1        | Option A — remove `checkForUpdates()` entirely | Stream 1A Fix 4 scope locked; version notification via heartbeat only | SWR |
 | Feb 20 | ENFORCE-1   | Soft enforcement model for over-limit: never block, never degrade | Journeys B/G business rationale locked in comprehensive analysis | SWR |
 | Feb 20 | SES-SNS-1   | Over-limit events → DDB stream → Lambda → SNS → SES email + analytics | §7.2 item 5 added; infrastructure verification required | SWR |
+| Feb 21 | AP8-D4      | Payment/receipt email responsibility split: Stripe/Link (as MoR) owns payment receipts and payment failure notifications. HIC SES owns license lifecycle emails (suspension warning, reactivation, cancellation, revocation, welcome, license delivery, trial ending). No code changes for launch; existing `paymentFailed` SES template remains, potential duplication deferred to post-launch. | Stream 1B step 2.7 scope reduced to verification only; no SES template changes needed pre-launch | SWR |
+| Feb 21 | SES-SNS-2   | **SES-SNS-1 deferred to post-launch.** Over-limit email notifications are a nice-to-have; heartbeat soft enforcement works without them. Building a new DDB stream → Lambda → SNS → SES pipeline during the sprint adds risk for a non-blocking feature. All SES-SNS implementation and infrastructure work deferred until post-launch. | Removes ~2–4h of unscoped infrastructure work from pre-launch sprint; no impact on launch-blocking items | SWR |
 | Feb 20 | TRIAL-1     | Heartbeat to include `trialDaysRemaining`; nag-banner deferred if non-trivial | Journey D updated; nag-banner not launch-blocking | SWR |
 | Feb 20 | REVIVAL-1   | Machine revival to show toast notification on success/failure | Journey C updated | SWR |
+| Feb 21 | AP5-Q1      | One by one — each doc article reviewed individually before publishing | Doc publishing workflow: individual SWR review per article, not batch | SWR |
+| Feb 21 | AP5-Q2      | All clients get their own instruction and setup docs | Overrides GC rec (Copilot + Cursor only); expands Phase 2E doc scope to all supported clients | SWR |
+| Feb 21 | AP5-Q3      | Keep Tier 2; possibly remove entirely | Crib sheets remain non-launch-critical; may be cut entirely post-assessment | SWR |
+| Feb 21 | AP5-Q4      | No — docs are for how to use Mouse, not why Mouse is superior | No `/research` link in docs section; keeps docs focused on usage | SWR |
+| Feb 21 | AP8-D1      | Remove forbidden parameters entirely — no `SMP_ENABLED` flag | AP 8 Phase 2 step 2.3: clean removal, no conditional logic | SWR |
+| Feb 21 | AP8-D2      | Deferred to Stripe sitdown — decide in front of dashboard | Preview version header placement TBD during Phase 0/1B Stripe work | SWR |
+| Feb 21 | AP4-D5      | Yes — enable PITR on production DynamoDB | AP 10.7 verification step confirmed; ~$2–5/mo at launch scale | SWR |
+| Feb 21 | B-D4        | Q Developer Code Review as SAST tool | Phase 3A Stream 3A scope locked; no external SAST tool procurement needed | SWR |
+| Feb 21 | AP9-HB      | Fix in Stream 1A | Heartbeat status alignment is a bug fix, not a deferral; scoped into Stream 1A active fixes | SWR |
 
 _Add rows as decisions are made during execution._
 
@@ -445,6 +456,7 @@ When the plan changes, document it here. No document currently covers this terra
 | Date | What Changed | Why | Impact on Timeline | Approved By |
 | ---- | ------------ | --- | ------------------ | ----------- |
 | Feb 19–20 | Phase 0.0 expanded from 30-min pre-scope to 2-day comprehensive investigation | Investigation revealed 12 open issues, 11 bugs, and 2 corrupted prior remediation documents requiring full re-analysis from source code. Produced 1,250-line comprehensive analysis with 9 active fixes, 4 deferred items, 8 user journeys, and SWR business-logic decisions. | +1.5 days on Phase 0.0; net positive — Stream 1A scope is now fully defined with zero ambiguity, all SWR business decisions locked, and implementation can proceed without discovery risk. Phase 0 proper remains unblocked. | SWR |
+| Feb 21 | SES-SNS-1 implementation deferred to post-launch | Over-limit email notification pipeline (DDB stream → Lambda → SNS → SES) is a nice-to-have, not launch-blocking. Heartbeat soft enforcement works without email notifications. Sprint risk reduction. | Removes ~2–4h of unscoped work from critical path. No user-facing impact at launch — over-limit users still get soft enforcement via heartbeat response. | SWR |
 
 _Populated during execution when reality diverges from plan._
 

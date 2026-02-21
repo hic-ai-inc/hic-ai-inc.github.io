@@ -11,12 +11,12 @@
 | Group | Description                                         | Open   | Total  |
 | ----- | --------------------------------------------------- | ------ | ------ |
 | 1     | Pre-Planning (before Dep Map v3 & Launch Plan)      | 0      | 5      |
-| 2     | Pre-Sprint Batch (after planning, before execution) | 13     | 13     |
-| 3     | During Execution (resolve as encountered)           | 11     | 11     |
+| 2     | Pre-Sprint Batch (after planning, before execution) | 6      | 13     |
+| 3     | During Execution (resolve as encountered)           | 8      | 11     |
 | 4     | SWR Attorney & Personal (parallel track)            | 9      | 9      |
 | 5     | GC Operational (SWR awareness only)                 | 6      | 6      |
 | —     | Resolution Log (previously resolved)                | —      | 10     |
-|       | **Active Open Items**                               | **39** | **49** |
+|       | **Active Open Items**                               | **29** | **49** |
 
 ---
 
@@ -64,10 +64,10 @@ Quick judgment calls that don't require investigation. **Resolve in one ~30-minu
 
 | #   | ID     | Decision Required                                                                                                            | GC Rec                                                                             | Blocks                     | Status |
 | --- | ------ | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------- | ------ |
-| 6   | AP5-Q1 | **Content review cadence:** Each doc article through SWR review before publishing, or batch review after Tier 1 is complete? | Batch for Tier 1; individual review only for DOC-9 (Security) and DOC-10 (Billing) | Doc publishing workflow    | ⬜     |
-| 7   | AP5-Q2 | **Supported clients for Tier 1 docs:** All 5 AI clients, or Copilot + Cursor only for launch?                                | Copilot + Cursor for Tier 1; others in Tier 2 post-launch                          | Doc writing scope & effort | ⬜     |
-| 8   | AP5-Q3 | **AI Agent Crib Sheets:** Promote Copilot crib sheet (DOC-16) to Tier 1?                                                     | Keep in Tier 2 — valuable but not launch-critical                                  | Effort allocation          | ⬜     |
-| 9   | AP5-Q4 | **Research paper reference:** Link to `/research` from docs section?                                                         | Yes — adds credibility, minimal effort                                             | Docs index structure       | ⬜     |
+| 6   | AP5-Q1 | **Content review cadence:** Each doc article through SWR review before publishing, or batch review after Tier 1 is complete? | Batch for Tier 1; individual review only for DOC-9 (Security) and DOC-10 (Billing) | Doc publishing workflow    | ✅ Feb 21 — One by one. Each article reviewed individually before publishing. |
+| 7   | AP5-Q2 | **Supported clients for Tier 1 docs:** All 5 AI clients, or Copilot + Cursor only for launch?                                | Copilot + Cursor for Tier 1; others in Tier 2 post-launch                          | Doc writing scope & effort | ✅ Feb 21 — All clients get their own instruction and setup docs. |
+| 8   | AP5-Q3 | **AI Agent Crib Sheets:** Promote Copilot crib sheet (DOC-16) to Tier 1?                                                     | Keep in Tier 2 — valuable but not launch-critical                                  | Effort allocation          | ✅ Feb 21 — Keep Tier 2; possibly remove entirely. |
+| 9   | AP5-Q4 | **Research paper reference:** Link to `/research` from docs section?                                                         | Yes — adds credibility, minimal effort                                             | Docs index structure       | ✅ Feb 21 — No. Docs are for how to use Mouse, not why Mouse is superior. |
 
 **Source:** AP 5 V2, §11 (Open Questions for SWR), lines 529–539.
 
@@ -75,8 +75,8 @@ Quick judgment calls that don't require investigation. **Resolve in one ~30-minu
 
 | #   | ID     | Decision Required                                                                                              | GC Rec                                                   | Blocks                           | Status |
 | --- | ------ | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------- | ------ |
-| 10  | AP8-D1 | **Forbidden parameter removal approach:** (a) Remove entirely, or (b) guard behind `SMP_ENABLED` flag?         | (a) Remove entirely — cleaner for v1, no flag complexity | AP 8 Phase 2 code implementation | ⬜     |
-| 11  | AP8-D2 | **Stripe Preview version header placement:** Global on Stripe client init, or per-request on Checkout Session? | Global on client init — simpler, applies consistently    | AP 8 Phase 2 implementation      | ⬜     |
+| 10  | AP8-D1 | **Forbidden parameter removal approach:** (a) Remove entirely, or (b) guard behind `SMP_ENABLED` flag?         | (a) Remove entirely — cleaner for v1, no flag complexity | AP 8 Phase 2 code implementation | ✅ Feb 21 — Remove entirely. |
+| 11  | AP8-D2 | **Stripe Preview version header placement:** Global on Stripe client init, or per-request on Checkout Session? | Global on client init — simpler, applies consistently    | AP 8 Phase 2 implementation      | ⏳ Feb 21 — Deferred to Stripe sitdown; decide in front of dashboard. |
 
 **Source:** AP 8 AR, §5.2 (Phase 2), lines 208–228.
 
@@ -84,7 +84,7 @@ Quick judgment calls that don't require investigation. **Resolve in one ~30-minu
 
 | #   | ID     | Decision Required                                                     | GC Rec                                          | Blocks                                         | Status |
 | --- | ------ | --------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------- | ------ |
-| 12  | AP4-D5 | **DynamoDB PITR:** Enable Point-in-Time Recovery on production table? | Yes — data safety net; ~$2–5/mo at launch scale | AP 4 P2 (CF template), AP 10.7 (data recovery) | ⬜     |
+| 12  | AP4-D5 | **DynamoDB PITR:** Enable Point-in-Time Recovery on production table? | Yes — data safety net; ~$2–5/mo at launch scale | AP 4 P2 (CF template), AP 10.7 (data recovery) | ✅ Feb 21 — Yes, enable PITR on production. |
 
 **Source:** AP 4 V2, §12 (Open Items), line 737.
 
@@ -92,7 +92,7 @@ Quick judgment calls that don't require investigation. **Resolve in one ~30-minu
 
 | #   | ID   | Decision Required                                                                                  | GC Rec                                          | Blocks      | Status |
 | --- | ---- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------- | ------ |
-| 13  | B-D4 | **SAST tool choice:** Which static analysis tool for the security audit?                           | GC proposes during AP 2b planning; SWR approves | AP 2b scope | ⬜     |
+| 13  | B-D4 | **SAST tool choice:** Which static analysis tool for the security audit?                           | GC proposes during AP 2b planning; SWR approves | AP 2b scope | ✅ Feb 21 — Q Developer Code Review. |
 | 14  | B-D5 | **`package.json` field standardization:** Standardize fields across all packages in the workspace? | GC proposes convention; SWR approves            | AP 2b scope | ⬜     |
 | 15  | B-D6 | **Security findings memo format:** Where and how to document security findings?                    | GC proposes template + location; SWR approves   | AP 2b scope | ⬜     |
 
@@ -128,7 +128,7 @@ These require hands-on-keyboard context. They resolve naturally during the relev
 | #   | ID     | Decision Required                                                                                                                      | When                  | Status |
 | --- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------ |
 | 19  | AP8-D3 | **`automatic_tax` removal:** Does SMP handle tax calculation automatically when this Stripe parameter is removed? Verify in test mode. | AP 8 Phase 2 step 2.4 | ⏳     |
-| 20  | AP8-D4 | **Email notification duplication:** Will SMP/Link-sent receipts duplicate HIC AI SES emails? Determine which to suppress.              | AP 8 Phase 2 step 2.7 | ⏳     |
+| 20  | AP8-D4 | **Email notification duplication:** ✅ RESOLVED (Feb 21). Stripe/Link (as MoR) handles payment receipts and payment failure notifications. HIC SES handles license lifecycle emails (suspension, reactivation, cancellation, revocation, etc.). Existing `paymentFailed` SES template remains for launch; potential duplication with Stripe failure emails deferred to post-launch refinement. | AP 8 Phase 2 step 2.7 | ✅     |
 | 21  | AP8-D5 | **SMP live mode activation:** Does SMP require separate activation for live mode distinct from test mode?                              | AP 8 Phase 4 step 4.5 | ⏳     |
 
 **Source:** AP 8 AR, lines 208–268, 448–450.
@@ -149,9 +149,9 @@ These require hands-on-keyboard context. They resolve naturally during the relev
 
 | #   | ID        | Decision Required                                                                                                 | When                                             | Status |
 | --- | --------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------ |
-| —   | B-D1     | **Custom version update vs. VS Code built-in:** Keep `/api/version` + `checkForUpdates()` + status bar notification, or rely entirely on VS Code's native extension update system? If extraneous, remove custom code; if intrinsic, wire up AP 9.8–9.10. *Merged B-D1+B-D2, moved from §1.* | Immediately before AP 9 start | ⏳     |
+| —   | B-D1     | **Custom version update vs. VS Code built-in:** Keep `/api/version` + `checkForUpdates()` + status bar notification, or rely entirely on VS Code's native extension update system? If extraneous, remove custom code; if intrinsic, wire up AP 9.8–9.10. *Merged B-D1+B-D2, moved from §1.* | Immediately before AP 9 start | ✅ Feb 20 — Option A: remove `checkForUpdates()` entirely. Version notification via heartbeat-delivered path only. |
 | 26  | AP9-SCOPE | **Phase 4 hardening scope:** Which extension hardening items are launch-required vs. post-launch?                 | During AP 9 execution — after feature assessment | ⏳     |
-| 27  | AP9-HB    | **Heartbeat status alignment:** Fix or defer the misalignment between heartbeat status codes and expected values? | During AP 9 — scoped for fix-or-defer decision   | ⏳     |
+| 27  | AP9-HB    | **Heartbeat status alignment:** Fix or defer the misalignment between heartbeat status codes and expected values? | During AP 9 — scoped for fix-or-defer decision   | ✅ Feb 21 — Fix in Stream 1A. |
 
 **Source:** Pre-Launch Assessment V3, lines 192–193.
 
@@ -232,3 +232,4 @@ Resolved decisions are moved here with date and resolution. This section also in
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Feb 18, 2026 | Initial creation — 42 open items across 6 groups; 8 previously resolved items in log. Sources: AP 0 V2, AP 1 V2, AP 4 V2, AP 5 V2, AP 8 AR, AP 12 V2, Pre-Launch Assessment V3, Decision & Gap Analysis Update. |
 | Feb 18, 2026 | SWR addressed Group 1: SEQ-1 ✅ (features first), B-D7 ✅ (14 days). B-D1+B-D2 merged → §3c (pre-AP 9). B-D3 → §3b (pre-deployment). B-D2 clarification added. Active: 42→39, resolved: 8→10. |
+| Feb 21, 2026 | SWR batch decisions: AP5-Q1 ✅, AP5-Q2 ✅, AP5-Q3 ✅, AP5-Q4 ✅, AP8-D1 ✅, AP8-D2 ⏳ (deferred to Stripe sitdown), AP4-D5 ✅, B-D4 ✅, AP9-HB ✅. Also: AP8-D4 ✅ (Feb 21, earlier session), B-D1 ✅ (Feb 20, status updated). Active: 39→29. |
