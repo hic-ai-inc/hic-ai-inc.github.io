@@ -282,16 +282,17 @@ _**Gate:** SMP-GO decision (#28) must be issued before this stream begins._
 
 #### Stream 3D: Support Infrastructure (AP 6)
 
-- [ ] **6.1** Verify `support@hic-ai.com` routes to SWR inbox (30m)
+- [ ] **6.1** Verify `support@hic-ai.com` routes to SWR inbox — alias configured in Google Workspace (Feb 21); E2E send/receive test pending (30m)
 - [ ] **6.2** Auto-reply template — "received, expect response within 24h" (30m)
 - [ ] **6.3** Create Discord server — #general, #mouse-help, #feature-requests, #bug-reports (1h)
 - [ ] **6.4** Update Discord invite link in `constants.js` (15m)
 - [ ] **6.5** GitHub Issue templates — bug report, feature request (30m)
 - [ ] **6.6** "Report a Bug" link in extension → opens GitHub issue (30m)
 - [ ] **6.7** Internal support triage procedures (1h)
-- [ ] **6.8** Set up `security@hic-ai.com` with 24h response commitment (30m)
+- [ ] **6.8** Set up `security@hic-ai.com` with 24h response commitment — alias configured in Google Workspace (Feb 21); E2E send/receive test pending (30m)
+- [ ] **6.9** Verify `dmarc@hic-ai.com` receives DMARC aggregate reports — alias configured in Google Workspace (Feb 21); verify by checking for report emails ~24–48h after DMARC record propagates (15m)
 
-**Stream 3D Checkpoint (CP-6):** `support@` reaches SWR, auto-reply works, Discord live, GitHub templates deployed. → Unlocks Phase 5.
+**Stream 3D Checkpoint (CP-6):** `support@`, `security@`, and `dmarc@` all verified reaching SWR inbox, auto-reply works, Discord live, GitHub templates deployed. → Unlocks Phase 5.
 
 #### Stream 3E: Branch Protection Rules
 
