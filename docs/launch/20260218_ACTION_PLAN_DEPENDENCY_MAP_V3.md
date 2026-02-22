@@ -91,7 +91,7 @@ Phase 0 consolidates all fast, zero-dependency tasks. Every item either unblocks
 |---|------|-------|--------|---------|
 | 0.1 | Keygen policy verification | Research | 15 min | AP 9 E2E, AP 4 production (prevents silent failure) |
 | 0.2 | VS Code Marketplace publisher verification | Research | 15 min | Phase 5 Marketplace submission |
-| 0.3 | Twitter/X business account research | Research | 15–30 min | AP 12 Phase 2 → Open Decisions D-5, AP12-H |
+| 0.3 | Twitter/X business account research | Research | 15–30 min | AP 12 Phase 2 → Open Decisions D-5, AP12-H (completed Feb 21) |
 | 0.4 | Investigate production `API_BASE_URL` mechanism | Research | 30 min | Open Decisions B-D8, AP 4, AP 9 |
 | 0.5 | Fix `setup-cognito.sh` ENVIRONMENT hardcoding | Quick Fix | 5 min | AP 4 P1 |
 | 0.6 | Remove orphaned `vscode://` callback URI | Quick Fix | 2 min | Cognito cleanup |
