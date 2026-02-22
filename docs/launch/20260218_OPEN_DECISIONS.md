@@ -11,12 +11,12 @@
 | Group | Description                                         | Open   | Total  |
 | ----- | --------------------------------------------------- | ------ | ------ |
 | 1     | Pre-Planning (before Dep Map v3 & Launch Plan)      | 0      | 5      |
-| 2     | Pre-Sprint Batch (after planning, before execution) | 6      | 13     |
+| 2     | Pre-Sprint Batch (after planning, before execution) | 5      | 13     |
 | 3     | During Execution (resolve as encountered)           | 8      | 11     |
 | 4     | SWR Attorney & Personal (parallel track)            | 9      | 9      |
-| 5     | GC Operational (SWR awareness only)                 | 6      | 6      |
+| 5     | GC Operational (SWR awareness only)                 | 5      | 6      |
 | —     | Resolution Log (previously resolved)                | —      | 10     |
-|       | **Active Open Items**                               | **29** | **49** |
+|       | **Active Open Items**                               | **27** | **49** |
 
 ---
 
@@ -111,7 +111,7 @@ Quick judgment calls that don't require investigation. **Resolve in one ~30-minu
 
 | #   | ID   | Decision Required                                                                                                                | GC Rec                                                                       | Blocks                                | Status |
 | --- | ---- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------- | ------ |
-| 18  | B-D8 | **Production `API_BASE_URL` mechanism:** How does `licensing/constants.js` switch from staging to production for the VSIX build? | GC investigates (AP 0 item 0.4, 30-min hard cap), then SWR confirms approach | AP 4 P3+, AP 9, production VSIX build | 🔍     |
+| 18  | B-D8 | **Production `API_BASE_URL` mechanism:** How does `licensing/constants.js` switch from staging to production for the VSIX build? | GC investigates (AP 0 item 0.4, 30-min hard cap), then SWR confirms approach | AP 4 P3+, AP 9, production VSIX build | ✅ Feb 22 — Production API base URL = `https://hic-ai.com`. Option A (point to production, env var override for staging). `prod` → `production` rename during Phase 4 Step 4A. No build pipeline changes. See `20260222_RECOMMENDATIONS_RE_HEARTBEAT_AND_BASE_API_URL_REMEDIATION_PLAN.md`. |
 
 **Source:** Pre-Launch Assessment V3 line 183; Decision & Gap Analysis lines 109–117; AP 0 V2 lines 75–84. Investigation prerequisite: GC operational item #41.
 
@@ -189,7 +189,7 @@ GC-owned tasks listed for SWR awareness. These are not decisions — they are ex
 | 38  | AP6-1   | **`support@hic-ai.com` email routing** — send test email, verify receipt                                                                      | AP 6 item 6.1 | —                         | ⬜     |
 | 39  | AP1-8   | **Open Graph image** — verify image URL resolves                                                                                              | AP 1 item 1.8 | —                         | ⬜     |
 | 40  | AP6-3   | **Discord server** — create server, update placeholder link in code                                                                           | AP 6 item 6.3 | —                         | ⬜     |
-| 41  | AP0-4   | **`API_BASE_URL` investigation** — examine `release-mouse.sh`, esbuild config, determine if constant is baked at build time (30-min hard cap) | AP 0 item 0.4 | → B-D8 (#18)              | ⬜     |
+| 41  | AP0-4   | **`API_BASE_URL` investigation** — examine `release-mouse.sh`, esbuild config, determine if constant is baked at build time (30-min hard cap) | AP 0 item 0.4 | → B-D8 (#18)              | ✅ Feb 22 |
 | 42  | AP0-3   | **Twitter/X research** — business account requirements, `@hic_ai` handle availability (15 min)                                                | AP 0 item 0.3 | → D-5 (#16), AP12-H (#17) | ✅ Feb 21 |
 
 ---
@@ -233,3 +233,4 @@ Resolved decisions are moved here with date and resolution. This section also in
 | Feb 18, 2026 | Initial creation — 42 open items across 6 groups; 8 previously resolved items in log. Sources: AP 0 V2, AP 1 V2, AP 4 V2, AP 5 V2, AP 8 AR, AP 12 V2, Pre-Launch Assessment V3, Decision & Gap Analysis Update. |
 | Feb 18, 2026 | SWR addressed Group 1: SEQ-1 ✅ (features first), B-D7 ✅ (14 days). B-D1+B-D2 merged → §3c (pre-AP 9). B-D3 → §3b (pre-deployment). B-D2 clarification added. Active: 42→39, resolved: 8→10. |
 | Feb 21, 2026 | SWR batch decisions: AP5-Q1 ✅, AP5-Q2 ✅, AP5-Q3 ✅, AP5-Q4 ✅, AP8-D1 ✅, AP8-D2 ⏳ (deferred to Stripe sitdown), AP4-D5 ✅, B-D4 ✅, AP9-HB ✅. Also: AP8-D4 ✅ (Feb 21, earlier session), B-D1 ✅ (Feb 20, status updated). Active: 39→29. |
+| Feb 22, 2026 | B-D8 ✅ (production API base URL = `https://hic-ai.com`, Option A remediation). AP0-4 ✅ (investigation complete). `prod`→`production` rename decision locked (Phase 4 Step 4A). Active: 29→27. |

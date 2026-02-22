@@ -35,7 +35,7 @@ _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), t
 - [ ] **0.1** Keygen policy verification — confirm `maxMachines=3`, `ALWAYS_ALLOW_OVERAGE`, `heartbeatDuration=3600` for both policies (15m)
 - [ ] **0.2** VS Code Marketplace publisher — `vsce login hic-ai`, confirm PAT valid, `hic-ai.mouse` ID available (15m)
 - [x] **0.3** Twitter/X business account research — can business account be created without personal? Handle `@hic_ai` available? (15–30m) → feeds D-5, AP12-H ✅ (Feb 21) — see `20260221_TWITTER_X_BUSINESS_ACCOUNT_RESEARCH.md`
-- [ ] **0.4** Production `API_BASE_URL` investigation — examine `release-mouse.sh`, esbuild config, document mechanism (30m cap) → feeds B-D8
+- [x] **0.4** Production `API_BASE_URL` investigation — examine `release-mouse.sh`, esbuild config, document mechanism (30m cap) → feeds B-D8 ✅ (Feb 22) — Investigation expanded to comprehensive cross-repo analysis. Three memos produced: `20260222_EXTENSION_REPO_API_BASE_URL_INVESTIGATION.md`, `20260222_API_BASE_URL_AND_PROD_NAMING_INVESTIGATION.md`, `20260222_RECOMMENDATIONS_RE_HEARTBEAT_AND_BASE_API_URL_REMEDIATION_PLAN.md`. B-D8 resolved: production API base URL = `https://hic-ai.com`, Option A remediation. See Recommendations memo for full synthesis with heartbeat findings.
 
 **Group B: Quick Fixes**
 
@@ -311,7 +311,7 @@ _First: SWR resolves B-D3 (EventBridge `readyVersion` gating — deploy or launc
 
 #### Step 4A: Foundation — AP 4 P0–P3
 
-- [ ] **P0** Naming standardization — `prod` → `production` across 9 CF templates + scripts + parameters (30m)
+- [ ] **P0** Naming standardization — `prod` → `production` across 9 CF templates + scripts + parameters (1.5–2h per Recommendations memo §3.3; no migration overhead — production S3 buckets don't exist yet)
 - [ ] **P0** Fix SES bug in plg-iam.yaml (if present)
 - [ ] **P1** Create Cognito production pool + Google OAuth client (D-2) + SES sender (D-3) (1–2h)
 - [ ] **P2** Deploy CloudFormation `hic-plg-production` stack (1–2h)
@@ -445,6 +445,8 @@ Decisions resolved during the execution sprint. Complements the Open Decisions R
 | Feb 21 | AP4-D5      | Yes — enable PITR on production DynamoDB | AP 10.7 verification step confirmed; ~$2–5/mo at launch scale | SWR |
 | Feb 21 | B-D4        | Q Developer Code Review as SAST tool | Phase 3A Stream 3A scope locked; no external SAST tool procurement needed | SWR |
 | Feb 21 | AP9-HB      | Fix in Stream 1A | Heartbeat status alignment is a bug fix, not a deferral; scoped into Stream 1A active fixes | SWR |
+| Feb 22 | B-D8        | Production API base URL = `https://hic-ai.com`. Option A: change hardcoded URL to production with `process.env.HIC_API_BASE_URL` override for staging. No build pipeline changes. Three dead `api.hic-ai.com` references cleaned up in Stream 1A. | Phase 0 item 0.4 complete; Phase 4 Step 4D becomes trivial (no URL substitution needed at build time) | GC (investigation) / SWR (approved) |
+| Feb 22 | PROD-RENAME | Execute `prod` → `production` rename during Phase 4 Step 4A (not deferred). Production S3 buckets don't exist yet — no migration overhead. ~20 files, 1.5–2h, performed atomically during initial production stack deployment. | Phase 4 Step 4A P0 effort updated from 30m to 1.5–2h; naming inconsistency eliminated before launch | SWR |
 
 _Add rows as decisions are made during execution._
 
@@ -459,6 +461,7 @@ When the plan changes, document it here. No document currently covers this terra
 | Feb 19–20 | Phase 0.0 expanded from 30-min pre-scope to 2-day comprehensive investigation | Investigation revealed 12 open issues, 11 bugs, and 2 corrupted prior remediation documents requiring full re-analysis from source code. Produced 1,250-line comprehensive analysis with 9 active fixes, 4 deferred items, 8 user journeys, and SWR business-logic decisions. | +1.5 days on Phase 0.0; net positive — Stream 1A scope is now fully defined with zero ambiguity, all SWR business decisions locked, and implementation can proceed without discovery risk. Phase 0 proper remains unblocked. | SWR |
 | Feb 21 | SES-SNS-1 implementation deferred to post-launch | Over-limit email notification pipeline (DDB stream → Lambda → SNS → SES) is a nice-to-have, not launch-blocking. Heartbeat soft enforcement works without email notifications. Sprint risk reduction. | Removes ~2–4h of unscoped work from critical path. No user-facing impact at launch — over-limit users still get soft enforcement via heartbeat response. | SWR |
 
+| Feb 22 | Phase 0 item 0.4 expanded from 30-min investigation to comprehensive cross-repo analysis | API_BASE_URL investigation revealed two distinct issues (extension URL switching + `prod`/`production` naming split) requiring analysis across both repos. Produced 3 investigation memos + 1 Recommendations memo synthesizing findings with prior heartbeat analysis. B-D8 resolved, `prod`→`production` decision locked, Stream 1A scope fully defined with combined heartbeat + API_BASE_URL remediation (~2.5h, ~15 files). | +1 day on Phase 0 item 0.4; net positive — eliminates all remaining ambiguity for Stream 1A and Phase 4 Step 4A. No impact on other Phase 0 items. | SWR |
 _Populated during execution when reality diverges from plan._
 
 ---

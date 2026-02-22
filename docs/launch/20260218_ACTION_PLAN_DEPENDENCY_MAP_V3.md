@@ -128,9 +128,9 @@ Phase 1 has three parallel streams. All are independent of each other and can pr
 
 | # | Item | Status | Effort |
 |---|------|--------|--------|
-| 9.8 | Parse `latestVersion` from heartbeat response | Scope TBD per B-D1 | 2–3h |
-| 9.9 | `Mouse: Update Version` command | Scope TBD per B-D1 | 1–2h |
-| 9.10 | Version notification (status bar) | Scope TBD per B-D1 | 1h |
+| 9.8 | Parse `latestVersion` from heartbeat response | B-D1 resolved: remove `checkForUpdates()` | Included in combined Stream 1A (~2.5h total) |
+| 9.9 | `Mouse: Update Version` command | B-D1 resolved: version via heartbeat only | Included in combined Stream 1A (~2.5h total) |
+| 9.10 | Version notification (status bar) | B-D1 resolved: heartbeat-delivered path | Included in combined Stream 1A (~2.5h total) |
 
 Also includes Phase 4 heartbeat status alignment (fix-or-defer decision — Open Decisions AP9-HB, §3c) and VSIX distribution cleanup.
 
@@ -366,7 +366,7 @@ Phase 4 is the convergence gate. All prior work feeds into deploying the audited
 
 | Step | Item | Effort |
 |------|------|--------|
-| P0 | Naming standardization (`prod` → `production`) | 30 min |
+| P0 | Naming standardization (`prod` → `production`) | 1.5–2h (per Recommendations memo §3.3; no migration — production S3 buckets don't exist yet) |
 | P1 | Cognito production pool + Google OAuth client (D-2) + SES sender (D-3) | 1–2h |
 | P2 | CloudFormation `hic-plg-production` stack deployment | 1–2h |
 | P3 | Populate production Secrets Manager | 30 min |
@@ -834,7 +834,7 @@ For the full register, see [20260218_OPEN_DECISIONS.md](20260218_OPEN_DECISIONS.
 
 | Open Decision | When Needed | Map Impact If Answer Changes |
 |---|---|---|
-| **B-D1** (custom version update) | Pre-Phase 1 | Phase 1 Stream 1A scope: verification-only vs. code removal |
+| **B-D1** (custom version update) | Pre-Phase 1 | ✅ Resolved Feb 20: remove `checkForUpdates()`. Stream 1A scope now fully defined — combined heartbeat fixes + API_BASE_URL remediation, ~2.5h, ~15 files. See `20260222_RECOMMENDATIONS_RE_HEARTBEAT_AND_BASE_API_URL_REMEDIATION_PLAN.md`. |
 | **B-D3** (EventBridge gating) | Pre-Phase 4 | Phase 4 scope: deploy gating mechanism or omit |
 | **SMP-GO** (#28) | Pre-Phase 3 3C | If NO-GO → invoke AP 8 AR §14 contingency; significant replanning needed |
 | **B-D4/B-D5/B-D6** | Pre-Phase 3 3A | Phase 3 security audit tool and format decisions |
@@ -850,3 +850,4 @@ For the full register, see [20260218_OPEN_DECISIONS.md](20260218_OPEN_DECISIONS.
 | 2026-02-16 | GC | v1 — two-track architecture, 14-day timeline, checkpoint definitions |
 | 2026-02-18 | GC | v2 — Phase 0 gate, C1–C4 phased cutover, dual-MoR (LS + Paddle), AP 12 consolidation, D-1–D-5 settled, 15-day timeline |
 | 2026-02-18 | GC | **v3** — full rewrite. Replaced two-track architecture with linear phased execution (6 phases). Eliminated MoR application wait (~1 week) per SMP-first path. Features moved to Phase 1 per SEQ-1. B-D7 resolved (14 days). Timeline compressed to ~10–12 working days. Cross-references Open Decisions Register. All AP references updated to v2 documents. |
+| 2026-02-22 | GC | Surgical updates reflecting Phase 0 item 0.4 completion: B-D8 resolved (production API base URL = `https://hic-ai.com`). Stream 1A scope updated from "TBD per B-D1" to fully defined combined scope (~2.5h, ~15 files). Phase 4 Step 4A P0 effort updated from 30 min to 1.5–2h for `prod`→`production` rename. B-D1 marked resolved in Open Decisions table. |
