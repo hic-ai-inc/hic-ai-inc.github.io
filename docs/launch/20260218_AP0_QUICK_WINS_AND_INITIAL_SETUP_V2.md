@@ -152,16 +152,19 @@ Starting with `p=none` (monitor-only) is appropriate pre-launch. Can tighten to 
 
 #### 0.8 — Branch Protection Rules
 
-**Action:** Configure branch protection on both repos (`hic-ai-inc/hic-ai-inc.github.io` and `hic-ai-inc/hic`):
+**Action:** Configure branch protection on `main` in both repos (`hic-ai-inc/hic-ai-inc.github.io` and `hic-ai-inc/hic`):
 
-- `development` branch: require PR for merges, no direct pushes
-- `main` branch: require PR for merges, no direct pushes
+- `main` branch: prevent force-pushes, prevent branch deletion, optionally require status checks
+- No PR requirement — SWR's `development`-first workflow is the primary gate; PR ceremony adds friction without security benefit for a solo developer
+- `development` branch: no protection needed — CI runs on push, serves as the staging gate before `main`
 
-**Effort:** ~15 minutes (GitHub UI, both repos)
+**Effort:** ~10 minutes (GitHub UI, both repos)
 
-**Why Phase 0:** The pre-launch sprint is the highest-velocity period this codebase will experience. An accidental `git push origin main` during a context switch between Track A and Track B work bypasses all CI checks and can introduce regressions at the worst possible moment. Fifteen minutes of configuration now provides a safety net for the entire sprint. This is the repo equivalent of putting on a seatbelt before driving fast.
+**Why Phase 0:** The pre-launch sprint is the highest-velocity period this codebase will experience. Force-push and deletion protection on `main` prevents accidental history rewrites or branch loss. The existing CI pipeline (unit tests gate all merges, E2E gates `main`) combined with the `development`-first workflow provides the real quality gate. This is the repo equivalent of putting on a seatbelt before driving fast — without adding a toll booth.
 
-**Exit criterion:** Direct pushes to `development` and `main` are rejected on both repos. PR workflow confirmed functional.
+**Exit criterion:** Force-pushes and deletions rejected on `main` for both repos. Current `git push` workflow confirmed unaffected.
+
+**Reference:** See [Pre-Launch Git Branch Strategy Recommendations](../plg/20260222_PRE_LAUNCH_GIT_BRANCH_STRATEGY_RECOMMENDATIONS.md) for full analysis including automation forward-compatibility considerations.
 
 ---
 
@@ -237,7 +240,7 @@ This validation uses the SMP Discovery Memo (`20260218_STRIPE_MANAGED_PAYMENTS_D
 | 0.5  | Fix `setup-cognito.sh` hardcoding       | 5 min     | Quick fix      | —          |
 | 0.6  | Remove orphaned callback URI            | 2 min     | Quick fix      | —          |
 | 0.7  | DMARC record                            | 5 min     | DNS            | —          |
-| 0.8  | Branch protection rules                 | 15 min    | Infrastructure | —          |
+| 0.8  | Branch protection rules                 | 10 min    | Infrastructure | —          |
 | 0.9  | Stripe E2E validation                   | 30 min    | Verification   | —          |
 | 0.10 | SMP integration validation              | 30–45 min | Planning       | 0.9, 0.11  |
 | 0.11 | Stripe Managed Payments check           | 2 min     | Verification   | —          |
@@ -289,7 +292,7 @@ Phase 0 is complete when all 11 items are resolved and the following are true:
 - [ ] `setup-cognito.sh` accepts environment parameter
 - [ ] Orphaned callback URI removed from staging Cognito
 - [ ] DMARC record live and propagating
-- [ ] Branch protection active on both repos
+- [ ] Branch protection active on `main` for both repos (force-push + deletion protection; no PR requirement)
 - [ ] All 4 Stripe checkout paths verified end-to-end
 - [ ] SMP integration validation complete with go/no-go for SMP and parameter change list documented
 - [x] Stripe Managed Payments availability confirmed (Feb 18 — available, no separate application needed)

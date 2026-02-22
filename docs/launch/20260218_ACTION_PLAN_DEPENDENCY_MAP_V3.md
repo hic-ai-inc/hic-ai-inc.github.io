@@ -337,7 +337,7 @@ Verify email routing, auto-reply, Discord server, GitHub Issue templates, suppor
 
 ### Stream 3E: Branch Protection Rules
 
-Set up branch protection on both repos. Independent, 30 minutes.
+Configure `main` branch protection on both repos: prevent force-pushes, prevent deletion, optionally require status checks. No PR requirement — SWR's `development`-first workflow is the primary gate. Independent, 10 minutes. See [Pre-Launch Git Branch Strategy Recommendations](../plg/20260222_PRE_LAUNCH_GIT_BRANCH_STRATEGY_RECOMMENDATIONS.md).
 
 ### Phase 3 Summary
 
@@ -347,7 +347,7 @@ Set up branch protection on both repos. Independent, 30 minutes.
 | 3B | Monitoring (AP 10) | 6–8h | ✅ Independent of 3A, 3C–3E |
 | 3C | SMP finalization (AP 8 Phase 3) | 30 min | ✅ After SMP-GO; independent of 3A/3B |
 | 3D | Support infrastructure (AP 6) | 4–6h | ✅ Independent |
-| 3E | Branch protection | 30 min | ✅ Independent |
+| 3E | Branch protection (`main` only, no PR req) | 10 min | ✅ Independent |
 
 **Total effort:** ~16–21h. **Elapsed time:** ~2 days (streams run in parallel).
 

@@ -296,8 +296,8 @@ _**Gate:** SMP-GO decision (#28) must be issued before this stream begins._
 
 #### Stream 3E: Branch Protection Rules
 
-- [ ] Configure `development` branch protection on both repos — require PR, no direct pushes (10m)
-- [ ] Configure `main` branch protection on both repos — require PR, no direct pushes (5m)
+- [ ] Configure `main` branch protection on both repos — prevent force-pushes, prevent deletion, optionally require status checks (10m)
+- No PR requirement — see [Pre-Launch Git Branch Strategy Recommendations](../plg/20260222_PRE_LAUNCH_GIT_BRANCH_STRATEGY_RECOMMENDATIONS.md)
 
 ---
 
