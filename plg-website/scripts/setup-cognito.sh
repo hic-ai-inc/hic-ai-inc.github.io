@@ -12,7 +12,8 @@
 #
 # Usage:
 #   chmod +x scripts/setup-cognito.sh
-#   ./scripts/setup-cognito.sh
+#   ./scripts/setup-cognito.sh              # defaults to staging
+#   ./scripts/setup-cognito.sh production   # creates production resources
 #
 # After running, update your .env.local and Amplify environment variables.
 
@@ -22,7 +23,7 @@ set -e
 # CONFIGURATION - Update these values
 # ============================================
 AWS_REGION="us-east-1"
-ENVIRONMENT="staging"  # staging or production
+ENVIRONMENT="${1:-staging}"  # Pass 'production' as first arg for production setup
 APP_NAME="mouse-plg"
 
 # Domain prefix for Cognito Hosted UI (must be globally unique)

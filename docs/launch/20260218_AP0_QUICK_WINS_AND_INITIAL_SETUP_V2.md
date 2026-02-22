@@ -285,13 +285,13 @@ The following items were considered for Phase 0 but don't meet the admission cri
 
 Phase 0 is complete when all 11 items are resolved and the following are true:
 
-- [ ] Keygen policies confirmed correct (or fixed)
+- [x] Keygen policies confirmed correct (or fixed) — Feb 22
 - [ ] Marketplace publisher account confirmed functional
-- [ ] Twitter/X business account creation path documented
-- [ ] Production `API_BASE_URL` mechanism understood and documented
-- [ ] `setup-cognito.sh` accepts environment parameter
+- [x] Twitter/X business account creation path documented — Feb 21
+- [x] Production `API_BASE_URL` mechanism understood and documented — Feb 22
+- [x] `setup-cognito.sh` accepts environment parameter — Feb 22
 - [ ] Orphaned callback URI removed from staging Cognito
-- [ ] DMARC record live and propagating
+- [x] DMARC record live and propagating — Feb 21
 - [ ] Branch protection active on `main` for both repos (force-push + deletion protection; no PR requirement)
 - [ ] All 4 Stripe checkout paths verified end-to-end
 - [ ] SMP integration validation complete with go/no-go for SMP and parameter change list documented
