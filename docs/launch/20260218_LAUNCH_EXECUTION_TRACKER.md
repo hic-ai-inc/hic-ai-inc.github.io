@@ -44,7 +44,7 @@ _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), t
 
 **Group C: DNS**
 
-- [ ] **0.7** DMARC record — add `_dmarc.hic-ai.com` TXT in GoDaddy, `p=none` monitor-only (5m active + propagation)
+- [x] **0.7** DMARC record — add `_dmarc.hic-ai.com` TXT in GoDaddy, `p=none` monitor-only (5m active + propagation)
 
 **Group D: SMP Baseline** _(chain: 0.8 → 0.9 → 0.10)_
 
