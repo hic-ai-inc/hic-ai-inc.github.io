@@ -102,8 +102,8 @@ Quick judgment calls that don't require investigation. **Resolve in one ~30-minu
 
 | #   | ID     | Decision Required                                                                                                                                                 | GC Rec                                                  | Blocks                               | Status |
 | --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ | ------ |
-| 16  | D-5    | **Twitter/X business account:** Can a business account be created without a personal account?                                                                     | GC researches (AP 0 item 0.3, 15 min), then SWR decides | AP 12 Phase 2, content strategy      | 🔍     |
-| 17  | AP12-H | **`@hic_ai` handle availability:** Is the handle available on Twitter/X? If taken, code references need updating in `constants.js`, `about/page.js`, `layout.js`. | GC verifies during AP 0 item 0.3 research               | AP 12 Phase 2, possibly code changes | 🔍     |
+| 16  | D-5    | **Twitter/X business account:** Can a business account be created without a personal account?                                                                     | GC researches (AP 0 item 0.3, 15 min), then SWR decides | AP 12 Phase 2, content strategy      | ✅ Feb 21 — Yes. No personal account required. See `20260221_TWITTER_X_BUSINESS_ACCOUNT_RESEARCH.md`. |
+| 17  | AP12-H | **`@hic_ai` handle availability:** Is the handle available on Twitter/X? If taken, code references need updating in `constants.js`, `about/page.js`, `layout.js`. | GC verifies during AP 0 item 0.3 research               | AP 12 Phase 2, possibly code changes | ⏳ Feb 21 — Cannot verify programmatically. SWR checks during signup. See research memo. |
 
 **Source:** AP 12 V2, lines 108, 135–137. Investigation prerequisite: GC operational item #42.
 
@@ -190,7 +190,7 @@ GC-owned tasks listed for SWR awareness. These are not decisions — they are ex
 | 39  | AP1-8   | **Open Graph image** — verify image URL resolves                                                                                              | AP 1 item 1.8 | —                         | ⬜     |
 | 40  | AP6-3   | **Discord server** — create server, update placeholder link in code                                                                           | AP 6 item 6.3 | —                         | ⬜     |
 | 41  | AP0-4   | **`API_BASE_URL` investigation** — examine `release-mouse.sh`, esbuild config, determine if constant is baked at build time (30-min hard cap) | AP 0 item 0.4 | → B-D8 (#18)              | ⬜     |
-| 42  | AP0-3   | **Twitter/X research** — business account requirements, `@hic_ai` handle availability (15 min)                                                | AP 0 item 0.3 | → D-5 (#16), AP12-H (#17) | ⬜     |
+| 42  | AP0-3   | **Twitter/X research** — business account requirements, `@hic_ai` handle availability (15 min)                                                | AP 0 item 0.3 | → D-5 (#16), AP12-H (#17) | ✅ Feb 21 |
 
 ---
 

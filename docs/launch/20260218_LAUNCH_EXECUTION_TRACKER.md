@@ -34,7 +34,7 @@ _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), t
 
 - [ ] **0.1** Keygen policy verification — confirm `maxMachines=3`, `ALWAYS_ALLOW_OVERAGE`, `heartbeatDuration=3600` for both policies (15m)
 - [ ] **0.2** VS Code Marketplace publisher — `vsce login hic-ai`, confirm PAT valid, `hic-ai.mouse` ID available (15m)
-- [ ] **0.3** Twitter/X business account research — can business account be created without personal? Handle `@hic_ai` available? (15–30m) → feeds D-5, AP12-H
+- [x] **0.3** Twitter/X business account research — can business account be created without personal? Handle `@hic_ai` available? (15–30m) → feeds D-5, AP12-H ✅ (Feb 21) — see `20260221_TWITTER_X_BUSINESS_ACCOUNT_RESEARCH.md`
 - [ ] **0.4** Production `API_BASE_URL` investigation — examine `release-mouse.sh`, esbuild config, document mechanism (30m cap) → feeds B-D8
 
 **Group B: Quick Fixes**
