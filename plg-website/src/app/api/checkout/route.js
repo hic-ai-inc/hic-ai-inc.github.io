@@ -144,7 +144,6 @@ export async function POST(request) {
     // Step 5: Build checkout params
     const checkoutParams = {
       mode: "subscription",
-      payment_method_types: ["card"],
       line_items: [
         {
           price: priceId,
