@@ -56,6 +56,22 @@ These are non-destructive checks that retire risk or unlock planning for other a
 
 **Exit criterion:** `vsce login hic-ai` succeeds. Publisher account confirmed active. Extension ID confirmed available.
 
+**Result (Feb 22):** Publisher `hic-ai` created and verified. Account details:
+
+| Item | Value |
+|------|-------|
+| Microsoft account | `hic-ai-publisher@outlook.com` |
+| Azure DevOps org | `hic-ai` (https://dev.azure.com/hic-ai) |
+| Azure DevOps project | `Mouse` (private) |
+| Marketplace publisher ID | `hic-ai` |
+| Marketplace display name | `hic-ai` (update to `HIC AI, Inc.` before launch) |
+| Extension ID | `hic-ai.mouse` (confirmed available, not yet published) |
+| PAT name | `vsce-marketplace` |
+| PAT scope | Marketplace > Manage (all accessible orgs) |
+| PAT expiry | June 23, 2026 |
+| PAT stored | AWS Secrets Manager: `hic-ai/vsce-marketplace-pat` |
+| Azure subscription | Free tier (credit card on file, no charges expected) |
+
 ---
 
 #### 0.3 — Twitter/X Business Account Research
@@ -286,7 +302,7 @@ The following items were considered for Phase 0 but don't meet the admission cri
 Phase 0 is complete when all 11 items are resolved and the following are true:
 
 - [x] Keygen policies confirmed correct (or fixed) — Feb 22
-- [ ] Marketplace publisher account confirmed functional
+- [x] Marketplace publisher account confirmed functional — Feb 22
 - [x] Twitter/X business account creation path documented — Feb 21
 - [x] Production `API_BASE_URL` mechanism understood and documented — Feb 22
 - [x] `setup-cognito.sh` accepts environment parameter — Feb 22

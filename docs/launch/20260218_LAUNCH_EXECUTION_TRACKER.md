@@ -33,7 +33,7 @@ _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), t
 **Group A: Research & Verification**
 
 - [x] **0.1** Keygen policy verification — confirm `maxMachines=3`, `ALWAYS_ALLOW_OVERAGE`, `heartbeatDuration=3600` for both policies (15m) ✅ (Feb 22) — Individual: maxMachines=3, Business: maxMachines=5 per seat. All settings confirmed correct.
-- [ ] **0.2** VS Code Marketplace publisher — `vsce login hic-ai`, confirm PAT valid, `hic-ai.mouse` ID available (15m)
+- [x] **0.2** VS Code Marketplace publisher — `vsce login hic-ai`, confirm PAT valid, `hic-ai.mouse` ID available (15m) ✅ (Feb 22) — Publisher `hic-ai` created via `hic-ai-publisher@outlook.com`. PAT verified, rotated, stored in Secrets Manager (`hic-ai/vsce-marketplace-pat`). Extension ID `hic-ai.mouse` confirmed available.
 - [x] **0.3** Twitter/X business account research — can business account be created without personal? Handle `@hic_ai` available? (15–30m) → feeds D-5, AP12-H ✅ (Feb 21) — see `20260221_TWITTER_X_BUSINESS_ACCOUNT_RESEARCH.md`
 - [x] **0.4** Production `API_BASE_URL` investigation — examine `release-mouse.sh`, esbuild config, document mechanism (30m cap) → feeds B-D8 ✅ (Feb 22) — Investigation expanded to comprehensive cross-repo analysis. Three memos produced: `20260222_EXTENSION_REPO_API_BASE_URL_INVESTIGATION.md`, `20260222_API_BASE_URL_AND_PROD_NAMING_INVESTIGATION.md`, `20260222_RECOMMENDATIONS_RE_HEARTBEAT_AND_BASE_API_URL_REMEDIATION_PLAN.md`. B-D8 resolved: production API base URL = `https://hic-ai.com`, Option A remediation. See Recommendations memo for full synthesis with heartbeat findings.
 
