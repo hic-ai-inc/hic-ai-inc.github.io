@@ -271,7 +271,9 @@ _Resolve B-D4/B-D5/B-D6 at stream start._
 
 #### Stream 3C: SMP Finalization — AP 8 Phase 3
 
-_**Gate:** SMP-GO decision (#28) must be issued before this stream begins._
+_**Gate:** SMP-GO decision (#28) — ✅ **GO issued Feb 23.** SWR completed comprehensive legal review of SMP Preview Terms, General Terms, DPA, payment method provisions, and all regional terms affecting US customers. All 7 provisions in §7 of the Discovery Memo reviewed and accepted. Phase 3C is unblocked._
+
+> **⚠️ PRE-LAUNCH INVESTIGATION REQUIRED — Stripe Customer Deletion Impact:** SMP terms (§7, Data Privacy) allow customers to request deletion of their data from Stripe systems, which cascades to cancellation of subscriptions and deletion of Customer, PaymentMethod, Invoice, and related Stripe objects. A full technical analysis is required before launch to determine the downstream consequences on DynamoDB table lookups (orphaned `stripeCustomerId` / `stripeSubscriptionId` references) and overall system functionality. Key concerns: (1) What happens when our code attempts to look up a deleted Stripe Customer ID? (2) Does our soft-delete pattern handle this gracefully? (3) What happens if a returning customer gets a new Stripe Customer ID — do we handle multiple IDs per person? (4) Any risk of inconsistent state or memory overflow scenarios? This investigation should be scoped and completed during Phase 1B or Phase 3C at the latest.
 
 - [ ] **3.1** Complete SMP setup flow in Stripe Dashboard (15m)
 - [ ] **3.2** 2FA on Stripe account (5m)
@@ -404,7 +406,7 @@ Items requiring SWR's direct action, extracted from all APs. Grouped by hard dea
 
 | #   | Item                                                                                                                                                                                       | Hard Deadline        | Phase/Step    | Source                  | Status |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ------------- | ----------------------- | ------ |
-| S1  | **SMP-GO** — Review 7 SMP Preview Terms provisions (indemnification, liability cap, beta disclaimers, fee changes, data processing, refund policy, 30-day termination). Issue GO or NO-GO. | Before Phase 3 3C    | Begin Phase 0 | AP 8 AR §4.2, OD #28    | ☐      |
+| S1  | **SMP-GO** — Review 7 SMP Preview Terms provisions (indemnification, liability cap, beta disclaimers, fee changes, data processing, refund policy, 30-day termination). Issue GO or NO-GO. | Before Phase 3 3C    | Begin Phase 0 | AP 8 AR §4.2, OD #28    | ✅ Feb 23 |
 | S2  | **B-D1 decision** — Keep custom version update layer or rely on VS Code built-in?                                                                                                          | Before Phase 1 1A    | Phase 1 start | OD §3c                  | ✅ Feb 20 |
 | S3  | **Privacy Policy review** — Must reflect Plausible, Cognito, DynamoDB, SES, SMP/Link                                                                                                       | Phase 2 Step 2B      | Day 4         | AP 11.1, OD #29         | ☐      |
 | S4  | **ToS review** — Pricing, product details, seller-of-record, SMP 60-day refund window                                                                                                      | Phase 2 Step 2B      | Day 4         | AP 11.2–11.3, OD #30–31 | ☐      |
@@ -447,6 +449,7 @@ Decisions resolved during the execution sprint. Complements the Open Decisions R
 | Feb 21 | AP9-HB      | Fix in Stream 1A | Heartbeat status alignment is a bug fix, not a deferral; scoped into Stream 1A active fixes | SWR |
 | Feb 22 | B-D8        | Production API base URL = `https://hic-ai.com`. Option A: change hardcoded URL to production with `process.env.HIC_API_BASE_URL` override for staging. No build pipeline changes. Three dead `api.hic-ai.com` references cleaned up in Stream 1A. | Phase 0 item 0.4 complete; Phase 4 Step 4D becomes trivial (no URL substitution needed at build time) | GC (investigation) / SWR (approved) |
 | Feb 22 | PROD-RENAME | Execute `prod` → `production` rename during Phase 4 Step 4A (not deferred). Production S3 buckets don't exist yet — no migration overhead. ~20 files, 1.5–2h, performed atomically during initial production stack deployment. | Phase 4 Step 4A P0 effort updated from 30m to 1.5–2h; naming inconsistency eliminated before launch | SWR |
+| Feb 23 | SMP-GO | **GO.** SWR completed comprehensive attorney review of all Stripe Managed Payments legal documentation: SMP Preview Terms (Dec 19, 2025), General Terms (Nov 18, 2025) including §1.4 (Preview Services), DPA, payment method provisions (ACH, Link, Google Pay, etc.), and all regional terms affecting US customers. All 7 provisions in Discovery Memo §7 reviewed and accepted. One investigation flagged for pre-launch: Stripe customer data deletion impact on DynamoDB lookups (orphaned `stripeCustomerId`/`stripeSubscriptionId` references). Phase 3C unblocked. | Phase 3C SMP Finalization unblocked; AP 8 Phases 2–5 unblocked; critical path item retired | SWR |
 
 _Add rows as decisions are made during execution._
 

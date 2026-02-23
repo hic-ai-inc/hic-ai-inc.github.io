@@ -13,10 +13,10 @@
 | 1     | Pre-Planning (before Dep Map v3 & Launch Plan)      | 0      | 5      |
 | 2     | Pre-Sprint Batch (after planning, before execution) | 5      | 13     |
 | 3     | During Execution (resolve as encountered)           | 8      | 11     |
-| 4     | SWR Attorney & Personal (parallel track)            | 9      | 9      |
+| 4     | SWR Attorney & Personal (parallel track)            | 8      | 9      |
 | 5     | GC Operational (SWR awareness only)                 | 5      | 6      |
-| —     | Resolution Log (previously resolved)                | —      | 10     |
-|       | **Active Open Items**                               | **27** | **49** |
+| —     | Resolution Log (previously resolved)                | —      | 11     |
+|       | **Active Open Items**                               | **26** | **50** |
 
 ---
 
@@ -163,7 +163,7 @@ Parallel to GC's engineering work. These are SWR-only items with hard deadline c
 
 | #   | ID      | Item                                                                                                                                                                                                            | Hard Deadline                                   | Blocks                                                                            | Status |
 | --- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------- | ------ |
-| 28  | SMP-GO  | **SMP Preview Terms attorney review** — 7 provisions requiring legal analysis (AP 8 AR §4.2: indemnification, liability cap, beta disclaimers, fee changes, data processing, refund policy, 30-day termination) | Before AP 8 Phase 3 (staging integration)       | **Highest priority.** All downstream: AP 8 Phases 2–5, production payment, launch | ⬜     |
+| 28  | SMP-GO  | **SMP Preview Terms attorney review** — 7 provisions requiring legal analysis (AP 8 AR §4.2: indemnification, liability cap, beta disclaimers, fee changes, data processing, refund policy, 30-day termination) | Before AP 8 Phase 3 (staging integration)       | **Highest priority.** All downstream: AP 8 Phases 2–5, production payment, launch | ✅ Feb 23 |
 | 29  | AP11-1  | **Privacy Policy review** — must reflect Plausible (cookieless analytics), Cognito (auth), DynamoDB (data), SES (email), SMP/Link (payment processor)                                                           | Before AP 4 P9 (analytics reactivation)         | Legal compliance, launch                                                          | ⬜     |
 | 30  | AP11-2  | **Terms of Service review** — pricing, product details, limitations, seller-of-record (Link / Lemon Squeezy LLC)                                                                                                | Before launch                                   | Legal compliance                                                                  | ⬜     |
 | 31  | AP11-3  | **ToS ↔ refund policy cross-reference** — must align with SMP's 60-day discretionary refund window (AP 8 AR §7.2)                                                                                               | Before launch                                   | Legal consistency                                                                 | ⬜     |
@@ -173,7 +173,7 @@ Parallel to GC's engineering work. These are SWR-only items with hard deadline c
 | 35  | AP13    | **Pre-launch disclosures** — 4 tiers: (1) law firm partner, (2) key client, (3) remaining professional contacts, (4) silence period before public announcement                                                  | Before AP 12 Phase 3 (LinkedIn personal update) | Relationship management, social media timing                                      | ⬜     |
 | 36  | OI-3    | **LS/Paddle insurance applications** — submit during sprint as backup MoR path? ~2h effort, runs in background.                                                                                                 | Optional — SWR judgment call, anytime           | Contingency if SMP Preview fails post-launch                                      | ⬜     |
 
-**Critical path note:** SMP-GO (#28) is the single highest-priority attorney item. SWR can begin review during AP 0 / Phase 1 engineering work. The GO/NO-GO gate is needed before AP 8 Phase 3 begins. All other attorney items (#29–36) have later deadlines.
+**Critical path note:** SMP-GO (#28) — ✅ **Resolved Feb 23.** SWR completed comprehensive attorney review of all SMP legal documentation (SMP Preview Terms, General Terms, DPA, payment method provisions, regional terms). GO issued. Phase 3C unblocked. One pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB lookups (see Execution Tracker Phase 3C). Remaining highest-priority attorney items: Privacy Policy (#29) and ToS (#30).
 
 **Source:** Pre-Launch Assessment V3, §8 (AP 11, AP 13), lines 388–421; AP 8 AR §4.2, lines 151–185; AP 8 AR §14, lines 674–679.
 
@@ -223,6 +223,7 @@ Resolved decisions are moved here with date and resolution. This section also in
 | OI-6 | Fix `setup-cognito.sh` ENVIRONMENT hardcoding                | Absorbed into AP 0 item 0.5                                   | Feb 17 | GC  |
 | SEQ-1 | Sprint sequencing: feature completion before docs/front-end? | Yes — build first, document second                            | Feb 18 | SWR |
 | B-D7  | CloudWatch log retention: 14 or 30 days?                     | 14 days for launch; extend post-launch if needed              | Feb 18 | SWR |
+| SMP-GO | SMP Preview Terms attorney review — GO/NO-GO for Stripe Managed Payments | **GO.** Comprehensive review of SMP Preview Terms (Dec 19, 2025), General Terms (§1.4 Preview Services), DPA, payment method provisions, and US regional terms. All 7 Discovery Memo §7 provisions accepted. One investigation flagged: Stripe customer deletion → DynamoDB impact (pre-launch). | Feb 23 | SWR |
 
 ---
 
@@ -234,3 +235,4 @@ Resolved decisions are moved here with date and resolution. This section also in
 | Feb 18, 2026 | SWR addressed Group 1: SEQ-1 ✅ (features first), B-D7 ✅ (14 days). B-D1+B-D2 merged → §3c (pre-AP 9). B-D3 → §3b (pre-deployment). B-D2 clarification added. Active: 42→39, resolved: 8→10. |
 | Feb 21, 2026 | SWR batch decisions: AP5-Q1 ✅, AP5-Q2 ✅, AP5-Q3 ✅, AP5-Q4 ✅, AP8-D1 ✅, AP8-D2 ⏳ (deferred to Stripe sitdown), AP4-D5 ✅, B-D4 ✅, AP9-HB ✅. Also: AP8-D4 ✅ (Feb 21, earlier session), B-D1 ✅ (Feb 20, status updated). Active: 39→29. |
 | Feb 22, 2026 | B-D8 ✅ (production API base URL = `https://hic-ai.com`, Option A remediation). AP0-4 ✅ (investigation complete). `prod`→`production` rename decision locked (Phase 4 Step 4A). Active: 29→27. |
+| Feb 23, 2026 | SMP-GO ✅ — **GO issued.** SWR completed comprehensive attorney review of all Stripe Managed Payments legal documentation. Phase 3C unblocked. One pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB. Active: 27→26. |

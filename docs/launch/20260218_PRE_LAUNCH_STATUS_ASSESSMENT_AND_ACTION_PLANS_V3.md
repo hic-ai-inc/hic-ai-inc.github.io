@@ -29,11 +29,11 @@ The project is in significantly stronger shape than the PLG Roadmap v7.0 (dated 
 
 **True remaining blockers for launch:**
 
-1. **SMP integration** — Stripe Managed Payments (SMP) enables MoR capability directly within our existing Stripe integration. No external vendor application or wait period required. Without an MoR, HIC AI, Inc. bears global tax compliance obligations on every sale in every jurisdiction. (See AP 8 AR.)
+1. **SMP integration** — ✅ SMP-GO issued Feb 23 after comprehensive SWR attorney review. Stripe Managed Payments enables MoR capability directly within our existing Stripe integration. Remaining work: AP 8 AR Phases 2–4 (parameter-level code changes, dashboard configuration, production promotion). ⚠️ Pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB lookups.
 2. **Version update wire-up** (Phase 6 — client-side heartbeat version parsing + `Mouse: Update Version` command)
 3. **`/api/health` endpoint** + monitoring metric filters/alarms for Amplify SSR log group
 4. **Security audit formalization** (SAST scan + auth flow manual review)
-5. **SMP activation** — parameter-level changes to existing Stripe integration (AP 8 AR Phases 2–4)
+5. **SMP activation** — parameter-level changes to existing Stripe integration (AP 8 AR Phases 2–4). Unblocked by SMP-GO (Feb 23).
 6. **Production Amplify environment** creation + phased deployment (P0–P9 per AP 4)
 7. **Legal review** of Privacy Policy and Terms of Service (must reflect Plausible analytics; must include IP review)
 8. **Provisional patent filing** — public launch starts the 1-year clock under US patent law
@@ -105,7 +105,7 @@ _Unchanged from v1 — historical record. This section documents specific commit
 | 8   | CI/CD Pipeline                   | ✅ Exists                  | `release-mouse.sh` working, GitHub Actions active                                                                                    |
 | 9   | IP Review                        | Open                       | AP 11, items 11.5–11.7 — SWR handles personally                                                                                      |
 | 10  | Corporate/Legal                  | **Partial**                | 83(b) ✅. Privacy/ToS pages exist, need final review. Patent filing needed pre-launch.                                               |
-| 11  | Payment Edge Cases               | Open                       | AP 8 AR — SMP integration + payment activation                                                                                         |
+| 11  | Payment Edge Cases               | **Partially unblocked**    | AP 8 AR — SMP-GO ✅ Feb 23. Phases 2–4 (code integration + activation) remain.                                                          |
 | 12  | Monitoring & Status Page         | **Partial**                | Alarms exist (DLQ, errors, payment, email). Structured logging ✅. Health endpoint, metric filters, launch dashboard remain (AP 10). |
 | 13  | Analytics & CloudWatch           | Open                       | Plausible wire-up is Track A Step A1                                                                                                 |
 | 14  | Security Audit                   | **Substantially advanced** | Secrets ✅, logging ✅, safe JSON ✅, IAM ✅. SAST + auth review remain (AP 2b).                                                     |
@@ -201,7 +201,7 @@ Each action plan is a self-contained point-A-to-point-B plan with steps in inter
 | **5**  | Documentation Strategy              | Near-blocker                            | ~6.5h (Tier 1)       | [Standalone](20260218_AP5_DOCUMENTATION_STRATEGY_V2.md)                                          | Not started                                 |
 | **6**  | Support Infrastructure              | Should-have                             | 4–6h                 | [Inline §8.4](#84-ap-6-support-infrastructure)                                                | Not started                                 |
 | **7**  | Email Verification & Deliverability | **Launch blocker**                      | 3–4h                 | [Inline §8.5](#85-ap-7-email-verification--deliverability)                                    | Item 7.1 (DMARC) absorbed into AP 0         |
-| **8**  | MoR Strategy & Payment Integration (AR) | **Launch blocker**                   | 3–6h (no wait)       | [Standalone](20260218_AP8_MOR_STRATEGY_AND_PAYMENT_INTEGRATION_AR.md) | SMP confirmed; parameter-level changes only |
+| **8**  | MoR Strategy & Payment Integration (AR) | **Launch blocker**                   | 3–6h (no wait)       | [Standalone](20260218_AP8_MOR_STRATEGY_AND_PAYMENT_INTEGRATION_AR.md) | SMP-GO ✅ Feb 23; Phase 1 attorney review complete. Phases 2–4 remain. |
 | **9**  | Interoperability & Compatibility    | Contains **Tier 1 blockers** (9.8–9.10) | 4–6h                 | [Inline §8.6](#86-ap-9-interoperability--compatibility)                                       | Partially done (9.1–9.3 verified)           |
 | **10** | Monitoring & Observability          | **Launch blocker** (10.1–10.9)          | 6–8h                 | [Inline §8.7](#87-ap-10-monitoring--observability)                                            | Partially done (alarms, logging exist)      |
 | **11** | Legal Review (Full Scope)           | **Launch blocker**                      | 4–6h                 | [Inline §8.8](#88-ap-11-legal-review)                                                         | Partially done (83(b) ✅, pages exist)      |
@@ -429,9 +429,9 @@ The project's actual state is dramatically ahead of what PLG Roadmap v7.0 docume
 
 **The true distance to launch is ~45–65 hours of focused work**, of which ~25–35 hours are on the critical path. The sole remaining feature gap is the version update wire-up (AP 9.8–9.10), which may be largely complete already pending B-D1–B-D3 decisions. All other work is operational (deploy, integrate payments, verify emails), quality assurance (security audit, monitoring), or legal (Privacy/ToS review, patent filing).
 
-**Critical path:** Phase 0 quick wins → Track A (website polish, docs, SMP integration) → Track B (version wire-up, security audit, monitoring; personal: disclosures) → Production deployment (P0–P9) → Marketplace publishing → Launch. SMP eliminates the ~1-week MoR review wait that previously separated Tracks A and B.
+**Critical path:** Phase 0 quick wins → Track A (website polish, docs, SMP integration) → Track B (version wire-up, security audit, monitoring; personal: disclosures) → Production deployment (P0–P9) → Marketplace publishing → Launch. SMP eliminates the ~1-week MoR review wait that previously separated Tracks A and B. SMP-GO resolved Feb 23 — attorney review is no longer on the critical path.
 
-**The single most time-sensitive action** is completing the SMP integration (AP 8 AR Phases 1–4), which unblocks production deployment and live payment testing. Unlike the prior LS/Paddle application path, SMP requires no external review period — the timeline is entirely within our control.
+**The single most time-sensitive action** is completing the SMP code integration and dashboard configuration (AP 8 AR Phases 2–4), which unblocks production deployment and live payment testing. Phase 1 attorney review is complete (GO issued Feb 23). The remaining SMP work is entirely technical and within our control.
 
 ---
 
@@ -442,3 +442,4 @@ The project's actual state is dramatically ahead of what PLG Roadmap v7.0 docume
 | 2026-02-16 | GC     | v1 — comprehensive assessment with 13 inline action plans                                                                                                                                                                                   |
 | 2026-02-18 | GC     | v2 — refactored to orchestration document; inline APs condensed; standalone APs referenced; decisions from Feb 17 session incorporated; AP 0 added; AP 12 scope redefined (social media); AP 8 expanded to dual-MoR strategy; OI-4 resolved |
 | 2026-02-18 | GC     | **v3** — aligned to SMP-first MoR path per AP 8 AR. Replaced all LS+Paddle MoR application framing with SMP integration. Updated AP cross-references to v2 documents. Corrected effort estimates (eliminated ~1-week external wait). Updated D-4, critical path, and companion doc references. |
+| 2026-02-23 | SWR    | SMP-GO resolution. Updated blockers #1 and #5 to reflect GO decision. AP 8 registry status updated. TODO 11 status updated. Bottom Line critical path and time-sensitive action updated. SWR completed comprehensive attorney review of all Stripe documentation (SMP Preview Terms, General Terms, DPA, payment method provisions, regional terms). Pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB. |

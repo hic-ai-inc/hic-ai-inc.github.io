@@ -320,7 +320,7 @@ Health endpoint, metric filters, log retention (14 days, B-D7 resolved), severit
 
 Stripe dashboard operational readiness: complete SMP setup flow, 2FA, tax categories, notification settings (48-hour dispute SLA compliance).
 
-**Gate: SMP-GO decision** (Open Decisions #28). SWR's attorney review of SMP Preview Terms must be complete before this stream begins. If SWR has not completed the review by Phase 3 start, this stream blocks until the GO/NO-GO is issued. See §13.
+**Gate: SMP-GO decision** (Open Decisions #28). ✅ **Resolved Feb 23, 2026.** SWR completed comprehensive attorney review of all Stripe documentation and issued GO. This stream is unblocked.
 
 - **Reference:** [AP 8 AR §6](20260218_AP8_MOR_STRATEGY_AND_PAYMENT_INTEGRATION_AR.md)
 - **Effort:** ~30 min
@@ -345,7 +345,7 @@ Configure `main` branch protection on both repos: prevent force-pushes, prevent 
 |--------|------|--------|-----------|
 | 3A | Security audit (AP 2b) | 5–6h | ✅ Independent of 3B–3E |
 | 3B | Monitoring (AP 10) | 6–8h | ✅ Independent of 3A, 3C–3E |
-| 3C | SMP finalization (AP 8 Phase 3) | 30 min | ✅ After SMP-GO; independent of 3A/3B |
+| 3C | SMP finalization (AP 8 Phase 3) | 30 min | ✅ SMP-GO resolved Feb 23; independent of 3A/3B |
 | 3D | Support infrastructure (AP 6) | 4–6h | ✅ Independent |
 | 3E | Branch protection (`main` only, no PR req) | 10 min | ✅ Independent |
 
@@ -694,7 +694,7 @@ These items run on SWR's schedule, in parallel with GC engineering work. The onl
 
 | Item | Hard Deadline | Recommended Timing | Impact If Late |
 |------|---------------|--------------------|----|
-| **SMP-GO** (Open Decisions #28) | Before Phase 3 Stream 3C start | Begin during Phase 0; complete by Phase 1 end | Blocks Phase 3 SMP finalization → cascade delay |
+| **SMP-GO** (Open Decisions #28) | Before Phase 3 Stream 3C start | ✅ **Resolved Feb 23** | ✅ No longer a risk — GO issued |
 | **Privacy Policy review** (AP 11.1) | Phase 2 Step 2B | Phase 2 day 1 | Blocks front-end polish, docs |
 | **ToS review** (AP 11.2–11.3) | Phase 2 Step 2B | Phase 2 day 1 (same session as Privacy) | Blocks front-end polish |
 | **IP review** (AP 11.5–11.7) | Before launch | Phase 3+ (after docs finalized) | Sensitive details publicly visible |
@@ -703,7 +703,7 @@ These items run on SWR's schedule, in parallel with GC engineering work. The onl
 | **Private disclosures** (AP 13) | Before AP 12 Phase 3 item 3.6 | Phase 4–5 (SWR has launch certainty) | Blocks LinkedIn update |
 | **LS/Paddle insurance** (OI-3) | Optional — anytime | SWR judgment call | Contingency gap if SMP fails |
 
-**Critical path:** SMP-GO is the only attorney item that can delay GC engineering. If SWR completes the 7-provision review by the end of Phase 1 (~Day 3), Phase 3's SMP finalization proceeds without delay.
+**Critical path:** SMP-GO is resolved (✅ Feb 23). The remaining attorney items that can affect the critical path are Privacy Policy/ToS review (Phase 2) and provisional patent filing (pre-launch). Phase 3 SMP finalization is unblocked.
 
 ---
 
@@ -793,7 +793,7 @@ Day 12: ═══════════════ LAUNCH ══════�
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| SMP-GO delayed past Day 3 | Phase 3 3C blocks → cascade to Phase 4 | SWR begins review in Phase 0; 7 provisions identified upfront |
+| ~~SMP-GO delayed past Day 3~~ | ~~Phase 3 3C blocks → cascade to Phase 4~~ | ✅ **Resolved Feb 23** — GO issued. No longer a risk. |
 | B-D1 determines custom code removal (not verification) | +1 day in Phase 1 | Removal is still bounded work; no greenfield development |
 | Marketplace review takes >48h | +1–2 days on Phase 5 | Submit during 5A to maximize overlap; Open VSX as parallel |
 | Phase 4 surfaces infrastructure issues | +1–2 days | AP 4 P0–P9 is extremely detailed; AP 0 de-risked naming and API_BASE_URL |
@@ -836,7 +836,7 @@ For the full register, see [20260218_OPEN_DECISIONS.md](20260218_OPEN_DECISIONS.
 |---|---|---|
 | **B-D1** (custom version update) | Pre-Phase 1 | ✅ Resolved Feb 20: remove `checkForUpdates()`. Stream 1A scope now fully defined — combined heartbeat fixes + API_BASE_URL remediation, ~2.5h, ~15 files. See `20260222_RECOMMENDATIONS_RE_HEARTBEAT_AND_BASE_API_URL_REMEDIATION_PLAN.md`. |
 | **B-D3** (EventBridge gating) | Pre-Phase 4 | Phase 4 scope: deploy gating mechanism or omit |
-| **SMP-GO** (#28) | Pre-Phase 3 3C | If NO-GO → invoke AP 8 AR §14 contingency; significant replanning needed |
+| **SMP-GO** (#28) | Pre-Phase 3 3C | ✅ **Resolved Feb 23: GO.** Stream 3C unblocked. No contingency needed. |
 | **B-D4/B-D5/B-D6** | Pre-Phase 3 3A | Phase 3 security audit tool and format decisions |
 | **AP4-D5** (DynamoDB PITR) | Phase 3 or Phase 4 | Minor: 15-min task to enable if yes |
 | **AP8-D5** (SMP live mode activation) | Phase 4 Step 4B | Operational: may require separate dashboard action |
@@ -851,3 +851,4 @@ For the full register, see [20260218_OPEN_DECISIONS.md](20260218_OPEN_DECISIONS.
 | 2026-02-18 | GC | v2 — Phase 0 gate, C1–C4 phased cutover, dual-MoR (LS + Paddle), AP 12 consolidation, D-1–D-5 settled, 15-day timeline |
 | 2026-02-18 | GC | **v3** — full rewrite. Replaced two-track architecture with linear phased execution (6 phases). Eliminated MoR application wait (~1 week) per SMP-first path. Features moved to Phase 1 per SEQ-1. B-D7 resolved (14 days). Timeline compressed to ~10–12 working days. Cross-references Open Decisions Register. All AP references updated to v2 documents. |
 | 2026-02-22 | GC | Surgical updates reflecting Phase 0 item 0.4 completion: B-D8 resolved (production API base URL = `https://hic-ai.com`). Stream 1A scope updated from "TBD per B-D1" to fully defined combined scope (~2.5h, ~15 files). Phase 4 Step 4A P0 effort updated from 30 min to 1.5–2h for `prod`→`production` rename. B-D1 marked resolved in Open Decisions table. |
+| 2026-02-23 | SWR | SMP-GO resolved: §6 Stream 3C gate note updated, §13 SWR Attorney track updated, Timeline Risk Assessment SMP-GO risk struck, Open Decisions table SMP-GO marked resolved. Comprehensive SWR attorney review of all Stripe documentation (SMP Preview Terms, General Terms, DPA, payment method provisions, regional terms). Pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB. |

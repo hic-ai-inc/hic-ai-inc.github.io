@@ -170,11 +170,15 @@ The service is labeled "Preview Service" with Stripe reserving the right to chan
 
 **Mitigation:** The underlying payment infrastructure is standard Stripe. The MoR is additive. Removing it reverts to self-managed tax compliance, not payment failure.
 
+**SWR Comments & Decision:**
+
 ### 7.2 — 60-Day Refund Discretion
 
 Lemon Squeezy (SMP) may issue refunds within 60 days regardless of the seller's refund policy. The seller bears the economic cost of these refunds.
 
 **Concern:** Potential for SMP-initiated refunds that override our policy. Our current refund policy (on `/faq`) would need to be written with awareness that SMP may exercise broader discretion.
+
+**SWR Comments & Decision:**
 
 ### 7.3 — 48-Hour Dispute Response SLA
 
@@ -182,11 +186,15 @@ Seller must respond to information requests within 48 hours. If no response, SMP
 
 **Concern:** Operational burden — SWR must be responsive to dispute queries within 48 hours at all times. For a solo founder, this requires reliable notification setup.
 
+**SWR Comments & Decision:**
+
 ### 7.4 — Connected Account Treatment
 
 The seller's Stripe account is treated as a Connected Account to SMP as the Platform. Funds are held in pooled accounts. Seller has no rights to earnings on pooled funds.
 
 **Concern:** Legal structure — the seller becomes a sub-merchant in Stripe's Connect architecture rather than a direct merchant. This may have implications for financial reporting, fund availability timing, and regulatory treatment.
+
+**SWR Comments & Decision:**
 
 ### 7.5 — Customer Data Deletion Cascading
 
@@ -196,15 +204,21 @@ Customers can request deletion. Stripe will cancel subscriptions and delete rela
 
 **Current risk level:** Low — our licensing layer is Keygen-based and decoupled from Stripe Customer objects after initial provisioning. The heartbeat system doesn't query Stripe. But the DynamoDB `stripeCustomerId` and `stripeSubscriptionId` fields would reference deleted objects.
 
+**SWR Comments & Decision:**
+
 ### 7.6 — Indemnification
 
 Seller indemnifies Stripe/SMP for all product-related claims including IP claims. Standard for MoR relationships but should be reviewed.
+
+**SWR Comments & Decision:**
 
 ### 7.7 — Tax on Refunded Transactions
 
 In some jurisdictions, sales tax may still need to be remitted even on refunded transactions, and the seller's balance can be reduced by the tax amount.
 
 **Concern:** Unusual — normally refunds cancel the tax obligation. This edge case could create unexpected balance reductions.
+
+**SWR Comments & Decision:**
 
 ---
 
@@ -303,3 +317,4 @@ Research conducted by GPT-5.2 Thinking on February 18, 2026:
 | Date       | Author | Changes                                                                                                        |
 | ---------- | ------ | -------------------------------------------------------------------------------------------------------------- |
 | 2026-02-18 | GC     | Initial discovery memo — SMP available on our account, research summary, impact analysis, revised MoR strategy |
+| 2026-02-23 | SWR    | **SMP-GO: Legal review complete.** SWR completed comprehensive attorney review of all SMP legal documentation: SMP Preview Terms (Dec 19, 2025), Stripe General Terms (Nov 18, 2025) including §1.4 (Preview Services), Data Processing Agreement, payment method provisions (ACH, Link, Google Pay, etc.), and all regional terms affecting US customers. All 7 provisions in §7 reviewed; SWR comments and decisions added to each item. **Decision: GO.** One pre-launch investigation flagged: Stripe customer data deletion (§7.5) impact on DynamoDB lookups — requires full technical analysis before launch. |

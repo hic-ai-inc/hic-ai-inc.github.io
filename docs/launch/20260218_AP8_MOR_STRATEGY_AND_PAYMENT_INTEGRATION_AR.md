@@ -93,7 +93,7 @@ Prior AP 8 assumed MoR required migrating away from Stripe to a separate vendor 
 | Dashboard availability | ✅ Available (Settings → Managed Payments)                       |
 | Product recognition    | ✅ Existing products and tax categories detected                 |
 | Setup progress         | Saved at Step 3 of 4-step guided setup                           |
-| Terms accepted         | ❌ Pending attorney review                                       |
+| Terms accepted         | ✅ SWR attorney review complete Feb 23 — GO                      |
 | Test transaction       | ❌ Not yet attempted                                             |
 | Activation confidence  | ~85–90% (self-service, no application — see SMP Approval Report) |
 
@@ -194,19 +194,17 @@ Full detail on each provision is in `20260218_STRIPE_MANAGED_PAYMENTS_DISCOVERY.
 
 #### 1.5 — GO/NO-GO Decision
 
-SWR makes the call:
+**✅ GO — Feb 23, 2026.** SWR conducted comprehensive attorney review of all Stripe documentation: SMP Preview Terms, General Terms (SSA), Data Processing Agreement, payment method provisions (ACH, Link, Google Pay, etc.), all regional terms affecting US customers, and related materials. Decision: SMP terms acceptable. Proceed to Phase 2.
 
-- **GO:** SMP terms acceptable. Proceed to Phase 2.
-- **CONDITIONAL GO:** Terms acceptable with noted risks. Proceed to Phase 2; document accepted risks.
-- **NO-GO:** Terms unacceptable. Invoke contingency (§14) — fall back to LS/Paddle applications per the prior AP 8.
+> ⚠️ **PRE-LAUNCH INVESTIGATION REQUIRED:** Stripe customer data deletion mechanics. If a customer requests account deletion via Stripe, Stripe will cancel subscriptions and delete related objects. Investigation needed into downstream consequences on DynamoDB table lookups (potential null values for `stripeCustomerId`/`stripeSubscriptionId`) and overall functionality. Not blocking for Phase 2 code work, but must be resolved before production launch.
 
 ### Phase 1 Exit Criteria
 
 - [ ] All 4 test-mode checkout paths verified end-to-end
 - [ ] Forbidden parameter audit complete — specific parameters identified in our code
 - [ ] Fee structure confirmed
-- [ ] Attorney review complete — GO/CONDITIONAL GO/NO-GO decision documented
-- [ ] If GO: ready for Phase 2 code changes
+- [x] Attorney review complete — **GO** decision documented (Feb 23, 2026)
+- [x] GO confirmed: ready for Phase 2 code changes
 
 ---
 
@@ -750,3 +748,4 @@ If the SMP path cannot be used — whether because the Preview Terms fail SWR's 
 | 2026-02-16 | GC     | Predecessor document: "Proposed Plans for Lemon Squeezy Migration" — LS-specific two-phase analysis                                                                                                                                                    |
 | 2026-02-18 | GC     | First AP 8: Promoted to MoR Strategy & Payment Integration with three paths (LS primary, Paddle backup, Stripe fallback), dual-MoR application strategy, comprehensive LS migration planning                                                           |
 | 2026-02-18 | GC     | **Amended & Restated AP 8:** Complete replacement. SMP as primary MoR path, 5-phase plan from current state to production, all Stripe tasks consolidated from AP 0/AP 4/AP 2b/AP 11/SMP Discovery Memo. Prior AP 8 preserved as contingency reference. |
+| 2026-02-23 | SWR    | **SMP-GO.** Phase 1 Step 1.4 (Attorney Review) and Step 1.5 (GO/NO-GO) marked complete. SWR conducted comprehensive legal review of all Stripe documentation (SMP Preview Terms, General Terms, DPA, payment method provisions, regional terms). GO decision issued. SMP Status table updated. Phase 1 Exit Criteria attorney items checked. Pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB lookups. |

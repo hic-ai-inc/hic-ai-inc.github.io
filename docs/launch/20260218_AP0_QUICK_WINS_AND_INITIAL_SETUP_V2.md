@@ -310,7 +310,7 @@ Phase 0 is complete when all 11 items are resolved and the following are true:
 - [x] DMARC record live and propagating — Feb 21
 - [ ] Branch protection active on `main` for both repos (force-push + deletion protection; no PR requirement)
 - [x] All 4 Stripe checkout paths verified end-to-end — Feb 22
-- [ ] SMP integration validation complete with go/no-go for SMP and parameter change list documented
+- [x] SMP integration validation complete — **GO** decision issued Feb 23 after comprehensive SWR attorney review. Parameter change list documented in AP 8 AR. ⚠️ Pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB lookups.
 - [x] Stripe Managed Payments availability confirmed (Feb 18 — available, no separate application needed)
 
 **After Phase 0:** Track A (website + payment integration) and Track B (extension + audit) can begin. The discovery that Stripe Managed Payments is available on our account (item 0.11) transformed the payment strategy — SMP is now the primary MoR path under AP 8 AR, eliminating the LS/Paddle application wait and compressing the sprint timeline. See `20260218_STRIPE_MANAGED_PAYMENTS_DISCOVERY.md` for the discovery analysis and `20260218_AP8_MOR_STRATEGY_AND_PAYMENT_INTEGRATION_AR.md` for the consolidated implementation plan.
@@ -324,3 +324,4 @@ Phase 0 is complete when all 11 items are resolved and the following are true:
 | 2026-02-17 | GC     | Initial document — curated Phase 0 items with admission criteria |
 | 2026-02-18 | GC     | Added item 0.11: Stripe Managed Payments dashboard check (completed — available on our account). Updated summary, exit gate, and document history. |
 | 2026-02-18 | GC     | **v2:** Updated for SMP-first strategy. Reframed Group D from LS/Paddle application prep to SMP integration readiness. Rewrote item 0.10 from "MoR Feasibility Assessment (LS + Paddle)" to "SMP Integration Validation." Removed LS-primary urgency framing throughout. Updated AP 8 references to AP 8 AR. Updated excluded items and exit gate for SMP context. |
+| 2026-02-23 | SWR    | Phase 0 Exit Gate: SMP integration validation item checked off. SWR completed comprehensive attorney review of all Stripe documentation and issued SMP-GO. Pre-launch investigation flagged for Stripe customer data deletion impact on DynamoDB. |
