@@ -170,7 +170,7 @@ The service is labeled "Preview Service" with Stripe reserving the right to chan
 
 **Mitigation:** The underlying payment infrastructure is standard Stripe. The MoR is additive. Removing it reverts to self-managed tax compliance, not payment failure.
 
-**SWR Comments & Decision:**
+**SWR Comments & Decision:** At present, the dashboard shows "Public Preview" mode. I need to review the extent to which SMP reserves the right to discontinue service and whether they indeed reserve the right to do so without any notice. If that's true, then we have to make backup plans -- a global MoR is absolutely critical infrastructure for us, and we cannot operate without it. (Even handling worldwide tax compliance for just one day of sales would be an immediate and overwhelming nightmare that would probably have repercussions lasting months or years and costing the platform and SWR personally a ton of money and time. We will do everything necessary to avoid this scenario, including, if necessary, deferring Launch Day.) I would like to see how significant the risk really is, though, as they presumably have promoted from Private Preview to Public Preview with the intention of promoting soon to general-release or long-term-stable or whatever they call their usual services. **UPDATE:** We will accept this risk. We already are through Step 7 of the onboarding flow with Lemon Squeezy independent of SMP, and presumably, we can reapply to them once our website and social media presence is live. I am not going to worry about this risk.
 
 ### 7.2 — 60-Day Refund Discretion
 
@@ -178,7 +178,9 @@ Lemon Squeezy (SMP) may issue refunds within 60 days regardless of the seller's 
 
 **Concern:** Potential for SMP-initiated refunds that override our policy. Our current refund policy (on `/faq`) would need to be written with awareness that SMP may exercise broader discretion.
 
-**SWR Comments & Decision:**
+**SWR Comments & Decision:** We offer refunds within the first 30 days only. Any refunds issued by our payment provider or global merchant of record would be between the customer and the provider, and I don't think I likely have much choice on this one anyway. Presumably this will be a very rare and infrequent scenario where I didn't refund the customer yet the customer successfully appealed to the SMP for a refund but I will carefully review the pertinent provisions.
+
+**UPDATE:** Further review has revealed that the 60-day policy only applies to **individual** requests for refunds, with a much more restrictive **2-day deadline for Business** licenses, essentially capping my risk at $150/refund beyond the HIC AI, Inc. refund period of first 30 days. It is unclear whether that 2-day deadline has always already lapsed by the time payment is remitted by the pooled account to the seller of record (HIC AI, Inc. in this instance). Regardless, I am not concerned about this issue but will keep the timing issues in mind.
 
 ### 7.3 — 48-Hour Dispute Response SLA
 
@@ -186,7 +188,9 @@ Seller must respond to information requests within 48 hours. If no response, SMP
 
 **Concern:** Operational burden — SWR must be responsive to dispute queries within 48 hours at all times. For a solo founder, this requires reliable notification setup.
 
-**SWR Comments & Decision:**
+**SWR Comments & Decision:** I need to review these provisions carefully. Does Stripe require full resolution and satisfaction of their outstanding demands for information within 48 hours, or simply that the merchant responds within 48 hours in some manner and begins engaging in good faith to gather the information requested, or something else? Depending on what Stripe requires, we may need to implement a workflow to triage requests for information in connection with disputes to ensure that we reliably and timely respond to the extent needed. I don't expect this to be a common scenario at first, but it probably will happen eventually and get more common 1-2 years out when auto-renewals come due and people dispute them.
+
+**UPDATE:** Following review, I can confirm that the requirement is to supply all requested information within 48 hours. Hopefully, this does not happen frequently. If we are doing such a huge volume of sales that the rare case of customer disputes requiring information responses by HIC AI, Inc. actually becomes commonplace or something that happens more than 1-2x per year, I'll automate more aspects of this. I am not worrying about this pre-launch.
 
 ### 7.4 — Connected Account Treatment
 
@@ -194,7 +198,11 @@ The seller's Stripe account is treated as a Connected Account to SMP as the Plat
 
 **Concern:** Legal structure — the seller becomes a sub-merchant in Stripe's Connect architecture rather than a direct merchant. This may have implications for financial reporting, fund availability timing, and regulatory treatment.
 
-**SWR Comments & Decision:**
+**SWR Comments & Decision:** I don't think this has any significance. Essentially, if I understand it, SMP handles the sale, they collect payment, they calculate taxes, they bear the burden of paying them and filing tax compliance documents, and they take their fee for doing so (on top of Stripe's existing payment processing fees). After SMP and Stripe have done all that, I am entitled to the net proceeds less fees, which they will distribute to me from the common pooled funds.
+
+A more important question is what the timing is on when the net customer funds are made available to my Mercury account. That's critically important business information for me to know so I can manage business and personal cash flow appropriately.
+
+**UPDATE:** After review of the Payout Schedule page, I can confirm that for the most part, this is T+2 or even same-day or next-day with manual payouts (up to 10 per day). I am slightly unclear on how this overlaps with the 2-day deadline for Business licenses, but again, I'm not going to worry about it. It's a great problem to have if we have to wonder when our funds are clear. That means we're selling.
 
 ### 7.5 — Customer Data Deletion Cascading
 
@@ -204,13 +212,19 @@ Customers can request deletion. Stripe will cancel subscriptions and delete rela
 
 **Current risk level:** Low — our licensing layer is Keygen-based and decoupled from Stripe Customer objects after initial provisioning. The heartbeat system doesn't query Stripe. But the DynamoDB `stripeCustomerId` and `stripeSubscriptionId` fields would reference deleted objects.
 
-**SWR Comments & Decision:**
+**SWR Comments & Decision:** I don't know what the risk profile of this issue is, but we need a full technical analysis conducted on what happens in this scenario to our DynamoDB look-ups, and whether our system indeed handles the potentially orphaned reference gracefully. 
+
+If Stripe deletes, why would that mean that DynamoDB deletes? We soft-delete everywhere anyway, so it only should result in an update to the DynamoDB customer record showing something like a SubscriptionCancelled event or something like that. For instance, in connection with a device, it might tie out to a user whose subscription has been cancelled; if the user later reactivates the subscription and activates the license on that device, the device is still in our system. We might need a new stripeCustomerId, though, or a new stripeSubscriptionId, though, if Stripe literally deletes the prior data from its own system, since in that scenario it would be potentially issuing a new customer ID to a preexisting or prior customer. Tricky edge case there but one we ought to consider to ensure we don't run into memory overflow or inconsistent state scenarios that are really unpleasant.
+
+**UPDATE:** After review of the Privacy Policy in detail, I think we still need to consider this case carefully. It is not entirely obvious to me that Stripe actually deletes the customer record when requested, since they still are permitted to maintain information necessary for legal requirements or if permitted by the governing law of the jurisdiction in question. I sense they probably don't delete customerSubscriptionId or other fields altogether, but if they do, we nonetheless need to handle this scenario gracefully. We need to investigate and resolve this issue as part of Phase 0.10 and prior to completion of same.
 
 ### 7.6 — Indemnification
 
 Seller indemnifies Stripe/SMP for all product-related claims including IP claims. Standard for MoR relationships but should be reviewed.
 
-**SWR Comments & Decision:**
+**SWR Comments & Decision:** Standard, not a problem, but I need to review.
+
+**UPDATE:** No issues.
 
 ### 7.7 — Tax on Refunded Transactions
 
@@ -218,7 +232,9 @@ In some jurisdictions, sales tax may still need to be remitted even on refunded 
 
 **Concern:** Unusual — normally refunds cancel the tax obligation. This edge case could create unexpected balance reductions.
 
-**SWR Comments & Decision:**
+**SWR Comments & Decision:** I'm not worried. For the benefit of having a global MoR, this is a small risk and very unlikely scenario.
+
+**UPDATE:** No issues.
 
 ---
 
@@ -317,4 +333,3 @@ Research conducted by GPT-5.2 Thinking on February 18, 2026:
 | Date       | Author | Changes                                                                                                        |
 | ---------- | ------ | -------------------------------------------------------------------------------------------------------------- |
 | 2026-02-18 | GC     | Initial discovery memo — SMP available on our account, research summary, impact analysis, revised MoR strategy |
-| 2026-02-23 | SWR    | **SMP-GO: Legal review complete.** SWR completed comprehensive attorney review of all SMP legal documentation: SMP Preview Terms (Dec 19, 2025), Stripe General Terms (Nov 18, 2025) including §1.4 (Preview Services), Data Processing Agreement, payment method provisions (ACH, Link, Google Pay, etc.), and all regional terms affecting US customers. All 7 provisions in §7 reviewed; SWR comments and decisions added to each item. **Decision: GO.** One pre-launch investigation flagged: Stripe customer data deletion (§7.5) impact on DynamoDB lookups — requires full technical analysis before launch. |
