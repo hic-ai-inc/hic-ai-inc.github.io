@@ -306,7 +306,7 @@ Phase 0 is complete when all 11 items are resolved and the following are true:
 - [x] Twitter/X business account creation path documented — Feb 21
 - [x] Production `API_BASE_URL` mechanism understood and documented — Feb 22
 - [x] `setup-cognito.sh` accepts environment parameter — Feb 22
-- [ ] Orphaned callback URI removed from staging Cognito
+- [x] Orphaned callback URI removed from staging Cognito — Feb 22
 - [x] DMARC record live and propagating — Feb 21
 - [ ] Branch protection active on `main` for both repos (force-push + deletion protection; no PR requirement)
 - [ ] All 4 Stripe checkout paths verified end-to-end

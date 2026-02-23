@@ -40,7 +40,7 @@ _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), t
 **Group B: Quick Fixes**
 
 - [x] **0.5** Fix `setup-cognito.sh` — change `ENVIRONMENT="staging"` to `ENVIRONMENT="${1:-staging}"` (5m) ✅ (Feb 22) — Usage header updated, unit tests confirmed passing (1,479/1,479).
-- [ ] **0.6** Remove orphaned `vscode://hic-ai.mouse/callback` from staging Cognito client (2m)
+- [x] **0.6** Remove orphaned `vscode://hic-ai.mouse/callback` from staging Cognito client (2m) ✅ (Feb 22)
 
 **Group C: DNS**
 
