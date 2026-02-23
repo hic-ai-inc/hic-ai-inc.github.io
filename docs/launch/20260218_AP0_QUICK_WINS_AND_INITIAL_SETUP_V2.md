@@ -309,7 +309,7 @@ Phase 0 is complete when all 11 items are resolved and the following are true:
 - [x] Orphaned callback URI removed from staging Cognito — Feb 22
 - [x] DMARC record live and propagating — Feb 21
 - [ ] Branch protection active on `main` for both repos (force-push + deletion protection; no PR requirement)
-- [ ] All 4 Stripe checkout paths verified end-to-end
+- [x] All 4 Stripe checkout paths verified end-to-end — Feb 22
 - [ ] SMP integration validation complete with go/no-go for SMP and parameter change list documented
 - [x] Stripe Managed Payments availability confirmed (Feb 18 — available, no separate application needed)
 

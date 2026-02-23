@@ -48,7 +48,7 @@ _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), t
 
 **Group D: SMP Baseline** _(chain: 0.8 → 0.9 → 0.10)_
 
-- [ ] **0.8** Stripe E2E — verify all 4 test-mode checkout paths end-to-end: Individual Monthly/Annual, Business Monthly/Annual (30m)
+- [x] **0.8** Stripe E2E — verify all 4 test-mode checkout paths end-to-end: Individual Monthly/Annual, Business Monthly/Annual (30m) ✅ (Feb 22) — All 4 paths verified: portal redirect with license key, DynamoDB records correct (Individual maxDevices=3, Business maxDevices=5, all active, Stripe+Keygen IDs populated).
 - [ ] **0.9** Stripe checkout audit — identify ~16 forbidden parameters against our code per AP 8 AR Phase 1.2 (30m)
 - [ ] **0.10** Comprehensive Stripe dashboard settings review — audit all test-mode settings: email receipts (verify payment receipts enabled in Stripe, not SES), tax settings, refund policy, decline handling, dispute settings, branding. Document promotion code configuration for future reference (promo codes for YouTube tutorials, seasonal discounts, etc.). (45m)
 - [ ] **0.11** SMP integration validation — map verified integration against SMP requirements, produce go/no-go (30–45m)
