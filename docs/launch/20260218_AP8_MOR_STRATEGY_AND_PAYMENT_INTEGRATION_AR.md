@@ -200,6 +200,8 @@ Full detail on each provision is in `20260218_STRIPE_MANAGED_PAYMENTS_DISCOVERY.
 
 ### Phase 1 Exit Criteria
 
+> **⚠️ RESEQUENCED (Feb 24, DEFER-1B):** Steps 1.1–1.3 are now executed in Phase 3 Stream 3C Part 1, not Phase 1 of the launch plan. See deferral recommendation memo (`docs/plg/20260224_RECOMMENDATION_RE_DEFERRING_LAUNCH_PLAN_STREAM_1B_SMP_TO_PHASE_3.md`).
+
 - [ ] All 4 test-mode checkout paths verified end-to-end
 - [ ] Forbidden parameter audit complete — specific parameters identified in our code
 - [ ] Fee structure confirmed
@@ -209,6 +211,8 @@ Full detail on each provision is in `20260218_STRIPE_MANAGED_PAYMENTS_DISCOVERY.
 ---
 
 ## 5. Phase 2: SMP Code Integration (Test Mode)
+
+> **⚠️ RESEQUENCED (Feb 24, DEFER-1B):** This phase is now executed in Phase 3 Stream 3C Part 1 of the launch plan, not Phase 1. Rationale: avoid premature SMP activation before website/legal/social are complete; consolidate all Stripe/SMP work into a single Phase 3 session. See deferral recommendation memo (`docs/plg/20260224_RECOMMENDATION_RE_DEFERRING_LAUNCH_PLAN_STREAM_1B_SMP_TO_PHASE_3.md`).
 
 **Purpose:** Modify the Checkout Session creation code to enable SMP, then verify the entire payment flow still works in test mode.
 **Dependencies:** Phase 1 GO decision.
@@ -662,10 +666,11 @@ These are flagged here for completeness but executed as part of their respective
 
 This plan does **not** prescribe when each phase executes relative to other action plans — that is the Dependency Map's role. However, the key scheduling constraints are:
 
-1. **Phases 1–3 are self-contained.** They can execute early in the sprint (Phase 0 / early Track A) without waiting for any other AP.
-2. **Phase 4 requires AP 4 C2 infrastructure.** CloudFormation stack, Cognito, Secrets Manager paths, and Amplify production environment must exist before live-mode Stripe configuration.
-3. **Phase 5 requires AP 4 C2 fully complete.** The dogfooding purchase is a full-stack E2E test — every infrastructure layer must be production.
-4. **The Post-Change Security Review can execute anytime after Phase 2 code is committed.** It does not need to wait for Phase 4 or 5. It is naturally performed as part of AP 2b or as a standalone check.
+1. **Phases 1–2 execute in Phase 3 of the launch plan (Stream 3C Part 1).** Per DEFER-1B (Feb 24), AP 8 AR Phases 1–2 were resequenced from launch Phase 1 to launch Phase 3 Stream 3C. They no longer execute early in the sprint. See deferral recommendation memo.
+2. **Phase 3 (Stripe Operational Readiness) executes in launch Phase 3 Stream 3C Part 2.** Immediately follows Phases 1–2 within the same stream.
+3. **Phase 4 requires AP 4 C2 infrastructure.** CloudFormation stack, Cognito, Secrets Manager paths, and Amplify production environment must exist before live-mode Stripe configuration.
+4. **Phase 5 requires AP 4 C2 fully complete.** The dogfooding purchase is a full-stack E2E test — every infrastructure layer must be production.
+5. **The Post-Change Security Review can execute anytime after Phase 2 code is committed.** It does not need to wait for Phase 4 or 5. It is naturally performed as part of AP 2b or as a standalone check.
 
 ### What This Replaces in the Prior Timeline
 
@@ -749,3 +754,4 @@ If the SMP path cannot be used — whether because the Preview Terms fail SWR's 
 | 2026-02-18 | GC     | First AP 8: Promoted to MoR Strategy & Payment Integration with three paths (LS primary, Paddle backup, Stripe fallback), dual-MoR application strategy, comprehensive LS migration planning                                                           |
 | 2026-02-18 | GC     | **Amended & Restated AP 8:** Complete replacement. SMP as primary MoR path, 5-phase plan from current state to production, all Stripe tasks consolidated from AP 0/AP 4/AP 2b/AP 11/SMP Discovery Memo. Prior AP 8 preserved as contingency reference. |
 | 2026-02-23 | SWR    | **SMP-GO.** Phase 1 Step 1.4 (Attorney Review) and Step 1.5 (GO/NO-GO) marked complete. SWR conducted comprehensive legal review of all Stripe documentation (SMP Preview Terms, General Terms, DPA, payment method provisions, regional terms). GO decision issued. SMP Status table updated. Phase 1 Exit Criteria attorney items checked. Pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB lookups. |
+| 2026-02-24 | Kiro   | **DEFER-1B.** AP 8 AR Phases 1–2 resequenced to Phase 3 Stream 3C of the launch plan per approved deferral recommendation memo. Phase 1 Exit Criteria and Phase 2 header updated with resequencing notices. §12 Scheduling Flexibility updated: constraint #1 revised to reflect Phases 1–2 now execute in launch Phase 3 Stream 3C Part 1; constraint #2 revised for Phase 3 (Part 2). |

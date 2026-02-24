@@ -53,15 +53,15 @@ v2 (Feb 18) was built around a two-track model: Track A (website + MoR applicati
 Phase 0 ─── Quick Wins & Setup (~3.5h)
     │         AP 0  │  SWR: begin SMP terms review
     │
-Phase 1 ─── Feature Completion & SMP Code Prep (~2–3 days)
-    │         AP 9  │  AP 8 Phases 1–2  │  AP 7
+Phase 1 ─── Feature Completion (~2–3 days)
+    │         AP 9  │  AP 7  [Stream 1B deferred → Phase 3 Stream 3C]
     │
 Phase 2 ─── Website, Documentation & Legal (~2–3 days)
     │         AP 11.4 → AP 11.1–11.3 → AP 1 → AP 5
     │         AP 12 Phases 1–2  │  AP 2a
     │
-Phase 3 ─── Security, Monitoring & SMP Finalization (~2 days)
-    │         AP 2b  │  AP 10  │  AP 8 Phase 3  │  AP 6
+Phase 3 ─── Security, Monitoring & SMP Finalization (~2–2.5 days)
+    │         AP 2b  │  AP 10  │  AP 8 Phases 1–3  │  AP 6
     │
 Phase 4 ─── Production Deployment (~1–2 days)
     │         AP 4 P0–P7  │  AP 8 Phase 4  │  B-D3 decision
@@ -137,28 +137,12 @@ Also includes Phase 4 heartbeat status alignment (fix-or-defer decision — Open
 - **Checkpoint (CP-9):** Version notification functional (if B-D1 = keep), or custom code removed (if B-D1 = remove). All tests pass.
 - **Unlocks:** Phase 2 (docs describe finalized features), Phase 3 (security audit covers final code)
 
-### Stream 1B: SMP Code Integration — AP 8 AR Phases 1–2
+### ~~Stream 1B: SMP Code Integration — AP 8 AR Phases 1–2~~ — DEFERRED TO PHASE 3 STREAM 3C
 
-SMP code changes in test mode. No attorney gate needed for Phases 1–2 (code changes use test mode; SMP-GO gate is at Phase 3).
+> **⚠️ DEFERRED (Feb 24, DEFER-1B):** All Stream 1B work has been moved to Phase 3 Stream 3C. Rationale: avoid premature SMP activation before website/legal/social are complete; consolidate all Stripe/SMP work into a single Phase 3 session. Zero Phase 2 impact confirmed. See deferral recommendation memo and DEFER-1B decision in Execution Tracker §3.
 
-| Step | Item | Effort |
-|------|------|--------|
-| 1.1 | Verify all 4 test-mode checkout paths (baseline) | 30 min |
-| 1.2 | Audit forbidden parameters against our code | 30 min |
-| 1.3 | Fee assessment confirmation | 15 min |
-| 2.1 | Add `managed_payments: { enabled: true }` to checkout | 15 min |
-| 2.2 | Set Preview version header | 15 min |
-| 2.3 | Remove forbidden parameters (Open Decisions AP8-D1: approach (a) recommended) | 1–2h |
-| 2.4 | Re-verify all 4 checkout paths with SMP enabled | 30 min |
-| 2.5 | Verify webhook flow (8 events) | 15 min |
-| 2.6 | Verify customer portal | 15 min |
-| 2.7 | Verify email notification flow (Open Decisions AP8-D4: duplication assessment) | 15 min |
-| 2.8 | Run existing test suite (≥3,459 tests) | 15 min |
-
-**Reference:** [AP 8 AR §4–5](20260218_AP8_MOR_STRATEGY_AND_PAYMENT_INTEGRATION_AR.md)
-
-- **Checkpoint (CP-SMP-2):** SMP parameters added, forbidden parameters removed, all 4 checkout paths verified E2E in test mode, webhooks confirmed, all tests pass.
-- **Unlocks:** Phase 3 Stream 3C (SMP finalization, needs SMP-GO)
+- **CP-SMP-2** is now an internal milestone within Phase 3 Stream 3C Part 1 — it no longer gates Phase 3 from Phase 1.
+- **Unlocks:** N/A — absorbed into Phase 3 Stream 3C.
 
 ### Stream 1C: Email Deliverability (AP 7.2–7.6)
 
@@ -199,11 +183,11 @@ Smoke-test installation, activation, and MCP tool invocation for each supported 
 | Stream | Work | Effort | Parallel? |
 |--------|------|--------|-----------|
 | 1A | Version wire-up (AP 9.8–9.10) | 4–6h (may shrink) | ✅ Independent |
-| 1B | SMP code integration (AP 8 Phases 1–2) | 3–4h | ✅ Independent |
+| ~~1B~~ | ~~SMP code integration (AP 8 Phases 1–2)~~ | ~~3–4h~~ | DEFERRED → Phase 3 Stream 3C |
 | 1C | Email deliverability (AP 7) | 2.5–3h | ✅ Independent |
 | 1D | E2E client verification (AP 9.1–9.7) | 2–3h | ✅ Independent |
 
-**Total effort:** ~12–16h. **Elapsed time** with single-developer interleaving: ~2–3 days.
+**Total effort:** ~8–12h (3 active streams). **Elapsed time** with single-developer interleaving: ~2 days.
 
 ---
 
@@ -316,15 +300,15 @@ Health endpoint, metric filters, log retention (14 days, B-D7 resolved), severit
 - **Checkpoint (CP-12):** `/api/health` returns 200, metric filters alarming on 5xx/latency, log retention set to 14 days, severity levels defined, runbook exists, PITR confirmed, launch dashboard ready.
 - **Unlocks:** Phase 4 (cannot deploy without monitoring)
 
-### Stream 3C: SMP Finalization — AP 8 AR Phase 3
+### Stream 3C: SMP Complete — AP 8 AR Phases 1–2 + Phase 3 (EXPANDED)
 
-Stripe dashboard operational readiness: complete SMP setup flow, 2FA, tax categories, notification settings (48-hour dispute SLA compliance).
+Consolidated Stripe/SMP stream. Absorbs all Stream 1B work (DEFER-1B, Feb 24) as Part 1, then executes original Phase 3 dashboard finalization as Part 2. Executed in sequence within the stream.
 
-**Gate: SMP-GO decision** (Open Decisions #28). ✅ **Resolved Feb 23, 2026.** SWR completed comprehensive attorney review of all Stripe documentation and issued GO. This stream is unblocked.
+**Gate: SMP-GO decision** (Open Decisions #28). ✅ **Resolved Feb 23, 2026.** SWR completed comprehensive attorney review of all Stripe documentation and issued GO. This stream is unblocked. CP-SMP-2 (formerly a Phase 1 gate) is now an internal milestone within Part 1.
 
-- **Reference:** [AP 8 AR §6](20260218_AP8_MOR_STRATEGY_AND_PAYMENT_INTEGRATION_AR.md)
-- **Effort:** ~30 min
-- **Checkpoint (CP-SMP-3):** 2FA on Stripe, SMP setup complete, tax categories confirmed, notifications configured.
+- **Reference:** [AP 8 AR §4–6](20260218_AP8_MOR_STRATEGY_AND_PAYMENT_INTEGRATION_AR.md)
+- **Effort:** ~5–7h (up from ~30 min; now the largest single stream in Phase 3)
+- **Checkpoint (CP-SMP-3):** SMP parameters added, forbidden params removed, all 4 checkout paths verified E2E in test mode, webhooks confirmed, all tests pass, 2FA on Stripe, SMP setup complete, tax categories confirmed, notifications configured.
 - **Unlocks:** Phase 4 (SMP ready for production promotion)
 
 ### Stream 3D: Support Infrastructure (AP 6)
@@ -345,11 +329,11 @@ Configure `main` branch protection on both repos: prevent force-pushes, prevent 
 |--------|------|--------|-----------|
 | 3A | Security audit (AP 2b) | 5–6h | ✅ Independent of 3B–3E |
 | 3B | Monitoring (AP 10) | 6–8h | ✅ Independent of 3A, 3C–3E |
-| 3C | SMP finalization (AP 8 Phase 3) | 30 min | ✅ SMP-GO resolved Feb 23; independent of 3A/3B |
+| 3C | SMP complete — AP 8 AR Phases 1–3 (EXPANDED) | ~5–7h | ✅ SMP-GO resolved Feb 23; independent of 3A/3B/3D/3E |
 | 3D | Support infrastructure (AP 6) | 4–6h | ✅ Independent |
 | 3E | Branch protection (`main` only, no PR req) | 10 min | ✅ Independent |
 
-**Total effort:** ~16–21h. **Elapsed time:** ~2 days (streams run in parallel).
+**Total effort:** ~21–28h. **Elapsed time:** ~2–2.5 days (streams run in parallel; 3C is now the longest stream).
 
 ---
 
@@ -482,13 +466,12 @@ Level 0 — Phase 0 (no dependencies):
                 │                                  │
                 ▼                                  ▼
 
-Level 1 — Phase 1 (parallel streams):
+Level 1 — Phase 1 (3 active streams; 1B deferred → Phase 3 Stream 3C):
 ├── 1A: Resolve B-D1 → AP 9.8–9.10 version wire-up (4–6h)
-├── 1B: AP 8 Phases 1–2 SMP code integration (3–4h)
 ├── 1C: AP 7.2–7.6 email deliverability (2.5–3h)
 └── 1D: AP 9.1–9.7 E2E client verification (2–3h)
 
-                ┌── CP-9, CP-SMP-2, CP-13, CP-E2E ──┐
+                ┌── CP-9, CP-13, CP-E2E ──┐
                 │                                      │
                 ▼                                      │
 
@@ -507,7 +490,7 @@ Level 2 — Phase 2 (internal sequencing):               │
 Level 3 — Phase 3 (parallel streams):                   │
 ├── 3A: Security audit AP 2b (5–6h) ◄─ B-D4/B-D5/B-D6  │
 ├── 3B: Monitoring AP 10 (6–8h)                         │
-├── 3C: SMP finalization AP 8 Phase 3 (30 min) ◄─ SMP-GO│
+├── 3C: SMP complete AP 8 Phases 1–3 (~5–7h) ◄─ SMP-GO │
 ├── 3D: Support infra AP 6 (4–6h)                       │
 └── 3E: Branch protection (30 min)                      │
 
