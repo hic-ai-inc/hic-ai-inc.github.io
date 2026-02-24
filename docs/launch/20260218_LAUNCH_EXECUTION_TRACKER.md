@@ -70,12 +70,12 @@ _3 active streams (1A, 1C, 1D) — independent and can run in parallel. Stream 1
 _First: SWR resolves B-D1 (keep custom version notification or remove?)_
 
 - [x] **B-D1 decision** — SWR resolves: Option A confirmed — remove `checkForUpdates()` entirely. Version notification via heartbeat-delivered path only. ✅ (Feb 20)
-- [ ] **9.8** Parse `latestVersion` from heartbeat response — scope TBD per B-D1 (2–3h)
-- [ ] **9.9** `Mouse: Update Version` command — scope TBD per B-D1 (1–2h)
-- [ ] **9.10** Version notification (status bar) — scope TBD per B-D1 (1h)
+- [x] **9.8** Parse `latestVersion` from heartbeat response — scope TBD per B-D1 (2–3h)
+- [x] **9.9** `Mouse: Update Version` command — scope TBD per B-D1 (1–2h)
+- [x] **9.10** Version notification (status bar) — scope TBD per B-D1 (1h)
 - [x] **AP9-HB** Heartbeat status alignment — fix in Stream 1A ✅ (Feb 21)
 - [x] **AP9-WEB** Website heartbeat route fixes — 4 surgical fixes to `route.js` and test suite: (1) add version fields + `nextHeartbeat` to `over_limit` response, (2) clean up dead-code ternaries on `active` path, (3) extract `NEXT_HEARTBEAT_SECONDS=600` to shared constant, (4) fix integration test contradictions (`valid`, `status`, `reason`, realistic Individual license values, full field alignment). Contract tests for all 6 server statuses pinned. 1,483 tests passing. Spec: `.kiro/specs/stream-1a-website-heartbeat-fixes/`. ✅ (Feb 24)
-- [ ] Run full test suite — all tests pass post-changes
+- [x] Run full test suite — all tests pass post-changes
 
 **Stream 1A Checkpoint (CP-9):** Version notification functional (if keep) or custom code removed (if remove). All tests pass. → Unlocks Phase 2 docs, Phase 3 audit.
 
