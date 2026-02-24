@@ -63,7 +63,7 @@ _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), t
 
 ### Phase 1 — Feature Completion & SMP Code Prep (~2–3 days)
 
-_All 4 streams are independent and can run in parallel._
+_3 active streams (1A, 1C, 1D) — independent and can run in parallel. Stream 1B deferred to Phase 3 Stream 3C per DEFER-1B decision (Feb 24)._
 
 #### Stream 1A: Version Update Wire-up (AP 9.8–9.10)
 
@@ -78,9 +78,11 @@ _First: SWR resolves B-D1 (keep custom version notification or remove?)_
 
 **Stream 1A Checkpoint (CP-9):** Version notification functional (if keep) or custom code removed (if remove). All tests pass. → Unlocks Phase 2 docs, Phase 3 audit.
 
-#### Stream 1B: SMP Code Integration — AP 8 Phases 1–2
+#### ~~Stream 1B: SMP Code Integration — AP 8 Phases 1–2~~ — DEFERRED TO PHASE 3 STREAM 3C
 
-_Note: Steps 1.1–1.2 extend Phase 0 items 0.8–0.9. Phase 0 establishes the raw baseline; Stream 1B applies those findings to SMP-specific code changes. Advanced Stripe dashboard operational settings (dispute handling, notification timing, tax categories) are deferred to Phase 3 Stream 3C where they belong._
+> **⚠️ DEFERRED (Feb 24, DEFER-1B):** All Stream 1B work (AP 8 AR Phases 1–2, steps 1.1–1.3 and 2.1–2.10) has been moved to Phase 3 Stream 3C. Rationale: avoid premature SMP activation before website/legal/social are complete; consolidate all Stripe/SMP work into a single Phase 3 session. Zero Phase 2 impact confirmed. Items preserved below for reference — execution occurs in Phase 3 Stream 3C Part 1.
+
+_~~Note: Steps 1.1–1.2 extend Phase 0 items 0.8–0.9. Phase 0 establishes the raw baseline; Stream 1B applies those findings to SMP-specific code changes. Advanced Stripe dashboard operational settings (dispute handling, notification timing, tax categories) are deferred to Phase 3 Stream 3C where they belong.~~_
 
 - [ ] **1.1** Verify all 4 test-mode checkout paths — baseline confirmation (30m)
 - [ ] **1.2** Audit forbidden parameters against our code (30m)
@@ -96,7 +98,7 @@ _Note: Steps 1.1–1.2 extend Phase 0 items 0.8–0.9. Phase 0 establishes the r
 - [ ] **2.9** Verify all Stripe configurations end-to-end — dashboard settings consistent with code expectations, all test-mode checkout paths working with all config changes applied (15m)
 - [ ] **2.10** Run full test suite — ≥3,459 tests pass (15m)
 
-**Stream 1B Checkpoint (CP-SMP-2):** SMP parameters added, forbidden params removed, all Stripe configurations set and verified, all 4 checkout paths verified E2E in test mode, webhooks confirmed, all tests pass. → Unlocks Phase 3 Stream 3C.
+**~~Stream 1B Checkpoint (CP-SMP-2)~~:** ~~Unlocks Phase 3 Stream 3C.~~ → **DEFERRED:** CP-SMP-2 is now an internal milestone within Phase 3 Stream 3C Part 1. It no longer gates Phase 3 from Phase 1.
 
 #### Stream 1C: Email Deliverability (AP 7.2–7.8)
 
@@ -269,18 +271,36 @@ _Resolve B-D4/B-D5/B-D6 at stream start._
 
 **Stream 3B Checkpoint (CP-12):** `/api/health` returns 200, metrics alarming, log retention set, runbook exists, PITR confirmed, dashboard ready. → Unlocks Phase 4.
 
-#### Stream 3C: SMP Finalization — AP 8 Phase 3
+#### Stream 3C: SMP Complete — AP 8 AR Phases 1–2 + Phase 3 (EXPANDED)
 
-_**Gate:** SMP-GO decision (#28) — ✅ **GO issued Feb 23.** SWR completed comprehensive legal review of SMP Preview Terms, General Terms, DPA, payment method provisions, and all regional terms affecting US customers. All 7 provisions in §7 of the Discovery Memo reviewed and accepted. Phase 3C is unblocked._
+_**Gate:** SMP-GO decision (#28) — ✅ **GO issued Feb 23.** All 7 provisions reviewed and accepted. Stream 3C is unblocked and now absorbs all Stream 1B work (DEFER-1B, Feb 24). Estimated effort: ~5–7h._
 
-> **⚠️ PRE-LAUNCH INVESTIGATION REQUIRED — Stripe Customer Deletion Impact:** SMP terms (§7, Data Privacy) allow customers to request deletion of their data from Stripe systems, which cascades to cancellation of subscriptions and deletion of Customer, PaymentMethod, Invoice, and related Stripe objects. A full technical analysis is required before launch to determine the downstream consequences on DynamoDB table lookups (orphaned `stripeCustomerId` / `stripeSubscriptionId` references) and overall system functionality. Key concerns: (1) What happens when our code attempts to look up a deleted Stripe Customer ID? (2) Does our soft-delete pattern handle this gracefully? (3) What happens if a returning customer gets a new Stripe Customer ID — do we handle multiple IDs per person? (4) Any risk of inconsistent state or memory overflow scenarios? This investigation should be scoped and completed during Phase 1B or Phase 3C at the latest.
+> **⚠️ PRE-LAUNCH INVESTIGATION REQUIRED — Stripe Customer Deletion Impact:** SMP terms (§7, Data Privacy) allow customers to request deletion of their data from Stripe systems, which cascades to cancellation of subscriptions and deletion of Customer, PaymentMethod, Invoice, and related Stripe objects. A full technical analysis is required before launch to determine the downstream consequences on DynamoDB table lookups (orphaned `stripeCustomerId` / `stripeSubscriptionId` references) and overall system functionality. Key concerns: (1) What happens when our code attempts to look up a deleted Stripe Customer ID? (2) Does our soft-delete pattern handle this gracefully? (3) What happens if a returning customer gets a new Stripe Customer ID — do we handle multiple IDs per person? (4) Any risk of inconsistent state or memory overflow scenarios? This investigation should be scoped and completed during Phase 3C at the latest.
+
+**Part 1 — Code Integration (formerly Stream 1B, AP 8 AR Phases 1–2):**
+
+- [ ] **1.1** Verify all 4 test-mode checkout paths — baseline confirmation (30m)
+- [ ] **1.2** Audit forbidden parameters against our code (30m)
+- [ ] **1.3** Fee assessment confirmation — document 6.5–8.4% effective rate (15m)
+- [ ] **2.1** Add `managed_payments: { enabled: true }` to Checkout Session creation (15m)
+- [ ] **2.2** Set Preview version header on Stripe client (15m)
+- [ ] **2.3** Remove forbidden parameters — approach per AP8-D1 decision (1–2h)
+- [ ] **2.4** Re-verify all 4 checkout paths with SMP enabled (30m) — resolves AP8-D3 (automatic_tax)
+- [ ] **2.5** Verify webhook flow — 8 events fire correctly (15m)
+- [ ] **2.6** Verify customer portal (15m)
+- [ ] **2.7** Verify email notification flow (15m) — AP8-D4 resolved (Feb 21): Stripe/Link handles payment receipts as MoR; HIC SES handles license lifecycle emails
+- [ ] **2.8** Set all SMP-related Stripe code and test-mode dashboard configurations (30m)
+- [ ] **2.9** Verify all Stripe configurations end-to-end (15m)
+- [ ] **2.10** Run full test suite — ≥3,459 tests pass (15m)
+
+**Part 2 — Dashboard Finalization (AP 8 AR Phase 3):**
 
 - [ ] **3.1** Complete SMP setup flow in Stripe Dashboard (15m)
 - [ ] **3.2** 2FA on Stripe account (5m)
 - [x] **3.3** Confirm tax categories — SaaS, business use (`txcd_10103101`) (5m) ✅ (Feb 23) — Changed from `txcd_10202003` (downloadable software) to `txcd_10103101` (SaaS — electronic download — business use) on all 4 products. SaaS classification is correct for a subscription-licensed VS Code extension with heartbeat validation and continuous updates. Decision made after attorney review and analysis of tax treatment differences across jurisdictions.
 - [ ] **3.4** Configure notification settings — 48-hour dispute SLA compliance (5m)
 
-**Stream 3C Checkpoint (CP-SMP-3):** 2FA on Stripe, SMP setup complete, tax categories confirmed, notifications configured. → Unlocks Phase 4.
+**Stream 3C Checkpoint (CP-SMP-3):** SMP parameters added, forbidden params removed, all 4 checkout paths verified E2E in test mode, webhooks confirmed, all tests pass, 2FA on Stripe, SMP setup complete, tax categories confirmed, notifications configured. → Unlocks Phase 4.
 
 #### Stream 3D: Support Infrastructure (AP 6)
 
@@ -454,6 +474,7 @@ Decisions resolved during the execution sprint. Complements the Open Decisions R
 
 | Feb 23 | STRIPE-0.10 | Stripe dashboard comprehensive review complete. All 9 areas configured: branding, email receipts, notification settings, payment methods, tax categories, dispute handling, customer portal, bank account, statement descriptor. Refund notification toggle deferred pending standalone refund policy URL (AP1 action item). | Phase 0 item 0.10 complete. AP1 gains new item 1.7 (refund policy page). | SWR |
 | Feb 23 | REFUND-POLICY-1 | Standalone refund policy page (`/refund-policy`) required before Stripe refund notification feature can be enabled. Current refund policy exists only as FAQ answer. Add dedicated page during AP1 front-end work, then return to Stripe dashboard to set URL and enable toggle. | New item 1.7 added to AP1 V2 Tier 1. Stream 3C step 3.4 (notification settings) partially deferred pending this page. | SWR |
+| Feb 24 | DEFER-1B | Stream 1B (SMP Code Integration) deferred from Phase 1 to Phase 3 Stream 3C. Rationale: avoid premature SMP activation before website/legal/social are complete; consolidate all Stripe/SMP work into single Phase 3 session. Zero Phase 2 impact confirmed. | Phase 1 reduced to 3 active streams (1A, 1C, 1D); Phase 3 Stream 3C expanded to absorb AP 8 AR Phases 1–2 + Phase 3. CP-SMP-2 becomes internal milestone within 3C. Effort: ~5–7h for expanded 3C. | SWR |
 _Add rows as decisions are made during execution._
 
 ---
@@ -469,6 +490,7 @@ When the plan changes, document it here. No document currently covers this terra
 
 | Feb 22 | Phase 0 item 0.4 expanded from 30-min investigation to comprehensive cross-repo analysis | API_BASE_URL investigation revealed two distinct issues (extension URL switching + `prod`/`production` naming split) requiring analysis across both repos. Produced 3 investigation memos + 1 Recommendations memo synthesizing findings with prior heartbeat analysis. B-D8 resolved, `prod`→`production` decision locked, Stream 1A scope fully defined with combined heartbeat + API_BASE_URL remediation (~2.5h, ~15 files). | +1 day on Phase 0 item 0.4; net positive — eliminates all remaining ambiguity for Stream 1A and Phase 4 Step 4A. No impact on other Phase 0 items. | SWR |
 | Feb 23 | Phase 0 item 0.10 expanded from 45-min dashboard audit to full-day comprehensive review session | SWR spent ~1 day in Stripe dashboard reviewing all settings, configuring branding, notifications, payment methods, tax categories, and dispute handling. Produced 565-line recommendations memo with completion status. Identified AP1 action item (refund policy URL). | +0.5 days on Phase 0 item 0.10; net positive — all Stripe dashboard configuration complete before Phase 1 begins, no context-switch back to dashboard needed until AP1 refund policy page is built. | SWR |
+| Feb 24 | Stream 1B (SMP Code Integration) resequenced from Phase 1 to Phase 3 Stream 3C | Avoid premature SMP activation risk before website/legal/social complete; consolidate all Stripe/SMP work into single focused session. See DEFER-1B decision and deferral recommendation memo (`docs/plg/20260224_RECOMMENDATION_RE_DEFERRING_LAUNCH_PLAN_STREAM_1B_SMP_TO_PHASE_3.md`). | Phase 1 effort reduced ~3–4h; Phase 3 Stream 3C effort increases ~5–7h (was ~30 min). Net timeline neutral to slightly positive. | SWR |
 _Populated during execution when reality diverges from plan._
 
 ---
@@ -482,7 +504,7 @@ Every checklist item mapped to its authoritative source document and section.
 | **0**   | 0.1–0.11             | AP 0 V2                            | Groups A–D                         |
 | **0**   | 0.12                 | AP 0 V2                            | Group D (completed)                |
 | **1A**  | 9.8–9.10, B-D1       | AP 9 (Assessment V3 §8.6) + OD §3c | Dep Map v3 §4 Stream 1A            |
-| **1B**  | 1.1–1.3, 2.1–2.10    | AP 8 AR                            | §4 (Phase 1) + §5 (Phase 2)        |
+| **1B**  | ~~1.1–1.3, 2.1–2.10~~ | AP 8 AR                            | DEFERRED → Phase 3 Stream 3C Part 1 (DEFER-1B, Feb 24) |
 | **1C**  | 7.2–7.8              | Assessment V3 §8.5                 | AP 7 inline                        |
 | **1D**  | 9.1–9.11             | Assessment V3 §8.6                 | AP 9 inline                        |
 | **2A**  | 11.4                 | Assessment V3 §8.8                 | AP 11 inline                       |
@@ -493,7 +515,7 @@ Every checklist item mapped to its authoritative source document and section.
 | **2F**  | 2a.1–2a.8            | Assessment V3 §8.1                 | AP 2a inline                       |
 | **3A**  | 2b.1–2b.9, B-D4/5/6  | Assessment V3 §8.2 + OD §2d        | AP 2b inline                       |
 | **3B**  | 10.1–10.9            | Assessment V3 §8.7                 | AP 10 inline                       |
-| **3C**  | 3.1–3.4, SMP-GO      | AP 8 AR §6 + OD #28                | Phase 3                            |
+| **3C**  | 1.1–1.3, 2.1–2.10, 3.1–3.4, SMP-GO | AP 8 AR §4–6 + OD #28  | Phase 3 (EXPANDED — absorbs Stream 1B per DEFER-1B, Feb 24) |
 | **3D**  | 6.1–6.8              | Assessment V3 §8.4                 | AP 6 inline                        |
 | **3E**  | Branch protection    | AP 0 V2 (item 0.8)                 | Relocated to Phase 3 by Dep Map v3 |
 | **4A**  | P0–P3                | AP 4 V2                            | §3.1–3.4                           |

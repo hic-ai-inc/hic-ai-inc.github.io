@@ -431,7 +431,7 @@ The project's actual state is dramatically ahead of what PLG Roadmap v7.0 docume
 
 **Critical path:** Phase 0 quick wins → Track A (website polish, docs, SMP integration) → Track B (version wire-up, security audit, monitoring; personal: disclosures) → Production deployment (P0–P9) → Marketplace publishing → Launch. SMP eliminates the ~1-week MoR review wait that previously separated Tracks A and B. SMP-GO resolved Feb 23 — attorney review is no longer on the critical path.
 
-**The single most time-sensitive action** is completing the SMP code integration and dashboard configuration (AP 8 AR Phases 2–4), which unblocks production deployment and live payment testing. Phase 1 attorney review is complete (GO issued Feb 23). The remaining SMP work is entirely technical and within our control.
+**The most time-sensitive Phase 1 actions** are now Stream 1A (version wire-up, AP 9.8–9.10) and Stream 1D (E2E client verification, AP 9.1–9.11). SMP code integration (AP 8 AR Phases 1–2) has been deferred to Phase 3 Stream 3C per DEFER-1B (Feb 24) — all Stripe/SMP work is consolidated into a single Phase 3 session after website, legal, and social presence are complete. See deferral recommendation memo (`docs/plg/20260224_RECOMMENDATION_RE_DEFERRING_LAUNCH_PLAN_STREAM_1B_SMP_TO_PHASE_3.md`).
 
 ---
 
@@ -443,3 +443,4 @@ The project's actual state is dramatically ahead of what PLG Roadmap v7.0 docume
 | 2026-02-18 | GC     | v2 — refactored to orchestration document; inline APs condensed; standalone APs referenced; decisions from Feb 17 session incorporated; AP 0 added; AP 12 scope redefined (social media); AP 8 expanded to dual-MoR strategy; OI-4 resolved |
 | 2026-02-18 | GC     | **v3** — aligned to SMP-first MoR path per AP 8 AR. Replaced all LS+Paddle MoR application framing with SMP integration. Updated AP cross-references to v2 documents. Corrected effort estimates (eliminated ~1-week external wait). Updated D-4, critical path, and companion doc references. |
 | 2026-02-23 | SWR    | SMP-GO resolution. Updated blockers #1 and #5 to reflect GO decision. AP 8 registry status updated. TODO 11 status updated. Bottom Line critical path and time-sensitive action updated. SWR completed comprehensive attorney review of all Stripe documentation (SMP Preview Terms, General Terms, DPA, payment method provisions, regional terms). Pre-launch investigation flagged: Stripe customer data deletion impact on DynamoDB. |
+| 2026-02-24 | Kiro   | DEFER-1B. Bottom Line time-sensitive action paragraph updated: SMP code integration no longer the most time-sensitive item; Phase 1 priority is now Stream 1A (version wire-up) and Stream 1D (E2E client verification). Reference to deferral recommendation memo added. |
