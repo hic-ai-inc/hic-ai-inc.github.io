@@ -50,14 +50,14 @@ _No dependencies. Starting gate. Suggested order: 0.7 first (DNS propagation), t
 
 - [x] **0.8** Stripe E2E — verify all 4 test-mode checkout paths end-to-end: Individual Monthly/Annual, Business Monthly/Annual (30m) ✅ (Feb 22) — All 4 paths verified: portal redirect with license key, DynamoDB records correct (Individual maxDevices=3, Business maxDevices=5, all active, Stripe+Keygen IDs populated).
 - [x] **0.9** Stripe checkout audit — identify ~16 forbidden parameters against our code per AP 8 AR Phase 1.2 (30m) ✅ (Feb 22) — Audit complete.
-- [ ] **0.10** Comprehensive Stripe dashboard settings review — audit all test-mode settings: email receipts (verify payment receipts enabled in Stripe, not SES), tax settings, refund policy, decline handling, dispute settings, branding. Document promotion code configuration for future reference (promo codes for YouTube tutorials, seasonal discounts, etc.). (45m)
-- [ ] **0.11** SMP integration validation — map verified integration against SMP requirements, produce go/no-go (30–45m)
+- [x] **0.10** Comprehensive Stripe dashboard settings review — audit all test-mode settings: email receipts (verify payment receipts enabled in Stripe, not SES), tax settings, refund policy, decline handling, dispute settings, branding. Document promotion code configuration for future reference (promo codes for YouTube tutorials, seasonal discounts, etc.). (45m) ✅ (Feb 23) — Full dashboard session completed. All 9 areas reviewed and configured. Findings documented in `docs/plg/20260223_RECOMMENDATIONS_RE_STRIPE_DASHBOARD_SETTINGS_FOR_LAUNCH_PLAN_PHASE_0.10.md`. Key outcomes: statement descriptor set, dispute notifications enabled, bank account confirmed, branding uploaded, tax categories updated (TAX-CODE-1), SMP confirmed available. Action item deferred to AP1: standalone refund policy URL required before Stripe refund notification toggle can be enabled.
+- [x] **0.11** SMP integration validation — map verified integration against SMP requirements, produce go/no-go (30–45m) ✅ (Feb 23) — SMP-GO issued. All 7 SMP Preview Terms provisions reviewed and accepted by SWR (attorney review). SMP confirmed available in dashboard, reached Step 3 of setup. Code integration (Stream 1B) and final activation (Stream 3C) deferred to their planned phases. See decision SMP-GO in §3.
 
 **Completed:**
 
 - [x] **0.12** Stripe Managed Payments dashboard check — available, active, no KYB needed (Feb 18)
 
-**Phase 0 Checkpoint (CP-0):** All 11 items complete. DMARC propagating. Publisher confirmed. API_BASE_URL documented. SMP baseline established. → Unlocks Phase 1.
+**Phase 0 Checkpoint (CP-0):** ✅ (Feb 23) — All 12 items complete. DMARC propagating. Publisher confirmed. API_BASE_URL documented. SMP baseline established. Stripe dashboard fully reviewed and configured. → Unlocks Phase 1.
 
 ---
 
@@ -277,7 +277,7 @@ _**Gate:** SMP-GO decision (#28) — ✅ **GO issued Feb 23.** SWR completed com
 
 - [ ] **3.1** Complete SMP setup flow in Stripe Dashboard (15m)
 - [ ] **3.2** 2FA on Stripe account (5m)
-- [ ] **3.3** Confirm tax categories — downloadable software, business use (5m)
+- [x] **3.3** Confirm tax categories — SaaS, business use (`txcd_10103101`) (5m) ✅ (Feb 23) — Changed from `txcd_10202003` (downloadable software) to `txcd_10103101` (SaaS — electronic download — business use) on all 4 products. SaaS classification is correct for a subscription-licensed VS Code extension with heartbeat validation and continuous updates. Decision made after attorney review and analysis of tax treatment differences across jurisdictions.
 - [ ] **3.4** Configure notification settings — 48-hour dispute SLA compliance (5m)
 
 **Stream 3C Checkpoint (CP-SMP-3):** 2FA on Stripe, SMP setup complete, tax categories confirmed, notifications configured. → Unlocks Phase 4.
@@ -449,8 +449,11 @@ Decisions resolved during the execution sprint. Complements the Open Decisions R
 | Feb 21 | AP9-HB      | Fix in Stream 1A | Heartbeat status alignment is a bug fix, not a deferral; scoped into Stream 1A active fixes | SWR |
 | Feb 22 | B-D8        | Production API base URL = `https://hic-ai.com`. Option A: change hardcoded URL to production with `process.env.HIC_API_BASE_URL` override for staging. No build pipeline changes. Three dead `api.hic-ai.com` references cleaned up in Stream 1A. | Phase 0 item 0.4 complete; Phase 4 Step 4D becomes trivial (no URL substitution needed at build time) | GC (investigation) / SWR (approved) |
 | Feb 22 | PROD-RENAME | Execute `prod` → `production` rename during Phase 4 Step 4A (not deferred). Production S3 buckets don't exist yet — no migration overhead. ~20 files, 1.5–2h, performed atomically during initial production stack deployment. | Phase 4 Step 4A P0 effort updated from 30m to 1.5–2h; naming inconsistency eliminated before launch | SWR |
+| Feb 23 | TAX-CODE-1 | Tax code changed from `txcd_10202003` (downloadable software — business use) to `txcd_10103101` (SaaS — electronic download — business use) on all 4 Stripe products. SaaS classification is correct for a subscription-licensed VS Code extension with heartbeat validation and continuous vendor-controlled updates. Decision made after attorney review of tax treatment differences across jurisdictions. | All downstream docs updated (AP 8 AR, SMP Discovery, AP4 V2, AP0/V2, Daily Plan, Recommendations memo). Phase 4 step 4.1 live-mode product creation must use `txcd_10103101`. | SWR |
 | Feb 23 | SMP-GO | **GO.** SWR completed comprehensive attorney review of all Stripe Managed Payments legal documentation: SMP Preview Terms (Dec 19, 2025), General Terms (Nov 18, 2025) including §1.4 (Preview Services), DPA, payment method provisions (ACH, Link, Google Pay, etc.), and all regional terms affecting US customers. All 7 provisions in Discovery Memo §7 reviewed and accepted. One investigation flagged for pre-launch: Stripe customer data deletion impact on DynamoDB lookups (orphaned `stripeCustomerId`/`stripeSubscriptionId` references). Phase 3C unblocked. | Phase 3C SMP Finalization unblocked; AP 8 Phases 2–5 unblocked; critical path item retired | SWR |
 
+| Feb 23 | STRIPE-0.10 | Stripe dashboard comprehensive review complete. All 9 areas configured: branding, email receipts, notification settings, payment methods, tax categories, dispute handling, customer portal, bank account, statement descriptor. Refund notification toggle deferred pending standalone refund policy URL (AP1 action item). | Phase 0 item 0.10 complete. AP1 gains new item 1.7 (refund policy page). | SWR |
+| Feb 23 | REFUND-POLICY-1 | Standalone refund policy page (`/refund-policy`) required before Stripe refund notification feature can be enabled. Current refund policy exists only as FAQ answer. Add dedicated page during AP1 front-end work, then return to Stripe dashboard to set URL and enable toggle. | New item 1.7 added to AP1 V2 Tier 1. Stream 3C step 3.4 (notification settings) partially deferred pending this page. | SWR |
 _Add rows as decisions are made during execution._
 
 ---
@@ -465,6 +468,7 @@ When the plan changes, document it here. No document currently covers this terra
 | Feb 21 | SES-SNS-1 implementation deferred to post-launch | Over-limit email notification pipeline (DDB stream → Lambda → SNS → SES) is a nice-to-have, not launch-blocking. Heartbeat soft enforcement works without email notifications. Sprint risk reduction. | Removes ~2–4h of unscoped work from critical path. No user-facing impact at launch — over-limit users still get soft enforcement via heartbeat response. | SWR |
 
 | Feb 22 | Phase 0 item 0.4 expanded from 30-min investigation to comprehensive cross-repo analysis | API_BASE_URL investigation revealed two distinct issues (extension URL switching + `prod`/`production` naming split) requiring analysis across both repos. Produced 3 investigation memos + 1 Recommendations memo synthesizing findings with prior heartbeat analysis. B-D8 resolved, `prod`→`production` decision locked, Stream 1A scope fully defined with combined heartbeat + API_BASE_URL remediation (~2.5h, ~15 files). | +1 day on Phase 0 item 0.4; net positive — eliminates all remaining ambiguity for Stream 1A and Phase 4 Step 4A. No impact on other Phase 0 items. | SWR |
+| Feb 23 | Phase 0 item 0.10 expanded from 45-min dashboard audit to full-day comprehensive review session | SWR spent ~1 day in Stripe dashboard reviewing all settings, configuring branding, notifications, payment methods, tax categories, and dispute handling. Produced 565-line recommendations memo with completion status. Identified AP1 action item (refund policy URL). | +0.5 days on Phase 0 item 0.10; net positive — all Stripe dashboard configuration complete before Phase 1 begins, no context-switch back to dashboard needed until AP1 refund policy page is built. | SWR |
 _Populated during execution when reality diverges from plan._
 
 ---

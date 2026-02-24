@@ -82,7 +82,7 @@ Prior AP 8 assumed MoR required migrating away from Stripe to a separate vendor 
 | Business profile complete | ✅ (SWR completed)                                                         |
 | Mode                      | Test mode                                                                  |
 | Products & prices         | 4 products configured (Individual Monthly/Annual, Business Monthly/Annual) |
-| Tax category              | Downloadable software, business use                                        |
+| Tax category              | SaaS — electronic download — business use (`txcd_10103101`) ✅ Updated Feb 23 |
 | Webhook endpoint          | `staging.hic-ai.com/api/webhooks/stripe` (8 events)                        |
 | Live mode available       | ✅ Instant (business profile complete)                                     |
 
@@ -333,7 +333,7 @@ SWR saved progress at Step 3 of Stripe's 4-step Managed Payments setup flow. Com
 
 #### 3.3 — Confirm Tax Category Settings (5 min)
 
-Verify that our products' tax category (downloadable software, business use) is correctly configured and recognized by SMP. The Discovery Memo noted Stripe auto-detected this, but confirm it matches our intent.
+~~Verify that our products' tax category (downloadable software, business use) is correctly configured and recognized by SMP.~~ ✅ **Completed Feb 23.** Tax code changed from `txcd_10202003` (downloadable software — business use) to `txcd_10103101` (SaaS — electronic download — business use) on all 4 products. SaaS classification is correct for a subscription-licensed extension with heartbeat validation and continuous vendor-controlled updates. Decision made after attorney review of tax treatment differences across jurisdictions.
 
 #### 3.4 — Review Stripe Notification Settings (10 min)
 
@@ -378,7 +378,7 @@ Recreate in live mode the test-mode products:
 
 **Ordering matters:** Live-mode price IDs are needed for the Amplify env vars in Step 4.4. Create products first.
 
-Confirm each product has the correct tax code assigned (downloadable software, business use).
+Confirm each product has the correct tax code assigned: `txcd_10103101` (SaaS — electronic download — business use). ✅ Updated Feb 23.
 
 #### 4.2 — Create Live-Mode Webhook Endpoint (15 min)
 

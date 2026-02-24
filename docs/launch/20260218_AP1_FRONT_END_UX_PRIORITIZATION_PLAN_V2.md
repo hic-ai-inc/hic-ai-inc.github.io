@@ -141,6 +141,22 @@ The search input on the docs index page is a static `<Input>` with no `onChange`
 
 ---
 
+### 1.7 Add Standalone Refund Policy Page
+
+**Severity:** P1 — Required to unlock Stripe refund notification feature
+**Effort:** 15–30 minutes
+**File:** New: `src/app/refund-policy/page.js`
+
+The refund policy currently exists only as an answer within the FAQ page. Stripe requires a dedicated, linkable refund policy URL before it will allow enabling customer-facing refund email notifications (Settings → Customer emails). Without this page, that Stripe toggle cannot be activated.
+
+The refund policy content should align with SMP's 60-day discretionary refund window (per AP 11.3 ToS cross-reference) and match the tone and styling of `/privacy` and `/terms`.
+
+**Action:** Create `/refund-policy` page with standalone refund policy content. After deploying, return to Stripe dashboard (Settings → Customer emails) to set the URL and enable refund email notifications. Also update the FAQ to link to the new page rather than duplicating the content inline.
+
+> ⚠️ **Stripe follow-up required:** After this page is live, go to Stripe Dashboard → Settings → Customer emails → Refund notifications → set URL to `https://hic-ai.com/refund-policy` and enable the toggle. See `docs/plg/20260223_RECOMMENDATIONS_RE_STRIPE_DASHBOARD_SETTINGS_FOR_LAUNCH_PLAN_PHASE_0.10.md` Area 2 note.
+
+---
+
 ## Tier 2: Consistency Issues (Quick Wins)
 
 These are things a careful evaluator might catch. Each takes minutes to fix but collectively they raise the quality floor.

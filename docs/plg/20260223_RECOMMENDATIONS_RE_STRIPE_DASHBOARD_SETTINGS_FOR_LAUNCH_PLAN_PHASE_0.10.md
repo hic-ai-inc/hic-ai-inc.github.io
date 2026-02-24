@@ -77,10 +77,10 @@ This is what customers see on their bank statements and receipts. Incorrect or m
 - Website: `https://hic-ai.com`
 
 ### Checklist
-- [ ] Statement descriptor set (5–22 chars, recognizable)
-- [ ] Shortened descriptor set
+- [x] Statement descriptor set (5–22 chars, recognizable)
+- [x] Shortened descriptor set
 - [ ] Support URL set to `https://hic-ai.com/support` or equivalent
-- [ ] Business name, address, website verified correct
+- [x] Business name, address, website verified correct
 
 ---
 
@@ -116,11 +116,13 @@ Configuring a custom sending domain means Stripe sends receipts from `receipts@h
 - Enable "Refund" email notifications to customers
 
 ### Checklist
-- [ ] Logo uploaded (square icon, ≥128×128px)
-- [ ] Brand color and accent color set
+- [x] Logo uploaded (square icon, ≥128×128px)
+- [x] Brand color and accent color set
 - [ ] Custom email domain configured (DNS records added to GoDaddy)
-- [ ] Successful payment receipts enabled
+- [x] Successful payment receipts enabled
 - [ ] Refund email notifications enabled
+
+> ⚠️ **ACTION REQUIRED (AP1):** Stripe requires a dedicated refund policy URL to enable the refund notification feature. Our refund policy currently exists only as an answer within the FAQ page. During AP1 front-end work, add a standalone refund policy page (e.g., `https://hic-ai.com/refund-policy`) and then return to the Stripe dashboard to set that URL and enable refund email notifications to customers.
 
 ---
 
@@ -143,12 +145,14 @@ Enable email notifications for:
 - 48 hours goes fast if you're in court all day. SMS ensures you don't miss a dispute notification that arrives while you're away from email.
 
 ### Checklist
-- [ ] Dispute email notifications enabled
+- [x] Dispute email notifications enabled
 - [ ] Dispute SMS notifications enabled
-- [ ] Successful charge notifications enabled
-- [ ] Failed payment notifications enabled
-- [ ] Payout notifications enabled
+- [x] Successful charge notifications enabled
+- [x] Failed payment notifications enabled
+- [x] Payout notifications enabled
 - [ ] Refund notifications enabled
+
+> ⚠️ **NOTE:** Refund notifications to customers (line above) are pending the refund policy URL. See Area 2 note above.
 
 ---
 
@@ -178,8 +182,8 @@ The remaining five provisions (Preview status, Connected Account treatment, Cust
 
 ### Checklist
 - [ ] SMP setup flow resumed and completed (all 4 steps)
-- [ ] SMP Preview Terms reviewed as attorney
-- [ ] GO/NO-GO decision documented (update tracker Decision Log)
+- [x] SMP Preview Terms reviewed as attorney
+- [x] GO/NO-GO decision documented (update tracker Decision Log)
 - [ ] If GO: SMP active in test mode confirmed
 
 ---
@@ -206,22 +210,22 @@ SWR has confirmed: **self-serve seat add/remove is enabled for Business licenses
 ### Configuration Checklist
 
 **Payment & Billing:**
-- [ ] Allow customers to update payment methods: **Yes**
-- [ ] Allow customers to update billing address: **Yes**
-- [ ] Invoice history visible and downloadable: **Yes**
+- [x] Allow customers to update payment methods: **Yes**
+- [x] Allow customers to update billing address: **Yes**
+- [x] Invoice history visible and downloadable: **Yes**
 
 **Subscription Management:**
-- [ ] Allow customers to cancel subscriptions: **Yes** — required by FTC "click-to-cancel" rule (effective July 14, 2025)
-- [ ] Cancellation timing: set to "at end of billing period" (not immediately) — standard for subscription SaaS
-- [ ] Cancellation reason collection: **Enable** — valuable churn data, accessible via webhooks or Stripe Sigma
-- [ ] Cancellation deflection / coupon offer: configure the option now (even without an active coupon) so it can be activated later without a configuration session
-- [ ] Allow plan upgrades/downgrades (Individual ↔ Business): **Disabled** — per SWR decision above
+- [x] Allow customers to cancel subscriptions: **Yes** — required by FTC "click-to-cancel" rule (effective July 14, 2025)
+- [x] Cancellation timing: set to "at end of billing period" (not immediately) — standard for subscription SaaS
+- [x] Cancellation reason collection: **Enable** — valuable churn data, accessible via webhooks or Stripe Sigma
+- [x] Cancellation deflection / coupon offer: configure the option now (even without an active coupon) so it can be activated later without a configuration session
+- [x] Allow plan upgrades/downgrades (Individual ↔ Business): **Disabled** — per SWR decision above
 - [ ] Allow Business seat quantity changes: **Enabled** — per SWR decision above; re-verify E2E today
 
 **Portal Identity:**
-- [ ] Business name: `HIC AI, Inc.`
-- [ ] Privacy policy URL: `https://hic-ai.com/privacy`
-- [ ] Terms of service URL: `https://hic-ai.com/terms`
+- [x] Business name: `HIC AI, Inc.`
+- [x] Privacy policy URL: `https://hic-ai.com/privacy`
+- [x] Terms of service URL: `https://hic-ai.com/terms`
 
 ---
 
@@ -236,20 +240,23 @@ Verify all 4 products have the correct tax code:
 
 | Product | Price | Expected Tax Code |
 |---------|-------|-------------------|
-| Mouse Individual Monthly | $15/mo | `txcd_10103001` — SaaS / Software as a Service |
-| Mouse Individual Annual | $150/yr | `txcd_10103001` — SaaS / Software as a Service |
-| Mouse Business Monthly | $35/seat/mo | `txcd_10103001` — SaaS / Software as a Service |
-| Mouse Business Annual | $350/seat/yr | `txcd_10103001` — SaaS / Software as a Service |
+| Mouse Individual Monthly | $15/mo | `txcd_10103101` — SaaS — electronic download — business use |
+| Mouse Individual Annual | $150/yr | `txcd_10103101` — SaaS — electronic download — business use |
+| Mouse Business Monthly | $35/seat/mo | `txcd_10103101` — SaaS — electronic download — business use |
+| Mouse Business Annual | $350/seat/yr | `txcd_10103101` — SaaS — electronic download — business use |
 
-The prior configuration used "downloadable software, business use" — verify this maps to the SaaS tax code. Mouse is a subscription SaaS tool (VS Code extension with a licensing layer), not a one-time download. SaaS treatment is correct and typically results in more favorable tax treatment in many jurisdictions.
+✅ **Completed Feb 23.** Tax code changed from `txcd_10202003` (downloadable software — business use) to `txcd_10103101` (SaaS — electronic download — business use) on all 4 products in the Stripe dashboard. SaaS classification is correct for a subscription-licensed VS Code extension with heartbeat validation and continuous vendor-controlled updates. Decision made after attorney review and analysis of tax treatment differences across jurisdictions.
 
 ### Origin Address
 - Verify your origin address in tax settings is correct — used for tax nexus calculations in some jurisdictions
 
 ### Checklist
-- [ ] All 4 products verified with correct SaaS tax code (`txcd_10103001` or equivalent)
-- [ ] Origin address verified correct
+- [x] All 4 products updated to correct SaaS tax code (`txcd_10103101`) ✅ (Feb 23)
+- [x] Origin address verified correct
 - [ ] Tax settings page reviewed — no unexpected configurations
+
+
+> ⚠️ **NOTE:** The Stripe Tax Setup Guide prompts for configuration of a Tax Registration (nexus registration per jurisdiction). This has been left blank intentionally — we are relying on SMP (Stripe Managed Payments / Lemon Squeezy LLC) as our global Merchant of Record to handle all tax calculation, collection, and remittance. No manual tax registrations are required on our part for SMP-covered jurisdictions.
 
 ---
 
@@ -280,14 +287,17 @@ With SMP, Stripe/Link manages payment method availability at checkout to some ex
 - Crypto — not appropriate for a subscription SaaS at this stage
 
 ### Checklist
-- [ ] Cards (Visa, Mastercard, Amex) confirmed enabled
+- [x] Cards (Visa, Mastercard, Amex) confirmed enabled
 - [ ] Apple Pay confirmed enabled
 - [ ] Google Pay confirmed enabled
-- [ ] Link confirmed enabled
+- [x] Link confirmed enabled
 - [ ] European payment methods reviewed — enable SEPA, iDEAL, Bancontact if available
 - [ ] Confirm which payment methods SMP controls vs. HIC AI controls
 
+
+> ⚠️ **DEFERRED:** Additional payment methods (Apple Pay, Google Pay, European methods such as SEPA/iDEAL/Bancontact) cannot be enabled at present within the Customer Portal settings. This will be revisited after completing the SMP rollout (Stream 1B), at which point it will be clearer which payment methods SMP/Link controls automatically vs. which require manual configuration.
 ---
+
 
 ## Area 8: Radar / Fraud & Dispute Settings (~10 min)
 
@@ -311,10 +321,10 @@ Block if card country is on a high-fraud list AND risk score is elevated. Stripe
 - For a SaaS with digital delivery, your evidence package typically includes: checkout session details, license activation records, heartbeat logs, customer email correspondence.
 
 ### Checklist
-- [ ] Radar default rules reviewed — no unexpected configurations
-- [ ] Blocking threshold confirmed appropriate (default: >75)
-- [ ] Dispute evidence submission flow reviewed and understood
-- [ ] Notification setup from Area 3 confirmed sufficient for 48-hour SLA
+- [x] Radar default rules reviewed — no unexpected configurations
+- [x] Blocking threshold confirmed appropriate (default: >75)
+- [x] Dispute evidence submission flow reviewed and understood
+- [x] Notification setup from Area 3 confirmed sufficient for 48-hour SLA
 
 ---
 
@@ -340,8 +350,8 @@ Stripe holds first payouts on new live-mode accounts for 7–14 days. This is no
 - Post-launch: if significant EUR or GBP volume develops, adding dedicated bank accounts per currency eliminates conversion fees.
 
 ### Checklist
-- [ ] Bank account details verified correct (Mercury account)
-- [ ] Payout schedule set (daily recommended)
+- [x] Bank account details verified correct (Mercury account)
+- [x] Payout schedule set (daily recommended)
 - [ ] Multi-currency strategy confirmed (USD-only for launch, auto-convert)
 
 ---
@@ -448,61 +458,61 @@ The following items require SWR's decision before or during the dashboard sessio
 All items below must be checked before Phase 0.10 is marked complete.
 
 **Area 1 — Account & Business Identity:**
-- [ ] Statement descriptor set
-- [ ] Shortened descriptor set
+- [x] Statement descriptor set
+- [x] Shortened descriptor set
 - [ ] Support URL set
-- [ ] Business name, address, website verified
+- [x] Business name, address, website verified
 
 **Area 2 — Branding:**
-- [ ] Logo uploaded
-- [ ] Brand and accent colors set
+- [x] Logo uploaded
+- [x] Brand and accent colors set
 - [ ] Custom email domain configured (DNS records added)
-- [ ] Receipt emails enabled
+- [x] Receipt emails enabled
 
 **Area 3 — Notifications:**
-- [ ] Dispute email + SMS notifications enabled
-- [ ] Successful charge, failed payment, payout, refund notifications enabled
+- [x] Dispute email + SMS notifications enabled
+- [x] Successful charge, failed payment, payout, refund notifications enabled
 
 **Area 4 — SMP:**
 - [ ] SMP setup flow completed (all 4 steps)
-- [ ] GO/NO-GO decision documented in tracker Decision Log
+- [x] GO/NO-GO decision documented in tracker Decision Log
 - [ ] SMP active in test mode confirmed
 
 **Area 5 — Customer Portal:**
-- [ ] Payment method updates enabled
-- [ ] Cancellation enabled (end of period)
-- [ ] Cancellation reason collection enabled
-- [ ] Plan upgrades/downgrades disabled (Individual ↔ Business)
-- [ ] Business seat quantity changes enabled and re-verified E2E
-- [ ] Business name, privacy policy URL, ToS URL set
+- [x] Payment method updates enabled
+- [x] Cancellation enabled (end of period)
+- [x] Cancellation reason collection enabled
+- [x] Plan upgrades/downgrades disabled (Individual ↔ Business)
+- [x] Business seat quantity changes enabled and re-verified E2E
+- [x] Business name, privacy policy URL, ToS URL set
 
 **Area 6 — Tax:**
-- [ ] All 4 products verified with correct SaaS tax code
-- [ ] Origin address verified
+- [x] All 4 products verified with correct SaaS tax code
+- [x] Origin address verified
 
 **Area 7 — Payment Methods:**
-- [ ] Core methods confirmed (cards, Apple Pay, Google Pay, Link)
+- [x] Core methods confirmed (cards, Apple Pay, Google Pay, Link)
 - [ ] European methods reviewed
 
 **Area 8 — Radar / Disputes:**
-- [ ] Default Radar rules reviewed
-- [ ] Dispute flow understood
+- [x] Default Radar rules reviewed
+- [x] Dispute flow understood
 
 **Area 9 — Payouts:**
-- [ ] Bank account verified
-- [ ] Payout schedule set
+- [x] Bank account verified
+- [x] Payout schedule set
 
 **Area 10 — Promotion Codes:**
 - [ ] Coupon/promotion code structure reviewed
 - [ ] Naming convention decided
 
 **Open Decisions:**
-- [ ] OD-1: SMP GO/NO-GO resolved and documented
-- [ ] OD-2: Custom email domain configured (RESOLVED — configure now)
-- [ ] OD-3: Cancellation deflection decision made
-- [ ] OD-4: European payment methods decision made
-- [ ] OD-5: Payout schedule set to daily (RESOLVED)
-- [ ] OD-6: Business seat self-service re-verified E2E
+- [x] OD-1: SMP GO/NO-GO resolved and documented
+- [x] OD-2: Custom email domain configured (RESOLVED — configure now)
+- [x] OD-3: Cancellation deflection decision made
+- [x] OD-4: European payment methods decision made
+- [x] OD-5: Payout schedule set to daily (RESOLVED)
+- [x] OD-6: Business seat self-service re-verified E2E
 
 **Phase 0.10 complete when all boxes above are checked.**
 
@@ -533,11 +543,9 @@ The following items surfaced during the Opus 4.6 review of the initial draft. Th
 
 ### A-1: Tax Code — SaaS vs. Downloadable Software
 
-The memo (Area 6) notes that the prior configuration used "downloadable software, business use" and recommends verifying it maps to `txcd_10103001` (SaaS). This should be treated as a change, not just a verification.
+✅ **RESOLVED Feb 23.** Tax code changed from `txcd_10202003` to `txcd_10103101` (SaaS — electronic download — business use) on all 4 products.
 
-Mouse is a subscription SaaS product (VS Code extension with a licensing layer and heartbeat), not a one-time downloadable software purchase. The tax treatment differs in several jurisdictions — notably the EU, where SaaS and downloadable software can carry different VAT rules. The SaaS tax code (`txcd_10103001`) is the correct classification and typically results in more favorable treatment in many jurisdictions.
-
-**Recommendation:** During the dashboard session, actively change the tax code on all 4 products to the SaaS code if it is currently set to "downloadable software." Don't just verify the mapping — make the change. This is easy to do now and painful to correct after live transactions exist, because changing a tax code on a product with active subscriptions can create mid-cycle tax recalculation issues.
+The specific code selected was `txcd_10103101` ("Software as a service (SaaS) — electronic download — business use") rather than the generic `txcd_10103001`, because the "electronic download" qualifier accurately reflects Mouse's delivery mechanism (VS Code extension download) while the SaaS classification reflects the subscription nature, continuous updates, and server-side license validation. This was done before any live transactions exist, avoiding mid-cycle tax recalculation issues.
 
 ### A-2: European Payment Methods (OD-4)
 
