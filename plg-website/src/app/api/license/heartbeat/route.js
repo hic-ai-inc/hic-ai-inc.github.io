@@ -31,6 +31,7 @@ import {
   RATE_LIMIT_PRESETS,
 } from "@/lib/rate-limit";
 import { createApiLogger } from "@/lib/api-log";
+import { NEXT_HEARTBEAT_SECONDS } from "@/lib/constants";
 
 /**
  * Validate license key format before any server calls
@@ -155,7 +156,7 @@ export async function POST(request) {
         reason: "Trial heartbeat recorded",
         concurrentMachines: 1,
         maxMachines: 1,
-        nextHeartbeat: 900,
+        nextHeartbeat: NEXT_HEARTBEAT_SECONDS,
         // Auto-update fields (B2)
         latestVersion: versionConfig?.latestVersion || null,
         releaseNotesUrl: versionConfig?.releaseNotesUrl || null,
@@ -266,7 +267,7 @@ export async function POST(request) {
         reason: "Heartbeat successful",
         concurrentMachines: 1,
         maxMachines: null, // Unknown
-        nextHeartbeat: 900,
+        nextHeartbeat: NEXT_HEARTBEAT_SECONDS,
         // Auto-update fields (B2)
         latestVersion: versionConfig?.latestVersion || null,
         releaseNotesUrl: versionConfig?.releaseNotesUrl || null,
@@ -314,6 +315,9 @@ export async function POST(request) {
     }
 
     // Check if device limit exceeded (for concurrent device enforcement)
+
+    // Get version config for auto-update notification (B2)
+    const versionConfig = await getVersionConfig();
     const overLimit = maxMachines && concurrentMachines > maxMachines;
 
     if (overLimit) {
@@ -325,6 +329,16 @@ export async function POST(request) {
         concurrentMachines,
         maxMachines,
         message: "Consider upgrading your plan for more concurrent devices.",
+        nextHeartbeat: NEXT_HEARTBEAT_SECONDS,
+        // Auto-update fields (B2)
+        latestVersion: versionConfig?.latestVersion || null,
+        releaseNotesUrl: versionConfig?.releaseNotesUrl || null,
+        updateUrl: versionConfig?.updateUrl?.marketplace || null,
+        // Daily-gated notification fields
+        readyVersion: versionConfig?.readyVersion || null,
+        readyReleaseNotesUrl: versionConfig?.readyReleaseNotesUrl || null,
+        readyUpdateUrl: versionConfig?.readyUpdateUrl || null,
+        readyUpdatedAt: versionConfig?.readyUpdatedAt || null,
       });
     }
 
@@ -334,22 +348,17 @@ export async function POST(request) {
       RATE_LIMIT_PRESETS.heartbeat,
     );
 
-    // Get version config for auto-update notification (B2)
-    const versionConfig = await getVersionConfig();
-
-    log.response(200, "Heartbeat succeeded", { status: overLimit ? "over_limit" : "active" });
+    log.response(200, "Heartbeat succeeded", { status: "active" });
     return NextResponse.json(
       {
         valid: true,
-        status: overLimit ? "over_limit" : "active",
+        status: "active",
         reason: "Heartbeat successful",
         concurrentMachines,
         maxMachines,
-        overLimit: overLimit,
-        message: overLimit
-          ? `You're using ${concurrentMachines} of ${maxMachines} allowed devices. Consider upgrading.`
-          : null,
-        nextHeartbeat: 900,
+        overLimit: false,
+        message: null,
+        nextHeartbeat: NEXT_HEARTBEAT_SECONDS,
         // Auto-update fields (B2)
         latestVersion: versionConfig?.latestVersion || null,
         releaseNotesUrl: versionConfig?.releaseNotesUrl || null,

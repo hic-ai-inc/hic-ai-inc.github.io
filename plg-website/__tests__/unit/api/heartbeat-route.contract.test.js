@@ -24,6 +24,7 @@ import {
 } from "../../../src/lib/keygen.js";
 import { createKeygenMock } from "../../../../dm/facade/helpers/keygen.js";
 import { clearAllRateLimits } from "../../../src/lib/rate-limit.js";
+import { NEXT_HEARTBEAT_SECONDS } from "../../../src/lib/constants.js";
 import {
   __setVerifyAuthTokenForTests,
   __resetVerifyAuthTokenForTests,
@@ -219,5 +220,170 @@ describe("Heartbeat Route - Contract", () => {
     expect(data.readyVersion).toBe("0.10.0");
 
     expect(hasOwn(data, "minVersion")).toBe(false);
+  });
+
+  // =========================================================================
+  // Contract tests for 4 missing server statuses (Stream 1A)
+  // Validates: Requirements 1.1, 1.2, 2.1–2.6
+  // =========================================================================
+
+  test("over_limit response includes version fields and correct shape", async () => {
+    const fingerprint = "fp_over_limit_123";
+    const keygenLicenseId = "lic_over_limit_test";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation((command) => {
+      const input = command?.input;
+
+      // GetCommand: LICENSE# lookup
+      if (input?.Key?.PK?.startsWith("LICENSE#")) {
+        return Promise.resolve({
+          Item: {
+            PK: input.Key.PK,
+            SK: "DETAILS",
+            maxDevices: 3, // Individual license: 3 concurrent devices
+            keygenLicenseId,
+            status: "active",
+          },
+        });
+      }
+
+      // GetCommand: VERSION# lookup
+      if (input?.Key?.PK?.startsWith("VERSION#")) {
+        return Promise.resolve({ Item: versionItem });
+      }
+
+      // QueryCommand: device listing (return 4 devices to exceed Individual maxDevices: 3)
+      if (input?.KeyConditionExpression) {
+        return Promise.resolve({
+          Items: [
+            { fingerprint: "device_1", lastSeenAt: new Date().toISOString() },
+            { fingerprint: "device_2", lastSeenAt: new Date().toISOString() },
+            { fingerprint: "device_3", lastSeenAt: new Date().toISOString() },
+            { fingerprint: "device_4", lastSeenAt: new Date().toISOString() },
+          ],
+        });
+      }
+
+      return Promise.resolve({});
+    });
+
+    const response = await POST(
+      createMockRequest({
+        fingerprint,
+        sessionId: "sess_over_limit",
+        licenseKey: generateValidLicenseKey(),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    // Core fields
+    expect(data.valid).toBe(true);
+    expect(data.status).toBe("over_limit");
+    expect(data.concurrentMachines).toBe(4);
+    expect(data.maxMachines).toBe(3);
+    expect(data.message).toBe("Consider upgrading your plan for more concurrent devices.");
+    expect(data.nextHeartbeat).toBe(NEXT_HEARTBEAT_SECONDS);
+
+    // Version fields — Property 1: Over-limit response includes version fields
+    expect(data.latestVersion).toBe("0.10.0");
+    expect(data.releaseNotesUrl).toBe("https://hic.ai/mouse/changelog");
+    expect(data.updateUrl).toContain("marketplace.visualstudio.com");
+    expect(data.readyVersion).toBe("0.10.0");
+    expect(data.readyReleaseNotesUrl).toBe("https://hic.ai/mouse/changelog");
+    expect(data.readyUpdateUrl).toContain("marketplace.visualstudio.com");
+    expect(hasOwn(data, "readyUpdatedAt")).toBe(true);
+
+    // No minVersion field
+    expect(hasOwn(data, "minVersion")).toBe(false);
+
+    // Exact field count — Property 2: no unexpected fields
+    const expectedFields = [
+      "valid", "status", "reason", "concurrentMachines", "maxMachines",
+      "message", "nextHeartbeat", "latestVersion", "releaseNotesUrl",
+      "updateUrl", "readyVersion", "readyReleaseNotesUrl", "readyUpdateUrl",
+      "readyUpdatedAt",
+    ];
+    expect(Object.keys(data).length).toBe(expectedFields.length);
+  });
+
+  test("machine_not_found response has correct shape", async () => {
+    const fingerprint = "fp_machine_not_found_123";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).rejects(new Error("Machine not found"));
+    __setKeygenRequestForTests(keygenMock.request);
+
+    const response = await POST(
+      createMockRequest({
+        fingerprint,
+        sessionId: "sess_mnf",
+        licenseKey: generateValidLicenseKey(),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("machine_not_found");
+    expect(data.concurrentMachines).toBe(0);
+    expect(data.maxMachines).toBe(0);
+    expect(typeof data.reason).toBe("string");
+
+    // Exact field count
+    const expectedFields = ["valid", "status", "reason", "concurrentMachines", "maxMachines"];
+    expect(Object.keys(data).length).toBe(expectedFields.length);
+  });
+
+  test("error response has correct shape (HTTP 500)", async () => {
+    // Force unhandled exception by making request.json() throw
+    const badRequest = {
+      json: () => { throw new Error("Simulated parse failure"); },
+      clone: () => ({
+        json: () => { throw new Error("Simulated parse failure"); },
+      }),
+    };
+
+    const response = await POST(badRequest);
+
+    expect(response.status).toBe(500);
+    const data = await response.json();
+
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("error");
+    expect(data.reason).toBe("Server error during heartbeat");
+    expect(data.concurrentMachines).toBe(0);
+    expect(data.maxMachines).toBe(0);
+
+    // Exact field count
+    const expectedFields = ["valid", "status", "reason", "concurrentMachines", "maxMachines"];
+    expect(Object.keys(data).length).toBe(expectedFields.length);
+  });
+
+  test("invalid response has correct shape (HTTP 400)", async () => {
+    const response = await POST(
+      createMockRequest({
+        fingerprint: "fp_invalid_123",
+        sessionId: "sess_invalid",
+        licenseKey: "INVALID-KEY",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("invalid");
+    expect(typeof data.reason).toBe("string");
+
+    // Exact field count
+    const expectedFields = ["valid", "status", "reason"];
+    expect(Object.keys(data).length).toBe(expectedFields.length);
   });
 });

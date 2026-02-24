@@ -20,6 +20,7 @@ import {
 } from "../../../dm/facade/test-helpers/index.js";
 import { createSpy } from "../../../dm/facade/test-helpers/index.js";
 import { clearAllRateLimits } from "../../src/lib/rate-limit.js";
+import { NEXT_HEARTBEAT_SECONDS } from "../../src/lib/constants.js";
 
 // ===========================================
 // TEST UTILITIES
@@ -249,11 +250,11 @@ describe("Heartbeat API - Integration", () => {
     });
 
     test("should handle device limit exceeded", async () => {
-      // Mock license with limit of 2, but 3 machines active
+      // Mock Individual license (maxDevices: 3) with 4 machines active
       dynamoMocks.getLicense.mockResolvedValue({
         licenseKey: generateValidLicenseKey(),
         keygenLicenseId: "lic_123",
-        maxDevices: 2,
+        maxDevices: 3,
         status: "active",
       });
 
@@ -261,6 +262,7 @@ describe("Heartbeat API - Integration", () => {
         { id: "mach_1" },
         { id: "mach_2" },
         { id: "mach_3" },
+        { id: "mach_4" },
       ]);
 
       const license = await dynamoMocks.getLicense(generateValidLicenseKey());
@@ -271,21 +273,34 @@ describe("Heartbeat API - Integration", () => {
       const concurrentMachines = machines.length;
       const maxMachines = license.maxDevices;
 
-      expect(concurrentMachines).toBe(3);
-      expect(maxMachines).toBe(2);
+      expect(concurrentMachines).toBe(4);
+      expect(maxMachines).toBe(3);
       expect(concurrentMachines > maxMachines).toBe(true);
 
-      // Expected error response
+      // Expected over_limit response — matches route.js output shape
       const response = {
-        valid: false,
-        status: "device_limit_exceeded",
-        reason: `Maximum ${maxMachines} devices allowed`,
+        valid: true,
+        status: "over_limit",
+        reason: `You're using ${concurrentMachines} of ${maxMachines} allowed devices`,
         concurrentMachines,
         maxMachines,
+        message: "Consider upgrading your plan for more concurrent devices.",
+        nextHeartbeat: NEXT_HEARTBEAT_SECONDS,
+        // Version fields default to null when no version config is available
+        latestVersion: null,
+        releaseNotesUrl: null,
+        updateUrl: null,
+        readyVersion: null,
+        readyReleaseNotesUrl: null,
+        readyUpdateUrl: null,
+        readyUpdatedAt: null,
       };
 
-      expect(response.valid).toBe(false);
-      expect(response.status).toBe("device_limit_exceeded");
+      expect(response.valid).toBe(true);
+      expect(response.status).toBe("over_limit");
+      expect(response.reason).toBe(`You're using 4 of 3 allowed devices`);
+      expect(response.message).toBe("Consider upgrading your plan for more concurrent devices.");
+      expect(response.nextHeartbeat).toBe(NEXT_HEARTBEAT_SECONDS);
     });
   });
 

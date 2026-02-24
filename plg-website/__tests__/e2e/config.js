@@ -4,6 +4,7 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+import { NEXT_HEARTBEAT_SECONDS } from '../../src/lib/constants.js';
 
 
 /**
@@ -117,7 +118,7 @@ export const testConfig = {
     slow: 10000,   // Slow operations like webhooks
     api: 3000,     // API endpoint response time (Stripe session creation can be slow)
   },
-  heartbeatInterval: 600, // Expected heartbeat interval in seconds
+  heartbeatInterval: NEXT_HEARTBEAT_SECONDS, // From src/lib/constants.js — single source of truth
   pollInterval: 500, // Polling interval for async operations
 
   // Limits
