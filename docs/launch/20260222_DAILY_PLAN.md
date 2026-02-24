@@ -58,7 +58,7 @@ With AP 8 AR Phase 1.2 open as reference, audit our Checkout Session creation co
 Audit all test-mode dashboard settings:
 
 - Email receipts: verify payment receipts enabled in Stripe (not SES)
-- Tax settings: confirm tax category (downloadable software, business use)
+- Tax settings: ✅ tax category updated to SaaS (`txcd_10103101`) on Feb 23
 - Refund policy configuration
 - Decline handling settings
 - Dispute settings and notification timing

@@ -602,7 +602,7 @@ Record the new `price_` IDs — these are needed for the Amplify env vars set in
 
 > **Note:** The staging webhook endpoint (`staging.hic-ai.com/api/webhooks/keygen`) remains intact. Both endpoints can coexist — Keygen supports multiple webhook endpoints.
 
-> **Note on SMP:** With Stripe Managed Payments (SMP) as the primary MoR path, live-mode product creation must include the correct tax code ("downloadable software, business use") so SMP can calculate and collect applicable taxes. No separate MoR vendor configuration is needed.
+> **Note on SMP:** With Stripe Managed Payments (SMP) as the primary MoR path, live-mode product creation must include the correct tax code (`txcd_10103101` — SaaS, electronic download, business use) so SMP can calculate and collect applicable taxes. Tax code updated from downloadable software to SaaS on Feb 23. No separate MoR vendor configuration is needed.
 
 #### P6 Verification
 

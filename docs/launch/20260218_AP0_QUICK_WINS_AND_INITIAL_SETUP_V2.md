@@ -237,7 +237,7 @@ This validation uses the SMP Discovery Memo (`20260218_STRIPE_MANAGED_PAYMENTS_D
 
 **Action:** Navigate to Stripe Dashboard → Settings → Managed Payments. Determine whether Stripe Managed Payments (Stripe's global MoR service, operated by Lemon Squeezy LLC) is available on our existing Stripe account.
 
-**Result:** **Available and active.** Stripe Managed Payments is live on our account. Stripe picked up our existing products and tax category (downloadable software, business use). The integration path requires adding `managed_payments[enabled]=true` to Checkout Session creation, a preview version header, and removing ~16 parameters that Stripe/Link controls when acting as MoR. No separate application or KYB process was required — our existing Stripe verification was sufficient.
+**Result:** **Available and active.** Stripe Managed Payments is live on our account. Stripe picked up our existing products and tax category (originally downloadable software, business use; updated to SaaS `txcd_10103101` on Feb 23). The integration path requires adding `managed_payments[enabled]=true` to Checkout Session creation, a preview version header, and removing ~16 parameters that Stripe/Link controls when acting as MoR. No separate application or KYB process was required — our existing Stripe verification was sufficient.
 
 **Effort:** 2 minutes (actual)
 

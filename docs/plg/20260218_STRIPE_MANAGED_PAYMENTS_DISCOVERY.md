@@ -33,7 +33,7 @@ On February 18, 2026, SWR discovered that Stripe now offers **Stripe Managed Pay
 
 - Stripe Managed Payments is in **Preview** status (not GA)
 - The legal entity operating the service is **Lemon Squeezy LLC**
-- Our existing Stripe products and tax category (downloadable software, business use) were automatically recognized
+- Our existing Stripe products and tax category were automatically recognized (originally set as downloadable software, business use; updated to SaaS — `txcd_10103101` on Feb 23)
 - Integration requires adding one parameter (`managed_payments[enabled]=true`) + a preview version header + removing ~16 parameters from Checkout Session creation
 - Preview terms contain several provisions that require SWR's attorney review before activation
 - SWR has saved progress at Step 3 of Stripe Managed Payment's setup flow
@@ -70,7 +70,7 @@ The service is provided by **Stripe's affiliate, Lemon Squeezy LLC ("SMP")**. St
 | Aspect                     | Status                                                                                |
 | -------------------------- | ------------------------------------------------------------------------------------- |
 | **Dashboard availability** | ✅ Available — Settings → Managed Payments accessible                                 |
-| **Product recognition**    | ✅ Existing products detected with tax category (downloadable software, business use) |
+| **Product recognition**    | ✅ Existing products detected with tax category (updated to SaaS `txcd_10103101` on Feb 23) |
 | **Setup progress**         | Saved at Step 3 of Stripe's guided setup flow                                         |
 | **Terms accepted**         | ❌ Not yet — requires attorney review first                                           |
 | **Test transaction**       | ❌ Not yet attempted                                                                  |
@@ -88,7 +88,7 @@ GPT-5.2's research confirmed Mouse meets all stated eligibility criteria:
 | **Digital product**                | ✅ VS Code extension + license/subscription                |
 | **Direct sales** (not marketplace) | ✅ Selling directly to end users                           |
 | **Rights/licenses held**           | ✅ SWR is sole owner                                       |
-| **Eligible tax code**              | ✅ Downloadable software (business use) — already assigned |
+| **Eligible tax code**              | ✅ SaaS — electronic download — business use (`txcd_10103101`) — updated Feb 23 |
 | **Uses Stripe Checkout**           | ✅ Already our checkout integration                        |
 
 **No eligibility issues identified.**
