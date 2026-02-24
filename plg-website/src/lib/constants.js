@@ -18,6 +18,11 @@ export const DEVICE_ACTIVITY_WINDOW_HOURS = 2;
 export const DEVICE_ACTIVITY_WINDOW_MS =
   DEVICE_ACTIVITY_WINDOW_HOURS * 60 * 60 * 1000;
 
+// Heartbeat interval (seconds) — tells the Extension client how often to ping.
+// Keygen heartbeatDuration is 3600s (1 hour); this 10-min interval provides a 50-min buffer.
+// Matches Extension repo HEARTBEAT.INTERVAL_MS in .hic/licensing/constants.js.
+export const NEXT_HEARTBEAT_SECONDS = 600;
+
 export function getMaxDevicesForAccountType(accountType) {
   const planConfig = PRICING[accountType];
   return (
