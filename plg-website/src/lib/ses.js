@@ -30,7 +30,7 @@ const FROM_EMAIL = process.env.SES_FROM_EMAIL || "noreply@hic-ai.com";
 
 // Initialize templates with environment configuration
 const templates = createTemplates({
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://mouse.hic-ai.com",
+  appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://hic-ai.com",
   companyName: "HIC AI",
   productName: "Mouse",
 });
@@ -89,8 +89,8 @@ export async function sendEmail(templateName, to, data) {
 /**
  * Send welcome email after checkout
  */
-export async function sendWelcomeEmail(email, sessionId) {
-  return sendEmail("welcome", email, { email, sessionId });
+export async function sendWelcomeEmail(email) {
+  return sendEmail("welcome", email, { email });
 }
 
 /**

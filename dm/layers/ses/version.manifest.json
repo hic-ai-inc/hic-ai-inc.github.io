@@ -1,20 +1,23 @@
 {
   "layer": "hic-ses-layer",
-  "version": "0.2.2",
-  "contentHash": "42c67f5bd34ca9b2feb91fd603a246b1abb5ce13141e7c07fa85278cb5454890",
+  "version": "0.2.3",
+  "contentHash": "29c92ac56d244232bb985caeb58966698dbae0a9ac8e99a7d4da5e3465d0a5ae",
   "exports": [
     "export * from \"@aws-sdk/client-ses\";",
     "export {"
   ],
   "inputs": [
     "build.sh",
+    "email-preview.html",
+    "generate-email-preview.js",
     "publish.0.1.1.manifest.json",
     "publish.0.2.0.manifest.json",
     "publish.0.2.1.manifest.json",
+    "publish.0.2.2.manifest.json",
     "publish.sh",
     "src\\email-templates.js",
     "src\\index.js",
     "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2026-02-08T13:03:52.681Z"
+  "builtAt": "2026-02-27T15:47:25.837Z"
 }

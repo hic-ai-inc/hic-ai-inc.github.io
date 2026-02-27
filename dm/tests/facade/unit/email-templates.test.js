@@ -51,7 +51,7 @@ describe("Email Templates", () => {
       });
 
       expect(welcomeEmail.subject).toContain("Mouse");
-      expect(welcomeEmail.html).toContain("https://mouse.hic-ai.com");
+      expect(welcomeEmail.html).toContain("https://hic-ai.com");
       expect(welcomeEmail.text).toContain("HIC AI");
     });
 
@@ -287,14 +287,13 @@ describe("Email Templates", () => {
   });
 
   describe("Template Content Validation", () => {
-    test("welcome template should include session link", () => {
+    test("welcome template should include portal link", () => {
       const result = templates.welcome({
         email: "test@example.com",
-        sessionId: "sess_abc123",
       });
 
-      expect(result.html).toContain("session_id=sess_abc123");
-      expect(result.text).toContain("session_id=sess_abc123");
+      expect(result.html).toContain("/portal");
+      expect(result.text).toContain("/portal");
     });
 
     test("licenseDelivery template should include license key", () => {

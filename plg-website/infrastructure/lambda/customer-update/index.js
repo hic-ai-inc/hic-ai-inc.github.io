@@ -267,6 +267,24 @@ async function handleSubscriptionUpdated(event, log) {
 
   await updateCustomerSubscription(customer.userId, updates);
 
+
+  // Trigger cancellation email when subscription is being cancelled at period end
+  // The webhook handler already formatted accessUntil as a human-readable date
+  const isCancelling = cancelAtPeriodEnd === "true" || cancelAtPeriodEnd === true;
+  if (isCancelling) {
+    const accessUntil = getField(newImage, "accessUntil");
+    const email = getField(newImage, "email") || customer.email;
+    await writeEventRecord("SUBSCRIPTION_CANCELLED", {
+      email,
+      userId: customer.userId,
+      accessUntil: accessUntil || "the end of your billing period",
+    });
+    log.info("cancellation-email-triggered", {
+      userId: customer.userId,
+      accessUntil,
+    });
+  }
+
   // Update license status if subscription is no longer active
   if (subscriptionStatus && subscriptionStatus !== "active" && subscriptionStatus !== "trialing") {
     const licenses = await getCustomerLicenses(customer.userId);
