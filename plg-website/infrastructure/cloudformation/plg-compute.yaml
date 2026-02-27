@@ -308,14 +308,14 @@ Resources:
 
   # ═══════════════════════════════════════════════════════════════════════════
   # LAMBDA FUNCTION: Cognito Post-Confirmation
-  # Triggered by Cognito PostConfirmation, requests SES verification
+  # Triggered by Cognito PostConfirmation, writes CUSTOMER_CREATED event to DynamoDB
   # ═══════════════════════════════════════════════════════════════════════════
 
   CognitoPostConfirmationFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub "plg-cognito-post-confirmation-${Environment}"
-      Description: Requests SES email verification on Cognito signup confirmation
+      Description: Writes CUSTOMER_CREATED event to DynamoDB on Cognito signup confirmation
       Runtime: nodejs20.x
       Handler: index.handler
       Role: !Ref CognitoPostConfirmationRoleArn
@@ -323,7 +323,6 @@ Resources:
       MemorySize: 128
       Layers:
         - !Ref HicBaseLayerArn
-        - !Ref HicSesLayerArn
         - !Ref HicDynamoDBLayerArn
       Environment:
         Variables:

@@ -6,7 +6,7 @@
  * via the event-driven pipeline (DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES).
  *
  * Trigger: Cognito PostConfirmation event
- * Layer Dependencies: hic-base-layer
+ * Layer Dependencies: hic-base-layer, hic-dynamodb-layer
  */
 import { HicLog } from "hic-base-layer";
 import {

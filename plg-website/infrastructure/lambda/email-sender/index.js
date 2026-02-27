@@ -192,13 +192,14 @@ export const handler = async (event) => {
             new UpdateCommand({
               TableName: TABLE_NAME,
               Key: { PK: `USER#${userId}`, SK: "PROFILE" },
-              UpdateExpression: "SET emailPendingVerification = :false, #emailsSent.#eventType = :timestamp",
+              UpdateExpression: "SET emailPendingVerification = :false, #emailsSent = if_not_exists(#emailsSent, :emptyMap), #emailsSent.#eventType = :timestamp",
               ExpressionAttributeNames: {
                 "#emailsSent": "emailsSent",
                 "#eventType": eventType,
               },
               ExpressionAttributeValues: {
                 ":false": false,
+                ":emptyMap": {},
                 ":timestamp": new Date().toISOString(),
               },
             }),
