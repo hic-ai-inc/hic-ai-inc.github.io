@@ -45,8 +45,8 @@ describe("ses.js", () => {
 
   beforeEach(() => {
     // Set required env vars for templates
-    process.env.NEXT_PUBLIC_APP_URL = "https://mouse.hic-ai.com";
-    process.env.SUPPORT_EMAIL = "support@hic-ai.com";
+    process.env.NEXT_PUBLIC_APP_URL = "https://hic-ai.com";
+    process.env.SUPPORT_EMAIL = "billing@hic-ai.com";
 
     // Initialize SES mock - intercepts all SES calls
     sesMock = createSESMock();
@@ -83,7 +83,6 @@ describe("ses.js", () => {
     it("should send email successfully with valid template", async () => {
       const result = await sendEmail("welcome", "test@example.com", {
         email: "test@example.com",
-        sessionId: "cs_test_123",
       });
 
       expect(result.success).toBe(true);
@@ -114,8 +113,8 @@ describe("ses.js", () => {
     // These tests verify convenience functions work end-to-end with mocked SES
 
     describe("sendWelcomeEmail", () => {
-      it("should accept email and sessionId parameters", async () => {
-        const result = await sendWelcomeEmail("test@example.com", "cs_test_session123");
+      it("should accept email parameter", async () => {
+        const result = await sendWelcomeEmail("test@example.com");
 
         expect(result.success).toBe(true);
         expect(result.messageId).toBe("test-message-id");

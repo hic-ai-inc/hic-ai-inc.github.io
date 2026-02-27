@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HIC Email Template Review — Stream 1C</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; color: #1f2937; }
+    .header { background: #0B1220; color: #F6F8FB; padding: 24px 32px; position: sticky; top: 0; z-index: 10; }
+    .header h1 { font-size: 20px; margin-bottom: 4px; }
+    .header p { font-size: 13px; color: #6B7C93; }
+    .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 12px 32px; position: sticky; top: 76px; z-index: 9; overflow-x: auto; white-space: nowrap; }
+    .nav button { background: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 14px; margin-right: 6px; margin-bottom: 4px; cursor: pointer; font-size: 13px; color: #374151; transition: all 0.15s; }
+    .nav button:hover { background: #f9fafb; border-color: #9ca3af; }
+    .nav button.active { background: #0B1220; color: #F6F8FB; border-color: #0B1220; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px 32px; }
+    .template-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 32px; overflow: hidden; display: none; }
+    .template-card.visible { display: block; }
+    .card-header { padding: 16px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+    .card-header h2 { font-size: 16px; }
+    .card-header p { margin: 0; }
+    .badge { font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; }
+    .badge.internal { background: #fef3c7; color: #92400e; }
+    .badge.marketing { background: #d1fae5; color: #065f46; }
+    .subject-line { padding: 12px 24px; background: #f0fdf4; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+    .subject-line span { font-weight: 600; }
+    .view-toggle { display: flex; gap: 4px; padding: 12px 24px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .view-toggle button { background: none; border: 1px solid #d1d5db; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; }
+    .view-toggle button.active { background: #0B1220; color: #F6F8FB; border-color: #0B1220; }
+    .preview-frame { width: 100%; border: none; min-height: 500px; }
+    .plaintext-view { padding: 24px; white-space: pre-wrap; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.7; background: #fafafa; color: #1f2937; display: none; }
+    .params-info { padding: 10px 24px; background: #fffbeb; border-top: 1px solid #e5e7eb; font-size: 11px; color: #92400e; }
+    .review-notes { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; font-size: 13px; line-height: 1.6; }
+    .review-notes h3 { font-size: 14px; color: #991b1b; margin-bottom: 8px; }
+    .review-notes ul { padding-left: 20px; color: #7f1d1d; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>HIC Email Template Review — Stream 1C (AP 7.7 / 7.8)</h1>
+    <p>12 templates rendered with sample data • Toggle HTML/Plaintext • Click links to verify routes (AP 7.8) • Generated 2026-02-27</p>
+  </div>
+  <div class="nav" id="nav">
+    <button onclick="showAll()" id="nav-all" class="active">Show All</button>
+    <button onclick="showTemplate('welcome')" id="nav-welcome">1. Welcome</button>
+<button onclick="showTemplate('licenseDelivery')" id="nav-licenseDelivery">2. License Delivery</button>
+<button onclick="showTemplate('paymentFailed')" id="nav-paymentFailed">3. Payment Failed</button>
+<button onclick="showTemplate('trialEnding')" id="nav-trialEnding">4. Trial Ending</button>
+<button onclick="showTemplate('reactivation')" id="nav-reactivation">5. Reactivation</button>
+<button onclick="showTemplate('cancellation')" id="nav-cancellation">6. Cancellation</button>
+<button onclick="showTemplate('licenseRevoked')" id="nav-licenseRevoked">7. License Revoked</button>
+<button onclick="showTemplate('licenseSuspended')" id="nav-licenseSuspended">8. License Suspended</button>
+<button onclick="showTemplate('winBack30')" id="nav-winBack30">9. Win-Back 30d</button>
+<button onclick="showTemplate('winBack90')" id="nav-winBack90">10. Win-Back 90d</button>
+<button onclick="showTemplate('enterpriseInvite')" id="nav-enterpriseInvite">11. Enterprise Invite</button>
+<button onclick="showTemplate('disputeAlert')" id="nav-disputeAlert">12. Dispute Alert</button>
+
+  </div>
+  <div class="container">
+    <div class="review-notes">
+      <h3>Review Checklist (AP 7.7 + 7.8)</h3>
+      <ul>
+        <li>Tone, accuracy, branding, legal compliance across all templates</li>
+        <li>Click every link — confirm correct destinations, no 404s</li>
+        <li>Verify pricing references match: Individual $15/mo, $150/yr; Business $35/seat/mo, $350/seat/yr</li>
+        <li>Confirm tagline consistency: "Precision Editing Tools for AI Coding Agents"</li>
+        <li>Marketing emails (win-back) must have unsubscribe links; transactional must not</li>
+        <li>Links rendered with staging URL (https://staging.hic-ai.com) for live click-testing</li>
+      </ul>
+    </div>
+    
+    <div class="template-card" id="card-welcome">
+      <div class="card-header">
+        <div>
+          <h2>1. Welcome</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">After checkout, before account creation</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> Welcome to Mouse! Complete your account setup</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('welcome','html',this)">HTML Preview</button>
+        <button onclick="toggleView('welcome','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-welcome-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F6F8FB; margin-bottom: 24px;&quot;>Welcome to Mouse!</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Thank you for your purchase! Your subscription is now active.
+    </p>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      To view your account, manage your subscription, and get your license key, visit your portal:
+    </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/portal&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Go to Your Portal
+      </a>
+    </div>
+    
+    <p style=&quot;color: #6B7C93; font-size: 14px;&quot;>
+      If you have any questions, contact billing@hic-ai.com.
+    </p>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-welcome-text" class="plaintext-view">Welcome to Mouse!
+
+Thank you for your purchase! Your subscription is now active.
+
+To view your account, manage your subscription, and get your license key, visit your portal:
+
+https://staging.hic-ai.com/portal
+
+If you have any questions, contact billing@hic-ai.com.
+
+HIC AI</div>
+      
+      <div class="params-info">Template params: email, sessionId</div>
+    </div>
+    <div class="template-card" id="card-licenseDelivery">
+      <div class="card-header">
+        <div>
+          <h2>2. License Delivery</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">After account creation — contains license key</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> Your Mouse License Key</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('licenseDelivery','html',this)">HTML Preview</button>
+        <button onclick="toggleView('licenseDelivery','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-licenseDelivery-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F6F8FB; margin-bottom: 24px;&quot;>Your License Key</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Here's your Mouse Individual Annual license key:
+    </p>
+    
+    <div style=&quot;background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0; font-family: monospace; font-size: 18px; color: #C9DBF0; word-break: break-all;&quot;>
+      ABCD-1234-EFGH-5678-IJKL-9012-MNOP
+    </div>
+    
+    <h2 style=&quot;color: #F6F8FB; font-size: 18px; margin-top: 32px;&quot;>How to Activate</h2>
+    
+    <ol style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.8; padding-left: 20px;&quot;>
+      <li>Install the Mouse extension in your IDE from the <a href=&quot;https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse&quot; style=&quot;color: #C9DBF0;&quot;>VS Code Marketplace</a> or <a href=&quot;https://open-vsx.org/extension/hic-ai/mouse&quot; style=&quot;color: #C9DBF0;&quot;>Open VSX</a>.</li>
+      <li>Open the Command Palette (Ctrl+Shift+P on Windows, Cmd+Shift+P on Mac) and enter <code style=&quot;background: rgba(201,219,240,0.12); padding: 2px 6px; border-radius: 4px;&quot;>Mouse: Initialize Workspace</code>, then choose an AI coding assistant from the dropdown list.</li>
+      <li>Click the button that pops up to refresh your developer window.</li>
+      <li>You're all set to start using Mouse! (On VS Code with GitHub Copilot, you'll need to press the Start button in <code style=&quot;background: rgba(201,219,240,0.12); padding: 2px 6px; border-radius: 4px;&quot;>.vscode/mcp.json</code> to start the server each time after refreshing.)</li>
+    </ol>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/portal&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-right: 12px;&quot;>
+        Go to Portal
+      </a>
+      <a href=&quot;https://staging.hic-ai.com/docs&quot; 
+         style=&quot;display: inline-block; background-color: transparent; color: #C9DBF0; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid rgba(201, 219, 240, 0.3);&quot;>
+        Read Mouse Docs
+      </a>
+    </div>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-licenseDelivery-text" class="plaintext-view">Your Mouse License Key
+
+Here's your Mouse Individual Annual license key:
+
+ABCD-1234-EFGH-5678-IJKL-9012-MNOP
+
+How to Activate:
+1. Install the Mouse extension in your IDE from the VS Code Marketplace or Open VSX.
+2. Open the Command Palette (Ctrl+Shift+P on Windows, Cmd+Shift+P on Mac) and enter &quot;Mouse: Initialize Workspace&quot;, then choose an AI coding assistant from the dropdown list.
+3. Click the button that pops up to refresh your developer window.
+4. You're all set to start using Mouse! (On VS Code with GitHub Copilot, you'll need to press the Start button in .vscode/mcp.json to start the server each time after refreshing.)
+
+Go to your portal: https://staging.hic-ai.com/portal
+
+Read Mouse docs: https://staging.hic-ai.com/docs
+
+HIC AI</div>
+      
+      <div class="params-info">Template params: email, licenseKey, planName</div>
+    </div>
+    <div class="template-card" id="card-paymentFailed">
+      <div class="card-header">
+        <div>
+          <h2>3. Payment Failed</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">After failed payment attempt (shows attempt 1 of 3)</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> Action Required: Payment Failed for Mouse</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('paymentFailed','html',this)">HTML Preview</button>
+        <button onclick="toggleView('paymentFailed','text',this)">Plaintext</button>
+        <button onclick="toggleView('paymentFailed','variant',this)">HTML (Final Attempt)</button>
+      </div>
+      <div id="view-paymentFailed-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F87171; margin-bottom: 24px;&quot;>Payment Failed</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      We were unable to process your payment for Mouse. This was attempt 1 of 3.
+    </p>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+        We'll automatically retry on March 5, 2026. Please update your payment method to avoid service interruption.
+      </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/portal/billing&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Update Payment Method
+      </a>
+    </div>
+    
+    <p style=&quot;color: #6B7C93; font-size: 14px;&quot;>
+      Need help? Contact billing@hic-ai.com
+    </p>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-paymentFailed-text" class="plaintext-view">Payment Failed
+
+We were unable to process your payment for Mouse. This was attempt 1 of 3.
+
+We'll automatically retry on March 5, 2026. Please update your payment method to avoid service interruption.
+
+Update your payment method: https://staging.hic-ai.com/portal/billing
+
+Need help? Contact billing@hic-ai.com
+
+HIC AI</div>
+      <div id="view-paymentFailed-variant" class="plaintext-view"><iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F87171; margin-bottom: 24px;&quot;>Payment Failed</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      We were unable to process your payment for Mouse. This was attempt 3 of 3.
+    </p>
+    
+    <p style=&quot;color: #F87171; font-size: 16px; line-height: 1.6;&quot;>
+        This was the final attempt. Your subscription has been suspended. Please update your payment method to restore access.
+      </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/portal/billing&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Update Payment Method
+      </a>
+    </div>
+    
+    <p style=&quot;color: #6B7C93; font-size: 14px;&quot;>
+      Need help? Contact billing@hic-ai.com
+    </p>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin" style="display:block;"></iframe></div>
+      <div class="params-info">Template params: email, attemptCount, retryDate</div>
+    </div>
+    <div class="template-card" id="card-trialEnding">
+      <div class="card-header">
+        <div>
+          <h2>4. Trial Ending</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">Reminder before trial expires</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> Your Mouse trial ends in 3 days</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('trialEnding','html',this)">HTML Preview</button>
+        <button onclick="toggleView('trialEnding','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-trialEnding-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F6F8FB; margin-bottom: 24px;&quot;>Trial Ending Soon</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Your Mouse Individual Monthly trial ends in <strong>3 days</strong>.
+    </p>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      To continue using Mouse without interruption, make sure your billing information is up to date.
+    </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/portal/billing&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Manage Subscription
+      </a>
+    </div>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-trialEnding-text" class="plaintext-view">Trial Ending Soon
+
+Your Mouse Individual Monthly trial ends in 3 days.
+
+To continue using Mouse without interruption, make sure your billing information is up to date.
+
+Manage subscription: https://staging.hic-ai.com/portal/billing
+
+HIC AI</div>
+      
+      <div class="params-info">Template params: email, daysRemaining, planName</div>
+    </div>
+    <div class="template-card" id="card-reactivation">
+      <div class="card-header">
+        <div>
+          <h2>5. Reactivation</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">Payment recovered after suspension</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> Payment Successful - Mouse Access Restored</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('reactivation','html',this)">HTML Preview</button>
+        <button onclick="toggleView('reactivation','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-reactivation-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #10B981; margin-bottom: 24px;&quot;>✅ Payment Successful!</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Great news! Your payment has been processed successfully and your Mouse subscription is now fully active.
+    </p>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Your license has been reinstated. If you're currently in VS Code, Mouse will automatically restore full functionality within the next hour, or you can restart VS Code to activate immediately.
+    </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/portal&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Go to Portal
+      </a>
+    </div>
+    
+    <p style=&quot;color: #6B7C93; font-size: 14px;&quot;>
+      Thank you for continuing with Mouse!
+    </p>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-reactivation-text" class="plaintext-view">Payment Successful!
+
+Great news! Your payment has been processed successfully and your Mouse subscription is now fully active.
+
+Your license has been reinstated. If you're currently in VS Code, Mouse will automatically restore full functionality within the next hour, or you can restart VS Code to activate immediately.
+
+Go to your portal: https://staging.hic-ai.com/portal
+
+Thank you for continuing with Mouse!
+
+HIC AI</div>
+      
+      <div class="params-info">Template params: email</div>
+    </div>
+    <div class="template-card" id="card-cancellation">
+      <div class="card-header">
+        <div>
+          <h2>6. Cancellation</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">Subscription cancelled confirmation</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> We're sorry to see you go - Mouse</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('cancellation','html',this)">HTML Preview</button>
+        <button onclick="toggleView('cancellation','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-cancellation-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F6F8FB; margin-bottom: 24px;&quot;>Subscription Cancelled</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Your Mouse subscription has been cancelled.
+    </p>
+    
+    <div style=&quot;background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0;&quot;>
+      <h3 style=&quot;color: #F6F8FB; margin: 0 0 12px 0; font-size: 16px;&quot;>What happens next:</h3>
+      <ul style=&quot;color: #B8C4D0; font-size: 14px; line-height: 1.8; padding-left: 20px; margin: 0;&quot;>
+        <li>You'll have full access until <strong>March 27, 2026</strong></li>
+        <li>After that, your license will expire</li>
+        <li>Your account and data will be preserved</li>
+      </ul>
+    </div>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Changed your mind? You can reactivate anytime before your access expires.
+    </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/portal/billing&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Reactivate Subscription
+      </a>
+    </div>
+    
+    <p style=&quot;color: #6B7C93; font-size: 14px;&quot;>
+      If something wasn't working right, we'd love to hear about it at billing@hic-ai.com or info@hic-ai.com.
+    </p>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-cancellation-text" class="plaintext-view">Subscription Cancelled
+
+Your Mouse subscription has been cancelled.
+
+What happens next:
+• You'll have full access until March 27, 2026
+• After that, your license will expire
+• Your account and data will be preserved
+
+Changed your mind? You can reactivate anytime:
+https://staging.hic-ai.com/portal/billing
+
+If something wasn't working right, we'd love to hear about it at billing@hic-ai.com or info@hic-ai.com.
+
+HIC AI</div>
+      
+      <div class="params-info">Template params: email, accessUntil</div>
+    </div>
+    <div class="template-card" id="card-licenseRevoked">
+      <div class="card-header">
+        <div>
+          <h2>7. License Revoked</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">Admin revoked a team member's license</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> Your Mouse License Has Been Revoked</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('licenseRevoked','html',this)">HTML Preview</button>
+        <button onclick="toggleView('licenseRevoked','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-licenseRevoked-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F87171; margin-bottom: 24px;&quot;>License Revoked</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Your Mouse license from Acme Corp has been revoked by your organization's administrator.
+    </p>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      This means you no longer have access to Mouse through this license. If you believe this is an error, please contact your administrator.
+    </p>
+    
+    <div style=&quot;background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0;&quot;>
+      <h3 style=&quot;color: #F6F8FB; margin: 0 0 12px 0; font-size: 16px;&quot;>Want to continue using Mouse?</h3>
+      <p style=&quot;color: #B8C4D0; font-size: 14px; margin: 0;&quot;>
+        You can purchase an Individual license for $15/month to keep using Mouse on your own.
+      </p>
+    </div>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/pricing&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Get Individual License
+      </a>
+    </div>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-licenseRevoked-text" class="plaintext-view">License Revoked
+
+Your Mouse license from Acme Corp has been revoked by your organization's administrator.
+
+This means you no longer have access to Mouse through this license. If you believe this is an error, please contact your administrator.
+
+Want to continue using Mouse?
+You can purchase an Individual license for $15/month:
+https://staging.hic-ai.com/pricing
+
+HIC AI</div>
+      
+      <div class="params-info">Template params: email, organizationName</div>
+    </div>
+    <div class="template-card" id="card-licenseSuspended">
+      <div class="card-header">
+        <div>
+          <h2>8. License Suspended</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">Billing or policy issue</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> Your Mouse License Has Been Suspended</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('licenseSuspended','html',this)">HTML Preview</button>
+        <button onclick="toggleView('licenseSuspended','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-licenseSuspended-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F87171; margin-bottom: 24px;&quot;>License Suspended ⚠️</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Your Mouse license has been suspended.
+    </p>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      This may be due to a billing issue or policy violation. Please check your account status or contact support to resolve this.
+    </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/portal/billing&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Check Account Status
+      </a>
+    </div>
+    
+    <p style=&quot;color: #6B7C93; font-size: 14px;&quot;>
+      Need help? Contact billing@hic-ai.com
+    </p>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-licenseSuspended-text" class="plaintext-view">License Suspended
+
+Your Mouse license has been suspended.
+
+This may be due to a billing issue or policy violation. Please check your account status or contact billing@hic-ai.com to resolve this.
+
+Check account: https://staging.hic-ai.com/portal/billing
+
+Need help? Contact billing@hic-ai.com
+
+HIC AI</div>
+      
+      <div class="params-info">Template params: email</div>
+    </div>
+    <div class="template-card" id="card-winBack30">
+      <div class="card-header">
+        <div>
+          <h2>9. Win-Back 30d</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">30 days post-cancellation</p>
+        </div>
+        <span class="badge marketing">Marketing</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> We miss you! Come back to Mouse</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('winBack30','html',this)">HTML Preview</button>
+        <button onclick="toggleView('winBack30','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-winBack30-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F6F8FB; margin-bottom: 24px;&quot;>We miss you! 💙</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      It's been 30 days since you cancelled your Mouse subscription, and we wanted to check in.
+    </p>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      We've been busy making Mouse even better. Here's what's new since you left:
+    </p>
+    
+    <ul style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.8; padding-left: 20px;&quot;>
+      <li>Performance improvements and faster edits</li>
+      <li>Better error handling and recovery</li>
+      <li>New staging workflow for safer edits</li>
+    </ul>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Ready to give it another try? Your account is still here, waiting for you.
+    </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/pricing&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Reactivate Now
+      </a>
+    </div>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents<br>
+      <a href=&quot;https://staging.hic-ai.com/unsubscribe?email=reviewer%40example.com&quot; style=&quot;color: #6B7C93;&quot;>Unsubscribe from win-back emails</a>
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-winBack30-text" class="plaintext-view">We miss you!
+
+It's been 30 days since you cancelled your Mouse subscription, and we wanted to check in.
+
+We've been busy making Mouse even better. Here's what's new since you left:
+- Performance improvements and faster edits
+- Better error handling and recovery
+- New staging workflow for safer edits
+
+Ready to give it another try? Your account is still here, waiting for you.
+
+Reactivate now: https://staging.hic-ai.com/pricing
+
+HIC AI
+Unsubscribe: https://staging.hic-ai.com/unsubscribe?email=reviewer%40example.com</div>
+      
+      <div class="params-info">Template params: email</div>
+    </div>
+    <div class="template-card" id="card-winBack90">
+      <div class="card-header">
+        <div>
+          <h2>10. Win-Back 90d</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">90 days post-cancellation with discount</p>
+        </div>
+        <span class="badge marketing">Marketing</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> Special offer: 20% off Mouse — we'd love you back</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('winBack90','html',this)">HTML Preview</button>
+        <button onclick="toggleView('winBack90','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-winBack90-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F6F8FB; margin-bottom: 24px;&quot;>Special Offer Just For You 🎁</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      It's been a while since you left Mouse, and we wanted to reach out one more time.
+    </p>
+    
+    <div style=&quot;background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;&quot;>
+      <h2 style=&quot;color: #10B981; margin: 0 0 12px 0;&quot;>20% OFF</h2>
+      <p style=&quot;color: #B8C4D0; font-size: 16px; margin: 0 0 16px 0;&quot;>Your first 3 months back</p>
+      <div style=&quot;background-color: rgba(201, 219, 240, 0.08); border: 1px dashed rgba(201, 219, 240, 0.3); border-radius: 4px; padding: 12px; font-family: monospace; font-size: 18px; color: #C9DBF0;&quot;>
+        WINBACK20
+      </div>
+    </div>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      This offer expires in 7 days. Enter the code at checkout to claim your discount.
+    </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/pricing?code=WINBACK20&quot; 
+         style=&quot;display: inline-block; background-color: #10B981; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Claim Your Discount
+      </a>
+    </div>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents<br>
+      <a href=&quot;https://staging.hic-ai.com/unsubscribe?email=reviewer%40example.com&quot; style=&quot;color: #6B7C93;&quot;>Unsubscribe from win-back emails</a>
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-winBack90-text" class="plaintext-view">Special Offer Just For You!
+
+It's been a while since you left Mouse, and we wanted to reach out one more time.
+
+20% OFF your first 3 months back!
+Use code: WINBACK20
+
+This offer expires in 7 days.
+
+Claim your discount: https://staging.hic-ai.com/pricing?code=WINBACK20
+
+HIC AI
+Unsubscribe: https://staging.hic-ai.com/unsubscribe?email=reviewer%40example.com</div>
+      
+      <div class="params-info">Template params: email, discountCode</div>
+    </div>
+    <div class="template-card" id="card-enterpriseInvite">
+      <div class="card-header">
+        <div>
+          <h2>11. Enterprise Invite</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">Team invitation from admin</p>
+        </div>
+        <span class="badge">Transactional</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> You've been invited to use Mouse</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('enterpriseInvite','html',this)">HTML Preview</button>
+        <button onclick="toggleView('enterpriseInvite','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-enterpriseInvite-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;&quot;>
+  <div style=&quot;max-width: 600px; margin: 0 auto;&quot;>
+    <h1 style=&quot;color: #F6F8FB; margin-bottom: 24px;&quot;>You're Invited! 🚀</h1>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Jane Smith has invited you to join <strong>Acme Corp</strong>'s Mouse team.
+    </p>
+    
+    <div style=&quot;background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0;&quot;>
+      <h3 style=&quot;color: #F6F8FB; margin: 0 0 12px 0; font-size: 16px;&quot;>What is Mouse?</h3>
+      <p style=&quot;color: #B8C4D0; font-size: 14px; margin: 0;&quot;>
+        Mouse provides precision editing tools for AI coding agents in VS Code. It helps AI assistants make more accurate, atomic edits to your codebase.
+      </p>
+    </div>
+    
+    <p style=&quot;color: #B8C4D0; font-size: 16px; line-height: 1.6;&quot;>
+      Accept this invitation to get your license key and start using Mouse — your organization has you covered.
+    </p>
+    
+    <div style=&quot;margin: 32px 0;&quot;>
+      <a href=&quot;https://staging.hic-ai.com/invite/inv_test_abc123def456&quot; 
+         style=&quot;display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;&quot;>
+        Accept Invitation
+      </a>
+    </div>
+    
+    <p style=&quot;color: #6B7C93; font-size: 14px;&quot;>
+      This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
+    </p>
+    
+    <hr style=&quot;border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;&quot;>
+    
+    <p style=&quot;color: #6B7C93; font-size: 12px;&quot;>
+      HIC AI • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-enterpriseInvite-text" class="plaintext-view">You're Invited!
+
+Jane Smith has invited you to join Acme Corp's Mouse team.
+
+What is Mouse?
+Mouse provides precision editing tools for AI coding agents in VS Code. It helps AI assistants make more accurate, atomic edits to your codebase.
+
+Accept this invitation to get your license key and start using Mouse — your organization has you covered.
+
+Accept invitation: https://staging.hic-ai.com/invite/inv_test_abc123def456
+
+This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
+
+HIC AI</div>
+      
+      <div class="params-info">Template params: email, organizationName, inviterName, inviteToken</div>
+    </div>
+    <div class="template-card" id="card-disputeAlert">
+      <div class="card-header">
+        <div>
+          <h2>12. Dispute Alert</h2>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;">Internal alert to support team — NOT customer-facing</p>
+        </div>
+        <span class="badge internal">Internal</span>
+      </div>
+      <div class="subject-line"><span>Subject:</span> ⚠️ DISPUTE ALERT: customer@example.com - $150.00</div>
+      <div class="view-toggle">
+        <button class="active" onclick="toggleView('disputeAlert','html',this)">HTML Preview</button>
+        <button onclick="toggleView('disputeAlert','text',this)">Plaintext</button>
+        
+      </div>
+      <div id="view-disputeAlert-html">
+        <iframe class="preview-frame" srcdoc="
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=&quot;utf-8&quot;>
+</head>
+<body style=&quot;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px;&quot;>
+  <h1 style=&quot;color: #DC2626;&quot;>⚠️ Chargeback Dispute Created</h1>
+  
+  <table style=&quot;border-collapse: collapse; width: 100%; max-width: 500px;&quot;>
+    <tr>
+      <td style=&quot;padding: 8px; border: 1px solid #ddd; font-weight: bold;&quot;>Customer</td>
+      <td style=&quot;padding: 8px; border: 1px solid #ddd;&quot;>customer@example.com</td>
+    </tr>
+    <tr>
+      <td style=&quot;padding: 8px; border: 1px solid #ddd; font-weight: bold;&quot;>Amount</td>
+      <td style=&quot;padding: 8px; border: 1px solid #ddd;&quot;>$150.00</td>
+    </tr>
+    <tr>
+      <td style=&quot;padding: 8px; border: 1px solid #ddd; font-weight: bold;&quot;>Reason</td>
+      <td style=&quot;padding: 8px; border: 1px solid #ddd;&quot;>product_not_received</td>
+    </tr>
+    <tr>
+      <td style=&quot;padding: 8px; border: 1px solid #ddd; font-weight: bold;&quot;>Dispute ID</td>
+      <td style=&quot;padding: 8px; border: 1px solid #ddd;&quot;>dp_test_xyz789</td>
+    </tr>
+  </table>
+  
+  <h2>Actions Taken:</h2>
+  <ul>
+    <li>✅ License suspended immediately</li>
+    <li>✅ Customer status set to DISPUTED</li>
+  </ul>
+  
+  <h2>Required Actions:</h2>
+  <ol>
+    <li>Gather evidence (activation logs, ToS acceptance, usage data)</li>
+    <li>Submit response via Stripe Dashboard within deadline</li>
+  </ol>
+  
+  <p><a href=&quot;https://dashboard.stripe.com/disputes/dp_test_xyz789&quot;>View in Stripe Dashboard →</a></p>
+</body>
+</html>" sandbox="allow-same-origin"></iframe>
+      </div>
+      <div id="view-disputeAlert-text" class="plaintext-view">DISPUTE ALERT
+
+Customer: customer@example.com
+Amount: $150.00
+Reason: product_not_received
+Dispute ID: dp_test_xyz789
+
+Actions Taken:
+- License suspended immediately
+- Customer status set to DISPUTED
+
+Required Actions:
+1. Gather evidence (activation logs, ToS acceptance, usage data)
+2. Submit response via Stripe Dashboard within deadline
+
+View in Stripe: https://dashboard.stripe.com/disputes/dp_test_xyz789</div>
+      
+      <div class="params-info">Template params: customerEmail, amount, reason, disputeId</div>
+    </div>
+  </div>
+  <script>
+    function showTemplate(name) {
+      document.querySelectorAll('.template-card').forEach(c => c.classList.remove('visible'));
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById('card-' + name).classList.add('visible');
+      document.getElementById('nav-' + name).classList.add('active');
+    }
+    function showAll() {
+      document.querySelectorAll('.template-card').forEach(c => c.classList.add('visible'));
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById('nav-all').classList.add('active');
+    }
+    function toggleView(name, view, btn) {
+      ['html','text','variant'].forEach(v => {
+        const el = document.getElementById('view-' + name + '-' + v);
+        if (el) el.style.display = 'none';
+      });
+      const target = document.getElementById('view-' + name + '-' + view);
+      if (target) {
+        target.style.display = 'block';
+        // If it contains an iframe inside a plaintext-view div, show the iframe
+        const iframe = target.querySelector('iframe');
+        if (iframe) iframe.style.display = 'block';
+      }
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+    // Show all on load
+    showAll();
+  </script>
+</body>
+</html>

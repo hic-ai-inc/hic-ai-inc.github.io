@@ -26,7 +26,7 @@
  */
 export function createTemplates(config = {}) {
   const {
-    appUrl = "https://mouse.hic-ai.com",
+    appUrl = "https://hic-ai.com",
     companyName = "HIC AI",
     productName = "Mouse",
   } = config;
@@ -39,7 +39,7 @@ export function createTemplates(config = {}) {
     // ========================================================================
     // 1. WELCOME - After checkout (before account creation)
     // ========================================================================
-    welcome: ({ email, sessionId }) => ({
+    welcome: ({ email }) => ({
       subject: `Welcome to ${PRODUCT_NAME}! Complete your account setup`,
       html: `
 <!DOCTYPE html>
@@ -50,25 +50,25 @@ export function createTemplates(config = {}) {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
   <div style="max-width: 600px; margin: 0 auto;">
-    <h1 style="color: #F6F8FB; margin-bottom: 24px;">Welcome to ${PRODUCT_NAME}! 🎉</h1>
+    <h1 style="color: #F6F8FB; margin-bottom: 24px;">Welcome to ${PRODUCT_NAME}!</h1>
     
     <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
       Thank you for your purchase! Your subscription is now active.
     </p>
     
     <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      To get your license key and start using ${PRODUCT_NAME}, please complete your account setup:
+      To view your account, manage your subscription, and get your license key, visit your portal:
     </p>
     
     <div style="margin: 32px 0;">
-      <a href="${APP_URL}/welcome?session_id=${sessionId}" 
+      <a href="${APP_URL}/portal" 
          style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-        Complete Account Setup
+        Go to Your Portal
       </a>
     </div>
     
     <p style="color: #6B7C93; font-size: 14px;">
-      This link will expire in 24 hours. If you have any questions, reply to this email or contact support@hic-ai.com.
+      If you have any questions, contact billing@hic-ai.com.
     </p>
     
     <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
@@ -83,13 +83,11 @@ export function createTemplates(config = {}) {
 
 Thank you for your purchase! Your subscription is now active.
 
-To get your license key and start using ${PRODUCT_NAME}, please complete your account setup:
+To view your account, manage your subscription, and get your license key, visit your portal:
 
-${APP_URL}/welcome?session_id=${sessionId}
+${APP_URL}/portal
 
-This link will expire in 24 hours.
-
-If you have any questions, contact support@hic-ai.com.
+If you have any questions, contact billing@hic-ai.com.
 
 ${COMPANY_NAME}`,
     }),
@@ -121,16 +119,20 @@ ${COMPANY_NAME}`,
     <h2 style="color: #F6F8FB; font-size: 18px; margin-top: 32px;">How to Activate</h2>
     
     <ol style="color: #B8C4D0; font-size: 16px; line-height: 1.8; padding-left: 20px;">
-      <li>Install the ${PRODUCT_NAME} extension from VS Code Marketplace</li>
-      <li>Open VS Code Settings (Cmd/Ctrl + ,)</li>
-      <li>Search for "mouse.licenseKey"</li>
-      <li>Paste your license key and restart VS Code</li>
+      <li>Install the ${PRODUCT_NAME} extension in your IDE from the <a href="https://marketplace.visualstudio.com/items?itemName=hic-ai.mouse" style="color: #C9DBF0;">VS Code Marketplace</a> or <a href="https://open-vsx.org/extension/hic-ai/mouse" style="color: #C9DBF0;">Open VSX</a>.</li>
+      <li>Open the Command Palette (Ctrl+Shift+P on Windows, Cmd+Shift+P on Mac) and enter <code style="background: rgba(201,219,240,0.12); padding: 2px 6px; border-radius: 4px;">${PRODUCT_NAME}: Initialize Workspace</code>, then choose an AI coding assistant from the dropdown list.</li>
+      <li>Click the button that pops up to refresh your developer window.</li>
+      <li>You're all set to start using ${PRODUCT_NAME}! (On VS Code with GitHub Copilot, you'll need to press the Start button in <code style="background: rgba(201,219,240,0.12); padding: 2px 6px; border-radius: 4px;">.vscode/mcp.json</code> to start the server each time after refreshing.)</li>
     </ol>
     
     <div style="margin: 32px 0;">
       <a href="${APP_URL}/portal" 
-         style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+         style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-right: 12px;">
         Go to Portal
+      </a>
+      <a href="${APP_URL}/docs" 
+         style="display: inline-block; background-color: transparent; color: #C9DBF0; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid rgba(201, 219, 240, 0.3);">
+        Read Mouse Docs
       </a>
     </div>
     
@@ -149,12 +151,14 @@ Here's your ${PRODUCT_NAME} ${planName} license key:
 ${licenseKey}
 
 How to Activate:
-1. Install the ${PRODUCT_NAME} extension from VS Code Marketplace
-2. Open VS Code Settings (Cmd/Ctrl + ,)
-3. Search for "mouse.licenseKey"
-4. Paste your license key and restart VS Code
+1. Install the ${PRODUCT_NAME} extension in your IDE from the VS Code Marketplace or Open VSX.
+2. Open the Command Palette (Ctrl+Shift+P on Windows, Cmd+Shift+P on Mac) and enter "${PRODUCT_NAME}: Initialize Workspace", then choose an AI coding assistant from the dropdown list.
+3. Click the button that pops up to refresh your developer window.
+4. You're all set to start using ${PRODUCT_NAME}! (On VS Code with GitHub Copilot, you'll need to press the Start button in .vscode/mcp.json to start the server each time after refreshing.)
 
 Go to your portal: ${APP_URL}/portal
+
+Read Mouse docs: ${APP_URL}/docs
 
 ${COMPANY_NAME}`,
     }),
@@ -197,7 +201,7 @@ ${COMPANY_NAME}`,
     </div>
     
     <p style="color: #6B7C93; font-size: 14px;">
-      Need help? Contact support@hic-ai.com
+      Need help? Contact billing@hic-ai.com
     </p>
     
     <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
@@ -220,7 +224,7 @@ ${
 
 Update your payment method: ${APP_URL}/portal/billing
 
-Need help? Contact support@hic-ai.com
+Need help? Contact billing@hic-ai.com
 
 ${COMPANY_NAME}`,
     }),
@@ -372,7 +376,7 @@ ${COMPANY_NAME}`,
     </div>
     
     <p style="color: #6B7C93; font-size: 14px;">
-      If something wasn't working right, we'd love to hear about it. Just reply to this email.
+      If something wasn't working right, we'd love to hear about it at billing@hic-ai.com or info@hic-ai.com.
     </p>
     
     <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
@@ -395,7 +399,7 @@ What happens next:
 Changed your mind? You can reactivate anytime:
 ${APP_URL}/portal/billing
 
-If something wasn't working right, we'd love to hear about it. Just reply to this email.
+If something wasn't working right, we'd love to hear about it at billing@hic-ai.com or info@hic-ai.com.
 
 ${COMPANY_NAME}`,
     }),
@@ -427,7 +431,7 @@ ${COMPANY_NAME}`,
     <div style="background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0;">
       <h3 style="color: #F6F8FB; margin: 0 0 12px 0; font-size: 16px;">Want to continue using ${PRODUCT_NAME}?</h3>
       <p style="color: #B8C4D0; font-size: 14px; margin: 0;">
-        You can purchase an Individual license for $10/month to keep using ${PRODUCT_NAME} on your own.
+        You can purchase an Individual license for $15/month to keep using ${PRODUCT_NAME} on your own.
       </p>
     </div>
     
@@ -453,7 +457,7 @@ Your ${PRODUCT_NAME} license${organizationName ? ` from ${organizationName}` : "
 This means you no longer have access to ${PRODUCT_NAME} through this license. If you believe this is an error, please contact your administrator.
 
 Want to continue using ${PRODUCT_NAME}?
-You can purchase an Individual license for $10/month:
+You can purchase an Individual license for $15/month:
 ${APP_URL}/pricing
 
 ${COMPANY_NAME}`,
@@ -491,7 +495,7 @@ ${COMPANY_NAME}`,
     </div>
     
     <p style="color: #6B7C93; font-size: 14px;">
-      Need help? Contact support@hic-ai.com
+      Need help? Contact billing@hic-ai.com
     </p>
     
     <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
@@ -506,11 +510,11 @@ ${COMPANY_NAME}`,
 
 Your ${PRODUCT_NAME} license has been suspended.
 
-This may be due to a billing issue or policy violation. Please check your account status or contact support to resolve this.
+This may be due to a billing issue or policy violation. Please check your account status or contact billing@hic-ai.com to resolve this.
 
 Check account: ${APP_URL}/portal/billing
 
-Need help? Contact support@hic-ai.com
+Need help? Contact billing@hic-ai.com
 
 ${COMPANY_NAME}`,
     }),
