@@ -117,22 +117,24 @@ _Start after DMARC (0.7) is propagating._
 
 #### Stream 1D: E2E Client Verification (AP 9.1–9.11)
 
-- [ ] **9.1** VS Code: Initialize Workspace → tool usage — re-verify (15m)
-- [ ] **9.2** Cursor: Initialize Workspace → tool usage — re-verify (15m)
-- [ ] **9.3** Kiro: Initialize Workspace → tool usage — re-verify (15m)
-- [ ] **9.4** Roo Code: Initialize Workspace → tool usage — new test (1h)
-- [ ] **9.5** Cline: Initialize Workspace → tool usage — new test (1h)
-- [ ] **9.6** Kilo Code: Initialize Workspace → tool usage — new test (1h)
-- [ ] **9.7** CodeGPT: Initialize Workspace → tool usage — new test (1h)
-- [ ] **9.8** Claude Code: Initialize Workspace → tool usage — new test (1h)
-- [ ] **9.9** Claude Code CLI: Initialize Workspace → tool usage — new test (30m)
-- [ ] **9.10** Copilot CLI: Initialize Workspace → tool usage — new test (30m)
-- [ ] **9.11** Other clients — catch-all for any additional MCP-compatible clients discovered during testing (TBD)
-- [ ] Evaluate Windsurf compatibility (promising — skipped in earlier testing, revisit)
-- [ ] Confirm Augment/Blackbox status — currently require paid subscriptions for evaluation; defer unless free trial available
-- [ ] Document client compatibility matrix — finalize supported vs. compatible vs. untested categories
+- [x] **9.1** VS Code: Initialize Workspace → tool usage — re-verify (15m)
+- [x] **9.2** Cursor: Initialize Workspace → tool usage — re-verify (15m)
+- [x] **9.3** Kiro: Initialize Workspace → tool usage — re-verify (15m)
+- [x] **9.4** Roo Code: Initialize Workspace → tool usage — new test (1h)
+- [x] **9.5** Cline: Initialize Workspace → tool usage — new test (1h)
+- [x] **9.6** Kilo Code: Initialize Workspace → tool usage — new test (1h)
+- [x] **9.7** CodeGPT: Initialize Workspace → tool usage — new test (1h)
+- [x] **9.8** Claude Code: Initialize Workspace → tool usage — new test (1h)
+- [x] **9.9** Claude Code CLI: Initialize Workspace → tool usage — new test (30m)
+- [x] **9.10** Copilot CLI: Initialize Workspace → tool usage — new test (30m)
+- [x] **9.11** Other clients — catch-all for any additional MCP-compatible clients discovered during testing (TBD)
+- [x] Evaluate Windsurf compatibility (promising — skipped in earlier testing, revisit)
+- [x] Confirm Augment/Blackbox status — currently require paid subscriptions for evaluation; defer unless free trial available
+- [x] Document client compatibility matrix — finalize supported vs. compatible vs. untested categories
 
 **Stream 1D Checkpoint (CP-E2E):** All tested clients verified. Compatibility matrix finalized (supported / compatible / untested). → Unlocks Phase 2 AP 5.
+
+> **NOTE:** Following investigation, the following clients were deprecated: Cline (no project-level MCP configuration file strategy possible), CodeGPT (no longer compatible with MCP), and Copilot CLI (distinct from Copilot Chat; difficult to configure inside Codespaces; implementation deferred until post-launch and possibly until we have a binary version of Mouse to deploy). Claude Code and Claude Code CLI have been consolidated into a single client as they are packaged that way by Anthropic. Per SWR, implementation of Windsurf, Augment, Blackbox, along with Cline and Copilot CLI, will be deferred until post-launch. All other aspects of the installation/setup flows verified and confirmed by SWR to be ready for production and launch.
 
 ---
 
