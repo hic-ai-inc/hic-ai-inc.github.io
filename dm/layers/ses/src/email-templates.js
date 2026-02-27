@@ -37,10 +37,10 @@ export function createTemplates(config = {}) {
 
   return {
     // ========================================================================
-    // 1. WELCOME - After checkout (before account creation)
+    // 1. WELCOME - After account creation (Cognito PostConfirmation)
     // ========================================================================
     welcome: ({ email }) => ({
-      subject: `Welcome to ${PRODUCT_NAME}! Complete your account setup`,
+      subject: `Welcome to ${PRODUCT_NAME}!`,
       html: `
 <!DOCTYPE html>
 <html>
@@ -53,11 +53,7 @@ export function createTemplates(config = {}) {
     <h1 style="color: #F6F8FB; margin-bottom: 24px;">Welcome to ${PRODUCT_NAME}!</h1>
     
     <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Thank you for your purchase! Your subscription is now active.
-    </p>
-    
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      To view your account, manage your subscription, and get your license key, visit your portal:
+      Thank you for creating an account. To view your account, purchase a subscription, and get a license key, visit your portal:
     </p>
     
     <div style="margin: 32px 0;">
@@ -68,7 +64,7 @@ export function createTemplates(config = {}) {
     </div>
     
     <p style="color: #6B7C93; font-size: 14px;">
-      If you have any questions, contact billing@hic-ai.com.
+      If you have any questions, contact support@hic-ai.com.
     </p>
     
     <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
@@ -81,13 +77,11 @@ export function createTemplates(config = {}) {
 </html>`,
       text: `Welcome to ${PRODUCT_NAME}!
 
-Thank you for your purchase! Your subscription is now active.
-
-To view your account, manage your subscription, and get your license key, visit your portal:
+Thank you for creating an account. To view your account, purchase a subscription, and get a license key, visit your portal:
 
 ${APP_URL}/portal
 
-If you have any questions, contact billing@hic-ai.com.
+If you have any questions, contact support@hic-ai.com.
 
 ${COMPANY_NAME}`,
     }),

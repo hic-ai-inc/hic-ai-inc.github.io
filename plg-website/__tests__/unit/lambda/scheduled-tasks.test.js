@@ -5,6 +5,7 @@
  * - Trial reminder job (3 days before expiration)
  * - Win-back 30-day job
  * - Win-back 90-day job
+ * - Pending email retry (direct send, no verification gate)
  * - Email sending and deduplication
  *
  * @see scheduled-tasks Lambda
@@ -443,9 +444,8 @@ describe("Scheduled Tasks Lambda", () => {
     });
   });
 
-
   describe("pending-email-retry Job", () => {
-    test("should send welcome email when SES verification succeeds", async () => {
+    test("should send email directly for pending users", async () => {
       let updateCalled = false;
 
       dynamoSendImpl = async (cmd) => {
@@ -470,66 +470,18 @@ describe("Scheduled Tasks Lambda", () => {
         return {};
       };
 
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "newuser@example.com": { VerificationStatus: "Success" },
-            },
-          };
-        }
-        return { MessageId: "ses-msg-welcome" };
-      };
-
       const event = createEventBridgeEvent("pending-email-retry");
       const result = await handler(event);
 
       expect(result.sent).toBe(1);
-      expect(result.stillPending).toBe(0);
+      expect(result.failed).toBe(0);
       expect(updateCalled).toBe(true);
-    });
 
-    test("should skip users whose email is not yet SES-verified", async () => {
-      dynamoSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "ScanCommand") {
-          return {
-            Items: [
-              {
-                PK: "USER#google_67890",
-                SK: "PROFILE",
-                userId: "google_67890",
-                email: "unverified@example.com",
-                eventType: "CUSTOMER_CREATED",
-                emailPendingVerification: true,
-                emailsSent: {},
-              },
-            ],
-          };
-        }
-        return {};
-      };
-
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "unverified@example.com": { VerificationStatus: "Pending" },
-            },
-          };
-        }
-        return {};
-      };
-
-      const event = createEventBridgeEvent("pending-email-retry");
-      const result = await handler(event);
-
-      expect(result.sent).toBe(0);
-      expect(result.stillPending).toBe(1);
-      // No SES send call should be made
-      const sendCalls = sesCalls.filter(c => 
+      // Should have sent email directly (no verification check)
+      const sendCalls = sesCalls.filter(c =>
         c.arguments[0]?.constructor?.name === "SendEmailCommand"
       );
-      expect(sendCalls.length).toBe(0);
+      expect(sendCalls.length).toBe(1);
     });
 
     test("should skip users who already had their email sent (wasEmailSent guard)", async () => {
@@ -559,24 +511,11 @@ describe("Scheduled Tasks Lambda", () => {
         return {};
       };
 
-      // SES verification would succeed, but we shouldn't even reach the send
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "already-sent@example.com": { VerificationStatus: "Success" },
-            },
-          };
-        }
-        return {};
-      };
-
       const event = createEventBridgeEvent("pending-email-retry");
       const result = await handler(event);
 
       // Should count as "sent" (flag cleared) but no actual SES email send
       expect(result.sent).toBe(1);
-      expect(result.stillPending).toBe(0);
 
       // Should have called UpdateCommand to clear the pending flag
       expect(updateKeys.length).toBe(1);
@@ -627,13 +566,6 @@ describe("Scheduled Tasks Lambda", () => {
       };
 
       sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          const attrs = {};
-          for (const email of cmd.input.Identities) {
-            attrs[email] = { VerificationStatus: "Success" };
-          }
-          return { VerificationAttributes: attrs };
-        }
         if (cmd.constructor.name === "SendEmailCommand") {
           sesEmailCount++;
           return { MessageId: `msg-${sesEmailCount}` };
@@ -646,7 +578,6 @@ describe("Scheduled Tasks Lambda", () => {
 
       // Both should count as "sent" (one via dedup guard, one via actual send)
       expect(result.sent).toBe(2);
-      expect(result.stillPending).toBe(0);
 
       // Only 1 actual SES email should be sent (for fresh user)
       expect(sesEmailCount).toBe(1);
@@ -667,7 +598,6 @@ describe("Scheduled Tasks Lambda", () => {
       const result = await handler(event);
 
       expect(result.sent).toBe(0);
-      expect(result.stillPending).toBe(0);
       expect(result.failed).toBe(0);
     });
   });

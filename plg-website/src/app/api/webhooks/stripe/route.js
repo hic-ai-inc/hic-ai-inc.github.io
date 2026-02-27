@@ -40,6 +40,32 @@ import { sendDisputeAlert } from "@/lib/ses";
 import { assignOwnerRole } from "@/lib/cognito-admin";
 import { createApiLogger } from "@/lib/api-log";
 
+// ============================================================================
+// Helper: Resolve DynamoDB customer from Stripe customer ID
+// GSI1PK (STRIPE#<id>) is not populated on PROFILE records, so we fall back
+// to fetching the customer email from Stripe and querying GSI2 (EMAIL#<email>).
+// ============================================================================
+async function resolveCustomer(stripeCustomerId, log) {
+  // Try GSI1 first (forward-compatible if GSI1PK is later populated)
+  let dbCustomer = await getCustomerByStripeId(stripeCustomerId);
+  if (dbCustomer) return dbCustomer;
+
+  // Fall back: fetch email from Stripe, then query GSI2
+  try {
+    const stripe = await getStripeClient();
+    const stripeCustomer = await stripe.customers.retrieve(stripeCustomerId);
+    if (stripeCustomer?.email) {
+      dbCustomer = await getCustomerByEmail(stripeCustomer.email);
+    }
+  } catch (e) {
+    log.warn("resolve_customer_stripe_fallback_failed", "Failed to retrieve Stripe customer for email fallback", {
+      errorMessage: e?.message,
+    });
+  }
+  return dbCustomer || null;
+}
+
+
 export async function POST(request) {
   const log = createApiLogger({
     service: "plg-api-webhooks-stripe",
@@ -388,7 +414,7 @@ async function handleSubscriptionUpdated(subscription, log) {
   const { status, cancel_at_period_end, customer, items } = subscription;
   const seatQuantity = items?.data?.[0]?.quantity || 1;
 
-  const dbCustomer = await getCustomerByStripeId(customer);
+  const dbCustomer = await resolveCustomer(customer, log);
   if (!dbCustomer) {
     log.decision("customer_not_found", "Customer not found for subscription update", {
       reason: "customer_not_found",
@@ -486,7 +512,7 @@ async function handleSubscriptionDeleted(subscription, log) {
 
   const { customer } = subscription;
 
-  const dbCustomer = await getCustomerByStripeId(customer);
+  const dbCustomer = await resolveCustomer(customer, log);
   if (!dbCustomer) {
     log.decision("customer_not_found", "Customer not found for subscription deletion", {
       reason: "customer_not_found",
@@ -533,7 +559,7 @@ async function handlePaymentSucceeded(invoice, log) {
 
   const { customer, lines } = invoice;
 
-  const dbCustomer = await getCustomerByStripeId(customer);
+  const dbCustomer = await resolveCustomer(customer, log);
   if (!dbCustomer) {
     log.decision("customer_not_found", "Customer not found for payment success", {
       reason: "customer_not_found",
@@ -586,7 +612,7 @@ async function handlePaymentFailed(invoice, log) {
   const { customer_email, attempt_count, customer, next_payment_attempt } =
     invoice;
 
-  const dbCustomer = await getCustomerByStripeId(customer);
+  const dbCustomer = await resolveCustomer(customer, log);
   if (!dbCustomer) {
     log.decision("customer_not_found", "Customer not found for payment failure", {
       reason: "customer_not_found",
@@ -647,7 +673,7 @@ async function handleDisputeCreated(dispute, log) {
 
   const { customer, amount, reason, id: disputeId } = dispute;
 
-  const dbCustomer = await getCustomerByStripeId(customer);
+  const dbCustomer = await resolveCustomer(customer, log);
   if (!dbCustomer) {
     log.decision("customer_not_found", "Customer not found for dispute", {
       reason: "customer_not_found",
@@ -694,7 +720,7 @@ async function handleDisputeClosed(dispute, log) {
 
   const { customer, status } = dispute;
 
-  const dbCustomer = await getCustomerByStripeId(customer);
+  const dbCustomer = await resolveCustomer(customer, log);
   if (!dbCustomer) {
     log.decision("customer_not_found", "Customer not found for dispute closure", {
       reason: "customer_not_found",

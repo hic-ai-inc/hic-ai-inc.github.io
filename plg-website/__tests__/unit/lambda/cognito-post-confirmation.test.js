@@ -2,9 +2,8 @@
  * Cognito Post-Confirmation Lambda Unit Tests
  *
  * Tests the cognito-post-confirmation Lambda for:
- * - SES email verification request on user signup
- * - USER_CREATED event written to DynamoDB
- * - Graceful handling of SES errors (doesn't block signup)
+ * - CUSTOMER_CREATED event written to DynamoDB
+ * - Graceful handling of DynamoDB errors (doesn't block signup)
  * - Skipping existing users (idempotency)
  *
  * @see cognito-post-confirmation Lambda
@@ -14,20 +13,11 @@ import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert";
 import { expect } from "../../lib/test-kit.js";
 
-// Track calls for verification
-let sesCalls = [];
+// Track calls
 let dynamoCalls = [];
-let sesSendImpl = async () => ({});
 let dynamoSendImpl = async () => ({});
 
-// Mock clients with swappable implementations
-const mockSesClient = {
-  send: async (cmd) => {
-    sesCalls.push({ command: cmd.constructor.name, input: cmd.input });
-    return sesSendImpl(cmd);
-  },
-};
-
+// Mock client with swappable implementation
 const mockDynamoClient = {
   send: async (cmd) => {
     dynamoCalls.push({ command: cmd.constructor.name, input: cmd.input });
@@ -36,17 +26,15 @@ const mockDynamoClient = {
 };
 
 // Import the Lambda handler after setting up mocks
-let handler, __setSesClientForTests, __setDynamoClientForTests;
+let handler, __setDynamoClientForTests;
 
 async function setupModule() {
   const lambdaModule =
     await import("../../../infrastructure/lambda/cognito-post-confirmation/index.js");
   handler = lambdaModule.handler;
-  __setSesClientForTests = lambdaModule.__setSesClientForTests;
   __setDynamoClientForTests = lambdaModule.__setDynamoClientForTests;
 
-  // Inject mock clients
-  __setSesClientForTests(mockSesClient);
+  // Inject mock client
   __setDynamoClientForTests(mockDynamoClient);
 }
 
@@ -78,30 +66,12 @@ describe("Cognito Post-Confirmation Lambda", async () => {
 
   beforeEach(() => {
     // Reset call tracking
-    sesCalls = [];
     dynamoCalls = [];
-    // Reset implementations to defaults
-    sesSendImpl = async () => ({});
+    // Reset implementation to default
     dynamoSendImpl = async () => ({});
   });
 
   describe("handler", () => {
-    test("should request SES verification for new user email", async () => {
-      const event = createCognitoEvent({
-        email: "newuser@example.com",
-        name: "Test User",
-      });
-
-      await handler(event);
-
-      // Verify SES was called with correct email
-      const sesCall = sesCalls.find(
-        (c) => c.command === "VerifyEmailIdentityCommand",
-      );
-      expect(sesCall).toBeDefined();
-      expect(sesCall.input.EmailAddress).toBe("newuser@example.com");
-    });
-
     test("should write CUSTOMER_CREATED event to DynamoDB for new user", async () => {
       const event = createCognitoEvent(
         {
@@ -124,7 +94,6 @@ describe("Cognito Post-Confirmation Lambda", async () => {
       expect(item.email.S).toBe("newuser@example.com");
       expect(item.name.S).toBe("Test User");
       expect(item.eventType.S).toBe("CUSTOMER_CREATED");
-      expect(item.sesVerificationStatus.S).toBe("pending");
     });
 
     test("should return event unchanged (required by Cognito)", async () => {
@@ -162,21 +131,21 @@ describe("Cognito Post-Confirmation Lambda", async () => {
 
       await handler(event);
 
-      // SES should still be called (verification might have expired)
-      const sesCall = sesCalls.find(
-        (c) => c.command === "VerifyEmailIdentityCommand",
-      );
-      expect(sesCall).toBeDefined();
-
-      // But PutItem should NOT be called
+      // PutItem should NOT be called
       const putCall = dynamoCalls.find((c) => c.command === "PutItemCommand");
       expect(putCall).toBeUndefined();
     });
 
-    test("should not throw if SES verification fails (graceful degradation)", async () => {
-      // Mock SES to fail
-      sesSendImpl = async () => {
-        throw new Error("SES service unavailable");
+    test("should not throw if DynamoDB write fails (graceful degradation)", async () => {
+      // Mock DynamoDB to fail on PutItem
+      dynamoSendImpl = async (cmd) => {
+        if (cmd.constructor.name === "GetItemCommand") {
+          return {}; // No existing user
+        }
+        if (cmd.constructor.name === "PutItemCommand") {
+          throw new Error("DynamoDB service unavailable");
+        }
+        return {};
       };
 
       const event = createCognitoEvent({
@@ -184,10 +153,10 @@ describe("Cognito Post-Confirmation Lambda", async () => {
         name: "Test User",
       });
 
-      // Should not throw
+      // Should not throw — don't block user signup
       const result = await handler(event);
 
-      // Should still return event (don't block user signup)
+      // Should still return event
       expect(result).toBe(event);
     });
 

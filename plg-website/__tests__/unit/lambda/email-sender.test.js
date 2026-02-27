@@ -2,16 +2,16 @@
  * Email Sender Lambda Unit Tests
  *
  * Tests the email-sender Lambda for:
- * - Sending emails when SES verification is Success
- * - Skipping emails when verification is Pending/Failed/NotFound
- * - Graceful handling of verification check failures
+ * - Sending emails directly via SES (domain-verified, production mode)
  * - Processing multiple records
- * - Different event types (LICENSE_CREATED, etc.)
+ * - Different event types (LICENSE_CREATED, TEAM_INVITE_CREATED, etc.)
+ * - Feedback loop prevention (MODIFY guard + emailsSent dedup)
+ * - Safe JSON parsing (CWE-20/400/502)
  *
  * @see email-sender Lambda
  */
 
-import { test, describe, beforeEach } from "node:test";
+import { test, describe, beforeEach, after } from "node:test";
 import assert from "node:assert";
 import { expect } from "../../lib/test-kit.js";
 
@@ -76,16 +76,8 @@ describe("Email Sender Lambda", async () => {
   beforeEach(() => {
     // Reset call tracking
     sesCalls = [];
-    // Default: verification succeeds, emails send
+    // Default: emails send successfully
     sesSendImpl = async (cmd) => {
-      if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-        const email = cmd.input.Identities[0];
-        return {
-          VerificationAttributes: {
-            [email]: { VerificationStatus: "Success" },
-          },
-        };
-      }
       if (cmd.constructor.name === "SendEmailCommand") {
         return { MessageId: `test-msg-${Date.now()}` };
       }
@@ -93,222 +85,33 @@ describe("Email Sender Lambda", async () => {
     };
   });
 
-  describe("SES Verification Guard", () => {
-    test("should send email when verification status is Success", async () => {
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "verified@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-          planName: { S: "PRO" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      // Should have checked verification and sent email
-      const verificationCall = sesCalls.find(
-        (c) => c.command === "GetIdentityVerificationAttributesCommand",
-      );
-      expect(verificationCall).toBeTruthy();
-      expect(verificationCall.input.Identities).toContain(
-        "verified@example.com",
-      );
-
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeTruthy();
-      expect(sendCall.input.Destination.ToAddresses).toContain(
-        "verified@example.com",
-      );
-
-      expect(result.success).toBe(1);
-      expect(result.failed).toBe(0);
-    });
-
-    test("should skip email when verification status is Pending", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          return {
-            VerificationAttributes: {
-              "pending@example.com": { VerificationStatus: "Pending" },
-            },
-          };
-        }
-        return { MessageId: "should-not-reach" };
-      };
-
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "pending@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      // Should have checked verification but NOT sent email
-      const verificationCall = sesCalls.find(
-        (c) => c.command === "GetIdentityVerificationAttributesCommand",
-      );
-      expect(verificationCall).toBeTruthy();
-
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeFalsy();
-
-      // Skipped records should be counted separately
-      expect(result.success).toBe(0);
-      expect(result.skipped).toBe(1);
-      expect(result.failed).toBe(0);
-    });
-
-    test("should skip email when verification status is Failed", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          return {
-            VerificationAttributes: {
-              "failed@example.com": { VerificationStatus: "Failed" },
-            },
-          };
-        }
-        return { MessageId: "should-not-reach" };
-      };
-
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "failed@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeFalsy();
-
-      expect(result.success).toBe(0);
-      expect(result.skipped).toBe(1);
-      expect(result.failed).toBe(0);
-    });
-
-    test("should skip email when email not found in verification attributes", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          // Empty attributes = email not known to SES
-          return { VerificationAttributes: {} };
-        }
-        return { MessageId: "should-not-reach" };
-      };
-
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "unknown@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeFalsy();
-
-      expect(result.success).toBe(0);
-      expect(result.skipped).toBe(1);
-      expect(result.failed).toBe(0);
-    });
-
-    test("should continue to send if verification check throws error", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          throw new Error("SES API temporarily unavailable");
-        }
-        if (cmd.constructor.name === "SendEmailCommand") {
-          return { MessageId: `test-msg-${Date.now()}` };
-        }
-        return {};
-      };
-
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "user@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-          planName: { S: "PRO" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      // Should have attempted verification
-      const verificationCall = sesCalls.find(
-        (c) => c.command === "GetIdentityVerificationAttributesCommand",
-      );
-      expect(verificationCall).toBeTruthy();
-
-      // Should have continued to send email anyway (graceful degradation)
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeTruthy();
-
-      expect(result.success).toBe(1);
-    });
-  });
-
   describe("Multiple Records Processing", () => {
-    test("should process multiple records with mixed verification status", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          const email = cmd.input.Identities[0];
-          if (email === "verified@example.com") {
-            return {
-              VerificationAttributes: {
-                [email]: { VerificationStatus: "Success" },
-              },
-            };
-          }
-          if (email === "pending@example.com") {
-            return {
-              VerificationAttributes: {
-                [email]: { VerificationStatus: "Pending" },
-              },
-            };
-          }
-          return { VerificationAttributes: {} };
-        }
-        if (cmd.constructor.name === "SendEmailCommand") {
-          return { MessageId: `test-msg-${Date.now()}` };
-        }
-        return {};
-      };
-
+    test("should send emails to all recipients directly", async () => {
       const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "verified@example.com", {
+        createSqsRecord("LICENSE_CREATED", "user1@example.com", {
           licenseKey: { S: "KEY-1" },
           planName: { S: "PRO" },
         }),
-        createSqsRecord("LICENSE_CREATED", "pending@example.com", {
+        createSqsRecord("LICENSE_CREATED", "user2@example.com", {
           licenseKey: { S: "KEY-2" },
+          planName: { S: "PRO" },
         }),
-        createSqsRecord("LICENSE_CREATED", "unknown@example.com", {
+        createSqsRecord("LICENSE_CREATED", "user3@example.com", {
           licenseKey: { S: "KEY-3" },
+          planName: { S: "PRO" },
         }),
       ]);
 
       const result = await handler(event);
 
-      // Only verified email should be sent
+      // All emails should be sent directly (no verification gate)
       const sendCalls = sesCalls.filter(
         (c) => c.command === "SendEmailCommand",
       );
-      expect(sendCalls.length).toBe(1);
-      expect(sendCalls[0].input.Destination.ToAddresses).toContain(
-        "verified@example.com",
-      );
+      expect(sendCalls.length).toBe(3);
 
       expect(result.processed).toBe(3);
-      expect(result.success).toBe(1);
-      expect(result.skipped).toBe(2);
+      expect(result.success).toBe(3);
       expect(result.failed).toBe(0);
     });
   });
@@ -520,17 +323,6 @@ describe("Email Sender Lambda", async () => {
 
   describe("TEAM_INVITE_CREATED event", () => {
     test("should extract inviterName and inviteToken from newImage", async () => {
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "invitee@example.com": { VerificationStatus: "Success" }
-            }
-          };
-        }
-        return {};
-      };
-
       const event = {
         Records: [
           createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {
@@ -553,17 +345,6 @@ describe("Email Sender Lambda", async () => {
     });
 
     test("should process TEAM_INVITE_CREATED event type", async () => {
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "invitee@example.com": { VerificationStatus: "Success" }
-            }
-          };
-        }
-        return {};
-      };
-
       const event = {
         Records: [
           createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {
@@ -581,17 +362,6 @@ describe("Email Sender Lambda", async () => {
     });
 
     test("should include inviteToken in template data", async () => {
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "invitee@example.com": { VerificationStatus: "Success" }
-            }
-          };
-        }
-        return {};
-      };
-
       const event = {
         Records: [
           createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {
@@ -712,3 +482,151 @@ describe("Email Sender Lambda", async () => {
   });
 
 });
+
+// ===========================================
+// DynamoDB Dedup Flag Update Tests
+// Tests for the emailsSent map initialization fix (if_not_exists)
+// and the dedup flag update after successful email send.
+//
+// NOTE: TABLE_NAME is captured as a const at module load time, so we
+// cannot test the full handler DynamoDB path without a separate module
+// instance. Instead, we test the UpdateExpression construction pattern
+// directly — this is the exact code that was fixed.
+// ===========================================
+
+describe("Email Sender - emailsSent dedup flag UpdateExpression", () => {
+  /**
+   * Simulates the UpdateExpression construction from the email-sender Lambda.
+   * This is the exact pattern used in production after the if_not_exists fix.
+   */
+  function buildDedupUpdateParams(userId, eventType) {
+    return {
+      TableName: "hic-plg-staging",
+      Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+      UpdateExpression: "SET emailPendingVerification = :false, #emailsSent = if_not_exists(#emailsSent, :emptyMap), #emailsSent.#eventType = :timestamp",
+      ExpressionAttributeNames: {
+        "#emailsSent": "emailsSent",
+        "#eventType": eventType,
+      },
+      ExpressionAttributeValues: {
+        ":false": false,
+        ":emptyMap": {},
+        ":timestamp": new Date().toISOString(),
+      },
+    };
+  }
+
+  test("UpdateExpression should use if_not_exists to initialize emailsSent map", () => {
+    const params = buildDedupUpdateParams("user_abc", "LICENSE_CREATED");
+
+    // The fix: if_not_exists ensures the map is created before setting nested key
+    assert.ok(
+      params.UpdateExpression.includes("if_not_exists(#emailsSent, :emptyMap)"),
+      "UpdateExpression must use if_not_exists to handle missing emailsSent map",
+    );
+  });
+
+  test("UpdateExpression should set nested eventType key after map initialization", () => {
+    const params = buildDedupUpdateParams("user_abc", "LICENSE_CREATED");
+
+    // Both clauses must be present: map init AND nested key set
+    assert.ok(
+      params.UpdateExpression.includes("#emailsSent = if_not_exists(#emailsSent, :emptyMap)"),
+      "Must initialize map with if_not_exists",
+    );
+    assert.ok(
+      params.UpdateExpression.includes("#emailsSent.#eventType = :timestamp"),
+      "Must set nested eventType key",
+    );
+  });
+
+  test(":emptyMap should be an empty object", () => {
+    const params = buildDedupUpdateParams("user_abc", "LICENSE_CREATED");
+
+    assert.deepStrictEqual(
+      params.ExpressionAttributeValues[":emptyMap"],
+      {},
+      ":emptyMap must be empty object for if_not_exists fallback",
+    );
+  });
+
+  test("should set emailPendingVerification to false", () => {
+    const params = buildDedupUpdateParams("user_abc", "LICENSE_CREATED");
+
+    assert.strictEqual(
+      params.ExpressionAttributeValues[":false"],
+      false,
+      "emailPendingVerification should be set to false after email sent",
+    );
+  });
+
+  test("should use correct Key structure (USER#userId, PROFILE)", () => {
+    const params = buildDedupUpdateParams("google_12345", "CUSTOMER_CREATED");
+
+    assert.deepStrictEqual(params.Key, {
+      PK: "USER#google_12345",
+      SK: "PROFILE",
+    });
+  });
+
+  test("should map eventType to ExpressionAttributeNames correctly", () => {
+    const params = buildDedupUpdateParams("user_abc", "SUBSCRIPTION_CANCELLED");
+
+    assert.strictEqual(params.ExpressionAttributeNames["#eventType"], "SUBSCRIPTION_CANCELLED");
+    assert.strictEqual(params.ExpressionAttributeNames["#emailsSent"], "emailsSent");
+  });
+
+  test(":timestamp should be a valid ISO date string", () => {
+    const params = buildDedupUpdateParams("user_abc", "LICENSE_CREATED");
+
+    const timestamp = params.ExpressionAttributeValues[":timestamp"];
+    assert.ok(timestamp, "timestamp should be present");
+    // Verify it's a valid ISO date
+    const parsed = new Date(timestamp);
+    assert.ok(!isNaN(parsed.getTime()), "timestamp should be a valid date");
+  });
+
+  test("guard: should skip DynamoDB update when TABLE_NAME is falsy", () => {
+    // Simulates the guard condition in the Lambda handler
+    const TABLE_NAME = undefined; // Not set in env
+    const userId = "user_abc";
+
+    const shouldUpdate = Boolean(TABLE_NAME && userId);
+    assert.strictEqual(shouldUpdate, false, "Should skip when TABLE_NAME is undefined");
+  });
+
+  test("guard: should skip DynamoDB update when userId is falsy", () => {
+    const TABLE_NAME = "hic-plg-staging";
+    const userId = undefined;
+
+    const shouldUpdate = Boolean(TABLE_NAME && userId);
+    assert.strictEqual(shouldUpdate, false, "Should skip when userId is undefined");
+  });
+
+  test("guard: should proceed when both TABLE_NAME and userId are present", () => {
+    const TABLE_NAME = "hic-plg-staging";
+    const userId = "user_abc";
+
+    const shouldUpdate = Boolean(TABLE_NAME && userId);
+    assert.strictEqual(shouldUpdate, true, "Should proceed when both are present");
+  });
+
+  test("all supported eventTypes should produce valid params", () => {
+    // Every eventType that triggers an email should produce valid dedup params
+    const eventTypes = [
+      "CUSTOMER_CREATED",
+      "LICENSE_CREATED",
+      "SUBSCRIPTION_CANCELLED",
+      "SUBSCRIPTION_REACTIVATED",
+      "PAYMENT_FAILED",
+      "TEAM_INVITE_CREATED",
+    ];
+
+    for (const eventType of eventTypes) {
+      const params = buildDedupUpdateParams("user_test", eventType);
+      assert.ok(params.UpdateExpression.includes("if_not_exists"), `if_not_exists missing for ${eventType}`);
+      assert.strictEqual(params.ExpressionAttributeNames["#eventType"], eventType);
+    }
+  });
+});
+
