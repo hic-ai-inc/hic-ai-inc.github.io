@@ -2092,6 +2092,80 @@ export async function removeOrgMember(orgId, memberId) {
 }
 
 /**
+ * Write an event record to trigger the email pipeline.
+ * Event records flow through DynamoDB Stream → StreamProcessor → SNS → SQS → EmailSender.
+ * @param {string} eventType - Event type (e.g., LICENSE_SUSPENDED, LICENSE_REVOKED)
+ * @param {Object} data - Event data (email, userId, etc.)
+ * @returns {Promise<void>}
+ */
+export async function writeEventRecord(eventType, data) {
+  const logger = createLogger("writeEventRecord");
+  const now = new Date().toISOString();
+  const eventId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+  try {
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          PK: `EVENT#${eventId}`,
+          SK: "DETAILS",
+          eventType,
+          ...data,
+          createdAt: now,
+        },
+      }),
+    );
+    logger.info("Event record written", { eventId, eventType });
+  } catch (error) {
+    logger.error("Failed to write event record", {
+      eventType,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Update an organization invite's status.
+ * Used to mark invites as revoked/suspended when a member is deactivated.
+ * @param {string} orgId - Organization ID
+ * @param {string} inviteId - Invite ID
+ * @param {string} status - New status (e.g., "revoked", "suspended")
+ * @returns {Promise<void>}
+ */
+export async function updateOrgInviteStatus(orgId, inviteId, status) {
+  const logger = createLogger("updateOrgInviteStatus");
+  try {
+    await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORG#${orgId}`,
+          SK: `INVITE#${inviteId}`,
+        },
+        UpdateExpression: "SET #status = :status, updatedAt = :now",
+        ExpressionAttributeNames: {
+          "#status": "status",
+        },
+        ExpressionAttributeValues: {
+          ":status": status,
+          ":now": new Date().toISOString(),
+        },
+      }),
+    );
+    logger.info("Org invite status updated", { orgId, inviteId, status });
+  } catch (error) {
+    logger.error("Failed to update org invite status", {
+      orgId,
+      inviteId,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
  * Add a member to an organization (direct add, no invite)
  * Used for owner setup or bulk imports
  * @param {Object} params - Member parameters

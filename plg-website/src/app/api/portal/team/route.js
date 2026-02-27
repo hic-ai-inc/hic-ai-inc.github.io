@@ -20,6 +20,8 @@ import {
   updateOrgMemberStatus,
   updateOrgMemberRole,
   removeOrgMember,
+  writeEventRecord,
+  updateOrgInviteStatus,
   getCustomerByUserId,
   getCustomerByEmail,
   getUserOrgMembership,
@@ -387,6 +389,24 @@ export async function POST(request) {
 
         const updated = await updateOrgMemberStatus(orgId, memberId, status);
 
+        // Trigger notification email and clean up invite for suspension/revocation
+        if (status === "suspended" || status === "revoked") {
+          const eventType = status === "suspended" ? "LICENSE_SUSPENDED" : "LICENSE_REVOKED";
+          if (targetMember.email) {
+            const org = await getOrganization(orgId);
+            await writeEventRecord(eventType, {
+              email: targetMember.email,
+              userId: memberId,
+              organizationName: org?.name,
+            });
+          }
+
+          // Remove deactivated member's invite from the Invitations list
+          if (targetMember.inviteId) {
+            await updateOrgInviteStatus(orgId, targetMember.inviteId, status);
+          }
+        }
+
         return NextResponse.json({
           success: true,
           member: {
@@ -628,6 +648,21 @@ export async function DELETE(request) {
             { error: "Cannot remove yourself. Contact another admin." },
             { status: 400 },
           );
+        }
+
+        // Trigger revocation email before removing the member record
+        if (targetMember.email) {
+          const org = await getOrganization(orgId);
+          await writeEventRecord("LICENSE_REVOKED", {
+            email: targetMember.email,
+            userId: memberId,
+            organizationName: org?.name,
+          });
+        }
+
+        // Remove deactivated member's invite from the Invitations list
+        if (targetMember.inviteId) {
+          await updateOrgInviteStatus(orgId, targetMember.inviteId, "revoked");
         }
 
         await removeOrgMember(orgId, memberId);
