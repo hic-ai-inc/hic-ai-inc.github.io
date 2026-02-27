@@ -2,11 +2,11 @@
  * Email Sender Lambda Unit Tests
  *
  * Tests the email-sender Lambda for:
- * - Sending emails when SES verification is Success
- * - Skipping emails when verification is Pending/Failed/NotFound
- * - Graceful handling of verification check failures
+ * - Sending emails directly via SES (domain-verified, production mode)
  * - Processing multiple records
- * - Different event types (LICENSE_CREATED, etc.)
+ * - Different event types (LICENSE_CREATED, TEAM_INVITE_CREATED, etc.)
+ * - Feedback loop prevention (MODIFY guard + emailsSent dedup)
+ * - Safe JSON parsing (CWE-20/400/502)
  *
  * @see email-sender Lambda
  */
@@ -76,16 +76,8 @@ describe("Email Sender Lambda", async () => {
   beforeEach(() => {
     // Reset call tracking
     sesCalls = [];
-    // Default: verification succeeds, emails send
+    // Default: emails send successfully
     sesSendImpl = async (cmd) => {
-      if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-        const email = cmd.input.Identities[0];
-        return {
-          VerificationAttributes: {
-            [email]: { VerificationStatus: "Success" },
-          },
-        };
-      }
       if (cmd.constructor.name === "SendEmailCommand") {
         return { MessageId: `test-msg-${Date.now()}` };
       }
@@ -93,222 +85,33 @@ describe("Email Sender Lambda", async () => {
     };
   });
 
-  describe("SES Verification Guard", () => {
-    test("should send email when verification status is Success", async () => {
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "verified@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-          planName: { S: "PRO" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      // Should have checked verification and sent email
-      const verificationCall = sesCalls.find(
-        (c) => c.command === "GetIdentityVerificationAttributesCommand",
-      );
-      expect(verificationCall).toBeTruthy();
-      expect(verificationCall.input.Identities).toContain(
-        "verified@example.com",
-      );
-
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeTruthy();
-      expect(sendCall.input.Destination.ToAddresses).toContain(
-        "verified@example.com",
-      );
-
-      expect(result.success).toBe(1);
-      expect(result.failed).toBe(0);
-    });
-
-    test("should skip email when verification status is Pending", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          return {
-            VerificationAttributes: {
-              "pending@example.com": { VerificationStatus: "Pending" },
-            },
-          };
-        }
-        return { MessageId: "should-not-reach" };
-      };
-
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "pending@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      // Should have checked verification but NOT sent email
-      const verificationCall = sesCalls.find(
-        (c) => c.command === "GetIdentityVerificationAttributesCommand",
-      );
-      expect(verificationCall).toBeTruthy();
-
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeFalsy();
-
-      // Skipped records should be counted separately
-      expect(result.success).toBe(0);
-      expect(result.skipped).toBe(1);
-      expect(result.failed).toBe(0);
-    });
-
-    test("should skip email when verification status is Failed", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          return {
-            VerificationAttributes: {
-              "failed@example.com": { VerificationStatus: "Failed" },
-            },
-          };
-        }
-        return { MessageId: "should-not-reach" };
-      };
-
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "failed@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeFalsy();
-
-      expect(result.success).toBe(0);
-      expect(result.skipped).toBe(1);
-      expect(result.failed).toBe(0);
-    });
-
-    test("should skip email when email not found in verification attributes", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          // Empty attributes = email not known to SES
-          return { VerificationAttributes: {} };
-        }
-        return { MessageId: "should-not-reach" };
-      };
-
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "unknown@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeFalsy();
-
-      expect(result.success).toBe(0);
-      expect(result.skipped).toBe(1);
-      expect(result.failed).toBe(0);
-    });
-
-    test("should continue to send if verification check throws error", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          throw new Error("SES API temporarily unavailable");
-        }
-        if (cmd.constructor.name === "SendEmailCommand") {
-          return { MessageId: `test-msg-${Date.now()}` };
-        }
-        return {};
-      };
-
-      const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "user@example.com", {
-          licenseKey: { S: "LICENSE-KEY-123" },
-          planName: { S: "PRO" },
-        }),
-      ]);
-
-      const result = await handler(event);
-
-      // Should have attempted verification
-      const verificationCall = sesCalls.find(
-        (c) => c.command === "GetIdentityVerificationAttributesCommand",
-      );
-      expect(verificationCall).toBeTruthy();
-
-      // Should have continued to send email anyway (graceful degradation)
-      const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
-      expect(sendCall).toBeTruthy();
-
-      expect(result.success).toBe(1);
-    });
-  });
-
   describe("Multiple Records Processing", () => {
-    test("should process multiple records with mixed verification status", async () => {
-      sesSendImpl = async (cmd) => {
-        if (
-          cmd.constructor.name === "GetIdentityVerificationAttributesCommand"
-        ) {
-          const email = cmd.input.Identities[0];
-          if (email === "verified@example.com") {
-            return {
-              VerificationAttributes: {
-                [email]: { VerificationStatus: "Success" },
-              },
-            };
-          }
-          if (email === "pending@example.com") {
-            return {
-              VerificationAttributes: {
-                [email]: { VerificationStatus: "Pending" },
-              },
-            };
-          }
-          return { VerificationAttributes: {} };
-        }
-        if (cmd.constructor.name === "SendEmailCommand") {
-          return { MessageId: `test-msg-${Date.now()}` };
-        }
-        return {};
-      };
-
+    test("should send emails to all recipients directly", async () => {
       const event = createSqsEvent([
-        createSqsRecord("LICENSE_CREATED", "verified@example.com", {
+        createSqsRecord("LICENSE_CREATED", "user1@example.com", {
           licenseKey: { S: "KEY-1" },
           planName: { S: "PRO" },
         }),
-        createSqsRecord("LICENSE_CREATED", "pending@example.com", {
+        createSqsRecord("LICENSE_CREATED", "user2@example.com", {
           licenseKey: { S: "KEY-2" },
+          planName: { S: "PRO" },
         }),
-        createSqsRecord("LICENSE_CREATED", "unknown@example.com", {
+        createSqsRecord("LICENSE_CREATED", "user3@example.com", {
           licenseKey: { S: "KEY-3" },
+          planName: { S: "PRO" },
         }),
       ]);
 
       const result = await handler(event);
 
-      // Only verified email should be sent
+      // All emails should be sent directly (no verification gate)
       const sendCalls = sesCalls.filter(
         (c) => c.command === "SendEmailCommand",
       );
-      expect(sendCalls.length).toBe(1);
-      expect(sendCalls[0].input.Destination.ToAddresses).toContain(
-        "verified@example.com",
-      );
+      expect(sendCalls.length).toBe(3);
 
       expect(result.processed).toBe(3);
-      expect(result.success).toBe(1);
-      expect(result.skipped).toBe(2);
+      expect(result.success).toBe(3);
       expect(result.failed).toBe(0);
     });
   });
@@ -520,17 +323,6 @@ describe("Email Sender Lambda", async () => {
 
   describe("TEAM_INVITE_CREATED event", () => {
     test("should extract inviterName and inviteToken from newImage", async () => {
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "invitee@example.com": { VerificationStatus: "Success" }
-            }
-          };
-        }
-        return {};
-      };
-
       const event = {
         Records: [
           createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {
@@ -553,17 +345,6 @@ describe("Email Sender Lambda", async () => {
     });
 
     test("should process TEAM_INVITE_CREATED event type", async () => {
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "invitee@example.com": { VerificationStatus: "Success" }
-            }
-          };
-        }
-        return {};
-      };
-
       const event = {
         Records: [
           createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {
@@ -581,17 +362,6 @@ describe("Email Sender Lambda", async () => {
     });
 
     test("should include inviteToken in template data", async () => {
-      sesSendImpl = async (cmd) => {
-        if (cmd.constructor.name === "GetIdentityVerificationAttributesCommand") {
-          return {
-            VerificationAttributes: {
-              "invitee@example.com": { VerificationStatus: "Success" }
-            }
-          };
-        }
-        return {};
-      };
-
       const event = {
         Records: [
           createSqsRecord("TEAM_INVITE_CREATED", "invitee@example.com", {

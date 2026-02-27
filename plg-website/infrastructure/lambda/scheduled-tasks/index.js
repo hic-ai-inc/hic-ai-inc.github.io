@@ -21,7 +21,6 @@ import {
 import {
   SESClient,
   SendEmailCommand,
-  GetIdentityVerificationAttributesCommand,
   createTemplates,
   EVENT_TYPE_TO_TEMPLATE,
 } from "hic-ses-layer";
@@ -307,12 +306,13 @@ async function handleWinback90(log) {
 
 /**
  * Handle pending email retry job
- * Scans for users with pending emails and retries if their email is now verified
+ * Cleans up legacy emailPendingVerification flags and sends any unsent emails.
+ * SES recipient verification is no longer required (production mode with domain verification).
  */
 async function handlePendingEmailRetry(log) {
   log.info("running-job", { job: "pending-email-retry" });
 
-  // Scan for users with pending welcome emails
+  // Scan for users with legacy pending email flags
   const result = await dynamoClient.send(
     new ScanCommand({
       TableName: TABLE_NAME,
@@ -328,38 +328,13 @@ async function handlePendingEmailRetry(log) {
   log.info("found-pending-users", { count: pendingUsers.length });
 
   if (pendingUsers.length === 0) {
-    return { sent: 0, stillPending: 0, failed: 0 };
-  }
-
-  // Batch check verification status for all pending emails
-  const emails = pendingUsers.map((u) => u.email);
-  let verificationStatuses = {};
-
-  try {
-    const verificationResult = await sesClient.send(
-      new GetIdentityVerificationAttributesCommand({
-        Identities: emails,
-      }),
-    );
-    verificationStatuses = verificationResult.VerificationAttributes || {};
-  } catch (error) {
-    log.error("verification-check-failed", { error: error.message });
-    throw error;
+    return { sent: 0, failed: 0 };
   }
 
   let sent = 0;
-  let stillPending = 0;
   let failed = 0;
 
   for (const user of pendingUsers) {
-    const verificationStatus = verificationStatuses[user.email]?.VerificationStatus;
-
-    if (verificationStatus !== "Success") {
-      // Still not verified - skip
-      stillPending++;
-      continue;
-    }
-
     // Check if this email was already sent (dedup guard)
     if (wasEmailSent(user, user.eventType)) {
       log.debug("already-sent", { userId: user.userId, eventType: user.eventType });
@@ -376,7 +351,7 @@ async function handlePendingEmailRetry(log) {
       continue;
     }
 
-    // Email is now verified - determine which email template to send
+    // Determine which email template to send
     const templateName = EVENT_TYPE_TO_TEMPLATE[user.eventType];
     if (!templateName) {
       log.warn("no-template-for-event", { eventType: user.eventType, userId: user.userId });
@@ -389,7 +364,6 @@ async function handlePendingEmailRetry(log) {
       email: user.email,
       licenseKey: user.licenseKey,
       planName: user.planName,
-      sessionId: user.sessionId,
     };
 
     const success = await sendEmail(templateName, templateData, log);
@@ -418,8 +392,8 @@ async function handlePendingEmailRetry(log) {
     }
   }
 
-  log.info("pending-email-retry-complete", { sent, stillPending, failed, total: pendingUsers.length });
-  return { sent, stillPending, failed };
+  log.info("pending-email-retry-complete", { sent, failed, total: pendingUsers.length });
+  return { sent, failed };
 
 }
 

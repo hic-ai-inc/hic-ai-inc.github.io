@@ -2,20 +2,12 @@
  * Cognito Post-Confirmation Lambda
  *
  * Triggered when a user successfully confirms their Cognito account.
- * This Lambda:
- *   1. Requests SES email verification for the user's email address
- *   2. Writes a CUSTOMER_CREATED event to DynamoDB to trigger welcome email
- *      (once email is verified)
+ * Writes a CUSTOMER_CREATED event to DynamoDB to trigger welcome email
+ * via the event-driven pipeline (DynamoDB Stream → StreamProcessor → SNS → EmailSender → SES).
  *
  * Trigger: Cognito PostConfirmation event
- * Layer Dependencies: hic-base-layer, hic-ses-layer
- *
- * SES Email Verification Flow:
- *   - ses.verifyEmailIdentity(email) → AWS sends verification email to user
- *   - User clicks link → email becomes verified in SES
- *   - email-sender Lambda checks verification before sending any email
+ * Layer Dependencies: hic-base-layer
  */
-import { SESClient, VerifyEmailIdentityCommand } from "hic-ses-layer";
 import { HicLog } from "hic-base-layer";
 import {
   DynamoDBClient,
@@ -27,26 +19,13 @@ import {
 // ============================================================================
 // Injectable Clients for Testing
 // ============================================================================
-let sesClient = new SESClient({
-  region: process.env.AWS_REGION || "us-east-1",
-  maxAttempts: 3,
-});
-
 let dynamoClient = new DynamoDBClient({
   region: process.env.AWS_REGION || "us-east-1",
   maxAttempts: 3,
 });
 
-export function __setSesClientForTests(client) {
-  sesClient = client;
-}
-
 export function __setDynamoClientForTests(client) {
   dynamoClient = client;
-}
-
-export function getSesClientInstance() {
-  return sesClient;
 }
 
 export function getDynamoClientInstance() {
@@ -79,18 +58,13 @@ export const handler = async (event, context) => {
   });
 
   try {
-    // Step 1: Request SES email verification
-    // AWS will send a verification email to the user
-    await requestSesVerification(email, log);
-
-    // Step 2: Write CUSTOMER_CREATED event to DynamoDB
-    // This will NOT trigger welcome email yet (email-sender will check verification)
+    // Write CUSTOMER_CREATED event to DynamoDB
+    // This triggers the welcome email via event-driven pipeline
     await writeUserCreatedEvent(userId, email, name, log);
 
     log.info("complete", {
       userId,
       email: maskEmail(email),
-      sesVerificationRequested: true,
       userCreatedEventWritten: true,
     });
 
@@ -109,27 +83,6 @@ export const handler = async (event, context) => {
     return event;
   }
 };
-
-// ============================================================================
-// SES Verification
-// ============================================================================
-async function requestSesVerification(email, log) {
-  try {
-    await sesClient.send(
-      new VerifyEmailIdentityCommand({
-        EmailAddress: email,
-      }),
-    );
-    log.info("ses-verification-requested", { email: maskEmail(email) });
-  } catch (error) {
-    // Log but don't throw - verification can be retried later
-    log.warn("ses-verification-failed", {
-      email: maskEmail(email),
-      error: error.message,
-    });
-    throw error;
-  }
-}
 
 // ============================================================================
 // DynamoDB Operations
@@ -154,9 +107,7 @@ async function writeUserCreatedEvent(userId, email, name, log) {
   }
 
   // Write new user profile with CUSTOMER_CREATED event type
-  // This triggers DynamoDB Stream → StreamProcessor → SNS → email-sender
-  // But email-sender will check SES verification before actually sending
-  // If email is not yet verified, emailPendingVerification flag enables scheduled retry
+  // This triggers DynamoDB Stream → StreamProcessor → SNS → email-sender → SES
   const userItem = {
     PK: `USER#${userId}`,
     SK: "PROFILE",
@@ -168,9 +119,6 @@ async function writeUserCreatedEvent(userId, email, name, log) {
     name,
     // Event-driven email fields
     eventType: "CUSTOMER_CREATED",
-    sesVerificationStatus: "pending",
-    // Pending email retry flag - scheduled-tasks Lambda will retry when email is verified
-    emailPendingVerification: true,
     emailsSent: {}, // Track sent emails to prevent duplicates
     // Metadata
     createdAt: now,

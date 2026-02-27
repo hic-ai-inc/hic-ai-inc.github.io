@@ -16,7 +16,6 @@
 import {
   SESClient,
   SendEmailCommand,
-  GetIdentityVerificationAttributesCommand,
   createTemplates,
   EVENT_TYPE_TO_TEMPLATE,
 } from "hic-ses-layer";
@@ -73,7 +72,6 @@ const templates = createTemplates({
 
 // Use centralized event-to-template mapping from hic-ses-layer
 const EMAIL_ACTIONS = EVENT_TYPE_TO_TEMPLATE;
-
 
 // ============================================================================
 // Helper: Extract field value from DynamoDB record
@@ -166,42 +164,6 @@ export const handler = async (event) => {
       }
 
       const emailContent = template(templateData);
-
-      // Check if email is verified in SES (required for sandbox mode, good practice in production)
-      const maskedEmail = email.replace(/(.{2}).*@/, "$1***@");
-      try {
-        const verificationResult = await sesClient.send(
-          new GetIdentityVerificationAttributesCommand({
-            Identities: [email],
-          }),
-        );
-        const verificationStatus =
-          verificationResult.VerificationAttributes?.[email]?.VerificationStatus;
-
-        if (verificationStatus !== "Success") {
-          log.warn("email-not-verified", {
-            emailAction,
-            email: maskedEmail,
-            status: verificationStatus || "NotFound",
-          });
-          results.push({
-            success: false,
-            skipped: true,
-            reason: "email-not-verified",
-            email,
-            status: verificationStatus || "NotFound",
-          });
-          continue;
-        }
-      } catch (verificationError) {
-        // If we can't check verification status, log warning but continue
-        // This allows graceful degradation if SES API is temporarily unavailable
-        log.warn("verification-check-failed", {
-          email: maskedEmail,
-          error: verificationError.message,
-        });
-        // Continue to try sending - SES will reject if not verified
-      }
 
       // Send email via SES
       await sesClient.send(
