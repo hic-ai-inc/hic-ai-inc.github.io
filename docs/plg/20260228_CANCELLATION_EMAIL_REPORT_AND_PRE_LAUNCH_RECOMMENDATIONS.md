@@ -93,7 +93,7 @@ From `route.js` statusMap and various handlers:
 | `canceled` | Stripe `canceled` / `subscription.deleted` | Subscription terminated |
 | `disputed` | `charge.dispute.created` | Chargeback in progress |
 | `pending` | Stripe `incomplete` | Checkout not completed |
-| `expired` | Stripe `incomplete_expired` | Checkout expired |
+| `pending` | Stripe `incomplete_expired` | Checkout expired — treated as unlicensed (no prior license existed) |
 | `paused` | Stripe `paused` | Subscription paused |
 | `none` | Portal status default | No subscription exists |
 
@@ -290,8 +290,9 @@ Stripe → invoice.payment_succeeded (was past_due)
 - **eventType:** `SUBSCRIPTION_REACTIVATED` (correct for this scenario)
 - **Mouse state:** Fully functional (license reinstated)
 - **Email:** "Payment successful, license reinstated" — correct template
-- **Current status:** ✅ Working correctly
+- **Current status:** 🟡 Partial gap — `handlePaymentSucceeded` only checks for `past_due`, not `suspended`. A customer at 3+ failures whose payment eventually succeeds will not receive a reactivation email.
 - **Dedup clearing:** Must clear `PAYMENT_FAILED` from `emailsSent`
+- **Fix required:** Expand the status check in `handlePaymentSucceeded` to trigger `SUBSCRIPTION_REACTIVATED` for both `past_due` and `suspended` statuses (currently only checks `past_due`)
 
 #### Scenario 7: Subscription Expires Due to Nonpayment (Stripe Gives Up on Dunning)
 
@@ -358,9 +359,9 @@ Stripe → charge.dispute.created → charge.dispute.closed
 Scheduled task → 3 days before trial expires
 ```
 
-- **eventType:** `TRIAL_ENDING`
-- **Email:** "Your trial is ending soon"
-- **Current status:** ✅ Working correctly (uses `wasEmailSent` guard in scheduled-tasks Lambda)
+- **eventType:** `TRIAL_ENDING` (in `EVENT_TYPE_TO_TEMPLATE` mapping only — never written as an `eventType` on any record)
+- **Email:** "Your trial is ending soon" (sent directly by `handleTrialReminder` using `sendEmail("trialEnding", ...)`, not via the event pipeline)
+- **Current status:** 🟡 SUSPECTED DEAD CODE — `handleTrialReminder` queries for `subscriptionStatus: "trialing"` on PROFILE records, but no code path in the system ever writes `subscriptionStatus: "trialing"` to a PROFILE record. The `statusMap` in `handleSubscriptionUpdated` maps Stripe's `trialing` → `"trialing"`, but trial licenses are issued without Stripe subscriptions, so Stripe never fires a `customer.subscription.updated` event for trial users. The `TRIAL_ENDING` entry in `EVENT_TYPE_TO_TEMPLATE` is also dead — it's never used by the event pipeline since `handleTrialReminder` calls `sendEmail` directly. Requires confirmation during implementation; if confirmed dead, remove `handleTrialReminder`, the `TRIAL_ENDING` mapping, the `trialEnding` template, and the `trial-reminder` job registration.
 
 #### Scenario 13: Win-Back Emails (30 and 90 Days Post-Cancellation)
 
@@ -429,7 +430,7 @@ export const EVENT_TYPE_TO_TEMPLATE = {
   LICENSE_SUSPENDED: "licenseSuspended",                     // UNCHANGED
 
   // Trial
-  TRIAL_ENDING: "trialEnding",                               // UNCHANGED
+  // TRIAL_ENDING: "trialEnding",                            // REMOVE — suspected dead code (see Scenario 12)
 
   // Team
   TEAM_INVITE_CREATED: "enterpriseInvite",                   // UNCHANGED
@@ -563,7 +564,7 @@ The existing `reactivation` template is correct for payment recovery (Scenario 6
 | 1 | `welcome` | `CUSTOMER_CREATED` | Existing ✅ |
 | 2 | `licenseDelivery` | `LICENSE_CREATED` | Existing ✅ |
 | 3 | `paymentFailed` | `PAYMENT_FAILED` | Existing ✅ |
-| 4 | `trialEnding` | `TRIAL_ENDING` | Existing ✅ |
+| 4 | `trialEnding` | `TRIAL_ENDING` | REMOVE — suspected dead code (see Scenario 12 and Open Question 10) |
 | 5 | `reactivation` | `SUBSCRIPTION_REACTIVATED` | Existing ✅ (scope narrowed) |
 | 6 | `cancellation` | _(deprecated)_ | Remove from mapping |
 | 7 | `licenseRevoked` | `LICENSE_REVOKED` | Existing ✅ |
@@ -622,14 +623,19 @@ These changes fix the two reported bugs and establish the event architecture for
 
 **File:** `plg-website/src/app/api/webhooks/stripe/route.js`
 
-- When clearing `past_due` status, also clear `emailsSent.PAYMENT_FAILED`
+- Expand the reactivation trigger to check for both `past_due` AND `suspended` statuses (currently only checks `past_due` — see Scenario 6 gap)
+- When clearing `past_due` or `suspended` status, also clear `emailsSent.PAYMENT_FAILED`
 
 #### Step 5: Add `clearEmailsSent` support to `updateCustomerSubscription`
 
-**File:** `plg-website/src/app/api/webhooks/stripe/route.js` (or shared helper)
+**File:** `plg-website/src/lib/dynamodb.js` (lines 189–220 — the `updateCustomerSubscription` function)
 
-- Extend the DynamoDB `UpdateExpression` to support `REMOVE emailsSent.KEY` for specified keys
+- The function currently builds a `SET` expression from all key-value pairs in the `updates` object. It does not support `REMOVE` expressions.
+- Add support for a `clearEmailsSent` array parameter that generates `REMOVE emailsSent.#key` expressions for each specified key
+- The DynamoDB `UpdateExpression` must combine both `SET` and `REMOVE` clauses in a single update (DynamoDB supports this: `SET #a = :a REMOVE #b`)
 - This enables the dedup clearing described in Section 5
+
+**Security note:** The `clearEmailsSent` mechanism introduces a potential email flooding vector. If state transitions are triggered rapidly (e.g., toggling `cancel_at_period_end`), the clearing and re-sending cycle could generate excessive emails. Implement a cooldown guard: before clearing an `emailsSent` key, check the timestamp of the existing entry — if it was sent within the last 24 hours, skip the clear and do not re-send. This preserves the dedup protection against rapid toggling while allowing legitimate lifecycle re-sends across billing cycles.
 
 #### Step 6: Add 6 new email templates
 
@@ -644,15 +650,20 @@ These changes fix the two reported bugs and establish the event architecture for
 
 **File:** `plg-website/infrastructure/lambda/email-sender/index.js`
 
-- No structural change needed — the dedup guard works correctly as long as `emailsSent` keys are properly cleared by the webhook handler
+- No structural change needed to the dedup guard itself — it works correctly as long as `emailsSent` keys are properly cleared by the webhook handler
+- Rename `EMAIL_ACTIONS` (line 74) to `EVENT_TYPE_TO_TEMPLATE` for consistency with the source module name
 - Add logging to distinguish "permanently deduped" vs "lifecycle deduped" for debugging
 
 #### Step 8: Fix customer-update Lambda race condition
 
 **File:** `plg-website/infrastructure/lambda/customer-update/index.js`
 
-- In `handleSubscriptionUpdated`: if the incoming record contains `eventType`, preserve it in the update payload
-- Alternatively (simpler): skip the subscription status update entirely if the webhook already wrote it — the `customer-update` Lambda's write is redundant for subscription events since the webhook already updates the PROFILE
+**Approach (confirmed):** Skip the redundant `updateCustomerSubscription` call in `handleSubscriptionUpdated` (lines 231–295) when the webhook already wrote the same fields. Currently, this function reads `subscriptionStatus`, `cancelAtPeriodEnd`, etc. from the DynamoDB stream's `newImage` and writes them right back to the same PROFILE record — echoing the webhook's write. If `newImage` contains `eventType`, the customer-update Lambda should skip its own write entirely for that event, since the webhook already handled it.
+
+**Also required:** Update `handleSubscriptionDeleted` (lines 298–337) in the same Lambda:
+- Change `subscriptionStatus: "canceled"` to `"expired"`
+- The license metadata write (`updateLicenseStatus` with `eventType: "SUBSCRIPTION_CANCELLED"`) must be updated to use the appropriate new event type (`VOLUNTARY_CANCELLATION_EXPIRED` or `NONPAYMENT_CANCELLATION_EXPIRED`), determined by checking the customer's prior `subscriptionStatus`
+- Apply the same skip-if-webhook-handled guard as `handleSubscriptionUpdated`
 
 #### Step 9: Update constants
 
@@ -665,7 +676,8 @@ These changes fix the two reported bugs and establish the event architecture for
 
 **File:** `plg-website/infrastructure/lambda/scheduled-tasks/index.js`
 
-- Win-back queries currently filter on `subscriptionStatus: "canceled"` — update to `"expired"`
+- Win-back queries (`handleWinback30` line 221, `handleWinback90` line 272) currently filter on `subscriptionStatus: "canceled"` — update to `"expired"`
+- Confirm `TRIAL_ENDING` dead code status (see Scenario 12): if `handleTrialReminder` (line 154) queries for `subscriptionStatus: "trialing"` and no code path writes that status to PROFILE records, remove `handleTrialReminder`, the `"trial-reminder"` job registration (line 471), and the `trialEnding` template + `TRIAL_ENDING` mapping from `email-templates.js`
 
 #### Step 11: Rebuild and publish SES layer
 
@@ -725,12 +737,12 @@ This requires:
 | `customer-update` | Race condition fix |
 | `scheduled-tasks` | Updated win-back query filter |
 
-### Portal UI Considerations
+### Portal UI Updates (Required)
 
-| File | Potential Change |
+| File | Required Change |
 |---|---|
-| `plg-website/src/app/portal/page.js` | May need to display `cancellation_pending` status |
-| `plg-website/src/app/portal/billing/page.js` | May need to show "Cancellation pending — access until [date]" |
+| `plg-website/src/app/portal/page.js` | Billing card must display `cancellation_pending` status (uses `LICENSE_STATUS_DISPLAY[subscriptionStatus?.toUpperCase()]` — will work once `CANCELLATION_PENDING` is added to `LICENSE_STATUS_DISPLAY` in Step 9) |
+| `plg-website/src/app/portal/billing/page.js` | Status badge mapping (line ~344) must add `cancellation_pending` and `expired` entries. The `cancelAtPeriodEnd` display (line ~222) already works correctly for showing "Cancels on [date]" and "Access until [date]". |
 
 ---
 
@@ -773,7 +785,9 @@ This requires:
 
     The proposed new types follow a consistent pattern: `{SCOPE}_{ACTION}_{STATE}` (e.g., `VOLUNTARY_CANCELLATION_EXPIRED`, `NONPAYMENT_CANCELLATION_EXPIRED`). Should we also rename existing event types for consistency, or leave them as-is to minimize blast radius?
 
-   > ✅ **SWR:** `TRIAL_ENDING` is dead code and should be flagged for removal throughout the system. The trial license flow does not require account creation or a credit card — trial licenses are issued directly without any subscription record — so there is no subscription event to trigger `TRIAL_ENDING` and no customer record to query against. Affected locations: `dm/layers/ses/src/email-templates.js` (template + `EVENT_TYPE_TO_TEMPLATE` entry + `TEMPLATE_NAMES` entry), `plg-website/infrastructure/lambda/scheduled-tasks/index.js` (`handleTrialReminders` function), and any tests referencing `TRIAL_ENDING` or `trialEnding`. All should be removed as part of this cleanup pass. For the remaining event type naming inconsistencies, leave existing names as-is to minimize blast radius — the new cancellation event types establish the preferred pattern going forward.
+   > ✅ **SWR:** `TRIAL_ENDING` is suspected dead code and should be confirmed and removed if dead. The trial license flow does not require account creation or a credit card — trial licenses are issued directly without any subscription record — so there is no subscription event to trigger `TRIAL_ENDING` and no customer record with `subscriptionStatus: "trialing"` to query against. Code investigation confirms: `handleTrialReminder` in `scheduled-tasks/index.js` queries for `subscriptionStatus: "trialing"` on PROFILE records, but no code path in the system ever writes this status to a PROFILE record. Affected locations if confirmed dead: `dm/layers/ses/src/email-templates.js` (template + `EVENT_TYPE_TO_TEMPLATE` entry + `TEMPLATE_NAMES` entry), `plg-website/infrastructure/lambda/scheduled-tasks/index.js` (`handleTrialReminder` function + `trial-reminder` job registration), `dm/tests/facade/unit/email-templates.test.js` (test referencing `TRIAL_ENDING`), and any other tests referencing `TRIAL_ENDING` or `trialEnding`. All should be removed as part of this cleanup pass once confirmed.
+   >
+   > For naming convention standardization: standardize all spelling to American English single-L (`canceled`, `cancellation`) across the entire codebase. `LICENSE_STATUS.CANCELLED` in `constants.js` must be renamed to `CANCELED`, and all references updated. Do not carry naming mismatches post-launch — it will be much harder to fix later. The new cancellation event types establish the preferred naming pattern going forward.
 
 ---
 
@@ -855,11 +869,11 @@ Per Rule 4 ("Naming discrepancies are high-priority issues"), here is a complete
 | Location | Current Name | Issue | Recommendation |
 |---|---|---|---|
 | `route.js` statusMap | `canceled` | Stripe maps to `canceled`, but we propose `expired` for end-of-term | Use `expired` for customer-facing, keep `canceled` as internal Stripe mapping |
-| `constants.js` | `CANCELLED` (British spelling) | `LICENSE_STATUS.CANCELLED` uses British spelling | Inconsistent with `canceled` (American) used in `subscriptionStatus`. Pick one. |
+| `constants.js` | `CANCELLED` (British spelling) | `LICENSE_STATUS.CANCELLED` uses British spelling | **STANDARDIZE:** Rename to `CANCELED` (American, single-L) across the entire codebase. All references must be updated. Do not carry this mismatch post-launch. |
 | `email-templates.js` | `cancellation` template | Named for the action, not the state | Keep as-is (deprecated) — new templates use descriptive names |
-| `route.js` | `paymentFailedCount` | Used in `handlePaymentFailed` | `customer-update/index.js` uses `paymentFailureCount` — inconsistent |
-| `customer-update/index.js` | `MAX_PAYMENT_FAILURES` | Constant defined but threshold logic is in `route.js` | Consolidate threshold logic to one location |
-| `email-sender/index.js` | `EMAIL_ACTIONS` | Alias for `EVENT_TYPE_TO_TEMPLATE` | Rename to `EVENT_TYPE_TO_TEMPLATE` for consistency |
+| `route.js` | `paymentFailedCount` | Used in `handlePaymentFailed` (line 636) | **FUNCTIONAL BUG:** `customer-update/index.js` uses `paymentFailureCount` (lines 365, 370, 419, 424) — these are different DynamoDB attribute names. The webhook writes `paymentFailedCount` but the customer-update Lambda reads/writes `paymentFailureCount`. The threshold check in customer-update (`customer.paymentFailureCount || 0`) will never see the webhook's value. **Consolidate to `paymentFailureCount`** (used more consistently in customer-update and its tests). |
+| `customer-update/index.js` | `MAX_PAYMENT_FAILURES` | Constant defined (line 60) but threshold logic is hardcoded as `attempt_count >= 3` in `route.js` (line ~655) | **Extract to shared constant** in `constants.js` and import in both `route.js` and `customer-update/index.js` |
+| `email-sender/index.js` | `EMAIL_ACTIONS` | Alias for `EVENT_TYPE_TO_TEMPLATE` (line 74: `const EMAIL_ACTIONS = EVENT_TYPE_TO_TEMPLATE`) | **Rename to `EVENT_TYPE_TO_TEMPLATE`** for consistency — one-line change, zero risk |
 
 ---
 
