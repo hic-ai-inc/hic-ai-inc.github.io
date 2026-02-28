@@ -1,7 +1,7 @@
 {
   "layer": "hic-messaging-layer",
-  "version": "0.1.8",
-  "contentHash": "d8ffcdc4ce6115160daccd7942a1626fcb7b72611c7082379a5d888d43b82761",
+  "version": "0.1.10",
+  "contentHash": "21da01369f278f3d680d3bccc7d5e5bbbee7dd3b1deccdaa2717469e7abbd0d2",
   "exports": [
     "export * from \"@aws-sdk/client-sns\";",
     "export * from \"@aws-sdk/client-sqs\";"
@@ -16,9 +16,11 @@
     "publish.0.1.5.manifest.json",
     "publish.0.1.6.manifest.json",
     "publish.0.1.7.manifest.json",
+    "publish.0.1.8.manifest.json",
+    "publish.0.1.9.manifest.json",
     "publish.sh",
     "src\\index.js",
     "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2026-02-06T20:59:06.586Z"
+  "builtAt": "2026-02-28T15:24:19.747Z"
 }

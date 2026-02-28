@@ -1,7 +1,7 @@
 {
   "layer": "hic-metrics-layer",
-  "version": "0.1.3",
-  "contentHash": "c76dd479080b796a8688ca6c23d8b64d084150ddb815d812ccd94d5336595faf",
+  "version": "0.1.5",
+  "contentHash": "b880dcfe230d374598cc7656f341005c7dd0c813ba7af9d5da99bd853e4ba5bf",
   "exports": [
     "export {"
   ],
@@ -9,9 +9,11 @@
     "build.sh",
     "publish.0.1.1.manifest.json",
     "publish.0.1.2.manifest.json",
+    "publish.0.1.3.manifest.json",
+    "publish.0.1.4.manifest.json",
     "publish.sh",
     "src\\index.js",
     "C:\\Users\\SimonAdmin\\source\\repos\\hic-ai-inc.github.io\\dm\\layers\\versions.env"
   ],
-  "builtAt": "2026-02-06T21:00:37.564Z"
+  "builtAt": "2026-02-28T15:24:31.927Z"
 }
