@@ -747,13 +747,23 @@ This requires:
 
 5. **Backward compatibility for `canceled` status:** Existing customer records in DynamoDB have `subscriptionStatus: "canceled"`. Should we run a one-time migration to update these to `expired`, or handle both values in queries? The win-back scheduled task currently queries for `"canceled"` — it would need to query for both during a transition period.
 
+   > ✅ **SWR:** No migration needed. All existing `canceled` records belong to Yopmail throwaway test accounts created during staging validation — there are no live customer records. The `winBack30` and `winBack90` emails are not yet implemented or wired up, so no query updates are required at this time.
+
 6. **Portal UI for `cancellation_pending`:** Should the portal billing page show a banner like "Your subscription will end on [date]. Changed your mind?" with a CTA to reverse? This is a frontend change that could be deferred post-launch but would be a nice touch.
+
+   > ✅ **SWR:** The `/portal/billing` page already correctly reflects the pending cancellation date and handles the "Don't Cancel" reversal flow. The one UX gap is the main `/portal` page: the billing card there should be updated to reflect that a cancellation is pending (e.g., show `cancellation_pending` status). This is a targeted frontend change, scoped to the billing card on `/portal/page.js`.
 
 7. ✅ **Org cancellation event architecture:** No separate ORG-specific event types. The same 4 cancellation lifecycle events apply to both Individual and Business accounts. The email-sender Lambda checks `accountType` and routes to org-variant templates for Business accounts, fanning out notifications to org members. This keeps the event taxonomy clean and avoids duplicating business logic into the event layer.
 
+   > ✅ **SWR:** Confirmed. Downstream consequences of each cancellation event must be handled correctly for both Individual/Business (single-user) and Business multi-user accounts, with different routing for each. The event taxonomy is correct as proposed; the routing logic in the email-sender Lambda is where the account-type branching lives.
+
 8. **Test account cleanup:** The test account used for E2E validation likely has `emailsSent.SUBSCRIPTION_CANCELLED` permanently stamped. We should clear this manually in DynamoDB before re-testing. Should we also build a small admin utility to clear `emailsSent` for any customer (useful for support scenarios)?
 
+   > ✅ **SWR:** No action needed. All test accounts are Yopmail throwaways — no cleanup required. No admin utility needed at this time.
+
 9. **`SUBSCRIPTION_CANCELLED` backward compatibility:** The old `SUBSCRIPTION_CANCELLED` event type should be removed from `EVENT_TYPE_TO_TEMPLATE` to prevent accidental use. However, if any existing `EVENT#` records in DynamoDB still reference it, the email-sender would log `no-email-action` warnings. Is this acceptable, or should we keep a mapping to a sensible default template during a transition period?
+
+   > ✅ **SWR:** No transition period needed. Any `EVENT#` records referencing `SUBSCRIPTION_CANCELLED` belong to throwaway test accounts only. Remove the mapping cleanly.
 
 10. **Naming convention audit:** The existing codebase uses a mix of naming styles for event types:
     - `SUBSCRIPTION_CANCELLED` (past tense, passive)
@@ -762,6 +772,8 @@ This requires:
     - `TEAM_INVITE_CREATED` (past tense, passive)
 
     The proposed new types follow a consistent pattern: `{SCOPE}_{ACTION}_{STATE}` (e.g., `VOLUNTARY_CANCELLATION_EXPIRED`, `NONPAYMENT_CANCELLATION_EXPIRED`). Should we also rename existing event types for consistency, or leave them as-is to minimize blast radius?
+
+   > ✅ **SWR:** `TRIAL_ENDING` is dead code and should be flagged for removal throughout the system. The trial license flow does not require account creation or a credit card — trial licenses are issued directly without any subscription record — so there is no subscription event to trigger `TRIAL_ENDING` and no customer record to query against. Affected locations: `dm/layers/ses/src/email-templates.js` (template + `EVENT_TYPE_TO_TEMPLATE` entry + `TEMPLATE_NAMES` entry), `plg-website/infrastructure/lambda/scheduled-tasks/index.js` (`handleTrialReminders` function), and any tests referencing `TRIAL_ENDING` or `trialEnding`. All should be removed as part of this cleanup pass. For the remaining event type naming inconsistencies, leave existing names as-is to minimize blast radius — the new cancellation event types establish the preferred pattern going forward.
 
 ---
 
