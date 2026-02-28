@@ -272,7 +272,7 @@ describe("Customer Update Lambda", () => {
   });
 
   describe("customer.subscription.deleted Handler", () => {
-    test("cancels licenses and writes event record", async () => {
+    test("cancels licenses and updates customer record", async () => {
       dynamoSendImpl =(async (cmd) => {
         if (
           cmd.constructor.name === "QueryCommand" &&
@@ -313,7 +313,8 @@ describe("Customer Update Lambda", () => {
       // 2. Update customer
       // 3. Query licenses
       // 4. Update each license
-      // 5. Write event record
+      // NOTE: Cancellation email is triggered by the webhook handler,
+      // not by a separate EVENT# record from this Lambda. (Fixed 2026-02-28)
       expect(dynamoCalls.length).toBeGreaterThan(2);
     });
   });

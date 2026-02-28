@@ -45,6 +45,7 @@ echo "🚀 Starting Lambda Layer Build..."
 : "${EXPORTS_RELATIVE_FILE_PATH:=}"                                 # e.g., "src/index.js" for API-aware bumps
 : "${LAYER_SUBPATH_EXPORTS:=}"                                      # JSON object with extra export map
 : "${PRESERVE_BUILD:=0}"
+: "${FORCE_BUILD:=0}"                                              # Set to 1 to bypass version-gate noop (e.g. after /dist deletion)
 
 # --- Validation ---
 validate_node
@@ -76,8 +77,18 @@ unset DECISION NEXT_VERSION || true
 source "${SCRIPT_DIR}/../utils/version-gate.sh" "${LAYER_DIR}" "${LAYER_NAME}" "${EXPORTS_RELATIVE_FILE_PATH}"
 
 if [[ "${DECISION}" == "noop" ]]; then
-  echo "✅ No changes detected for ${LAYER_NAME}. Skipping build."
-  exit 0
+  if [[ "${FORCE_BUILD:-0}" == "1" ]]; then
+    # Read current version from manifest — version gate won't set NEXT_VERSION on noop
+    NEXT_VERSION="$(jq -r '.version // empty' "${LAYER_DIR}/version.manifest.json")"
+    if [[ -z "${NEXT_VERSION}" ]]; then
+      echo "❌ FORCE_BUILD=1 but could not read version from ${LAYER_DIR}/version.manifest.json"
+      exit 1
+    fi
+    echo "⚠️  Version gate says noop but FORCE_BUILD=1 — rebuilding at current version ${NEXT_VERSION}."
+  else
+    echo "✅ No changes detected for ${LAYER_NAME}. Skipping build."
+    exit 0
+  fi
 fi
 
 # --- Adopt the computed version from the gate ---
@@ -103,6 +114,19 @@ cat > "${NODEJS_DIR}/package.json" << EOF
   "dependencies": ${LAYER_DEPENDENCIES}
 }
 EOF
+
+# --- Apply transitive dependency overrides (sourced from versions.env) ---
+# Merges LAYER_DEP_OVERRIDES into the generated package.json so npm respects them
+# during the isolated layer install. Overrides become a no-op once the upstream
+# SDK ships the fixed version natively — no removal required.
+if [[ -n "${LAYER_DEP_OVERRIDES:-}" ]]; then
+  tmp="${NODEJS_DIR}/package.json.tmp"
+  jq --argjson overrides "${LAYER_DEP_OVERRIDES}" \
+    '. + {"overrides": $overrides}' \
+    "${NODEJS_DIR}/package.json" > "${tmp}" && mv "${tmp}" "${NODEJS_DIR}/package.json"
+  echo "🔒 Applied dependency overrides: ${LAYER_DEP_OVERRIDES}"
+fi
+
 
 # --- Install dependencies FLAT at nodejs/node_modules ---
 pushd "${NODEJS_DIR}" > /dev/null

@@ -105,11 +105,11 @@ _~~Note: Steps 1.1–1.2 extend Phase 0 items 0.8–0.9. Phase 0 establishes the
 
 _Start after DMARC (0.7) is propagating._
 
-- [ ] **7.2** Test email delivery to Gmail — inbox, not spam (30m)
+- [x] **7.2** Test email delivery to Gmail — inbox, not spam (30m)
 - [ ] **7.3** Test email delivery to Outlook/Hotmail — inbox, not spam (30m)
-- [ ] **7.4** Verify all SES transactional email types fire: welcome, license activation, payment failed, subscription cancelled (1h) — _Note: payment receipts/confirmations are sent by Stripe, not SES; excluded from this check_
-- [ ] **7.5** Bounce/complaint monitoring active in SES console (30m)
-- [ ] **7.6** Verify duplicate email prevention fix is holding (15m)
+- [x] **7.4** Verify all SES transactional email types fire: welcome, license activation, payment failed, subscription cancelled (1h) — _Note: payment receipts/confirmations are sent by Stripe, not SES; excluded from this check_
+- [x] **7.5** Bounce/complaint monitoring active in SES console (30m)
+- [x] **7.6** Verify duplicate email prevention fix is holding (15m)
 - [x] **7.7** SWR review of all email template copy — verify tone, accuracy, branding, legal compliance across all SES templates (30m) ✅ (Feb 27) — All 12 templates reviewed line-by-line via generated preview (dm/layers/ses/email-preview.html). Fixes applied: welcome link → /portal (removed sessionId), activation steps updated to Command Palette flow, support@ → billing@ across billing emails, $10/mo → $15/mo in licenseRevoked, stale default URL fallback fixed, reply-to-noreply copy fixed in cancellation. SWR approved.
 - [x] **7.8** Verify all links in email templates are valid — click every link in every template; confirm correct destinations, no 404s, no broken anchors (30m) ✅ (Feb 27) — All href values audited: /portal, /portal/billing, /pricing, /docs, /invite/{token}, VS Code Marketplace, Open VSX, Stripe dashboard dispute link. Staging URLs verified clickable in preview. Win-back /unsubscribe links noted as deferred (templates 9–10 not launching).
 

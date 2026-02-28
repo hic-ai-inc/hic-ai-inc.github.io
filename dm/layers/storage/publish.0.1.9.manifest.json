@@ -1,0 +1,9 @@
+{
+  "layerName": "hic-storage-layer",
+  "version": "0.1.9",
+  "region": "us-east-1",
+  "s3Uri": "s3://hic-dm-artifacts-us-east-1/layers/hic-storage-layer/0.1.9/hic-storage-layer-0.1.9.zip",
+  "layerVersionArn": "arn:aws:lambda:us-east-1:496998973008:layer:hic-storage-layer:10",
+  "zipPath": "C:/Users/SimonAdmin/source/repos/hic-ai-inc.github.io/dm/dist/hic-storage-layer-0.1.9.zip",
+  "publishedAt": "2026-02-28T14:55:52Z"
+}

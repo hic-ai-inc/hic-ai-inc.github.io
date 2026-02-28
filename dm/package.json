@@ -32,6 +32,9 @@
     "@aws-sdk/util-dynamodb": "^3.980.0",
     "aws-sdk-client-mock": "^4.1.0"
   },
+  "overrides": {
+    "fast-xml-parser": "5.4.1"
+  },
   "keywords": [
     "hic",
     "dependency-management",
