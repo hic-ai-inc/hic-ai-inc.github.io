@@ -451,6 +451,11 @@ async function handleSubscriptionUpdated(subscription, log) {
     subscriptionUpdate.eventType = "SUBSCRIPTION_CANCELLED";
     subscriptionUpdate.email = dbCustomer.email;
     subscriptionUpdate.accessUntil = cancelAt;
+  } else if (!cancel_at_period_end && dbCustomer.cancelAtPeriodEnd) {
+    // User reversed a pending cancellation ("Don't Cancel" in Stripe Customer Portal).
+    // Trigger reactivation email so they know their subscription is back on track.
+    subscriptionUpdate.eventType = "SUBSCRIPTION_REACTIVATED";
+    subscriptionUpdate.email = dbCustomer.email;
   }
 
   await updateCustomerSubscription(dbCustomer.userId, subscriptionUpdate);
@@ -482,6 +487,8 @@ async function handleSubscriptionUpdated(subscription, log) {
 
   if (cancel_at_period_end) {
     log.info("cancellation_email_pipeline_triggered", "Cancellation email will be sent via event pipeline");
+  } else if (!cancel_at_period_end && dbCustomer.cancelAtPeriodEnd) {
+    log.info("reactivation_email_pipeline_triggered", "Reactivation email will be sent via event pipeline");
   }
 
   if (seatQuantity > 0) {
