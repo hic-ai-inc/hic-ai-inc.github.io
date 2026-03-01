@@ -1276,20 +1276,126 @@ This is a meaningful gap: the admin action (suspend/revoke) has no visible effec
 
 ---
 
-### A.6 Summary Table
+### A.6 Bug: Duplicate `CANCELLATION_REQUESTED` Email Persists After Idempotency Guard
+
+**Discovered:** E2E validation session, 2026-02-28 (second round, post-idempotency-guard deployment)
+
+**Status:** Open — idempotency guard deployed but not resolving the duplicate.
+
+**Symptom:** The user receives two copies of the "Cancellation Confirmed" email (subject: "We've received your cancellation request...") on every cancellation action. The portal UX is correct; only the email is duplicated.
+
+**Root cause analysis:**
+
+The idempotency guard (`claimWebhookIdempotencyKey`) operates at the Stripe `event.id` level. However, Stripe fires *two distinct events* for a single cancel-at-period-end action:
+
+1. `customer.subscription.updated` with `cancel_at_period_end: true` — this is the primary event that writes `eventType: CANCELLATION_REQUESTED` to DynamoDB and triggers the email pipeline.
+2. A second `customer.subscription.updated` event (different `event.id`) that Stripe fires as part of the same subscription state transition — possibly a metadata update, invoice preview, or internal Stripe reconciliation event — which also has `cancel_at_period_end: true` and therefore passes through `handleSubscriptionUpdated` and writes `eventType: CANCELLATION_REQUESTED` a second time.
+
+Because each event has a unique `event.id`, the idempotency guard correctly allows both through. The guard is working as designed — the problem is upstream: Stripe is emitting two semantically equivalent events for one user action.
+
+**Why the cooldown guard also fails here:**
+
+The cooldown guard in `handleSubscriptionUpdated` checks `dbCustomer.emailsSent.CANCELLATION_REQUESTED`. This timestamp is written by the email-sender Lambda *after* it sends the email — asynchronously, via DynamoDB Streams → SNS → Lambda. The two Stripe events arrive within milliseconds of each other, both before the email-sender Lambda has had time to write the `emailsSent` stamp. So both events pass the cooldown check and both trigger the email pipeline.
+
+**Proposed fix options:**
+
+*Option A (recommended): Subscription-level idempotency guard.*
+In `handleSubscriptionUpdated`, before writing `eventType`, check whether `dbCustomer.cancelAtPeriodEnd` is already `true` (i.e., the subscription is already in cancellation-pending state). If so, skip writing `eventType: CANCELLATION_REQUESTED` — the email has already been (or is being) sent. This is a pure in-handler state check with no async dependency.
+
+```js
+// In handleSubscriptionUpdated, inside the cancel_at_period_end branch:
+if (cancel_at_period_end && dbCustomer.cancelAtPeriodEnd === true) {
+  // Already in cancellation_pending — skip eventType to avoid duplicate email
+  log.info("cancellation_already_pending", "Skipping CANCELLATION_REQUESTED — already pending");
+  eventTypeToWrite = null;
+}
+```
+
+*Option B: Synchronous emailsSent stamp.*
+Write `emailsSent.CANCELLATION_REQUESTED` in the same `updateCustomerSubscription` call that writes `eventType`, so the cooldown guard has the timestamp available immediately. The email-sender Lambda would then need to be idempotent (skip sending if `emailsSent` already set). More invasive.
+
+*Option C: Stripe webhook deduplication by subscription ID + event semantics.*
+Maintain a short-TTL dedup table keyed on `SUBSCRIPTION#{subId}#CANCELLATION_REQUESTED` rather than `event.id`. Any second write within the TTL window is suppressed. More robust but more infrastructure.
+
+**Recommended path:** Option A — it is the simplest, has no async dependency, and directly addresses the root cause (idempotent state transition). Implement and validate in the next E2E round.
+
+**Files affected:** `plg-website/src/app/api/webhooks/stripe/route.js`
+
+**Severity:** Medium. Affects every cancellation. Duplicate email is confusing but not harmful — no data corruption, no billing impact.
+
+**Affects Day 1?** Yes — any subscriber who cancels will receive a duplicate email.
+
+---
+
+### A.7 Bug: Premature `EXPIRED` Status — Suspected Keygen Webhook Disconnect
+
+**Discovered:** E2E validation session, 2026-02-28
+
+**Status:** Open — requires investigation.
+
+**Symptom:** During E2E validation, the portal intermittently displays an `EXPIRED` license status for a subscription that should be active (or `cancellation_pending`). The Stripe subscription is confirmed active in the Stripe dashboard. The issue is not consistently reproducible but appeared during the cancel/uncancel flow.
+
+**Suspected root cause:**
+
+Keygen fires a `license.expired` webhook when it determines a license has passed its `expiresAt` date. If the Keygen license `expiresAt` is not being updated correctly on renewal (via `invoice.payment_succeeded` → `updateLicenseStatus`), Keygen may expire the license on its own schedule and fire `license.expired` to our webhook handler, which then writes `status: expired` to DynamoDB. This would cause the portal to show `EXPIRED` even though Stripe considers the subscription active.
+
+Alternatively, the Keygen webhook endpoint may not be correctly registered or may be receiving events but failing silently, causing license state in Keygen to diverge from DynamoDB state.
+
+**Investigation steps:**
+1. Check Keygen dashboard → Webhooks → delivery log for recent `license.expired` events and their response codes.
+2. Verify the Keygen webhook endpoint URL is correctly pointed at the Amplify deployment (not a stale staging URL).
+3. Check CloudWatch logs for the `/api/webhooks/keygen` handler around the time the `EXPIRED` status appeared.
+4. Verify that `invoice.payment_succeeded` is correctly calling `updateLicenseStatus(licenseId, "active", { expiresAt })` and that `expiresAt` is being populated from `lines.data[0].period.end`.
+5. Check whether the Keygen license `expiresAt` field matches the Stripe subscription's current period end.
+
+**Files likely affected:** `plg-website/src/app/api/webhooks/keygen/route.js`, `plg-website/src/app/api/webhooks/stripe/route.js`, `plg-website/src/lib/keygen.js`
+
+**Severity:** High. An active subscriber seeing `EXPIRED` is a critical UX failure and could drive support tickets or churn.
+
+**Affects Day 1?** Potentially yes — any subscriber whose Keygen license `expiresAt` is stale or misaligned could trigger this.
+
+---
+
+### A.8 Configuration Bug: Stripe Customer Portal Permits Tier Switching
+
+**Discovered:** E2E validation session, 2026-02-28
+
+**Status:** Open — Stripe Customer Portal configuration change required.
+
+**Symptom:** The "Update Subscription" option in the Stripe Customer Portal allows customers to switch between Individual and Business tiers (upgrade or downgrade). This is not a supported operation — tier changes require a separate checkout flow with seat configuration, org provisioning, and Cognito RBAC group assignment. Only billing interval switching (monthly ↔ annual) should be permitted via the portal's Update Subscription flow.
+
+**Root cause:** The Stripe Customer Portal is configured to allow product/price switching across all prices in the product catalog, rather than being restricted to interval-only switches within the same product tier.
+
+**Fix:** In the Stripe Dashboard → Customer Portal settings → Subscription updates:
+- Set "Allow customers to switch plans" to restrict to interval changes only (monthly ↔ annual within the same tier).
+- Disable cross-product switching (Individual ↔ Business).
+- Alternatively, configure separate portal configurations per product tier if Stripe's UI does not support interval-only restriction natively — in that case, the portal link generation in `plg-website/src/app/api/portal/billing-portal/route.js` would need to pass the appropriate `configuration` ID based on the customer's current plan.
+
+**Note:** Even if a customer successfully switches tier via the portal today, the downstream effects (org provisioning, seat limits, Cognito group assignment) would not fire correctly because those are handled in `handleCheckoutCompleted`, not `handleSubscriptionUpdated`. The result would be a billing tier mismatch with no corresponding infrastructure change — a silent data integrity issue.
+
+**Files likely affected:** Stripe Dashboard configuration (no code change required for the simple fix); `plg-website/src/app/api/portal/billing-portal/route.js` if per-tier portal configurations are needed.
+
+**Severity:** High. Allows customers to take an action that produces a broken account state with no recovery path short of manual intervention.
+
+**Affects Day 1?** Yes — any subscriber who discovers the Update Subscription option could trigger this.
+
+### A.9 Summary Table
 
 | ID | Issue | Type | Severity | Affects Day 1? | Proposed Action |
 |---|---|---|---|---|---|
-| A.1 | Duplicate `CANCELLATION_REQUESTED` email | Bug | Medium | Yes — any cancellation | Fix: Stripe event-level idempotency table |
+| A.1 | Duplicate `CANCELLATION_REQUESTED` email | Bug | Medium | Yes — any cancellation | Superseded by A.6 (deeper analysis) |
 | A.2 | `cancellation_pending` → "Activate License" | Bug | High | Yes — any cancellation | **Fixed this session** |
 | A.3 | `past_due` / `suspended` → "Activate License" | Gap | Medium | No (requires failed payments) | Fix pre-launch recommended |
 | A.4 | `expired` → "Activate License" | Gap | Low-Medium | No (requires full lapse) | Fix pre-launch or shortly after |
 | A.5 | Suspended/revoked Business member → "Activate License" | Gap | High | No (requires Business + team members) | Fix before Business tier goes live |
+| A.6 | Duplicate cancellation email persists (Stripe dual-event) | Bug | Medium | Yes — any cancellation | Fix: subscription-level state check (Option A) |
+| A.7 | Premature `EXPIRED` — Keygen webhook disconnect suspected | Bug | High | Potentially yes | Investigate: Keygen delivery log + CloudWatch |
+| A.8 | Stripe Portal permits Individual ↔ Business tier switching | Config Bug | High | Yes — any subscriber | Fix: Stripe Portal configuration, restrict to interval-only |
 
 ### Decision Log
 
 | Decision | Rationale | Decided By |
 |---|---|---|
 | A.2 fixed immediately | Active bug affecting any cancellation during E2E validation | SWR + agent |
-| A.1–A.5 documented as addendum | Prioritization decision deferred to SWR | SWR |
-
+| A.1–A.5 documented as addendum (round 1) | Prioritization decision deferred to SWR | SWR |
+| A.6–A.8 documented as addendum (round 2) | Further E2E findings after idempotency guard deployment | SWR + agent |
