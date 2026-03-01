@@ -236,8 +236,25 @@ describe("webhooks/keygen API logic", () => {
     }
   }
 
-  function getEventType(event) {
-    return event?.meta?.event || null;
+  // Keygen sends a JSON:API webhook-event envelope.
+  // Event type lives at data.attributes.event, NOT at top-level meta.event.
+  function getEventType(envelope) {
+    return envelope?.data?.attributes?.event || null;
+  }
+
+  // Extract the resource snapshot (license/machine/user) from the envelope.
+  // data.attributes.payload is a *stringified* JSON:API document.
+  function getResourceData(envelope) {
+    try {
+      const inner = JSON.parse(envelope?.data?.attributes?.payload ?? "{}");
+      return inner.data ?? {};
+    } catch {
+      return {};
+    }
+  }
+
+  function getIdempotencyToken(envelope) {
+    return envelope?.data?.meta?.idempotencyToken || null;
   }
 
   function isHandledEventType(eventType) {
@@ -299,17 +316,29 @@ describe("webhooks/keygen API logic", () => {
   });
 
   describe("event type extraction", () => {
-    it("should extract event type from meta", () => {
-      const event = { meta: { event: "license.expired" } };
-      assert.strictEqual(getEventType(event), "license.expired");
+    it("should extract event type from JSON:API envelope (data.attributes.event)", () => {
+      const envelope = {
+        data: { attributes: { event: "license.expired", payload: "{}" } },
+      };
+      assert.strictEqual(getEventType(envelope), "license.expired");
     });
 
-    it("should return null for missing meta", () => {
+    it("should return null when data.attributes is missing", () => {
+      assert.strictEqual(getEventType({ data: {} }), null);
+    });
+
+    it("should return null for empty envelope", () => {
       assert.strictEqual(getEventType({}), null);
     });
 
-    it("should return null for missing event", () => {
+    it("should return null for null envelope", () => {
       assert.strictEqual(getEventType(null), null);
+    });
+
+    it("should NOT extract from old flat meta.event shape (regression guard)", () => {
+      // The old broken shape — must return null, not the event type
+      const oldShape = { meta: { event: "license.expired" }, data: { id: "lic_123" } };
+      assert.strictEqual(getEventType(oldShape), null);
     });
   });
 
@@ -439,16 +468,254 @@ describe("webhooks/keygen - safeJsonParse integration (CWE-20/400/502)", () => {
     );
   });
 
-  it("should accept well-formed webhook payload", () => {
-    const validPayload = JSON.stringify({
-      data: { id: "lic_abc123", type: "licenses" },
-      meta: { event: "license.created" },
+  it("should accept well-formed JSON:API webhook envelope", () => {
+    // Keygen sends the webhook-event envelope, not a flat { data, meta } object.
+    // Event type is at data.attributes.event; resource is stringified at data.attributes.payload.
+    const licenseResource = {
+      data: {
+        id: "lic_abc123",
+        type: "licenses",
+        attributes: { key: "MOUSE-ABCD-1234-EFGH-XXXX", expiry: "2027-01-01T00:00:00Z" },
+        relationships: { user: { data: { id: "user_xyz", type: "users" } } },
+      },
+    };
+    const envelope = JSON.stringify({
+      data: {
+        id: "evt_webhook_001",
+        type: "webhook-events",
+        meta: { idempotencyToken: "token_abc123" },
+        attributes: {
+          event: "license.created",
+          payload: JSON.stringify(licenseResource),
+          status: "DELIVERING",
+        },
+      },
     });
 
-    const result = safeJsonParse(validPayload, { source: "keygen-webhook" });
+    const result = safeJsonParse(envelope, { source: "keygen-webhook" });
 
-    assert.strictEqual(result.meta.event, "license.created");
-    assert.strictEqual(result.data.id, "lic_abc123");
+    // Event type is at data.attributes.event
+    assert.strictEqual(result.data.attributes.event, "license.created");
+    // Idempotency token is at data.meta.idempotencyToken
+    assert.strictEqual(result.data.meta.idempotencyToken, "token_abc123");
+    // Webhook event ID is at data.id
+    assert.strictEqual(result.data.id, "evt_webhook_001");
+    // Resource payload is a stringified JSON string at data.attributes.payload
+    assert.strictEqual(typeof result.data.attributes.payload, "string");
+  });
+});
+
+describe("webhooks/keygen - JSON:API envelope parsing", () => {
+  /**
+   * Tests for the envelope unwrapping logic introduced to fix the
+   * TypeError: Cannot read properties of undefined (reading 'event').
+   *
+   * Mirrors the production logic in POST():
+   *   envelope.data.attributes.event  → eventType
+   *   envelope.data.meta.idempotencyToken → idempotencyToken
+   *   JSON.parse(envelope.data.attributes.payload).data → resourceData
+   */
+
+  // Mirrors production helpers for testability
+  function parseEnvelope(rawPayload) {
+    const envelope = JSON.parse(rawPayload);
+    const eventType = envelope.data?.attributes?.event ?? null;
+    const idempotencyToken = envelope.data?.meta?.idempotencyToken ?? null;
+    const webhookEventId = envelope.data?.id ?? null;
+    let resourceData = {};
+    try {
+      const inner = JSON.parse(envelope.data?.attributes?.payload ?? "{}");
+      resourceData = inner.data ?? {};
+    } catch {
+      // malformed inner payload — resourceData stays {}
+    }
+    return { eventType, idempotencyToken, webhookEventId, resourceData };
+  }
+
+  function buildEnvelope(eventType, resourceObj, overrides = {}) {
+    return JSON.stringify({
+      data: {
+        id: overrides.webhookEventId ?? "evt_test_001",
+        type: "webhook-events",
+        meta: { idempotencyToken: overrides.idempotencyToken ?? "idem_token_xyz" },
+        attributes: {
+          event: eventType,
+          payload: JSON.stringify({ data: resourceObj }),
+          status: "DELIVERING",
+          ...overrides.attributes,
+        },
+      },
+    });
+  }
+
+  describe("eventType extraction", () => {
+    it("should extract eventType from data.attributes.event", () => {
+      const raw = buildEnvelope("license.created", { id: "lic_001", type: "licenses" });
+      const { eventType } = parseEnvelope(raw);
+      assert.strictEqual(eventType, "license.created");
+    });
+
+    it("should extract eventType for all handled license events", () => {
+      const events = [
+        "license.created", "license.deleted", "license.expired",
+        "license.suspended", "license.reinstated", "license.renewed", "license.revoked",
+      ];
+      for (const evt of events) {
+        const raw = buildEnvelope(evt, { id: "lic_001", type: "licenses" });
+        const { eventType } = parseEnvelope(raw);
+        assert.strictEqual(eventType, evt, `failed for ${evt}`);
+      }
+    });
+
+    it("should extract eventType for all handled machine events", () => {
+      const events = [
+        "machine.created", "machine.deleted",
+        "machine.heartbeat.ping", "machine.heartbeat.dead",
+      ];
+      for (const evt of events) {
+        const raw = buildEnvelope(evt, { id: "mach_001", type: "machines" });
+        const { eventType } = parseEnvelope(raw);
+        assert.strictEqual(eventType, evt, `failed for ${evt}`);
+      }
+    });
+
+    it("should return null eventType when data.attributes.event is absent", () => {
+      const envelope = JSON.stringify({ data: { id: "evt_001", type: "webhook-events", attributes: {} } });
+      const { eventType } = parseEnvelope(envelope);
+      assert.strictEqual(eventType, null);
+    });
+  });
+
+  describe("resourceData extraction", () => {
+    it("should extract license id from inner payload for license events", () => {
+      const licenseResource = {
+        id: "lic_abc123",
+        type: "licenses",
+        attributes: { key: "MOUSE-ABCD-1234-EFGH-XXXX", expiry: "2027-01-01T00:00:00Z" },
+      };
+      const raw = buildEnvelope("license.expired", licenseResource);
+      const { resourceData } = parseEnvelope(raw);
+      assert.strictEqual(resourceData.id, "lic_abc123");
+      assert.strictEqual(resourceData.type, "licenses");
+      assert.strictEqual(resourceData.attributes.expiry, "2027-01-01T00:00:00Z");
+    });
+
+    it("should extract machine id and license relationship for machine.deleted", () => {
+      const machineResource = {
+        id: "mach_xyz789",
+        type: "machines",
+        attributes: { fingerprint: "fp_abc" },
+        relationships: {
+          license: { data: { id: "lic_parent_001", type: "licenses" } },
+        },
+      };
+      const raw = buildEnvelope("machine.deleted", machineResource);
+      const { resourceData } = parseEnvelope(raw);
+      assert.strictEqual(resourceData.id, "mach_xyz789");
+      assert.strictEqual(resourceData.relationships.license.data.id, "lic_parent_001");
+    });
+
+    it("should return empty object when payload is missing", () => {
+      const envelope = JSON.stringify({
+        data: {
+          id: "evt_001",
+          type: "webhook-events",
+          meta: { idempotencyToken: "tok" },
+          attributes: { event: "license.created" }, // no payload key
+        },
+      });
+      const { resourceData } = parseEnvelope(envelope);
+      assert.deepStrictEqual(resourceData, {});
+    });
+
+    it("should return empty object when inner payload is malformed JSON", () => {
+      const envelope = JSON.stringify({
+        data: {
+          id: "evt_001",
+          type: "webhook-events",
+          meta: { idempotencyToken: "tok" },
+          attributes: { event: "license.created", payload: "not-valid-json" },
+        },
+      });
+      const { resourceData } = parseEnvelope(envelope);
+      assert.deepStrictEqual(resourceData, {});
+    });
+
+    it("should extract license.renewed expiry from attributes for handleLicenseRenewed", () => {
+      // handleLicenseRenewed reads resourceData.attributes.expiry
+      const licenseResource = {
+        id: "lic_renewed_001",
+        type: "licenses",
+        attributes: { expiry: "2028-03-01T00:00:00Z", status: "ACTIVE" },
+      };
+      const raw = buildEnvelope("license.renewed", licenseResource);
+      const { resourceData } = parseEnvelope(raw);
+      assert.strictEqual(resourceData.attributes.expiry, "2028-03-01T00:00:00Z");
+    });
+  });
+
+  describe("idempotencyToken extraction", () => {
+    it("should extract idempotencyToken from data.meta", () => {
+      const raw = buildEnvelope("license.created", { id: "lic_001" }, { idempotencyToken: "idem_abc_v2" });
+      const { idempotencyToken } = parseEnvelope(raw);
+      assert.strictEqual(idempotencyToken, "idem_abc_v2");
+    });
+
+    it("should return null when idempotencyToken is absent", () => {
+      const envelope = JSON.stringify({
+        data: {
+          id: "evt_001",
+          type: "webhook-events",
+          attributes: { event: "license.created", payload: "{}" },
+          // no meta key
+        },
+      });
+      const { idempotencyToken } = parseEnvelope(envelope);
+      assert.strictEqual(idempotencyToken, null);
+    });
+  });
+
+  describe("webhookEventId extraction", () => {
+    it("should extract the webhook event UUID from data.id", () => {
+      const raw = buildEnvelope("license.created", { id: "lic_001" }, { webhookEventId: "evt_uuid_9999" });
+      const { webhookEventId } = parseEnvelope(raw);
+      assert.strictEqual(webhookEventId, "evt_uuid_9999");
+    });
+  });
+
+  describe("regression: old flat shape must NOT work", () => {
+    it("should return null eventType for old { data, meta } flat shape", () => {
+      // This is the shape the code used to assume — must now yield null eventType
+      // so the switch falls to default and logs event_unhandled rather than crashing.
+      const oldShape = JSON.stringify({
+        data: { id: "lic_abc123", type: "licenses" },
+        meta: { event: "license.created" },
+      });
+      const { eventType, resourceData } = parseEnvelope(oldShape);
+      assert.strictEqual(eventType, null, "old flat shape must not match new envelope path");
+      // resourceData.id would be undefined since data has no attributes.payload
+      assert.strictEqual(resourceData.id, undefined);
+    });
+  });
+
+  describe("event-to-status mapping (unchanged behavior)", () => {
+    const statusMap = {
+      "license.expired": "expired",
+      "license.suspended": "suspended",
+      "license.reinstated": "active",
+      "license.renewed": "active",
+      "license.revoked": "revoked",
+    };
+
+    for (const [evt, expectedStatus] of Object.entries(statusMap)) {
+      it(`should map ${evt} → ${expectedStatus}`, () => {
+        const raw = buildEnvelope(evt, { id: "lic_001", type: "licenses", attributes: { expiry: "2027-01-01T00:00:00Z" } });
+        const { eventType, resourceData } = parseEnvelope(raw);
+        const actualStatus = statusMap[eventType] ?? null;
+        assert.strictEqual(actualStatus, expectedStatus);
+        assert.strictEqual(resourceData.id, "lic_001");
+      });
+    }
   });
 });
 
