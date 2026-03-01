@@ -270,6 +270,8 @@ function ActiveUserDashboard({
   const isOrgMember = portalStatus?.isOrgMember || false;
   const orgRole = portalStatus?.orgMembership?.role;
   const isOrgOwner = !isOrgMember || orgRole === "owner";
+  const cancelAtPeriodEnd = portalStatus?.cancelAtPeriodEnd || false;
+  const accessUntil = portalStatus?.accessUntil || null;
 
   return (
     <div className="max-w-6xl">
@@ -337,8 +339,15 @@ function ActiveUserDashboard({
                 : subscriptionStatus === "active" ||
                     subscriptionStatus === "trialing"
                   ? "Subscription active"
-                  : "No active subscription"}
+                  : subscriptionStatus === "cancellation_pending"
+                    ? "Cancellation pending"
+                    : "No active subscription"}
             </p>
+            {cancelAtPeriodEnd && accessUntil && isOrgOwner && (
+              <p className="text-amber-400 text-xs mt-1">
+                Access until {accessUntil}
+              </p>
+            )}
             {isOrgOwner ? (
               <Link
                 href="/portal/billing"

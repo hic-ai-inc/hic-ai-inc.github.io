@@ -115,7 +115,9 @@ export async function GET(request) {
     // When org membership is found, prefer orgOwnerCustomer (bare profile has no subscription)
     const effectiveCustomer = orgMembership ? (orgOwnerCustomer || customer) : customer;
     const subscriptionStatus = effectiveCustomer?.subscriptionStatus || "none";
-    const hasActiveSubscription = ["active", "trialing"].includes(
+    // cancellation_pending = active subscription with cancel_at_period_end set;
+    // the license is still valid until the period ends, so treat it as active
+    const hasActiveSubscription = ["active", "trialing", "cancellation_pending"].includes(
       subscriptionStatus,
     );
     const hasExpiredSubscription = ["canceled", "past_due", "unpaid"].includes(
@@ -161,6 +163,8 @@ export async function GET(request) {
       accountType,
       keygenLicenseId: licenseId || null,
       stripeCustomerId: effectiveCustomer?.stripeCustomerId || null,
+      cancelAtPeriodEnd: effectiveCustomer?.cancelAtPeriodEnd || false,
+      accessUntil: effectiveCustomer?.accessUntil || null,
       activatedDevices,
       maxDevices,
       user: {

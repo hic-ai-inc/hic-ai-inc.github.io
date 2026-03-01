@@ -582,7 +582,7 @@ export default function SettingsPage() {
                       </div>
                     )}
                     <p className="text-sm text-error mb-3">
-                      Your subscription will be cancelled. You&apos;ll keep access to Mouse
+                      Your subscription will be canceled. You&apos;ll keep access to Mouse
                       until the end of your current billing period. Type{" "}
                       <strong>DELETE MY ACCOUNT</strong> to confirm.
                     </p>

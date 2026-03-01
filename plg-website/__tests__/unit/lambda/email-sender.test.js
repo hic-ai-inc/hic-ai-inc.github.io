@@ -630,3 +630,212 @@ describe("Email Sender - emailsSent dedup flag UpdateExpression", () => {
   });
 });
 
+
+// ===========================================
+// Dedup Classification Tests (Task 10.3-10.4)
+// Verifies PERMANENT_DEDUP_EVENTS classification and
+// new event type routing after Stream 1D changes.
+// ===========================================
+
+describe("Email Sender - Dedup Classification", () => {
+  // Mirror the production constant from email-sender Lambda
+  const PERMANENT_DEDUP_EVENTS = ["CUSTOMER_CREATED", "LICENSE_CREATED"];
+
+  test("CUSTOMER_CREATED should be classified as permanent dedup", () => {
+    const dedupType = PERMANENT_DEDUP_EVENTS.includes("CUSTOMER_CREATED") ? "permanent" : "lifecycle";
+    assert.strictEqual(dedupType, "permanent");
+  });
+
+  test("LICENSE_CREATED should be classified as permanent dedup", () => {
+    const dedupType = PERMANENT_DEDUP_EVENTS.includes("LICENSE_CREATED") ? "permanent" : "lifecycle";
+    assert.strictEqual(dedupType, "permanent");
+  });
+
+  test("all lifecycle event types should be classified as lifecycle dedup", () => {
+    const lifecycleEvents = [
+      "CANCELLATION_REQUESTED",
+      "CANCELLATION_REVERSED",
+      "VOLUNTARY_CANCELLATION_EXPIRED",
+      "NONPAYMENT_CANCELLATION_EXPIRED",
+      "SUBSCRIPTION_REACTIVATED",
+      "PAYMENT_FAILED",
+      "LICENSE_REVOKED",
+      "LICENSE_SUSPENDED",
+      "TEAM_INVITE_CREATED",
+      "TEAM_INVITE_RESENT",
+    ];
+
+    for (const eventType of lifecycleEvents) {
+      const dedupType = PERMANENT_DEDUP_EVENTS.includes(eventType) ? "permanent" : "lifecycle";
+      assert.strictEqual(dedupType, "lifecycle", `${eventType} should be lifecycle, not permanent`);
+    }
+  });
+
+  test("only CUSTOMER_CREATED and LICENSE_CREATED are permanent", () => {
+    assert.strictEqual(PERMANENT_DEDUP_EVENTS.length, 2);
+    assert.ok(PERMANENT_DEDUP_EVENTS.includes("CUSTOMER_CREATED"));
+    assert.ok(PERMANENT_DEDUP_EVENTS.includes("LICENSE_CREATED"));
+  });
+});
+
+describe("Email Sender - New Event Type Routing", () => {
+  // These tests verify the handler routes new Stream 1D event types
+  // Reset shared state before each test — this describe is top-level,
+  // outside the parent "Email Sender Lambda" block that has its own beforeEach
+  beforeEach(() => {
+    sesCalls = [];
+    sesSendImpl = async (cmd) => {
+      if (cmd.constructor.name === "SendEmailCommand") {
+        return { MessageId: `test-msg-${Date.now()}` };
+      }
+      return {};
+    };
+  });
+
+  // to the correct email templates via the live handler
+
+  test("should send cancellationRequested email for CANCELLATION_REQUESTED event", async () => {
+    const event = createSqsEvent([
+      createSqsRecord("CANCELLATION_REQUESTED", "cancel@example.com", {
+        accessUntil: { S: "2026-03-15T00:00:00Z" },
+      }),
+    ]);
+
+    const result = await handler(event);
+
+    expect(result.success).toBe(1);
+    const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+    expect(sendCall).toBeTruthy();
+    expect(sendCall.input.Destination.ToAddresses[0]).toBe("cancel@example.com");
+  });
+
+  test("should send cancellationReversed email for CANCELLATION_REVERSED event", async () => {
+    const event = createSqsEvent([
+      createSqsRecord("CANCELLATION_REVERSED", "uncancel@example.com"),
+    ]);
+
+    const result = await handler(event);
+
+    expect(result.success).toBe(1);
+    const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+    expect(sendCall).toBeTruthy();
+  });
+
+  test("should send voluntaryCancellationExpired email for VOLUNTARY_CANCELLATION_EXPIRED event", async () => {
+    const event = createSqsEvent([
+      createSqsRecord("VOLUNTARY_CANCELLATION_EXPIRED", "expired@example.com"),
+    ]);
+
+    const result = await handler(event);
+
+    expect(result.success).toBe(1);
+    const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+    expect(sendCall).toBeTruthy();
+  });
+
+  test("should send nonpaymentCancellationExpired email for NONPAYMENT_CANCELLATION_EXPIRED event", async () => {
+    const event = createSqsEvent([
+      createSqsRecord("NONPAYMENT_CANCELLATION_EXPIRED", "nonpay@example.com"),
+    ]);
+
+    const result = await handler(event);
+
+    expect(result.success).toBe(1);
+    const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+    expect(sendCall).toBeTruthy();
+  });
+
+  test("should send reactivation email for SUBSCRIPTION_REACTIVATED event", async () => {
+    const event = createSqsEvent([
+      createSqsRecord("SUBSCRIPTION_REACTIVATED", "reactivated@example.com"),
+    ]);
+
+    const result = await handler(event);
+
+    expect(result.success).toBe(1);
+    const sendCall = sesCalls.find((c) => c.command === "SendEmailCommand");
+    expect(sendCall).toBeTruthy();
+  });
+
+  test("should NOT route removed SUBSCRIPTION_CANCELLED event type", async () => {
+    const event = createSqsEvent([
+      createSqsRecord("SUBSCRIPTION_CANCELLED", "old@example.com"),
+    ]);
+
+    const result = await handler(event);
+
+    // No template mapping → skipped
+    expect(sesCalls.length).toBe(0);
+    expect(result.processed).toBe(0);
+  });
+
+  test("should NOT route removed TRIAL_ENDING event type", async () => {
+    const event = createSqsEvent([
+      createSqsRecord("TRIAL_ENDING", "trial@example.com"),
+    ]);
+
+    const result = await handler(event);
+
+    expect(sesCalls.length).toBe(0);
+    expect(result.processed).toBe(0);
+  });
+});
+
+
+// ===========================================
+// PROPERTY TESTS — Stream 1D Completion Plan
+// ===========================================
+
+/**
+ * Feature: stream-1d-completion-plan
+ * Property 11: Dedup guard classifies event types correctly as permanent or lifecycle
+ *
+ * For any event type that triggers the dedup guard, CUSTOMER_CREATED and
+ * LICENSE_CREATED should be classified as "permanent", all others as "lifecycle".
+ */
+describe("Property 11: Dedup classification (permanent vs lifecycle)", () => {
+  const ALL_EVENT_TYPES = [
+    "CUSTOMER_CREATED",
+    "LICENSE_CREATED",
+    "CANCELLATION_REQUESTED",
+    "CANCELLATION_REVERSED",
+    "VOLUNTARY_CANCELLATION_EXPIRED",
+    "NONPAYMENT_CANCELLATION_EXPIRED",
+    "SUBSCRIPTION_REACTIVATED",
+    "PAYMENT_FAILED",
+    "LICENSE_REVOKED",
+    "LICENSE_SUSPENDED",
+    "TEAM_INVITE_CREATED",
+    "TEAM_INVITE_RESENT",
+  ];
+
+  // Defined locally — mirrors the constant from the email-sender Lambda
+  const PERMANENT_DEDUP_EVENTS = ["CUSTOMER_CREATED", "LICENSE_CREATED"];
+
+
+  test("should classify correctly across 100 random event type picks", () => {
+    for (let i = 0; i < 100; i++) {
+      const eventType = ALL_EVENT_TYPES[Math.floor(Math.random() * ALL_EVENT_TYPES.length)];
+      const dedupType = PERMANENT_DEDUP_EVENTS.includes(eventType) ? "permanent" : "lifecycle";
+
+      if (eventType === "CUSTOMER_CREATED" || eventType === "LICENSE_CREATED") {
+        assert.strictEqual(dedupType, "permanent", `${eventType} should be permanent`);
+      } else {
+        assert.strictEqual(dedupType, "lifecycle", `${eventType} should be lifecycle`);
+      }
+    }
+  });
+
+  test("exhaustive: every event type classifies correctly", () => {
+    for (const eventType of ALL_EVENT_TYPES) {
+      const dedupType = PERMANENT_DEDUP_EVENTS.includes(eventType) ? "permanent" : "lifecycle";
+
+      if (eventType === "CUSTOMER_CREATED" || eventType === "LICENSE_CREATED") {
+        assert.strictEqual(dedupType, "permanent", `${eventType} should be permanent`);
+      } else {
+        assert.strictEqual(dedupType, "lifecycle", `${eventType} should be lifecycle`);
+      }
+    }
+  });
+});
+

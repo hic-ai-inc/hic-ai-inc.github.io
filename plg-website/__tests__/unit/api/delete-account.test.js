@@ -128,7 +128,7 @@ function buildDeletionResponse(isOrgOwner, accessUntil, orgMembersCount = 0) {
 }
 
 /**
- * Validate pending deletion can be cancelled
+ * Validate pending deletion can be canceled
  */
 function validateCancellationEligibility(customer) {
   if (!customer) {

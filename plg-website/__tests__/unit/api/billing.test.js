@@ -127,9 +127,9 @@ describe("Billing API - Owner-Only Access Control (Issue 5)", () => {
       assert.strictEqual(result.status, 404);
     });
 
-    it("should allow owner with cancelled subscription", () => {
+    it("should allow owner with canceled subscription", () => {
       const session = createMockSession();
-      const customer = { subscriptionStatus: "cancelled" };
+      const customer = { subscriptionStatus: "canceled" };
       const orgMembership = null;
 
       const result = checkBillingAccess(session, customer, orgMembership);

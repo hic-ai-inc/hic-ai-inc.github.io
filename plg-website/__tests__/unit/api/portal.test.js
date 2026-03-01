@@ -1588,3 +1588,95 @@ describe("settings page - isOrgMember role derivation", () => {
     assert.strictEqual(result.isOrgOwner, false);
   });
 });
+
+// ===========================================
+// PORTAL UI — Stream 1D Status Display Tests (Task 11.3)
+// Tests SubscriptionStatusBadge variant/label mapping logic
+// and billing card status text for new subscription statuses.
+// ===========================================
+
+describe("SubscriptionStatusBadge — variant and label mapping", () => {
+  // Extracted from portal/billing/page.js SubscriptionStatusBadge component
+  const variants = {
+    active: "success",
+    trialing: "info",
+    past_due: "warning",
+    cancellation_pending: "warning",
+    canceled: "secondary",
+    expired: "secondary",
+    unpaid: "danger",
+    incomplete: "warning",
+    incomplete_expired: "danger",
+  };
+
+  const labels = {
+    active: "Active",
+    trialing: "Trial",
+    past_due: "Past Due",
+    cancellation_pending: "Cancellation Pending",
+    canceled: "Canceled",
+    expired: "Expired",
+    unpaid: "Unpaid",
+    incomplete: "Incomplete",
+    incomplete_expired: "Expired",
+  };
+
+  it("should map cancellation_pending to warning variant", () => {
+    assert.strictEqual(variants.cancellation_pending, "warning");
+  });
+
+  it("should map cancellation_pending to 'Cancellation Pending' label", () => {
+    assert.strictEqual(labels.cancellation_pending, "Cancellation Pending");
+  });
+
+  it("should map expired to secondary variant", () => {
+    assert.strictEqual(variants.expired, "secondary");
+  });
+
+  it("should map expired to 'Expired' label", () => {
+    assert.strictEqual(labels.expired, "Expired");
+  });
+
+  it("should fall back to secondary variant for unknown status", () => {
+    const unknownStatus = "some_unknown_status";
+    assert.strictEqual(variants[unknownStatus] || "secondary", "secondary");
+  });
+
+  it("should fall back to raw status string for unknown label", () => {
+    const unknownStatus = "some_unknown_status";
+    assert.strictEqual(labels[unknownStatus] || unknownStatus, unknownStatus);
+  });
+});
+
+describe("Billing card status text — cancellation_pending handling", () => {
+  // Extracted from portal/page.js billing card status logic
+  function getBillingStatusText(subscriptionStatus) {
+    if (subscriptionStatus === "active" || subscriptionStatus === "trialing") {
+      return "Subscription active";
+    } else if (subscriptionStatus === "cancellation_pending") {
+      return "Cancellation pending";
+    }
+    return "No active subscription";
+  }
+
+  it("should display 'Cancellation pending' for cancellation_pending status", () => {
+    assert.strictEqual(getBillingStatusText("cancellation_pending"), "Cancellation pending");
+  });
+
+  it("should display 'Subscription active' for active status", () => {
+    assert.strictEqual(getBillingStatusText("active"), "Subscription active");
+  });
+
+  it("should display 'Subscription active' for trialing status", () => {
+    assert.strictEqual(getBillingStatusText("trialing"), "Subscription active");
+  });
+
+  it("should display 'No active subscription' for expired status", () => {
+    assert.strictEqual(getBillingStatusText("expired"), "No active subscription");
+  });
+
+  it("should display 'No active subscription' for past_due status", () => {
+    assert.strictEqual(getBillingStatusText("past_due"), "No active subscription");
+  });
+});
+

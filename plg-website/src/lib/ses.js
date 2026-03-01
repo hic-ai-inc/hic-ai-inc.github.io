@@ -108,13 +108,6 @@ export async function sendPaymentFailedEmail(email, attemptCount, retryDate) {
 }
 
 /**
- * Send trial ending reminder
- */
-export async function sendTrialEndingEmail(email, daysRemaining, planName) {
-  return sendEmail("trialEnding", email, { email, daysRemaining, planName });
-}
-
-/**
  * Send payment reactivation confirmation (A.2)
  */
 export async function sendReactivationEmail(email) {
@@ -122,10 +115,10 @@ export async function sendReactivationEmail(email) {
 }
 
 /**
- * Send cancellation confirmation (A.9.1)
+ * Send cancellation requested confirmation
  */
-export async function sendCancellationEmail(email, accessUntil) {
-  return sendEmail("cancellation", email, { email, accessUntil });
+export async function sendCancellationRequestedEmail(email, accessUntil) {
+  return sendEmail("cancellationRequested", email, { email, accessUntil });
 }
 
 /**

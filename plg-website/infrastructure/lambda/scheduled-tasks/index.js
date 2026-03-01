@@ -146,62 +146,6 @@ function getDateRange(daysOffset) {
   const endOfDay = targetDate.toISOString().split("T")[0] + "T23:59:59.999Z";
   return { startOfDay, endOfDay, dateString: targetDate.toISOString().split("T")[0] };
 }
-
-/**
- * Handle trial reminder job
- * Queries for trialing customers expiring in 3 days and sends reminders
- */
-async function handleTrialReminder(log) {
-  log.info("running-job", { job: "trial-reminder" });
-  const { startOfDay, endOfDay, dateString } = getDateRange(3);
-
-  // Scan for trialing customers with expiration in target range
-  // Note: In production, use GSI on subscriptionStatus + expiresAt for efficiency
-  const result = await dynamoClient.send(
-    new ScanCommand({
-      TableName: TABLE_NAME,
-      FilterExpression:
-        "SK = :sk AND subscriptionStatus = :status AND currentPeriodEnd BETWEEN :start AND :end",
-      ExpressionAttributeValues: {
-        ":sk": "PROFILE",
-        ":status": "trialing",
-        ":start": startOfDay,
-        ":end": endOfDay,
-      },
-    }),
-  );
-
-  const customers = result.Items || [];
-  log.info("found-trialing-customers", { count: customers.length, targetDate: dateString });
-
-  let sent = 0;
-  let skipped = 0;
-  let failed = 0;
-
-  for (const customer of customers) {
-    // Skip if already sent this email
-    if (wasEmailSent(customer, "trial-reminder")) {
-      skipped++;
-      continue;
-    }
-
-    const success = await sendEmail("trialEnding", {
-      email: customer.email,
-      daysRemaining: 3,
-    }, log);
-
-    if (success) {
-      await markEmailSent(customer.userId, "trial-reminder");
-      sent++;
-    } else {
-      failed++;
-    }
-  }
-
-  log.info("trial-reminder-complete", { sent, skipped, failed, total: customers.length });
-  return { sent, skipped, failed };
-}
-
 /**
  * Handle 30-day win-back job
  * Queries for customers who canceled 30 days ago and sends win-back emails
@@ -218,7 +162,7 @@ async function handleWinback30(log) {
         "SK = :sk AND subscriptionStatus = :status AND canceledAt BETWEEN :start AND :end",
       ExpressionAttributeValues: {
         ":sk": "PROFILE",
-        ":status": "canceled",
+        ":status": "expired",
         ":start": startOfDay,
         ":end": endOfDay,
       },
@@ -269,7 +213,7 @@ async function handleWinback90(log) {
         "SK = :sk AND subscriptionStatus = :status AND canceledAt BETWEEN :start AND :end",
       ExpressionAttributeValues: {
         ":sk": "PROFILE",
-        ":status": "canceled",
+        ":status": "expired",
         ":start": startOfDay,
         ":end": endOfDay,
       },
@@ -468,9 +412,10 @@ async function handleMouseVersionNotify(log) {
 const TASK_HANDLERS = {
   "pending-email-retry": handlePendingEmailRetry,
   "mouse-version-notify": handleMouseVersionNotify,
-  "trial-reminder": handleTrialReminder,
-  "winback-30": handleWinback30,
-  "winback-90": handleWinback90,
+  // Win-back handlers preserved but NOT wired up pre-launch
+  // Requires CAN-SPAM-compliant unsubscribe infrastructure before activation
+  // "winback-30": handleWinback30,
+  // "winback-90": handleWinback90,
 };
 
 /**

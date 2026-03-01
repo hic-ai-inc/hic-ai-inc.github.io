@@ -25,6 +25,7 @@ import {
   updateOrgSeatLimit,
   getOrganizationByStripeCustomer,
   addOrgMember,
+  claimWebhookIdempotencyKey,
 } from "@/lib/dynamodb";
 import {
   suspendLicense,
@@ -39,6 +40,10 @@ import { sendDisputeAlert } from "@/lib/ses";
 // Cognito admin operations for RBAC group assignment
 import { assignOwnerRole } from "@/lib/cognito-admin";
 import { createApiLogger } from "@/lib/api-log";
+import { MAX_PAYMENT_FAILURES } from "@/lib/constants";
+
+// Cooldown window (seconds) to prevent email flooding from rapid cancel/uncancel toggling
+const COOLDOWN_SECONDS = 3600;
 
 // ============================================================================
 // Helper: Resolve DynamoDB customer from Stripe customer ID
@@ -64,7 +69,6 @@ async function resolveCustomer(stripeCustomerId, log) {
   }
   return dbCustomer || null;
 }
-
 
 export async function POST(request) {
   const log = createApiLogger({
@@ -102,6 +106,30 @@ export async function POST(request) {
     });
     log.response(400, "Stripe webhook rejected", { reason: "invalid_signature" });
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  // Idempotency guard: reject duplicate Stripe event deliveries before any processing.
+  // Stripe commonly delivers the same event 2-3 times in rapid succession for a single
+  // user action. The cooldown guard in handleSubscriptionUpdated cannot protect against
+  // this because the emailsSent dedup stamp is written asynchronously by the email-sender
+  // Lambda — it does not exist yet when the duplicate arrives.
+  // Guard failures must never block legitimate event processing — degrade gracefully.
+  let claimed = true;
+  try {
+    claimed = await claimWebhookIdempotencyKey(event.id);
+  } catch (guardError) {
+    log.warn("idempotency_guard_failed", "Idempotency guard error — processing event anyway", {
+      eventId: event.id,
+      errorMessage: guardError?.message,
+    });
+  }
+  if (!claimed) {
+    log.info("duplicate_event_suppressed", "Duplicate Stripe event suppressed by idempotency guard", {
+      eventId: event.id,
+      eventType: event.type,
+    });
+    log.response(200, "Stripe webhook duplicate suppressed", { eventId: event.id });
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   try {
@@ -425,7 +453,7 @@ async function handleSubscriptionUpdated(subscription, log) {
   const statusMap = {
     active: "active",
     past_due: "past_due",
-    canceled: "canceled",
+    canceled: "expired",
     unpaid: "suspended",
     incomplete: "pending",
     incomplete_expired: "expired",
@@ -440,6 +468,10 @@ async function handleSubscriptionUpdated(subscription, log) {
     cancelAtPeriodEnd: cancel_at_period_end,
   };
 
+  // Determine lifecycle event type and clearEmailsSent for cancel/uncancel paths
+  let eventTypeToWrite = null;
+  let clearEmailsSent = [];
+
   if (cancel_at_period_end) {
     const cancelAt = subscription.cancel_at
       ? new Date(subscription.cancel_at * 1000).toLocaleDateString("en-US", {
@@ -448,18 +480,39 @@ async function handleSubscriptionUpdated(subscription, log) {
           year: "numeric",
         })
       : "the end of your billing period";
-    subscriptionUpdate.eventType = "SUBSCRIPTION_CANCELLED";
+    // Override statusMap result — cancellation_pending is an intermediate state
+    subscriptionUpdate.subscriptionStatus = "cancellation_pending";
+    eventTypeToWrite = "CANCELLATION_REQUESTED";
+    clearEmailsSent = ["CANCELLATION_REVERSED"];
     subscriptionUpdate.email = dbCustomer.email;
     subscriptionUpdate.accessUntil = cancelAt;
   } else if (!cancel_at_period_end && dbCustomer.cancelAtPeriodEnd) {
-    // User reversed a pending cancellation ("Don't Cancel" in Stripe Customer Portal).
-    // Trigger reactivation email so they know their subscription is back on track.
-    subscriptionUpdate.eventType = "SUBSCRIPTION_REACTIVATED";
+    // User reversed a pending cancellation ("Don't Cancel" in Stripe Customer Portal)
+    subscriptionUpdate.subscriptionStatus = "active";
+    eventTypeToWrite = "CANCELLATION_REVERSED";
+    clearEmailsSent = ["CANCELLATION_REQUESTED"];
     subscriptionUpdate.email = dbCustomer.email;
   }
 
-  await updateCustomerSubscription(dbCustomer.userId, subscriptionUpdate);
+  // Cooldown guard: prevent email flooding from rapid cancel/uncancel toggling
+  if (eventTypeToWrite) {
+    const priorTimestamp = dbCustomer.emailsSent?.[eventTypeToWrite];
+    const withinCooldown = priorTimestamp &&
+      (Date.now() - new Date(priorTimestamp).getTime()) < COOLDOWN_SECONDS * 1000;
 
+    if (withinCooldown) {
+      log.info("cooldown_guard_activated", "Skipping lifecycle email — cooldown active", {
+        eventType: eventTypeToWrite,
+        priorTimestamp,
+      });
+      // Still update subscriptionStatus, but skip eventType + clearEmailsSent
+      clearEmailsSent = [];
+    } else {
+      subscriptionUpdate.eventType = eventTypeToWrite;
+    }
+  }
+
+  await updateCustomerSubscription(dbCustomer.userId, subscriptionUpdate, { clearEmailsSent });
   if (dbCustomer.keygenLicenseId) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, newStatus);
 
@@ -485,10 +538,10 @@ async function handleSubscriptionUpdated(subscription, log) {
     }
   }
 
-  if (cancel_at_period_end) {
-    log.info("cancellation_email_pipeline_triggered", "Cancellation email will be sent via event pipeline");
-  } else if (!cancel_at_period_end && dbCustomer.cancelAtPeriodEnd) {
-    log.info("reactivation_email_pipeline_triggered", "Reactivation email will be sent via event pipeline");
+  if (eventTypeToWrite && subscriptionUpdate.eventType) {
+    log.info("lifecycle_email_pipeline_triggered", "Lifecycle email will be sent via event pipeline", {
+      eventType: eventTypeToWrite,
+    });
   }
 
   if (seatQuantity > 0) {
@@ -527,21 +580,26 @@ async function handleSubscriptionDeleted(subscription, log) {
     return;
   }
 
-  const cancelAt = new Date().toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  // Determine expiration event type based on prior subscription status
+  const priorStatus = dbCustomer.subscriptionStatus;
+  let expirationEventType;
+  if (priorStatus === "cancellation_pending") {
+    expirationEventType = "VOLUNTARY_CANCELLATION_EXPIRED";
+  } else if (priorStatus === "past_due" || priorStatus === "suspended") {
+    expirationEventType = "NONPAYMENT_CANCELLATION_EXPIRED";
+  } else {
+    expirationEventType = "VOLUNTARY_CANCELLATION_EXPIRED"; // safe default
+  }
 
   await updateCustomerSubscription(dbCustomer.userId, {
-    subscriptionStatus: "canceled",
-    eventType: "SUBSCRIPTION_CANCELLED",
+    subscriptionStatus: "expired",
+    eventType: expirationEventType,
     email: dbCustomer.email,
-    accessUntil: cancelAt,
+    canceledAt: new Date().toISOString(),
   });
 
   if (dbCustomer.keygenLicenseId) {
-    await updateLicenseStatus(dbCustomer.keygenLicenseId, "canceled");
+    await updateLicenseStatus(dbCustomer.keygenLicenseId, "expired");
     try {
       await suspendLicense(dbCustomer.keygenLicenseId);
     } catch (e) {
@@ -551,7 +609,9 @@ async function handleSubscriptionDeleted(subscription, log) {
     }
   }
 
-  log.info("subscription_cancellation_processed", "Subscription cancellation processed", {
+  log.info("subscription_expiration_processed", "Subscription expiration processed", {
+    priorStatus,
+    expirationEventType,
     hasLicenseId: Boolean(dbCustomer.keygenLicenseId),
   });
 }
@@ -583,12 +643,12 @@ async function handlePaymentSucceeded(invoice, log) {
     });
   }
 
-  if (dbCustomer.subscriptionStatus === "past_due") {
+  if (dbCustomer.subscriptionStatus === "past_due" || dbCustomer.subscriptionStatus === "suspended") {
     await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "active",
       eventType: "SUBSCRIPTION_REACTIVATED",
       email: dbCustomer.email,
-    });
+    }, { clearEmailsSent: ["PAYMENT_FAILED"] });
 
     if (dbCustomer.keygenLicenseId) {
       try {
@@ -633,7 +693,7 @@ async function handlePaymentFailed(invoice, log) {
 
   await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "past_due",
-    paymentFailedCount: attempt_count,
+    paymentFailureCount: attempt_count,
     eventType: "PAYMENT_FAILED",
     email: customer_email,
     attemptCount: attempt_count,
@@ -648,7 +708,7 @@ async function handlePaymentFailed(invoice, log) {
     attemptCount: attempt_count,
   });
 
-  if (attempt_count >= 3) {
+  if (attempt_count >= MAX_PAYMENT_FAILURES) {
     log.decision("max_payment_attempts_reached", "Max payment attempts reached, suspending license", {
       attemptCount: attempt_count,
     });

@@ -40,6 +40,7 @@ import {
   DEVICE_ACTIVITY_WINDOW_HOURS,
   DEVICE_ACTIVITY_WINDOW_MS,
   getMaxDevicesForAccountType,
+  MAX_PAYMENT_FAILURES,
 } from "../../../src/lib/constants.js";
 
 describe("constants.js", () => {
@@ -64,6 +65,16 @@ describe("constants.js", () => {
     it("should fallback to default max devices for unknown account type", () => {
       expect(getMaxDevicesForAccountType("unknown")).toBe(3);
       expect(getMaxDevicesForAccountType(undefined)).toBe(3);
+    });
+  });
+
+  describe("MAX_PAYMENT_FAILURES", () => {
+    it("should equal 3", () => {
+      expect(MAX_PAYMENT_FAILURES).toBe(3);
+    });
+
+    it("should be a number", () => {
+      expect(typeof MAX_PAYMENT_FAILURES).toBe("number");
     });
   });
 
@@ -193,8 +204,8 @@ describe("constants.js", () => {
       expect(LICENSE_STATUS.PAST_DUE).toBe("PAST_DUE");
     });
 
-    it("should have CANCELLED status", () => {
-      expect(LICENSE_STATUS.CANCELLED).toBe("CANCELLED");
+    it("should have CANCELED status", () => {
+      expect(LICENSE_STATUS.CANCELED).toBe("CANCELED");
     });
 
     it("should have EXPIRED status", () => {
@@ -211,6 +222,14 @@ describe("constants.js", () => {
 
     it("should have REVOKED status (A.7)", () => {
       expect(LICENSE_STATUS.REVOKED).toBe("REVOKED");
+    });
+
+    it("should have CANCELLATION_PENDING status", () => {
+      expect(LICENSE_STATUS.CANCELLATION_PENDING).toBe("CANCELLATION_PENDING");
+    });
+
+    it("should NOT have CANCELLED (double-L) status", () => {
+      expect(LICENSE_STATUS.CANCELLED).toBeUndefined();
     });
   });
 
@@ -237,6 +256,11 @@ describe("constants.js", () => {
 
     it("DISPUTED should have warning variant", () => {
       expect(LICENSE_STATUS_DISPLAY.DISPUTED.variant).toBe("warning");
+    });
+
+    it("CANCELLATION_PENDING should have warning variant and correct label", () => {
+      expect(LICENSE_STATUS_DISPLAY.CANCELLATION_PENDING.variant).toBe("warning");
+      expect(LICENSE_STATUS_DISPLAY.CANCELLATION_PENDING.label).toBe("Cancellation Pending");
     });
   });
 

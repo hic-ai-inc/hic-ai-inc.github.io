@@ -46,6 +46,7 @@ import {
   updateOrgMemberStatus,
   getOrgLicenseUsage,
   getVersionConfig,
+  claimWebhookIdempotencyKey,
   dynamodb,
   // Organization management functions
   upsertOrganization,
@@ -309,6 +310,69 @@ describe("dynamodb.js", () => {
 
       const command = mockSend.calls[0][0];
       expect(command.input.UpdateExpression).toContain("#updatedAt");
+    });
+
+    // Task 2.3: clearEmailsSent unit tests
+    it("should produce no REMOVE clause when clearEmailsSent is empty", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateCustomerSubscription("auth0|123", { subscriptionStatus: "active" }, { clearEmailsSent: [] });
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.UpdateExpression).not.toContain("REMOVE");
+    });
+
+    it("should produce no REMOVE clause when no options arg provided (backward compat)", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateCustomerSubscription("auth0|123", { subscriptionStatus: "active" });
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.UpdateExpression).not.toContain("REMOVE");
+    });
+
+    it("should produce REMOVE clause for single clearEmailsSent key", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateCustomerSubscription("auth0|123", { subscriptionStatus: "active" }, { clearEmailsSent: ["CANCELLATION_REVERSED"] });
+
+      const command = mockSend.calls[0][0];
+      expect(command.input.UpdateExpression).toContain("REMOVE");
+      expect(command.input.UpdateExpression).toContain("emailsSent.");
+      // Verify the key is in ExpressionAttributeNames
+      const names = command.input.ExpressionAttributeNames;
+      const clearKeyAlias = Object.entries(names).find(([, v]) => v === "CANCELLATION_REVERSED");
+      expect(clearKeyAlias).toBeDefined();
+    });
+
+    it("should produce REMOVE clause for multiple clearEmailsSent keys", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateCustomerSubscription("auth0|123", { subscriptionStatus: "active" }, { clearEmailsSent: ["CANCELLATION_REVERSED", "PAYMENT_FAILED"] });
+
+      const command = mockSend.calls[0][0];
+      const expr = command.input.UpdateExpression;
+      expect(expr).toContain("REMOVE");
+      // Should have two emailsSent.#clearKey references
+      const removeClause = expr.split("REMOVE")[1];
+      expect(removeClause).toContain("emailsSent.");
+      const names = command.input.ExpressionAttributeNames;
+      const clearKeys = Object.entries(names).filter(([k]) => k.startsWith("#clearKey"));
+      expect(clearKeys.length).toBe(2);
+      expect(clearKeys.map(([, v]) => v).sort()).toEqual(["CANCELLATION_REVERSED", "PAYMENT_FAILED"].sort());
+    });
+
+    it("should combine SET and REMOVE in single UpdateExpression", async () => {
+      mockSend.mockResolvedValue({});
+
+      await updateCustomerSubscription("auth0|123", { subscriptionStatus: "cancellation_pending", eventType: "CANCELLATION_REQUESTED" }, { clearEmailsSent: ["CANCELLATION_REVERSED"] });
+
+      const command = mockSend.calls[0][0];
+      const expr = command.input.UpdateExpression;
+      expect(expr).toContain("SET");
+      expect(expr).toContain("REMOVE");
+      // SET should come before REMOVE
+      expect(expr.indexOf("SET")).toBeLessThan(expr.indexOf("REMOVE"));
     });
   });
 
@@ -2155,3 +2219,171 @@ describe("dynamodb.js", () => {
     });
   });
 });
+
+// ===========================================
+// PROPERTY TESTS — Stream 1D Completion Plan
+// ===========================================
+
+/**
+ * Feature: stream-1d-completion-plan
+ * Property 1: UpdateExpression generation preserves SET and REMOVE clauses
+ *
+ * For any valid updates object (1+ key-value pairs) and any clearEmailsSent
+ * array (0-5 keys), updateCustomerSubscription should produce a DynamoDB
+ * UpdateExpression where every updates key appears in SET, every clearEmailsSent
+ * key appears in REMOVE, and empty clearEmailsSent produces no REMOVE.
+ */
+describe("Property 1: UpdateExpression generation preserves SET and REMOVE clauses", () => {
+  let originalSend;
+  let mockSend;
+  let capturedCommands;
+
+  beforeEach(() => {
+    originalSend = dynamodb.send;
+    capturedCommands = [];
+    mockSend = async (cmd) => {
+      capturedCommands.push(cmd);
+      return {};
+    };
+    dynamodb.send = mockSend;
+  });
+
+  afterEach(() => {
+    dynamodb.send = originalSend;
+  });
+
+  // Helpers for random generation
+  function randomString(len = 8) {
+    const chars = "abcdefghijklmnopqrstuvwxyz";
+    let s = "";
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  it("should preserve SET and REMOVE clauses across 100 random inputs", async () => {
+    for (let i = 0; i < 100; i++) {
+      capturedCommands = [];
+
+      // Generate random updates (1-10 keys)
+      const numKeys = randomInt(1, 10);
+      const updates = {};
+      const updateKeys = [];
+      for (let k = 0; k < numKeys; k++) {
+        const key = `field_${randomString(5)}_${k}`;
+        updates[key] = randomString(12);
+        updateKeys.push(key);
+      }
+
+      // Generate random clearEmailsSent (0-5 keys)
+      const numClear = randomInt(0, 5);
+      const clearEmailsSent = [];
+      for (let c = 0; c < numClear; c++) {
+        clearEmailsSent.push(`EVENT_${randomString(6).toUpperCase()}_${c}`);
+      }
+
+      await updateCustomerSubscription(`user_${i}`, updates, { clearEmailsSent });
+
+      const cmd = capturedCommands[0];
+      const expr = cmd.input.UpdateExpression;
+      const names = cmd.input.ExpressionAttributeNames;
+
+      // (a) Every key in updates appears in SET clause
+      for (const key of updateKeys) {
+        const alias = `#${key}`;
+        expect(expr).toContain(alias);
+        expect(names[alias]).toBe(key);
+      }
+
+      // (b) Every key in clearEmailsSent appears in REMOVE clause
+      if (clearEmailsSent.length > 0) {
+        expect(expr).toContain("REMOVE");
+        for (const clearKey of clearEmailsSent) {
+          const found = Object.entries(names).some(([, v]) => v === clearKey);
+          expect(found).toBe(true);
+        }
+      }
+
+      // (c) Empty clearEmailsSent → no REMOVE
+      if (clearEmailsSent.length === 0) {
+        expect(expr).not.toContain("REMOVE");
+      }
+    }
+  });
+});
+
+describe("claimWebhookIdempotencyKey", () => {
+  let originalSend;
+  let mockSend;
+
+  beforeEach(() => {
+    originalSend = dynamodb.send;
+    mockSend = createSpy("dynamodb.send");
+    dynamodb.send = mockSend;
+  });
+
+  afterEach(() => {
+    dynamodb.send = originalSend;
+  });
+
+  it("should return true and write idempotency record on first delivery", async () => {
+    mockSend.mockResolvedValue({});
+
+    const result = await claimWebhookIdempotencyKey("evt_abc123");
+
+    expect(result).toBe(true);
+    expect(mockSend.callCount).toBe(1);
+
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Item.PK).toBe("WEBHOOK_IDEMPOTENCY#evt_abc123");
+    expect(cmd.input.Item.SK).toBe("EVENT");
+    expect(cmd.input.Item.eventId).toBe("evt_abc123");
+    expect(cmd.input.ConditionExpression).toBe("attribute_not_exists(PK)");
+    // TTL should be ~5 minutes from now
+    const expectedTtl = Math.floor(Date.now() / 1000) + 300;
+    expect(cmd.input.Item.ttl).toBeGreaterThanOrEqual(expectedTtl - 2);
+    expect(cmd.input.Item.ttl).toBeLessThanOrEqual(expectedTtl + 2);
+  });
+
+  it("should return false when event is a duplicate (ConditionalCheckFailedException)", async () => {
+    const err = new Error("The conditional request failed");
+    err.name = "ConditionalCheckFailedException";
+    mockSend.mockRejectedValue(err);
+
+    const result = await claimWebhookIdempotencyKey("evt_duplicate");
+
+    expect(result).toBe(false);
+    expect(mockSend.callCount).toBe(1);
+  });
+
+  it("should re-throw unexpected DynamoDB errors", async () => {
+    const err = new Error("ProvisionedThroughputExceededException");
+    err.name = "ProvisionedThroughputExceededException";
+    mockSend.mockRejectedValue(err);
+
+    let thrown = null;
+    try {
+      await claimWebhookIdempotencyKey("evt_error");
+    } catch (e) {
+      thrown = e;
+    }
+    // Guard re-throws non-conditional errors so the caller can decide how to handle them
+    expect(thrown).not.toBe(null);
+    expect(thrown.name).toBe("ProvisionedThroughputExceededException");
+  });
+
+  it("should use the correct table and include claimedAt timestamp", async () => {
+    mockSend.mockResolvedValue({});
+
+    await claimWebhookIdempotencyKey("evt_ts_check");
+
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Item.claimedAt).toBeDefined();
+    // claimedAt should be a valid ISO string
+    expect(() => new Date(cmd.input.Item.claimedAt).toISOString()).not.toThrow();
+  });
+});
+

@@ -28,9 +28,8 @@ import {
   sendWelcomeEmail,
   sendLicenseEmail,
   sendPaymentFailedEmail,
-  sendTrialEndingEmail,
   sendReactivationEmail,
-  sendCancellationEmail,
+  sendCancellationRequestedEmail,
   sendLicenseRevokedEmail,
   sendDisputeAlert,
   sendWinBack30Email,
@@ -147,15 +146,6 @@ describe("ses.js", () => {
       });
     });
 
-    describe("sendTrialEndingEmail", () => {
-      it("should accept email, daysRemaining, and planName parameters", async () => {
-        const result = await sendTrialEndingEmail("test@example.com", 3, "Individual");
-
-        expect(result.success).toBe(true);
-        expect(result.messageId).toBe("test-message-id");
-      });
-    });
-
     describe("sendReactivationEmail", () => {
       it("should accept email parameter", async () => {
         const result = await sendReactivationEmail("test@example.com");
@@ -165,9 +155,9 @@ describe("ses.js", () => {
       });
     });
 
-    describe("sendCancellationEmail", () => {
+    describe("sendCancellationRequestedEmail", () => {
       it("should accept email and accessUntil parameters", async () => {
-        const result = await sendCancellationEmail("test@example.com", "February 1, 2026");
+        const result = await sendCancellationRequestedEmail("test@example.com", "February 1, 2026");
 
         expect(result.success).toBe(true);
         expect(result.messageId).toBe("test-message-id");
@@ -255,9 +245,8 @@ describe("ses.js", () => {
         sendWelcomeEmail,
         sendLicenseEmail,
         sendPaymentFailedEmail,
-        sendTrialEndingEmail,
         sendReactivationEmail,
-        sendCancellationEmail,
+        sendCancellationRequestedEmail,
         sendLicenseRevokedEmail,
         sendDisputeAlert,
         sendWinBack30Email,

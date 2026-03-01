@@ -23,6 +23,9 @@ export const DEVICE_ACTIVITY_WINDOW_MS =
 // Matches Extension repo HEARTBEAT.INTERVAL_MS in .hic/licensing/constants.js.
 export const NEXT_HEARTBEAT_SECONDS = 600;
 
+// Payment failure threshold — suspend license after this many consecutive failures
+export const MAX_PAYMENT_FAILURES = 3;
+
 export function getMaxDevicesForAccountType(accountType) {
   const planConfig = PRICING[accountType];
   return (
@@ -122,7 +125,8 @@ export const LICENSE_STATUS = {
   TRIAL: "TRIAL",
   ACTIVE: "ACTIVE",
   PAST_DUE: "PAST_DUE",
-  CANCELLED: "CANCELLED",
+  CANCELLATION_PENDING: "CANCELLATION_PENDING",
+  CANCELED: "CANCELED",
   EXPIRED: "EXPIRED",
   RETIRED: "RETIRED", // A.5.3 - Enterprise seat retired by admin
   DISPUTED: "DISPUTED", // A.6.2 - Chargeback dispute in progress
@@ -134,7 +138,8 @@ export const LICENSE_STATUS_DISPLAY = {
   TRIAL: { label: "Trial", variant: "info" },
   ACTIVE: { label: "Active", variant: "success" },
   PAST_DUE: { label: "Past Due", variant: "error" },
-  CANCELLED: { label: "Cancelled", variant: "error" },
+  CANCELLATION_PENDING: { label: "Cancellation Pending", variant: "warning" },
+  CANCELED: { label: "Canceled", variant: "error" },
   EXPIRED: { label: "Expired", variant: "error" },
   RETIRED: { label: "Retired", variant: "error" },
   DISPUTED: { label: "Disputed", variant: "warning" },

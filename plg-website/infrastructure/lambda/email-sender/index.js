@@ -70,8 +70,8 @@ const templates = createTemplates({
   productName: "Mouse",
 });
 
-// Use centralized event-to-template mapping from hic-ses-layer
-const EMAIL_ACTIONS = EVENT_TYPE_TO_TEMPLATE;
+// Permanent dedup events — sent once per customer, never cleared
+const PERMANENT_DEDUP_EVENTS = ["CUSTOMER_CREATED", "LICENSE_CREATED"];
 
 // ============================================================================
 // Helper: Extract field value from DynamoDB record
@@ -109,7 +109,7 @@ export const handler = async (event) => {
         continue;
       }
 
-      const emailAction = EMAIL_ACTIONS[eventType];
+      const emailAction = EVENT_TYPE_TO_TEMPLATE[eventType];
       if (!emailAction) {
         log.debug("no-email-action", { eventType });
         continue;
@@ -130,7 +130,8 @@ export const handler = async (event) => {
       // Belt-and-suspenders dedup: newImage is in DynamoDB JSON format (M/S types)
       const emailsSentMap = newImage?.emailsSent?.M;
       if (emailsSentMap?.[eventType]) {
-        log.debug("already-sent", { eventType });
+        const dedupType = PERMANENT_DEDUP_EVENTS.includes(eventType) ? "permanent" : "lifecycle";
+        log.debug("already-sent", { eventType, dedupType });
         continue;
       }
 
