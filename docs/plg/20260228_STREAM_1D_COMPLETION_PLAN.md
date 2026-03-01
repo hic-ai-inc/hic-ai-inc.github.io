@@ -1158,3 +1158,138 @@ All of the following must be true before Stream 1D is considered complete:
 | No `SUBSCRIPTION_CANCELLED` backward compat | All EVENT records referencing old type belong to throwaway test accounts | SWR |
 
 _Plan complete. Ready for SWR review and approval before handoff to Spec mode implementation._
+
+---
+
+## Addendum — Post-E2E Validation Findings
+
+**Date:** March 1, 2026
+**Author:** Kiro (AI Agent, supervised by SWR)
+**Status:** Documented — Pending SWR Prioritization Decision
+**Context:** Findings from E2E validation of Stream 1D deliverables. Four issues identified: one confirmed bug in the email pipeline, one confirmed bug in the portal routing (fixed during this session), and two portal display gaps not covered by Stream 1D requirements.
+
+---
+
+### A.1 Bug: Duplicate `CANCELLATION_REQUESTED` Email (Confirmed, Reproduced)
+
+**Severity:** Medium — user-facing, but not data-corrupting.
+
+**Symptom:** When a user cancels their subscription, they receive two copies of the "Cancellation Confirmed" email (`cancellationRequested` template) within seconds of each other.
+
+**Root Cause:** The cooldown guard in `handleSubscriptionUpdated` (webhook handler) reads `dbCustomer.emailsSent?.CANCELLATION_REQUESTED` to determine whether to suppress the `eventType` write. This stamp is written by the email-sender Lambda *after* the email is sent — asynchronously, via the DynamoDB Stream → StreamProcessor → SNS → SQS → email-sender pipeline. That pipeline has non-trivial latency (seconds to tens of seconds).
+
+Stripe routinely fires 2–3 `customer.subscription.updated` events in rapid succession for a single user action in the Customer Portal. Both (or all three) webhook invocations arrive and execute before the email-sender Lambda has had a chance to write the dedup stamp. Each invocation reads an empty `emailsSent.CANCELLATION_REQUESTED`, passes the cooldown check, writes `eventType: "CANCELLATION_REQUESTED"` to the PROFILE record, and triggers a separate email send.
+
+The cooldown guard was designed to prevent re-sends across *separate user actions* (e.g., cancel → uncancel → cancel again within an hour). It does not protect against Stripe's duplicate event delivery for a *single* user action, because the dedup stamp it relies on does not exist yet at the time the duplicate webhooks arrive.
+
+**What the cooldown guard does protect against:** A user who cancels, then reverses, then cancels again within 60 minutes. In that case the stamp from the first cancel is present and the guard fires correctly. This behavior is confirmed working.
+
+**Proposed Fix:** Add an idempotency key check at the webhook handler level, before the cooldown guard. Stripe provides a unique `event.id` per event object. The fix is to write the Stripe `event.id` to a short-lived DynamoDB record (TTL ~5 minutes) as an atomic conditional write (`attribute_not_exists`) before processing. If the write fails (item already exists), the event is a duplicate and the handler returns 200 without processing. This is the standard Stripe idempotency pattern and eliminates the race entirely.
+
+Alternatively, a simpler but less robust approach: write `eventType` to the PROFILE record using a DynamoDB conditional expression (`attribute_not_exists(eventType)`) so only the first writer wins. This is weaker because it relies on the `eventType` field being cleared between events, which is not guaranteed.
+
+**Recommended approach:** Stripe event-level idempotency table (TTL-based). Scope is small — one new DynamoDB write per webhook invocation, one new table or GSI, no changes to the email pipeline.
+
+**Files affected:** `plg-website/src/app/api/webhooks/stripe/route.js`, `plg-website/src/lib/dynamodb.js`, possibly `infrastructure/` for the new table or TTL configuration.
+
+---
+
+### A.2 Bug: Portal Shows "Activate Your Mouse License" for `cancellation_pending` Users (Fixed)
+
+**Severity:** High — actively misleading UX for a user who just cancelled.
+
+**Symptom:** After cancelling a subscription, the main `/portal` page displayed "Activate Your Mouse License" with a checkout CTA, as if the user had no subscription at all. The `/portal/billing` page correctly showed the cancellation state.
+
+**Root Cause:** The status API (`/api/portal/status`) evaluated `hasActiveSubscription` as `["active", "trialing"].includes(subscriptionStatus)`. When a user cancels, the Stripe webhook writes `subscriptionStatus: "cancellation_pending"` to DynamoDB (not `"active"`). This value was not in the active set, so `hasSubscription: false` was returned. The portal page branched to `NewUserDashboard` on `hasSubscription === false`.
+
+Additionally, the status API did not return `cancelAtPeriodEnd` or `accessUntil` from the DynamoDB record, so even if the routing had been correct, the portal had no data to display the expiry notice.
+
+**Fix Applied (this session):**
+1. `status/route.js`: Added `"cancellation_pending"` to the `hasActiveSubscription` array. Added `cancelAtPeriodEnd` and `accessUntil` to the response payload.
+2. `portal/page.js`: Added `cancelAtPeriodEnd` and `accessUntil` to `ActiveUserDashboard` props. Added an amber "Access until {date}" notice below the billing card status text, matching the pattern already used on `/portal/billing`.
+
+**Status:** Fixed and deployed to development branch.
+
+---
+
+### A.3 Gap: Portal Shows "Activate Your Mouse License" for `past_due` and `suspended` Users
+
+**Severity:** Medium — misleading UX, but affects a small population (users who have missed multiple payments).
+
+**Symptom:** A user whose subscription is `past_due` (payment failed, within retry window) or `suspended` (payment failed after `MAX_PAYMENT_FAILURES = 3` attempts, Keygen license suspended) sees `NewUserDashboard` with "Activate Your Mouse License" and a checkout CTA. This is wrong — they have an existing account and should be directed to update their payment method, not purchase a new license.
+
+**Root Cause:** The status API includes `"past_due"` in `hasExpiredSubscription` (which returns `hasSubscription: false`). `"suspended"` is not in any of the three status sets (`hasActiveSubscription`, `hasExpiredSubscription`, or the implicit "none" bucket), so it also falls through to `hasSubscription: false`. Both states route to `NewUserDashboard`.
+
+This was not a regression — Stream 1D Requirement 12 only specified portal display for `cancellation_pending` and `expired`. The `past_due` and `suspended` portal states were never specified.
+
+**Proposed Fix:** Add a third dashboard branch: `PaymentIssueDashboard`. The status API should classify `past_due` and `suspended` as a distinct `"payment_issue"` status (separate from both `"active"` and `"expired"`). The portal page branches on this to show a targeted message: "There's an issue with your payment — please update your billing information to restore access," with a direct link to `/portal/billing`. The license card should show the appropriate `PAST_DUE` or `SUSPENDED` badge from `LICENSE_STATUS_DISPLAY` (both are already defined in `constants.js`).
+
+**Files affected:** `plg-website/src/app/api/portal/status/route.js`, `plg-website/src/app/portal/page.js`.
+
+**Deferral risk:** Low. `past_due` requires at least one failed payment attempt; `suspended` requires three. Neither will affect Day 1 users. However, once real paying customers exist, this becomes a support burden — a suspended user who sees "Activate Your License" may purchase a second subscription rather than updating their payment method.
+
+---
+
+### A.4 Gap: Portal Shows "Activate Your Mouse License" for `expired` Users
+
+**Severity:** Low-Medium — the CTA is directionally correct (resubscribe) but the framing is wrong.
+
+**Symptom:** A user whose subscription has fully expired (Stripe subscription deleted, `subscriptionStatus: "expired"` in DynamoDB) sees `NewUserDashboard` with "Activate Your Mouse License." The messaging is not wrong per se — they do need to purchase again — but it treats a returning customer identically to a brand-new user who has never subscribed, which is a missed opportunity and slightly jarring.
+
+**Root Cause:** `"expired"` is in `hasExpiredSubscription`, which returns `hasSubscription: false`, routing to `NewUserDashboard`. Same structural issue as A.3.
+
+**Proposed Fix:** The `PaymentIssueDashboard` branch proposed in A.3 can be extended, or a separate `ExpiredDashboard` branch added. The expired state warrants slightly different copy: "Your Mouse subscription has ended. Your account and data are preserved — resubscribe anytime to restore access," with a CTA to `/pricing`. This is warmer and more accurate than the new-user "Activate Your Mouse License" framing. The license card should show the `EXPIRED` badge (already defined in `LICENSE_STATUS_DISPLAY`).
+
+**Files affected:** Same as A.3.
+
+**Deferral risk:** Low for launch. Expired subscriptions require a full billing cycle to lapse. No users will be in this state on Day 1. Post-launch, this becomes relevant for churned users returning to the site.
+
+---
+
+### A.5 Gap: Suspended/Revoked Business Members See "Activate Your Mouse License"
+
+**Severity:** High — actively misleading and potentially causes support tickets or accidental duplicate purchases.
+
+**Symptom:** A Business tier member whose seat has been suspended or revoked by their org admin logs into the portal and sees `NewUserDashboard` with "Activate Your Mouse License" and a checkout CTA. They have no indication that their access was administratively removed.
+
+**Root Cause:** `getUserOrgMembership` in `dynamodb.js` filters to `status === "active"` only:
+
+```js
+const membership = result.Items?.find((item) => item.status === "active");
+```
+
+A suspended or revoked member returns `null` from this query. The status API then finds no customer record and no org membership, concludes the user is a new user, and returns `hasSubscription: false, shouldRedirectToCheckout: true`. The portal renders `NewUserDashboard`.
+
+This is a meaningful gap: the admin action (suspend/revoke) has no visible effect on the member's portal experience — they just silently lose access at the Keygen level while the portal tells them to buy a license.
+
+**Proposed Fix:** Two-part:
+
+1. `dynamodb.js` — `getUserOrgMembership` should return the membership record regardless of status (or a separate `getAnyOrgMembership` query should be added). The status field should be passed through to the caller.
+
+2. `status/route.js` — After retrieving the org membership, check `orgMembership.status`. If `"suspended"` or `"revoked"`, return a distinct response: `hasSubscription: false, memberStatus: "suspended"` (or `"revoked"`), `shouldRedirectToCheckout: false`. Do not return `shouldRedirectToCheckout: true` for these users.
+
+3. `portal/page.js` — Add a `SuspendedMemberDashboard` branch that renders a clear, non-alarming message: "Your access has been suspended by your organization administrator. Please contact your admin to restore access." No checkout CTA. Include the user's email and a link to support.
+
+**Files affected:** `plg-website/src/lib/dynamodb.js`, `plg-website/src/app/api/portal/status/route.js`, `plg-website/src/app/portal/page.js`.
+
+**Deferral risk:** Medium. This only affects Business tier accounts with multiple members, which cannot exist until at least one Business subscriber has added team members. However, the admin suspend/revoke feature is fully implemented and exposed in the Team Management UI — the moment a Business customer uses it, the affected member will see the wrong portal state. Given that the admin action is live, this gap should be closed before or shortly after launch.
+
+---
+
+### A.6 Summary Table
+
+| ID | Issue | Type | Severity | Affects Day 1? | Proposed Action |
+|---|---|---|---|---|---|
+| A.1 | Duplicate `CANCELLATION_REQUESTED` email | Bug | Medium | Yes — any cancellation | Fix: Stripe event-level idempotency table |
+| A.2 | `cancellation_pending` → "Activate License" | Bug | High | Yes — any cancellation | **Fixed this session** |
+| A.3 | `past_due` / `suspended` → "Activate License" | Gap | Medium | No (requires failed payments) | Fix pre-launch recommended |
+| A.4 | `expired` → "Activate License" | Gap | Low-Medium | No (requires full lapse) | Fix pre-launch or shortly after |
+| A.5 | Suspended/revoked Business member → "Activate License" | Gap | High | No (requires Business + team members) | Fix before Business tier goes live |
+
+### Decision Log
+
+| Decision | Rationale | Decided By |
+|---|---|---|
+| A.2 fixed immediately | Active bug affecting any cancellation during E2E validation | SWR + agent |
+| A.1–A.5 documented as addendum | Prioritization decision deferred to SWR | SWR |
+

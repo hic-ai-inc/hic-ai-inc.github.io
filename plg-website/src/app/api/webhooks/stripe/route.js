@@ -25,6 +25,7 @@ import {
   updateOrgSeatLimit,
   getOrganizationByStripeCustomer,
   addOrgMember,
+  claimWebhookIdempotencyKey,
 } from "@/lib/dynamodb";
 import {
   suspendLicense,
@@ -105,6 +106,21 @@ export async function POST(request) {
     });
     log.response(400, "Stripe webhook rejected", { reason: "invalid_signature" });
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  // Idempotency guard: reject duplicate Stripe event deliveries before any processing.
+  // Stripe commonly delivers the same event 2-3 times in rapid succession for a single
+  // user action. The cooldown guard in handleSubscriptionUpdated cannot protect against
+  // this because the emailsSent dedup stamp is written asynchronously by the email-sender
+  // Lambda — it does not exist yet when the duplicate arrives.
+  const claimed = await claimWebhookIdempotencyKey(event.id);
+  if (!claimed) {
+    log.info("duplicate_event_suppressed", "Duplicate Stripe event suppressed by idempotency guard", {
+      eventId: event.id,
+      eventType: event.type,
+    });
+    log.response(200, "Stripe webhook duplicate suppressed", { eventId: event.id });
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   try {

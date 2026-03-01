@@ -46,6 +46,7 @@ import {
   updateOrgMemberStatus,
   getOrgLicenseUsage,
   getVersionConfig,
+  claimWebhookIdempotencyKey,
   dynamodb,
   // Organization management functions
   upsertOrganization,
@@ -2311,6 +2312,77 @@ describe("Property 1: UpdateExpression generation preserves SET and REMOVE claus
         expect(expr).not.toContain("REMOVE");
       }
     }
+  });
+});
+
+describe("claimWebhookIdempotencyKey", () => {
+  let originalSend;
+  let mockSend;
+
+  beforeEach(() => {
+    originalSend = dynamodb.send;
+    mockSend = createSpy("dynamodb.send");
+    dynamodb.send = mockSend;
+  });
+
+  afterEach(() => {
+    dynamodb.send = originalSend;
+  });
+
+  it("should return true and write idempotency record on first delivery", async () => {
+    mockSend.mockResolvedValue({});
+
+    const result = await claimWebhookIdempotencyKey("evt_abc123");
+
+    expect(result).toBe(true);
+    expect(mockSend.callCount).toBe(1);
+
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Item.PK).toBe("WEBHOOK_IDEMPOTENCY#evt_abc123");
+    expect(cmd.input.Item.SK).toBe("EVENT");
+    expect(cmd.input.Item.eventId).toBe("evt_abc123");
+    expect(cmd.input.ConditionExpression).toBe("attribute_not_exists(PK)");
+    // TTL should be ~5 minutes from now
+    const expectedTtl = Math.floor(Date.now() / 1000) + 300;
+    expect(cmd.input.Item.ttl).toBeGreaterThanOrEqual(expectedTtl - 2);
+    expect(cmd.input.Item.ttl).toBeLessThanOrEqual(expectedTtl + 2);
+  });
+
+  it("should return false when event is a duplicate (ConditionalCheckFailedException)", async () => {
+    const err = new Error("The conditional request failed");
+    err.name = "ConditionalCheckFailedException";
+    mockSend.mockRejectedValue(err);
+
+    const result = await claimWebhookIdempotencyKey("evt_duplicate");
+
+    expect(result).toBe(false);
+    expect(mockSend.callCount).toBe(1);
+  });
+
+  it("should re-throw unexpected DynamoDB errors", async () => {
+    const err = new Error("ProvisionedThroughputExceededException");
+    err.name = "ProvisionedThroughputExceededException";
+    mockSend.mockRejectedValue(err);
+
+    let thrown = null;
+    try {
+      await claimWebhookIdempotencyKey("evt_error");
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).not.toBe(null);
+    expect(thrown.message).toBe("ProvisionedThroughputExceededException");
+  });
+
+  it("should use the correct table and include claimedAt timestamp", async () => {
+    mockSend.mockResolvedValue({});
+
+    await claimWebhookIdempotencyKey("evt_ts_check");
+
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Item.claimedAt).toBeDefined();
+    // claimedAt should be a valid ISO string
+    expect(() => new Date(cmd.input.Item.claimedAt).toISOString()).not.toThrow();
   });
 });
 

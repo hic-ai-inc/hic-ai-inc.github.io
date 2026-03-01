@@ -2276,6 +2276,50 @@ export async function getVersionConfig(productId = "mouse") {
  * @param {string} versionInfo.releaseNotesUrl - URL to release notes
  * @returns {Promise<void>}
  */
+/**
+ * Claim a Stripe webhook event idempotency key.
+ *
+ * Writes a short-lived record keyed on the Stripe event ID using a conditional
+ * PutCommand (`attribute_not_exists(PK)`). If the record already exists, the
+ * condition fails and the function returns false — indicating a duplicate event.
+ *
+ * TTL is set to 5 minutes (300 seconds) from now. This is long enough to cover
+ * Stripe's retry window for rapid duplicate delivery, and short enough to avoid
+ * table bloat. The DynamoDB table must have TTL enabled on the `ttl` attribute.
+ *
+ * @param {string} eventId - Stripe event ID (e.g. "evt_1ABC...")
+ * @returns {Promise<boolean>} true if claim succeeded (first delivery), false if duplicate
+ */
+export async function claimWebhookIdempotencyKey(eventId) {
+  const logger = createLogger("claimWebhookIdempotencyKey");
+  const ttl = Math.floor(Date.now() / 1000) + 300; // 5-minute TTL
+
+  try {
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          PK: `WEBHOOK_IDEMPOTENCY#${eventId}`,
+          SK: "EVENT",
+          eventId,
+          claimedAt: new Date().toISOString(),
+          ttl,
+        },
+        ConditionExpression: "attribute_not_exists(PK)",
+      }),
+    );
+    return true;
+  } catch (error) {
+    // ConditionalCheckFailedException = duplicate event, not an error
+    if (error.name === "ConditionalCheckFailedException") {
+      logger.info("Duplicate webhook event suppressed", { eventId });
+      return false;
+    }
+    // Any other error: re-throw so the webhook returns 500 and Stripe retries
+    throw error;
+  }
+}
+
 export async function updateVersionConfig(productId = "mouse", versionInfo) {
   const now = new Date().toISOString();
 

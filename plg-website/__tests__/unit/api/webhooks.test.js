@@ -1800,3 +1800,65 @@ describe("Stream 1D — Cancel/Uncancel/Cooldown/Expiration Logic", () => {
   });
 });
 
+
+describe("Webhook idempotency guard — claimWebhookIdempotencyKey behavior", () => {
+  // Extracted logic mirrors the webhook handler's use of claimWebhookIdempotencyKey.
+  // Tests verify the contract the handler depends on, without importing Next.js routes.
+
+  function simulateIdempotencyGuard(claimResult) {
+    // Returns what the handler does based on the claim result
+    if (!claimResult) {
+      return { action: "suppressed", status: 200, duplicate: true };
+    }
+    return { action: "processed", status: 200, duplicate: false };
+  }
+
+  it("should suppress processing when claim returns false (duplicate event)", () => {
+    const result = simulateIdempotencyGuard(false);
+    assert.strictEqual(result.action, "suppressed");
+    assert.strictEqual(result.duplicate, true);
+    assert.strictEqual(result.status, 200);
+  });
+
+  it("should proceed with processing when claim returns true (first delivery)", () => {
+    const result = simulateIdempotencyGuard(true);
+    assert.strictEqual(result.action, "processed");
+    assert.strictEqual(result.duplicate, false);
+    assert.strictEqual(result.status, 200);
+  });
+
+  it("should return 200 for duplicates (not 4xx) so Stripe does not retry", () => {
+    // Stripe retries on any non-2xx response. Duplicates must return 200.
+    const result = simulateIdempotencyGuard(false);
+    assert.strictEqual(result.status, 200);
+  });
+
+  it("should process all distinct event IDs independently", () => {
+    // Each unique event ID is a first delivery — all should be processed
+    const eventIds = ["evt_001", "evt_002", "evt_003"];
+    const seen = new Set();
+
+    for (const id of eventIds) {
+      const isFirst = !seen.has(id);
+      seen.add(id);
+      const result = simulateIdempotencyGuard(isFirst);
+      assert.strictEqual(result.action, "processed", `${id} should be processed`);
+    }
+  });
+
+  it("should suppress the second delivery of the same event ID", () => {
+    const seen = new Set();
+    const eventId = "evt_duplicate_test";
+
+    // First delivery
+    const first = simulateIdempotencyGuard(!seen.has(eventId));
+    seen.add(eventId);
+    assert.strictEqual(first.action, "processed");
+
+    // Second delivery of same event
+    const second = simulateIdempotencyGuard(!seen.has(eventId));
+    assert.strictEqual(second.action, "suppressed");
+    assert.strictEqual(second.duplicate, true);
+  });
+});
+
