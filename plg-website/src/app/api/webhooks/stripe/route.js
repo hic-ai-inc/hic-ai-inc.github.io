@@ -113,7 +113,16 @@ export async function POST(request) {
   // user action. The cooldown guard in handleSubscriptionUpdated cannot protect against
   // this because the emailsSent dedup stamp is written asynchronously by the email-sender
   // Lambda — it does not exist yet when the duplicate arrives.
-  const claimed = await claimWebhookIdempotencyKey(event.id);
+  // Guard failures must never block legitimate event processing — degrade gracefully.
+  let claimed = true;
+  try {
+    claimed = await claimWebhookIdempotencyKey(event.id);
+  } catch (guardError) {
+    log.warn("idempotency_guard_failed", "Idempotency guard error — processing event anyway", {
+      eventId: event.id,
+      errorMessage: guardError?.message,
+    });
+  }
   if (!claimed) {
     log.info("duplicate_event_suppressed", "Duplicate Stripe event suppressed by idempotency guard", {
       eventId: event.id,

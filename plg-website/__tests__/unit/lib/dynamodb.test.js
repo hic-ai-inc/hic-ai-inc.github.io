@@ -2370,8 +2370,9 @@ describe("claimWebhookIdempotencyKey", () => {
     } catch (e) {
       thrown = e;
     }
+    // Guard re-throws non-conditional errors so the caller can decide how to handle them
     expect(thrown).not.toBe(null);
-    expect(thrown.message).toBe("ProvisionedThroughputExceededException");
+    expect(thrown.name).toBe("ProvisionedThroughputExceededException");
   });
 
   it("should use the correct table and include claimedAt timestamp", async () => {
