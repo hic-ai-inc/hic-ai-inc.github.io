@@ -140,14 +140,22 @@ describe("Heartbeat Route - Contract", () => {
     __setKeygenRequestForTests(keygenMock.request);
 
     mockSend.mockImplementation((command) => {
-      const pk = command?.input?.Key?.PK;
+      const input = command?.input;
+      const pk = input?.Key?.PK;
 
+      // GetCommand: LICENSE# lookup (getDeviceByFingerprint)
       if (typeof pk === "string" && pk.startsWith("LICENSE#")) {
         return Promise.resolve({ Item: undefined });
       }
 
+      // GetCommand: VERSION# lookup
       if (typeof pk === "string" && pk.startsWith("VERSION#")) {
         return Promise.resolve({ Item: versionItem });
+      }
+
+      // QueryCommand: GSI2 license-by-key lookup (getLicenseByKey) — no license in DB
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({ Items: [] });
       }
 
       return Promise.resolve({});
@@ -157,6 +165,7 @@ describe("Heartbeat Route - Contract", () => {
       createMockRequest({
         fingerprint,
         sessionId: "sess_123",
+        machineId: "mach_missing_license",
         licenseKey: generateValidLicenseKey(),
       }),
     );
@@ -181,22 +190,30 @@ describe("Heartbeat Route - Contract", () => {
     __setKeygenRequestForTests(keygenMock.request);
 
     mockSend.mockImplementation((command) => {
-      const pk = command?.input?.Key?.PK;
+      const input = command?.input;
+      const pk = input?.Key?.PK;
 
+      // GetCommand: LICENSE# lookup (getDeviceByFingerprint — no keygenLicenseId so won't be called)
       if (typeof pk === "string" && pk.startsWith("LICENSE#")) {
+        return Promise.resolve({ Item: undefined });
+      }
+
+      // GetCommand: VERSION# lookup
+      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
+        return Promise.resolve({ Item: versionItem });
+      }
+
+      // QueryCommand: GSI2 license-by-key lookup (getLicenseByKey)
+      if (input?.IndexName === "GSI2") {
         return Promise.resolve({
-          Item: {
-            PK: pk,
+          Items: [{
+            PK: "LICENSE#lic_known",
             SK: "DETAILS",
             maxDevices: 3,
             keygenLicenseId: null,
             status: "active",
-          },
+          }],
         });
-      }
-
-      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
-        return Promise.resolve({ Item: versionItem });
       }
 
       return Promise.resolve({});
@@ -206,6 +223,7 @@ describe("Heartbeat Route - Contract", () => {
       createMockRequest({
         fingerprint,
         sessionId: "sess_456",
+        machineId: "mach_known_license",
         licenseKey: generateValidLicenseKey(),
       }),
     );
@@ -238,15 +256,13 @@ describe("Heartbeat Route - Contract", () => {
     mockSend.mockImplementation((command) => {
       const input = command?.input;
 
-      // GetCommand: LICENSE# lookup
+      // GetCommand: LICENSE# lookup (getDeviceByFingerprint)
       if (input?.Key?.PK?.startsWith("LICENSE#")) {
         return Promise.resolve({
           Item: {
-            PK: input.Key.PK,
-            SK: "DETAILS",
-            maxDevices: 3, // Individual license: 3 concurrent devices
-            keygenLicenseId,
-            status: "active",
+            fingerprint,
+            userId: "user_over_limit",
+            keygenMachineId: "mach_over_limit",
           },
         });
       }
@@ -254,6 +270,19 @@ describe("Heartbeat Route - Contract", () => {
       // GetCommand: VERSION# lookup
       if (input?.Key?.PK?.startsWith("VERSION#")) {
         return Promise.resolve({ Item: versionItem });
+      }
+
+      // QueryCommand: GSI2 license-by-key lookup (getLicenseByKey)
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({
+          Items: [{
+            PK: `LICENSE#${keygenLicenseId}`,
+            SK: "DETAILS",
+            maxDevices: 3,
+            keygenLicenseId,
+            status: "active",
+          }],
+        });
       }
 
       // QueryCommand: device listing (return 4 devices to exceed Individual maxDevices: 3)
@@ -275,6 +304,7 @@ describe("Heartbeat Route - Contract", () => {
       createMockRequest({
         fingerprint,
         sessionId: "sess_over_limit",
+        machineId: "mach_over_limit",
         licenseKey: generateValidLicenseKey(),
       }),
     );
@@ -323,6 +353,7 @@ describe("Heartbeat Route - Contract", () => {
       createMockRequest({
         fingerprint,
         sessionId: "sess_mnf",
+        machineId: "mach_not_found",
         licenseKey: generateValidLicenseKey(),
       }),
     );
@@ -371,6 +402,7 @@ describe("Heartbeat Route - Contract", () => {
       createMockRequest({
         fingerprint: "fp_invalid_123",
         sessionId: "sess_invalid",
+        machineId: "mach_invalid",
         licenseKey: "INVALID-KEY",
       }),
     );

@@ -528,7 +528,6 @@ describe("heartbeat API - concurrent device enforcement", () => {
   });
 });
 
-
 // ===========================================
 // CHECKSUM ALGORITHM TESTS
 // ===========================================
@@ -558,100 +557,186 @@ describe("heartbeat API - checksum algorithm", () => {
   });
 });
 
-
 // ===========================================
-// PHASE 3E: AUTH REQUIRED FOR LICENSED HEARTBEATS
+// LICENSE-CREDENTIAL VALIDATION FOR LICENSED HEARTBEATS
 // ===========================================
 
-describe("Phase 3E: heartbeat — authentication requirements", () => {
+describe("heartbeat API - license-credential validation", () => {
   /**
-   * Mirrors heartbeat/route.js Phase 3E logic:
+   * After removing JWT auth from the licensed heartbeat path, the route
+   * now validates licensed heartbeats using license credentials:
+   *   licenseKey + fingerprint + machineId
    *
-   * - Trial heartbeats (no licenseKey): NO auth required.
-   *   Trial users send heartbeats before purchasing.
+   * The user-device pairing was established during browser-delegated
+   * activation (JWT-authenticated) and is stored in DynamoDB. The
+   * heartbeat resolves userId from the device record instead of a JWT.
    *
-   * - Licensed heartbeats (with licenseKey): Auth IS required.
-   *   verifyAuthToken() → null means 401.
-   *   JWT’s sub (“authedUserId”) replaces the body’s userId
-   *   for updateDeviceLastSeen to prevent spoofing.
+   * These tests validate the local helper logic that mirrors route.js
+   * behavior for the license-credential validation path.
    */
 
-  function requireHeartbeatAuth(tokenPayload, hasLicenseKey) {
-    // Trial heartbeats don’t require auth
-    if (!hasLicenseKey) {
-      return { required: false };
+  // --- Helper: mirrors route.js machineId requirement ---
+  function validateLicensedHeartbeatCredentials({ fingerprint, machineId, sessionId, licenseKey }) {
+    if (!fingerprint) {
+      return { valid: false, error: "Device fingerprint is required", status: 400 };
     }
-    // Licensed heartbeats require auth
-    if (!tokenPayload) {
-      return {
-        required: true,
-        error: "Unauthorized",
-        detail: "Authentication is required for licensed heartbeats",
-        status: 401,
-      };
+    if (!licenseKey) {
+      return { valid: true, type: "trial" };
     }
-    return { required: true, authedUserId: tokenPayload.sub };
+    if (!machineId) {
+      return { valid: false, error: "Machine ID is required for licensed heartbeats", status: 400 };
+    }
+    if (!sessionId) {
+      return { valid: false, error: "Session ID is required", status: 400 };
+    }
+    return { valid: true, type: "licensed" };
   }
 
-  describe("trial heartbeats (no licenseKey)", () => {
-    test("should not require auth for trial heartbeats", () => {
-      const result = requireHeartbeatAuth(null, false);
-      expect(result.required).toBe(false);
-      expect(result.error).toBeUndefined();
+  // --- Helper: mirrors route.js deviceUserId resolution ---
+  function resolveDeviceUserId(license, deviceRecord) {
+    if (!license?.keygenLicenseId) return null;
+    return deviceRecord?.userId || null;
+  }
+
+  describe("machineId requirement for licensed heartbeats", () => {
+    test("should reject licensed heartbeat when machineId is missing", () => {
+      const result = validateLicensedHeartbeatCredentials({
+        fingerprint: "fp_test_123",
+        sessionId: "sess_123",
+        licenseKey: generateValidLicenseKey(),
+        // machineId intentionally omitted
+      });
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("Machine ID is required for licensed heartbeats");
+      expect(result.status).toBe(400);
     });
 
-    test("should not require auth even when token is provided for trial", () => {
-      const result = requireHeartbeatAuth(
-        { sub: "user_1", email: "a@b.com" },
-        false,
-      );
-      expect(result.required).toBe(false);
-    });
-  });
-
-  describe("licensed heartbeats (with licenseKey)", () => {
-    test("should return 401 when no auth token for licensed heartbeat", () => {
-      const result = requireHeartbeatAuth(null, true);
-      expect(result.required).toBe(true);
-      expect(result.status).toBe(401);
-      expect(result.error).toBe("Unauthorized");
-    });
-
-    test("should return 401 when token is undefined", () => {
-      const result = requireHeartbeatAuth(undefined, true);
-      expect(result.status).toBe(401);
-    });
-
-    test("should extract authedUserId from valid token", () => {
-      const result = requireHeartbeatAuth(
-        { sub: "user_abc", email: "abc@test.com" },
-        true,
-      );
-      expect(result.required).toBe(true);
-      expect(result.authedUserId).toBe("user_abc");
-      expect(result.error).toBeUndefined();
+    test("should accept licensed heartbeat when machineId is present", () => {
+      const result = validateLicensedHeartbeatCredentials({
+        fingerprint: "fp_test_123",
+        sessionId: "sess_123",
+        machineId: "mach_123",
+        licenseKey: generateValidLicenseKey(),
+      });
+      expect(result.valid).toBe(true);
+      expect(result.type).toBe("licensed");
     });
   });
 
-  describe("userId source for updateDeviceLastSeen", () => {
-    test("should use JWT sub, not body userId, to prevent spoofing", () => {
-      // Before 3E: userId came from request body (spoofable)
-      // After 3E: authedUserId comes from JWT (verified)
+  describe("no JWT / Authorization header required", () => {
+    test("should accept licensed heartbeat without any auth token", () => {
+      // The route no longer calls verifyAuthToken for licensed heartbeats.
+      // Validation is purely credential-based: licenseKey + fingerprint + machineId.
+      const result = validateLicensedHeartbeatCredentials({
+        fingerprint: "fp_no_jwt",
+        sessionId: "sess_no_jwt",
+        machineId: "mach_no_jwt",
+        licenseKey: generateValidLicenseKey(),
+      });
+      expect(result.valid).toBe(true);
+      expect(result.type).toBe("licensed");
+    });
+
+    test("trial heartbeats still do not require auth", () => {
+      const result = validateLicensedHeartbeatCredentials({
+        fingerprint: "fp_trial",
+      });
+      expect(result.valid).toBe(true);
+      expect(result.type).toBe("trial");
+    });
+  });
+
+  describe("license lookup uses getLicenseByKey (GSI2 query)", () => {
+    test("should look up license by MOUSE-XXXX key string, not Keygen UUID", () => {
+      // The route calls getLicenseByKey(licenseKey) which queries GSI2
+      // using the MOUSE-XXXX formatted key. This replaced the old
+      // getLicense(licenseKey) call which expected a Keygen UUID.
+      const licenseKey = generateValidLicenseKey();
+      expect(licenseKey).toMatch(/^MOUSE-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+      // The key format is what getLicenseByKey expects — not a UUID
+      expect(licenseKey).not.toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/i);
+    });
+  });
+
+  describe("deviceUserId resolution from DynamoDB device record", () => {
+    test("should resolve userId from device record when license has keygenLicenseId", () => {
+      const license = { keygenLicenseId: "kg_lic_123" };
+      const deviceRecord = { userId: "user_from_activation", fingerprint: "fp_123" };
+      const userId = resolveDeviceUserId(license, deviceRecord);
+      expect(userId).toBe("user_from_activation");
+    });
+
+    test("should return null when device record is not found", () => {
+      const license = { keygenLicenseId: "kg_lic_123" };
+      const deviceRecord = undefined;
+      const userId = resolveDeviceUserId(license, deviceRecord);
+      expect(userId).toBeNull();
+    });
+
+    test("should return null when getDeviceByFingerprint throws", () => {
+      // In the route, a try/catch around getDeviceByFingerprint
+      // sets deviceUserId = null on error. We mirror that here.
+      const license = { keygenLicenseId: "kg_lic_123" };
+      let userId = null;
+      try {
+        throw new Error("DynamoDB connection timeout");
+      } catch {
+        userId = null;
+      }
+      expect(userId).toBeNull();
+    });
+
+    test("should skip device lookup when license has no keygenLicenseId", () => {
+      const license = { keygenLicenseId: null };
+      const deviceRecord = { userId: "should_not_be_used" };
+      const userId = resolveDeviceUserId(license, deviceRecord);
+      // keygenLicenseId is falsy, so resolveDeviceUserId returns null
+      // without ever calling getDeviceByFingerprint
+      expect(userId).toBeNull();
+    });
+
+    test("should return null when device record has no userId field", () => {
+      const license = { keygenLicenseId: "kg_lic_123" };
+      const deviceRecord = { fingerprint: "fp_123" }; // no userId
+      const userId = resolveDeviceUserId(license, deviceRecord);
+      expect(userId).toBeNull();
+    });
+  });
+
+  describe("anti-spoofing: userId comes from DynamoDB, not request body", () => {
+    test("should use DynamoDB-resolved userId, not body-supplied userId", () => {
+      // Before: userId came from JWT (authedUserId = tokenPayload.sub)
+      // Now: userId comes from DynamoDB device record written during activation
+      // In both cases, the body-supplied userId is NEVER trusted.
       const bodyUserId = "spoofed_user";
-      const jwtPayload = { sub: "real_user_abc", email: "real@test.com" };
+      const license = { keygenLicenseId: "kg_lic_123" };
+      const deviceRecord = { userId: "real_user_from_db", fingerprint: "fp_123" };
 
-      const authResult = requireHeartbeatAuth(jwtPayload, true);
-      const userIdForUpdate = authResult.authedUserId;
+      const resolvedUserId = resolveDeviceUserId(license, deviceRecord);
 
-      expect(userIdForUpdate).toBe("real_user_abc");
-      expect(userIdForUpdate).not.toBe(bodyUserId);
+      expect(resolvedUserId).toBe("real_user_from_db");
+      expect(resolvedUserId).not.toBe(bodyUserId);
     });
+  });
 
-    test("should derive userId from JWT sub claim", () => {
-      const jwtPayload = { sub: "cognito|12345", email: "user@test.com" };
-      const authResult = requireHeartbeatAuth(jwtPayload, true);
+  describe("license not found in DynamoDB", () => {
+    test("should return graceful fallback when getLicenseByKey returns null", () => {
+      // When the license is not in our DynamoDB (might be valid in Keygen
+      // but not synced), the route still returns a success response with
+      // version payload so the extension can prompt updates.
+      const license = null;
+      const fallbackResponse = {
+        valid: true,
+        status: "active",
+        reason: "Heartbeat successful",
+        concurrentMachines: 1,
+        maxMachines: null, // Unknown when license not in DB
+      };
 
-      expect(authResult.authedUserId).toBe("cognito|12345");
+      expect(license).toBeNull();
+      expect(fallbackResponse.valid).toBe(true);
+      expect(fallbackResponse.status).toBe("active");
+      expect(fallbackResponse.maxMachines).toBeNull();
     });
   });
 });

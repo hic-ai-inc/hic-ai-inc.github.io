@@ -277,34 +277,28 @@ describe("commit 4 structured logging contract", () => {
     ).toBe(true);
   });
 
-  test("license/heartbeat logs unauthorized licensed heartbeat path", async () => {
-    __setVerifyAuthTokenForTests(() => null);
-
+  test("license/heartbeat logs missing machineId for licensed heartbeat path", async () => {
     const response = await postLicenseHeartbeat(
       createMockRequest({
         method: "POST",
         url: "https://hic-ai.com/api/license/heartbeat",
-        headers: {
-          authorization: "Bearer invalid-token",
-        },
         jsonBody: {
           licenseKey: "MOUSE-ABCD-EFGH-IJKL-MNOP",
           fingerprint: "abcdef0123456789abcdef0123456789",
           sessionId: "session_123",
-          machineId: "machine_123",
-          userId: "user_heartbeat_1",
+          // machineId intentionally omitted
         },
       }),
     );
     const body = await response.json();
 
-    expect(response.status).toBe(401);
-    expect(body.error).toBe("Unauthorized");
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Machine ID is required for licensed heartbeats");
 
     expect(
       loggerStore.entries.some(
         (entry) =>
-          entry.event === "licensed_heartbeat_unauthorized" &&
+          entry.event === "licensed_heartbeat_missing_machine_id" &&
           entry.level === "WARN" &&
           entry.message.includes("Licensed heartbeat rejected"),
       ),
@@ -315,7 +309,7 @@ describe("commit 4 structured logging contract", () => {
         (entry) =>
           entry.level === "WARN" &&
           entry.message.includes("Heartbeat rejected") &&
-          entry.metadata?.statusCode === 401,
+          entry.metadata?.statusCode === 400,
       ),
     ).toBe(true);
   });
