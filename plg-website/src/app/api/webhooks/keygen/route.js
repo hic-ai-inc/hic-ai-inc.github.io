@@ -23,10 +23,6 @@ import crypto from "crypto";
 import { createApiLogger } from "@/lib/api-log";
 import { safeJsonParse } from "../../../../../../dm/layers/base/src/index.js";
 
-// Ed25519 public key from KeyGen webhook configuration
-// Format: base64-encoded public key
-const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
-
 /**
  * Verify Keygen webhook signature using Ed25519
  *
@@ -39,6 +35,10 @@ const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
  * @returns {boolean} - Whether signature is valid
  */
 function verifySignature(payload, signatureHeader, request, log) {
+  // Read at call time — module-scope env var reads are unreliable in Next.js App Router on Amplify Gen 2
+  // because the SSR bundle initializes before the runtime environment is fully hydrated.
+  const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
+
   if (!KEYGEN_WEBHOOK_PUBLIC_KEY) {
     log.error(
       "webhook_public_key_missing",
