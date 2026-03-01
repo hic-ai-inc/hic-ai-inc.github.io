@@ -22,6 +22,7 @@ import {
 import crypto from "crypto";
 import { createApiLogger } from "@/lib/api-log";
 import { safeJsonParse } from "../../../../../../dm/layers/base/src/index.js";
+import { getKeygenSecrets } from "@/lib/secrets";
 
 /**
  * Verify Keygen webhook signature using Ed25519
@@ -34,15 +35,28 @@ import { safeJsonParse } from "../../../../../../dm/layers/base/src/index.js";
  * @param {Request} request - Original request for reconstructing signing string
  * @returns {boolean} - Whether signature is valid
  */
-function verifySignature(payload, signatureHeader, request, log) {
-  // Read at call time — module-scope env var reads are unreliable in Next.js App Router on Amplify Gen 2
-  // because the SSR bundle initializes before the runtime environment is fully hydrated.
-  const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
+async function verifySignature(payload, signatureHeader, request, log) {
+  // Fetch from Secrets Manager at call time — process.env is unreliable in
+  // Next.js App Router on Amplify Gen 2 (SSR bundle initializes before the
+  // runtime environment is fully hydrated). Mirrors the Stripe webhook pattern.
+  let KEYGEN_WEBHOOK_PUBLIC_KEY;
+  try {
+    const secrets = await getKeygenSecrets();
+    KEYGEN_WEBHOOK_PUBLIC_KEY = secrets.KEYGEN_WEBHOOK_PUBLIC_KEY;
+  } catch (error) {
+    log.error(
+      "webhook_secrets_fetch_failed",
+      "Failed to fetch Keygen secrets from Secrets Manager",
+      error,
+      { errorMessage: error?.message },
+    );
+    return false;
+  }
 
   if (!KEYGEN_WEBHOOK_PUBLIC_KEY) {
     log.error(
       "webhook_public_key_missing",
-      "KEYGEN_WEBHOOK_PUBLIC_KEY not configured - rejecting request",
+      "KEYGEN_WEBHOOK_PUBLIC_KEY not configured in Secrets Manager - rejecting request",
       null,
       { reason: "missing_public_key" },
     );
@@ -151,7 +165,7 @@ export async function POST(request) {
     const payload = await request.text();
     const signatureHeader = request.headers.get("keygen-signature");
 
-    if (!verifySignature(payload, signatureHeader, request, log)) {
+    if (!(await verifySignature(payload, signatureHeader, request, log))) {
       log.decision("signature_invalid", "Invalid Keygen webhook signature", {
         reason: "signature_invalid",
       });
