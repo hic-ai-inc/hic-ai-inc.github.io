@@ -4,7 +4,7 @@
  * Tests for the centralized email template system in hic-ses-layer.
  * Verifies:
  * - Template creation with configuration
- * - All 12 template functions exist and return correct structure
+ * - All 14 template functions exist and return correct structure
  * - Template content includes required elements (subject, html, text)
  * - Dynamic interpolation of configuration values
  * - EVENT_TYPE_TO_TEMPLATE mapping is complete
@@ -90,7 +90,7 @@ describe("Email Templates", () => {
   describe("TEMPLATE_NAMES", () => {
     test("should export array of all template names", () => {
       expect(Array.isArray(TEMPLATE_NAMES)).toBe(true);
-      expect(TEMPLATE_NAMES.length).toBe(12);
+      expect(TEMPLATE_NAMES.length).toBe(14);
     });
 
     test("should include all expected template names", () => {
@@ -98,9 +98,11 @@ describe("Email Templates", () => {
         "welcome",
         "licenseDelivery",
         "paymentFailed",
-        "trialEnding",
         "reactivation",
-        "cancellation",
+        "cancellationRequested",
+        "cancellationReversed",
+        "voluntaryCancellationExpired",
+        "nonpaymentCancellationExpired",
         "licenseRevoked",
         "licenseSuspended",
         "winBack30",
@@ -142,10 +144,20 @@ describe("Email Templates", () => {
       expect(EVENT_TYPE_TO_TEMPLATE.CUSTOMER_CREATED).toBe("welcome");
     });
 
-    test("should map SUBSCRIPTION_CANCELLED to cancellation", () => {
-      expect(EVENT_TYPE_TO_TEMPLATE.SUBSCRIPTION_CANCELLED).toBe(
-        "cancellation",
-      );
+    test("should map CANCELLATION_REQUESTED to cancellationRequested", () => {
+      expect(EVENT_TYPE_TO_TEMPLATE.CANCELLATION_REQUESTED).toBe("cancellationRequested");
+    });
+
+    test("should map CANCELLATION_REVERSED to cancellationReversed", () => {
+      expect(EVENT_TYPE_TO_TEMPLATE.CANCELLATION_REVERSED).toBe("cancellationReversed");
+    });
+
+    test("should map VOLUNTARY_CANCELLATION_EXPIRED to voluntaryCancellationExpired", () => {
+      expect(EVENT_TYPE_TO_TEMPLATE.VOLUNTARY_CANCELLATION_EXPIRED).toBe("voluntaryCancellationExpired");
+    });
+
+    test("should map NONPAYMENT_CANCELLATION_EXPIRED to nonpaymentCancellationExpired", () => {
+      expect(EVENT_TYPE_TO_TEMPLATE.NONPAYMENT_CANCELLATION_EXPIRED).toBe("nonpaymentCancellationExpired");
     });
 
     test("should map SUBSCRIPTION_REACTIVATED to reactivation", () => {
@@ -158,14 +170,9 @@ describe("Email Templates", () => {
       expect(EVENT_TYPE_TO_TEMPLATE.PAYMENT_FAILED).toBe("paymentFailed");
     });
 
-    test("should map TRIAL_ENDING to trialEnding", () => {
-      expect(EVENT_TYPE_TO_TEMPLATE.TRIAL_ENDING).toBe("trialEnding");
-    });
-
     test("should map TEAM_INVITE_CREATED to enterpriseInvite", () => {
       expect(EVENT_TYPE_TO_TEMPLATE.TEAM_INVITE_CREATED).toBe("enterpriseInvite");
     });
-
 
     test("all mappings should reference valid templates", () => {
       Object.values(EVENT_TYPE_TO_TEMPLATE).forEach((templateName) => {
@@ -197,16 +204,24 @@ describe("Email Templates", () => {
         },
       },
       {
-        name: "trialEnding",
-        data: { email: "test@example.com", daysRemaining: 3, planName: "Pro" },
-      },
-      {
         name: "reactivation",
         data: { email: "test@example.com" },
       },
       {
-        name: "cancellation",
+        name: "cancellationRequested",
         data: { email: "test@example.com", accessUntil: "2026-02-28" },
+      },
+      {
+        name: "cancellationReversed",
+        data: { email: "test@example.com" },
+      },
+      {
+        name: "voluntaryCancellationExpired",
+        data: { email: "test@example.com" },
+      },
+      {
+        name: "nonpaymentCancellationExpired",
+        data: { email: "test@example.com" },
       },
       {
         name: "licenseRevoked",
@@ -329,14 +344,45 @@ describe("Email Templates", () => {
       expect(result.html).toContain("suspended");
     });
 
-    test("cancellation template should include access end date", () => {
-      const result = templates.cancellation({
+    test("cancellationRequested template should include access end date and portal link", () => {
+      const result = templates.cancellationRequested({
         email: "test@example.com",
         accessUntil: "March 1, 2026",
       });
 
       expect(result.html).toContain("March 1, 2026");
       expect(result.text).toContain("March 1, 2026");
+      expect(result.html).toContain("/portal/billing");
+    });
+
+    test("cancellationReversed template should not contain payment recovery language", () => {
+      const result = templates.cancellationReversed({
+        email: "test@example.com",
+      });
+
+      expect(result.html).not.toContain("reinstat");
+      expect(result.html).not.toContain("restor");
+      expect(result.text).not.toContain("reinstat");
+      expect(result.text).not.toContain("restor");
+    });
+
+    test("voluntaryCancellationExpired template should include pricing link", () => {
+      const result = templates.voluntaryCancellationExpired({
+        email: "test@example.com",
+      });
+
+      expect(result.html).toContain("/pricing");
+      expect(result.text).toContain("/pricing");
+    });
+
+    test("nonpaymentCancellationExpired template should include pricing link and billing email", () => {
+      const result = templates.nonpaymentCancellationExpired({
+        email: "test@example.com",
+      });
+
+      expect(result.html).toContain("/pricing");
+      expect(result.text).toContain("/pricing");
+      expect(result.html).toContain("billing@hic-ai.com");
     });
 
     test("licenseRevoked template should include organization name when provided", () => {
@@ -405,16 +451,6 @@ describe("Email Templates", () => {
       expect(result.subject).toContain("$29.99");
     });
 
-    test("trialEnding template should include days remaining", () => {
-      const result = templates.trialEnding({
-        email: "test@example.com",
-        daysRemaining: 3,
-        planName: "Pro",
-      });
-
-      expect(result.subject).toContain("3 days");
-      expect(result.html).toContain("3 days");
-    });
   });
 
   describe("Email HTML Standards", () => {
@@ -487,3 +523,185 @@ describe("Email Templates", () => {
     });
   });
 });
+
+// ===========================================
+// Dead Code Removal Verification (Tasks 8.10-8.12)
+// Verifies that removed event types and templates are NOT present
+// after Stream 1D cleanup.
+// ===========================================
+
+describe("Dead Code Removal Verification", () => {
+  test("TRIAL_ENDING should NOT be in EVENT_TYPE_TO_TEMPLATE", () => {
+    expect(EVENT_TYPE_TO_TEMPLATE.TRIAL_ENDING).toBeUndefined();
+  });
+
+  test("SUBSCRIPTION_CANCELLED should NOT be in EVENT_TYPE_TO_TEMPLATE", () => {
+    expect(EVENT_TYPE_TO_TEMPLATE.SUBSCRIPTION_CANCELLED).toBeUndefined();
+  });
+
+  test("trialEnding should NOT be in TEMPLATE_NAMES", () => {
+    expect(TEMPLATE_NAMES).not.toContain("trialEnding");
+  });
+
+  test("cancellation should NOT be in TEMPLATE_NAMES", () => {
+    expect(TEMPLATE_NAMES).not.toContain("cancellation");
+  });
+
+  test("deferred org templates should NOT be present in TEMPLATE_NAMES", () => {
+    expect(TEMPLATE_NAMES).not.toContain("orgCancellationRequested");
+    expect(TEMPLATE_NAMES).not.toContain("orgCancellationExpired");
+  });
+
+  test("deferred org templates should NOT be present in createTemplates output", () => {
+    const templates = createTemplates();
+    expect(templates.orgCancellationRequested).toBeUndefined();
+    expect(templates.orgCancellationExpired).toBeUndefined();
+  });
+
+  test("all EVENT_TYPE_TO_TEMPLATE values should reference existing templates", () => {
+    Object.entries(EVENT_TYPE_TO_TEMPLATE).forEach(([eventType, templateName]) => {
+      expect(TEMPLATE_NAMES).toContain(templateName);
+    });
+  });
+
+  test("all 4 new event types should map to correct templates", () => {
+    expect(EVENT_TYPE_TO_TEMPLATE.CANCELLATION_REQUESTED).toBe("cancellationRequested");
+    expect(EVENT_TYPE_TO_TEMPLATE.CANCELLATION_REVERSED).toBe("cancellationReversed");
+    expect(EVENT_TYPE_TO_TEMPLATE.VOLUNTARY_CANCELLATION_EXPIRED).toBe("voluntaryCancellationExpired");
+    expect(EVENT_TYPE_TO_TEMPLATE.NONPAYMENT_CANCELLATION_EXPIRED).toBe("nonpaymentCancellationExpired");
+  });
+});
+
+
+// ===========================================
+// PROPERTY TESTS — Stream 1D Completion Plan
+// ===========================================
+
+/**
+ * Feature: stream-1d-completion-plan
+ * Property 7: EVENT_TYPE_TO_TEMPLATE maps every event type to its correct template
+ *
+ * For every event type in the canonical set, the mapping should resolve to a
+ * template name that exists in createTemplates output.
+ */
+describe("Property 7: EVENT_TYPE_TO_TEMPLATE exhaustive mapping", () => {
+  const EXPECTED_MAPPINGS = {
+    CANCELLATION_REQUESTED: "cancellationRequested",
+    CANCELLATION_REVERSED: "cancellationReversed",
+    VOLUNTARY_CANCELLATION_EXPIRED: "voluntaryCancellationExpired",
+    NONPAYMENT_CANCELLATION_EXPIRED: "nonpaymentCancellationExpired",
+    SUBSCRIPTION_REACTIVATED: "reactivation",
+    PAYMENT_FAILED: "paymentFailed",
+    CUSTOMER_CREATED: "welcome",
+    LICENSE_CREATED: "licenseDelivery",
+    LICENSE_REVOKED: "licenseRevoked",
+    LICENSE_SUSPENDED: "licenseSuspended",
+    TEAM_INVITE_CREATED: "enterpriseInvite",
+    TEAM_INVITE_RESENT: "enterpriseInvite",
+  };
+
+  test("every event type maps to a template that exists in createTemplates output", () => {
+    const templates = createTemplates();
+
+    for (const [eventType, expectedTemplate] of Object.entries(EXPECTED_MAPPINGS)) {
+      // Verify mapping exists
+      expect(EVENT_TYPE_TO_TEMPLATE[eventType]).toBe(expectedTemplate);
+
+      // Verify template function exists
+      expect(typeof templates[expectedTemplate]).toBe("function");
+
+      // Verify template is in TEMPLATE_NAMES
+      expect(TEMPLATE_NAMES).toContain(expectedTemplate);
+    }
+  });
+
+  test("all 12 event types are covered", () => {
+    expect(Object.keys(EXPECTED_MAPPINGS).length).toBe(12);
+    expect(Object.keys(EVENT_TYPE_TO_TEMPLATE).length).toBe(12);
+  });
+
+  test("no orphaned mappings exist (every mapping key is in expected set)", () => {
+    for (const eventType of Object.keys(EVENT_TYPE_TO_TEMPLATE)) {
+      expect(EXPECTED_MAPPINGS[eventType]).toBeDefined();
+    }
+  });
+});
+
+/**
+ * Feature: stream-1d-completion-plan
+ * Property 10: New email templates contain required content elements and exclude forbidden phrases
+ *
+ * For any valid input parameters, each new template should produce output
+ * containing its required elements and excluding forbidden content.
+ */
+describe("Property 10: Template content validation with random inputs", () => {
+  function randomEmail() {
+    const chars = "abcdefghijklmnopqrstuvwxyz";
+    let user = "";
+    for (let i = 0; i < 8; i++) user += chars[Math.floor(Math.random() * chars.length)];
+    const domains = ["example.com", "test.org", "mail.net", "company.io"];
+    return `${user}@${domains[Math.floor(Math.random() * domains.length)]}`;
+  }
+
+  function randomISODate() {
+    const year = 2026;
+    const month = Math.floor(Math.random() * 12) + 1;
+    const day = Math.floor(Math.random() * 28) + 1;
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00Z`;
+  }
+
+  test("cancellationRequested includes accessUntil and /portal/billing across 100 random inputs", () => {
+    const templates = createTemplates();
+
+    for (let i = 0; i < 100; i++) {
+      const email = randomEmail();
+      const accessUntil = randomISODate();
+      const result = templates.cancellationRequested({ email, accessUntil });
+
+      expect(result.html).toContain(accessUntil);
+      expect(result.text).toContain(accessUntil);
+      expect(result.html).toContain("/portal/billing");
+    }
+  });
+
+  test("cancellationReversed does NOT contain forbidden payment recovery language across 100 random inputs", () => {
+    const templates = createTemplates();
+    const forbidden = ["reinstat", "restor", "payment"];
+
+    for (let i = 0; i < 100; i++) {
+      const email = randomEmail();
+      const result = templates.cancellationReversed({ email });
+
+      for (const word of forbidden) {
+        expect(result.html.toLowerCase()).not.toContain(word);
+        expect(result.text.toLowerCase()).not.toContain(word);
+      }
+    }
+  });
+
+  test("voluntaryCancellationExpired includes /pricing link across 100 random inputs", () => {
+    const templates = createTemplates();
+
+    for (let i = 0; i < 100; i++) {
+      const email = randomEmail();
+      const result = templates.voluntaryCancellationExpired({ email });
+
+      expect(result.html).toContain("/pricing");
+      expect(result.text).toContain("/pricing");
+    }
+  });
+
+  test("nonpaymentCancellationExpired includes /pricing link and billing@hic-ai.com across 100 random inputs", () => {
+    const templates = createTemplates();
+
+    for (let i = 0; i < 100; i++) {
+      const email = randomEmail();
+      const result = templates.nonpaymentCancellationExpired({ email });
+
+      expect(result.html).toContain("/pricing");
+      expect(result.text).toContain("/pricing");
+      expect(result.html).toContain("billing@hic-ai.com");
+    }
+  });
+});
+

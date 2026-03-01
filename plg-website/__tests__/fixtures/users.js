@@ -60,20 +60,20 @@ export const expiredUser = {
 };
 
 /**
- * Cancelled user (subscription cancelled but access until period end)
+ * Canceled user (subscription canceled but access until period end)
  */
-export const cancelledUser = {
-  sub: "auth0|cancelled_user_123",
-  email: "cancelled@example.com",
+export const canceledUser = {
+  sub: "auth0|canceled_user_123",
+  email: "canceled@example.com",
   email_verified: true,
-  name: "Cancelled User",
-  nickname: "cancelled",
-  picture: "https://example.com/avatar-cancelled.png",
+  name: "Canceled User",
+  nickname: "canceled",
+  picture: "https://example.com/avatar-canceled.png",
   updated_at: "2026-01-15T00:00:00.000Z",
   // PLG custom claims
   "https://hic-ai.com/plan_type": "individual",
-  "https://hic-ai.com/subscription_status": "cancelled",
-  "https://hic-ai.com/stripe_customer_id": "cus_cancelled_123",
+  "https://hic-ai.com/subscription_status": "canceled",
+  "https://hic-ai.com/stripe_customer_id": "cus_canceled_123",
   "https://hic-ai.com/org_id": null,
 };
 
@@ -120,7 +120,7 @@ export const testUsers = {
   individualUser,
   enterpriseUser,
   expiredUser,
-  cancelledUser,
+  canceledUser,
   newUser,
   enterpriseMember,
 };

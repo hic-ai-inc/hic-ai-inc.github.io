@@ -36,17 +36,21 @@ const sampleData = {
     attemptCount: 1,
     retryDate: "March 5, 2026",
   },
-  trialEnding: {
-    email: "reviewer@example.com",
-    daysRemaining: 3,
-    planName: "Individual Monthly",
-  },
   reactivation: {
     email: "reviewer@example.com",
   },
-  cancellation: {
+  cancellationRequested: {
     email: "reviewer@example.com",
     accessUntil: "March 27, 2026",
+  },
+  cancellationReversed: {
+    email: "reviewer@example.com",
+  },
+  voluntaryCancellationExpired: {
+    email: "reviewer@example.com",
+  },
+  nonpaymentCancellationExpired: {
+    email: "reviewer@example.com",
   },
   licenseRevoked: {
     email: "reviewer@example.com",
@@ -81,9 +85,11 @@ const templateMeta = {
   welcome: { label: "1. Welcome", type: "transactional", desc: "After checkout, before account creation" },
   licenseDelivery: { label: "2. License Delivery", type: "transactional", desc: "After account creation — contains license key" },
   paymentFailed: { label: "3. Payment Failed", type: "transactional", desc: "After failed payment attempt (shows attempt 1 of 3)" },
-  trialEnding: { label: "4. Trial Ending", type: "transactional", desc: "Reminder before trial expires" },
-  reactivation: { label: "5. Reactivation", type: "transactional", desc: "Payment recovered after suspension" },
-  cancellation: { label: "6. Cancellation", type: "transactional", desc: "Subscription cancelled confirmation" },
+  reactivation: { label: "4. Reactivation", type: "transactional", desc: "Payment recovered after suspension" },
+  cancellationRequested: { label: "5. Cancellation Requested", type: "transactional", desc: "User initiated cancel, pending end of term" },
+  cancellationReversed: { label: "6. Cancellation Reversed", type: "transactional", desc: "User uncanceled their subscription" },
+  voluntaryCancellationExpired: { label: "7. Voluntary Expiration", type: "transactional", desc: "Subscription ended after user-initiated cancel" },
+  nonpaymentCancellationExpired: { label: "8. Nonpayment Expiration", type: "transactional", desc: "Subscription ended due to unresolved payment" },
   licenseRevoked: { label: "7. License Revoked", type: "transactional", desc: "Admin revoked a team member's license" },
   licenseSuspended: { label: "8. License Suspended", type: "transactional", desc: "Billing or policy issue" },
   winBack30: { label: "9. Win-Back 30d", type: "marketing", desc: "30 days post-cancellation" },

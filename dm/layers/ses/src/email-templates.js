@@ -224,56 +224,6 @@ ${COMPANY_NAME}`,
     }),
 
     // ========================================================================
-    // 4. TRIAL ENDING - Reminder before trial expires
-    // ========================================================================
-    trialEnding: ({ email, daysRemaining, planName }) => ({
-      subject: `Your ${PRODUCT_NAME} trial ends in ${daysRemaining} days`,
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
-  <div style="max-width: 600px; margin: 0 auto;">
-    <h1 style="color: #F6F8FB; margin-bottom: 24px;">Trial Ending Soon</h1>
-    
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Your ${PRODUCT_NAME}${planName ? ` ${planName}` : ""} trial ends in <strong>${daysRemaining} days</strong>.
-    </p>
-    
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      To continue using ${PRODUCT_NAME} without interruption, make sure your billing information is up to date.
-    </p>
-    
-    <div style="margin: 32px 0;">
-      <a href="${APP_URL}/portal/billing" 
-         style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-        Manage Subscription
-      </a>
-    </div>
-    
-    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
-    
-    <p style="color: #6B7C93; font-size: 12px;">
-      ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
-    </p>
-  </div>
-</body>
-</html>`,
-      text: `Trial Ending Soon
-
-Your ${PRODUCT_NAME}${planName ? ` ${planName}` : ""} trial ends in ${daysRemaining} days.
-
-To continue using ${PRODUCT_NAME} without interruption, make sure your billing information is up to date.
-
-Manage subscription: ${APP_URL}/portal/billing
-
-${COMPANY_NAME}`,
-    }),
-
-    // ========================================================================
     // 5. REACTIVATION - Payment recovered after suspension (A.2)
     // ========================================================================
     reactivation: ({ email }) => ({
@@ -330,10 +280,10 @@ ${COMPANY_NAME}`,
     }),
 
     // ========================================================================
-    // 6. CANCELLATION - Subscription cancelled confirmation (A.9.1)
+    // 6. CANCELLATION REQUESTED - User initiated cancel (pending end of term)
     // ========================================================================
-    cancellation: ({ email, accessUntil }) => ({
-      subject: `We're sorry to see you go - ${PRODUCT_NAME}`,
+    cancellationRequested: ({ email, accessUntil }) => ({
+      subject: `Your ${PRODUCT_NAME} cancellation is confirmed`,
       html: `
 <!DOCTYPE html>
 <html>
@@ -343,23 +293,14 @@ ${COMPANY_NAME}`,
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
   <div style="max-width: 600px; margin: 0 auto;">
-    <h1 style="color: #F6F8FB; margin-bottom: 24px;">Subscription Cancelled</h1>
+    <h1 style="color: #F6F8FB; margin-bottom: 24px;">Cancellation Confirmed</h1>
     
     <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Your ${PRODUCT_NAME} subscription has been cancelled.
+      We've received your cancellation request. Your ${PRODUCT_NAME} subscription will remain fully active until <strong>${accessUntil}</strong>.
     </p>
     
-    <div style="background-color: rgba(201, 219, 240, 0.08); border: 1px solid rgba(201, 219, 240, 0.3); border-radius: 8px; padding: 20px; margin: 24px 0;">
-      <h3 style="color: #F6F8FB; margin: 0 0 12px 0; font-size: 16px;">What happens next:</h3>
-      <ul style="color: #B8C4D0; font-size: 14px; line-height: 1.8; padding-left: 20px; margin: 0;">
-        <li>You'll have full access until <strong>${accessUntil}</strong></li>
-        <li>After that, your license will expire</li>
-        <li>Your account and data will be preserved</li>
-      </ul>
-    </div>
-    
     <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Changed your mind? You can reactivate anytime before your access expires.
+      Changed your mind? You can reactivate anytime before your access expires — no need to re-purchase.
     </p>
     
     <div style="margin: 32px 0;">
@@ -370,7 +311,7 @@ ${COMPANY_NAME}`,
     </div>
     
     <p style="color: #6B7C93; font-size: 14px;">
-      If something wasn't working right, we'd love to hear about it at billing@hic-ai.com or info@hic-ai.com.
+      We'd love to hear what we could do better — drop us a line at billing@hic-ai.com.
     </p>
     
     <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
@@ -381,19 +322,164 @@ ${COMPANY_NAME}`,
   </div>
 </body>
 </html>`,
-      text: `Subscription Cancelled
+      text: `Cancellation Confirmed
 
-Your ${PRODUCT_NAME} subscription has been cancelled.
+We've received your cancellation request. Your ${PRODUCT_NAME} subscription will remain fully active until ${accessUntil}.
 
-What happens next:
-• You'll have full access until ${accessUntil}
-• After that, your license will expire
-• Your account and data will be preserved
-
-Changed your mind? You can reactivate anytime:
+Changed your mind? You can reactivate anytime before your access expires:
 ${APP_URL}/portal/billing
 
-If something wasn't working right, we'd love to hear about it at billing@hic-ai.com or info@hic-ai.com.
+We'd love to hear what we could do better — drop us a line at billing@hic-ai.com.
+
+${COMPANY_NAME}`,
+    }),
+
+    // ========================================================================
+    // 6b. CANCELLATION REVERSED - User uncanceled their subscription
+    // ========================================================================
+    cancellationReversed: ({ email }) => ({
+      subject: `Your ${PRODUCT_NAME} subscription continues`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto;">
+    <h1 style="color: #10B981; margin-bottom: 24px;">You're all set</h1>
+    
+    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+      Your ${PRODUCT_NAME} subscription will continue as normal. No action needed on your end.
+    </p>
+    
+    <div style="margin: 32px 0;">
+      <a href="${APP_URL}/portal" 
+         style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        Go to Portal
+      </a>
+    </div>
+    
+    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+    
+    <p style="color: #6B7C93; font-size: 12px;">
+      ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>`,
+      text: `You're all set
+
+Your ${PRODUCT_NAME} subscription will continue as normal. No action needed on your end.
+
+Go to your portal: ${APP_URL}/portal
+
+${COMPANY_NAME}`,
+    }),
+
+    // ========================================================================
+    // 6c. VOLUNTARY CANCELLATION EXPIRED - Subscription ended after user-initiated cancel
+    // ========================================================================
+    voluntaryCancellationExpired: ({ email }) => ({
+      subject: `Your ${PRODUCT_NAME} subscription has ended`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto;">
+    <h1 style="color: #F6F8FB; margin-bottom: 24px;">Subscription Ended</h1>
+    
+    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+      Your ${PRODUCT_NAME} subscription has ended and your license is now inactive.
+    </p>
+    
+    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+      Your account and data are preserved — if you'd like to come back, you can resubscribe anytime.
+    </p>
+    
+    <div style="margin: 32px 0;">
+      <a href="${APP_URL}/pricing" 
+         style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        View Plans
+      </a>
+    </div>
+    
+    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+    
+    <p style="color: #6B7C93; font-size: 12px;">
+      ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>`,
+      text: `Subscription Ended
+
+Your ${PRODUCT_NAME} subscription has ended and your license is now inactive.
+
+Your account and data are preserved — if you'd like to come back, you can resubscribe anytime.
+
+View plans: ${APP_URL}/pricing
+
+${COMPANY_NAME}`,
+    }),
+
+    // ========================================================================
+    // 6d. NONPAYMENT CANCELLATION EXPIRED - Subscription ended due to unresolved payment
+    // ========================================================================
+    nonpaymentCancellationExpired: ({ email }) => ({
+      subject: `Your ${PRODUCT_NAME} subscription has ended`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto;">
+    <h1 style="color: #F6F8FB; margin-bottom: 24px;">Subscription Ended</h1>
+    
+    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+      Your ${PRODUCT_NAME} subscription has ended due to an unresolved payment issue. Your license is now inactive.
+    </p>
+    
+    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
+      If you'd like to continue using ${PRODUCT_NAME}, you can start a new subscription at any time.
+    </p>
+    
+    <div style="margin: 32px 0;">
+      <a href="${APP_URL}/pricing" 
+         style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        View Plans
+      </a>
+    </div>
+    
+    <p style="color: #6B7C93; font-size: 14px;">
+      If you believe this was an error, contact billing@hic-ai.com and we'll sort it out.
+    </p>
+    
+    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
+    
+    <p style="color: #6B7C93; font-size: 12px;">
+      ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
+    </p>
+  </div>
+</body>
+</html>`,
+      text: `Subscription Ended
+
+Your ${PRODUCT_NAME} subscription has ended due to an unresolved payment issue. Your license is now inactive.
+
+If you'd like to continue using ${PRODUCT_NAME}, you can start a new subscription at any time.
+
+View plans: ${APP_URL}/pricing
+
+If you believe this was an error, contact billing@hic-ai.com and we'll sort it out.
 
 ${COMPANY_NAME}`,
     }),
@@ -794,9 +880,11 @@ export const TEMPLATE_NAMES = [
   "welcome",
   "licenseDelivery",
   "paymentFailed",
-  "trialEnding",
   "reactivation",
-  "cancellation",
+  "cancellationRequested",
+  "cancellationReversed",
+  "voluntaryCancellationExpired",
+  "nonpaymentCancellationExpired",
   "licenseRevoked",
   "licenseSuspended",
   "winBack30",
@@ -814,10 +902,12 @@ export const EVENT_TYPE_TO_TEMPLATE = {
   LICENSE_REVOKED: "licenseRevoked",
   LICENSE_SUSPENDED: "licenseSuspended",
   CUSTOMER_CREATED: "welcome",
-  SUBSCRIPTION_CANCELLED: "cancellation",
+  CANCELLATION_REQUESTED: "cancellationRequested",
+  CANCELLATION_REVERSED: "cancellationReversed",
+  VOLUNTARY_CANCELLATION_EXPIRED: "voluntaryCancellationExpired",
+  NONPAYMENT_CANCELLATION_EXPIRED: "nonpaymentCancellationExpired",
   SUBSCRIPTION_REACTIVATED: "reactivation",
   PAYMENT_FAILED: "paymentFailed",
-  TRIAL_ENDING: "trialEnding",
   TEAM_INVITE_CREATED: "enterpriseInvite",
   TEAM_INVITE_RESENT: "enterpriseInvite",
 };

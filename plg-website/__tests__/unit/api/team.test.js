@@ -214,12 +214,12 @@ describe("Team API Logic", () => {
       assert.strictEqual(result.subscriptionStatus, "active");
     });
 
-    it("should grant owner access for cancelled subscription", () => {
-      // Cancelled still counts as having a subscription status
-      const customer = { userId: "user123", subscriptionStatus: "cancelled" };
+    it("should grant owner access for canceled subscription", () => {
+      // Canceled still counts as having a subscription status
+      const customer = { userId: "user123", subscriptionStatus: "canceled" };
       const result = checkCustomerAccess(customer);
       assert.strictEqual(result.hasOwnerAccess, true);
-      assert.strictEqual(result.subscriptionStatus, "cancelled");
+      assert.strictEqual(result.subscriptionStatus, "canceled");
     });
 
     it("should grant owner access for past_due subscription", () => {
@@ -509,7 +509,7 @@ describe("Team API Logic", () => {
     it("allows invite when customer has no active subscription", () => {
       const result = checkExistingLicense({
         email: "user@example.com",
-        subscriptionStatus: "cancelled",
+        subscriptionStatus: "canceled",
       });
       assert.strictEqual(result.hasLicense, false);
     });

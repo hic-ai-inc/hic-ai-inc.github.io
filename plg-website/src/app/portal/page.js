@@ -337,7 +337,9 @@ function ActiveUserDashboard({
                 : subscriptionStatus === "active" ||
                     subscriptionStatus === "trialing"
                   ? "Subscription active"
-                  : "No active subscription"}
+                  : subscriptionStatus === "cancellation_pending"
+                    ? "Cancellation pending"
+                    : "No active subscription"}
             </p>
             {isOrgOwner ? (
               <Link

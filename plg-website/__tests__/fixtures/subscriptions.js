@@ -158,13 +158,13 @@ export const pastDue = {
 };
 
 /**
- * Cancelled subscription (access until period end)
+ * Canceled subscription (access until period end)
  */
-export const cancelled = {
-  id: "sub_cancelled_123",
+export const canceled = {
+  id: "sub_canceled_123",
   object: "subscription",
   status: "active", // Still active until period ends
-  customer: "cus_cancelled_123",
+  customer: "cus_canceled_123",
   current_period_start: NOW - 20 * ONE_DAY,
   current_period_end: NOW + 10 * ONE_DAY,
   cancel_at_period_end: true, // Will cancel at period end
@@ -173,7 +173,7 @@ export const cancelled = {
     object: "list",
     data: [
       {
-        id: "si_cancelled_123",
+        id: "si_canceled_123",
         object: "subscription_item",
         price: {
           id: "price_individual_monthly",
@@ -192,7 +192,7 @@ export const cancelled = {
   metadata: {
     cancellation_reason: "user_requested",
   },
-  default_payment_method: "pm_card_visa_cancelled",
+  default_payment_method: "pm_card_visa_canceled",
 };
 
 /**
@@ -241,7 +241,7 @@ export const testSubscriptions = {
   activeAnnual,
   enterpriseSeats,
   pastDue,
-  cancelled,
+  canceled,
   trialing,
 };
 

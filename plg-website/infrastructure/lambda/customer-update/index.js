@@ -57,6 +57,8 @@ const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 const ENVIRONMENT = process.env.ENVIRONMENT;
 
 // Maximum payment failures before license suspension
+// Canonical value: MAX_PAYMENT_FAILURES in plg-website/src/lib/constants.js
+// Duplicated here because Lambda cannot import Next.js modules directly
 const MAX_PAYMENT_FAILURES = 3;
 
 // ============================================================================
@@ -267,7 +269,6 @@ async function handleSubscriptionUpdated(event, log) {
 
   await updateCustomerSubscription(customer.userId, updates);
 
-
   // NOTE: Cancellation email is triggered by the webhook handler writing
   // eventType on the customer profile update. Do NOT write a separate EVENT#
   // record here — that causes duplicate emails. (Fixed 2026-02-28)
@@ -293,7 +294,7 @@ async function handleSubscriptionUpdated(event, log) {
 
 /**
  * Handle customer.subscription.deleted event
- * Mark license as canceled, update customer status, trigger cancellation email
+ * Mark license as expired, update customer status, route expiration event type
  */
 async function handleSubscriptionDeleted(event, log) {
   log.info("processing", { eventType: "customer.subscription.deleted" });
@@ -313,29 +314,39 @@ async function handleSubscriptionDeleted(event, log) {
     return;
   }
 
-  // Update customer record
+  // Determine expiration event type from prior status (same logic as webhook handler)
+  const priorStatus = customer.subscriptionStatus;
+  let expirationEventType;
+  if (priorStatus === "cancellation_pending") {
+    expirationEventType = "VOLUNTARY_CANCELLATION_EXPIRED";
+  } else if (priorStatus === "past_due" || priorStatus === "suspended") {
+    expirationEventType = "NONPAYMENT_CANCELLATION_EXPIRED";
+  } else {
+    expirationEventType = "VOLUNTARY_CANCELLATION_EXPIRED"; // safe default
+  }
+
   await updateCustomerSubscription(customer.userId, {
-    subscriptionStatus: "canceled",
+    subscriptionStatus: "expired",
     canceledAt: new Date().toISOString(),
     accessUntil: accessUntil || new Date().toISOString(),
   });
 
-  // Update all licenses to canceled
+  // Update all licenses to expired
   const licenses = await getCustomerLicenses(customer.userId);
   for (const license of licenses) {
-    await updateLicenseStatus(license.keygenLicenseId, "canceled", {
-      eventType: "SUBSCRIPTION_CANCELLED",
+    await updateLicenseStatus(license.keygenLicenseId, "expired", {
+      eventType: expirationEventType,
       email: customer.email,
       accessUntil,
     });
-    log.info("license-canceled", { licenseId: license.keygenLicenseId });
+    log.info("license-expired", { licenseId: license.keygenLicenseId });
   }
 
   // NOTE: Cancellation email is triggered by the webhook handler writing
   // eventType on the customer profile update. Do NOT write a separate EVENT#
   // record here — that causes duplicate emails. (Fixed 2026-02-28)
 
-  log.info("subscription-deleted", { userId: customer.userId, accessUntil });
+  log.info("subscription-deleted", { userId: customer.userId, accessUntil, expirationEventType });
 }
 
 /**

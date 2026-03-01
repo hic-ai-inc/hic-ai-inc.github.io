@@ -185,9 +185,16 @@ export async function upsertCustomer({
 }
 
 /**
- * Update customer subscription status
+ * Update customer subscription fields on the PROFILE record.
+ * Optionally clears specified emailsSent keys via REMOVE expressions.
+ *
+ * @param {string} userId - Customer user ID
+ * @param {Object} updates - Key-value pairs to SET on the PROFILE record
+ * @param {Object} [options] - Optional configuration
+ * @param {string[]} [options.clearEmailsSent=[]] - emailsSent map keys to REMOVE
+ * @returns {Promise<void>}
  */
-export async function updateCustomerSubscription(userId, updates) {
+export async function updateCustomerSubscription(userId, updates, { clearEmailsSent = [] } = {}) {
   const updateExpressions = [];
   const expressionValues = {};
   const expressionNames = {};
@@ -202,6 +209,19 @@ export async function updateCustomerSubscription(userId, updates) {
   expressionValues[":updatedAt"] = new Date().toISOString();
   expressionNames["#updatedAt"] = "updatedAt";
 
+  // Build SET clause from updates
+  let updateExpression = `SET ${updateExpressions.join(", ")}`;
+
+  // Build REMOVE clause for clearEmailsSent keys (safe parameterization via ExpressionAttributeNames)
+  if (clearEmailsSent.length > 0) {
+    const removeParts = clearEmailsSent.map((key, i) => {
+      const nameAlias = `#clearKey${i}`;
+      expressionNames[nameAlias] = key;
+      return `emailsSent.${nameAlias}`;
+    });
+    updateExpression += ` REMOVE ${removeParts.join(", ")}`;
+  }
+
   await dynamodb.send(
     new UpdateCommand({
       TableName: TABLE_NAME,
@@ -209,7 +229,7 @@ export async function updateCustomerSubscription(userId, updates) {
         PK: `USER#${userId}`,
         SK: "PROFILE",
       },
-      UpdateExpression: `SET ${updateExpressions.join(", ")}`,
+      UpdateExpression: updateExpression,
       ExpressionAttributeValues: expressionValues,
       ExpressionAttributeNames: expressionNames,
     }),
