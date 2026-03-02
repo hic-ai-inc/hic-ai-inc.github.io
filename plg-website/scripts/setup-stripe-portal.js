@@ -17,6 +17,12 @@
  *
  * IDEMPOTENT: Running multiple times updates the existing default configuration.
  *
+ * ⚠️  WARNING: Do NOT modify portal configuration via the Stripe Dashboard.
+ * The Dashboard can silently add fields (e.g., "quantity" to default_allowed_updates)
+ * that override the API-set configuration, causing drift. This script is the canonical
+ * source of truth for portal settings. If the Dashboard and this script disagree,
+ * re-run this script to restore the correct configuration.
+ *
  * @see https://stripe.com/docs/billing/subscriptions/customer-portal
  */
 
@@ -116,7 +122,12 @@ async function configurePortal(stripe, prices) {
       terms_of_service_url: `${RETURN_URL}/terms`,
     },
     features: {
-      // Allow customers to update their subscription (switch plans)
+      // Allow customers to switch billing frequency (monthly <-> annual) within their tier.
+      // CRITICAL: Only "price" and "promotion_code" are permitted here.
+      // - "quantity" is intentionally excluded — Individual is always 1 seat,
+      //   and Business seat changes go through our admin portal, not Stripe's.
+      // - The products array scopes each tier to its own prices only,
+      //   preventing cross-tier switching (Individual <-> Business).
       subscription_update: {
         enabled: true,
         default_allowed_updates: ["price", "promotion_code"],
@@ -180,6 +191,9 @@ async function configurePortal(stripe, prices) {
         await stripe.billingPortal.configurations.create(portalConfig);
     }
 
+    // Verify the configuration matches expectations
+    verifyConfiguration(configuration);
+
     return configuration;
   } catch (error) {
     console.error("\n❌ Failed to configure portal:", error.message);
@@ -188,6 +202,38 @@ async function configurePortal(stripe, prices) {
     }
     throw error;
   }
+}
+
+/**
+ * Verify the saved configuration matches our expectations.
+ * Guards against Stripe Dashboard drift silently adding unwanted fields.
+ *
+ * @param {Object} config - The saved Stripe portal configuration
+ */
+function verifyConfiguration(config) {
+  const allowedUpdates = config.features?.subscription_update?.default_allowed_updates || [];
+
+  // "quantity" must never appear — it allows users to change seat counts in the portal
+  if (allowedUpdates.includes("quantity")) {
+    console.error("\n❌ DRIFT DETECTED: 'quantity' found in default_allowed_updates.");
+    console.error("   This was likely added by the Stripe Dashboard.");
+    console.error("   Re-run this script to fix, or update via CLI:");
+    console.error('   stripe post /v1/billing_portal/configurations/' + config.id);
+    console.error('     -d "features[subscription_update][default_allowed_updates][0]=price"');
+    console.error('     -d "features[subscription_update][default_allowed_updates][1]=promotion_code"');
+    process.exit(1);
+  }
+
+  // Only "price" and "promotion_code" should be present
+  const expected = ["price", "promotion_code"];
+  const unexpected = allowedUpdates.filter((u) => !expected.includes(u));
+  if (unexpected.length > 0) {
+    console.warn(`\n⚠️  Unexpected allowed_updates: ${unexpected.join(", ")}`);
+    console.warn("   Review whether these should be permitted.");
+  }
+
+  console.log("
+   ✅ Configuration verified: no drift detected");
 }
 
 /**

@@ -1327,32 +1327,31 @@ Maintain a short-TTL dedup table keyed on `SUBSCRIPTION#{subId}#CANCELLATION_REQ
 
 ---
 
-### A.7 Bug: Premature `EXPIRED` Status — Suspected Keygen Webhook Disconnect
+### A.7 Bug: Keygen Heartbeat 401 Errors — Licensed Heartbeats Rejected
 
-**Discovered:** E2E validation session, 2026-02-28
+**Discovered:** E2E validation session, 2026-02-28 (originally logged as "Premature EXPIRED Status — Suspected Keygen Webhook Disconnect")
 
-**Status:** Open — requires investigation.
+**Status:** ✅ Resolved — Mar 1, 2026.
 
-**Symptom:** During E2E validation, the portal intermittently displays an `EXPIRED` license status for a subscription that should be active (or `cancellation_pending`). The Stripe subscription is confirmed active in the Stripe dashboard. The issue is not consistently reproducible but appeared during the cancel/uncancel flow.
+**Root cause (confirmed):** The `/api/license/heartbeat` route required a Cognito JWT (`verifyAuthToken`) for licensed heartbeats. The VS Code extension never receives or stores a JWT — the JWT only exists in the browser during the activation flow. Every subsequent heartbeat from the extension arrived with no Authorization header, causing the route to return 401. Keygen never received the `machine.heartbeat.ping` events, so machines appeared inactive and the Keygen event log showed no heartbeat activity.
 
-**Suspected root cause:**
+A secondary pre-existing bug was also found: `getLicense(licenseKey)` was being called with a `MOUSE-XXXX` key string, but that function expects a Keygen UUID — it always returned null, meaning the license was never looked up in DynamoDB on the heartbeat path.
 
-Keygen fires a `license.expired` webhook when it determines a license has passed its `expiresAt` date. If the Keygen license `expiresAt` is not being updated correctly on renewal (via `invoice.payment_succeeded` → `updateLicenseStatus`), Keygen may expire the license on its own schedule and fire `license.expired` to our webhook handler, which then writes `status: expired` to DynamoDB. This would cause the portal to show `EXPIRED` even though Stripe considers the subscription active.
+**Fix applied (Mar 1, 2026):**
+- Removed `verifyAuthToken` from the licensed heartbeat path entirely. The extension already sends `licenseKey + fingerprint + machineId` on every heartbeat — these credentials are sufficient to validate the request without a JWT.
+- Replaced `getLicense(licenseKey)` with `getLicenseByKey(licenseKey)` (GSI2 query by MOUSE-XXXX key string).
+- `deviceUserId` is now resolved from the DynamoDB device record written during activation (via `getDeviceByFingerprint`), replacing the former JWT-derived `authedUserId`. Gracefully degrades to null if the device record is not found or the lookup throws.
+- Added `machineId` as a required field for licensed heartbeats (400 if missing).
+- Extension repo required zero changes.
 
-Alternatively, the Keygen webhook endpoint may not be correctly registered or may be receiving events but failing silently, causing license state in Keygen to diverge from DynamoDB state.
+**E2E verification (Mar 1, 2026):** After deploying the fix, `machine.created` fired 200 OK on license activation (same as before), and `machine.heartbeat.ping` also returned 200 OK on the next heartbeat — confirmed in Keygen event log. Bug squashed.
 
-**Investigation steps:**
-1. Check Keygen dashboard → Webhooks → delivery log for recent `license.expired` events and their response codes.
-2. Verify the Keygen webhook endpoint URL is correctly pointed at the Amplify deployment (not a stale staging URL).
-3. Check CloudWatch logs for the `/api/webhooks/keygen` handler around the time the `EXPIRED` status appeared.
-4. Verify that `invoice.payment_succeeded` is correctly calling `updateLicenseStatus(licenseId, "active", { expiresAt })` and that `expiresAt` is being populated from `lines.data[0].period.end`.
-5. Check whether the Keygen license `expiresAt` field matches the Stripe subscription's current period end.
+**Files changed:** `plg-website/src/app/api/license/heartbeat/route.js`
+**Tests updated:** `plg-website/__tests__/unit/api/heartbeat-route.contract.test.js`, `plg-website/__tests__/unit/api/commit4-logging.contract.test.js`, `plg-website/__tests__/unit/api/heartbeat.test.js` (1,584 tests passing)
 
-**Files likely affected:** `plg-website/src/app/api/webhooks/keygen/route.js`, `plg-website/src/app/api/webhooks/stripe/route.js`, `plg-website/src/lib/keygen.js`
+**Severity:** High (was). Active subscribers' machines were not being tracked in Keygen; device concurrency enforcement was effectively disabled.
 
-**Severity:** High. An active subscriber seeing `EXPIRED` is a critical UX failure and could drive support tickets or churn.
-
-**Affects Day 1?** Potentially yes — any subscriber whose Keygen license `expiresAt` is stale or misaligned could trigger this.
+**Affects Day 1?** Was yes — resolved before launch.
 
 ---
 
@@ -1389,7 +1388,7 @@ Alternatively, the Keygen webhook endpoint may not be correctly registered or ma
 | A.4 | `expired` → "Activate License" | Gap | Low-Medium | No (requires full lapse) | Fix pre-launch or shortly after |
 | A.5 | Suspended/revoked Business member → "Activate License" | Gap | High | No (requires Business + team members) | Fix before Business tier goes live |
 | A.6 | Duplicate cancellation email persists (Stripe dual-event) | Bug | Medium | Yes — any cancellation | Fix: subscription-level state check (Option A) |
-| A.7 | Premature `EXPIRED` — Keygen webhook disconnect suspected | Bug | High | Potentially yes | Investigate: Keygen delivery log + CloudWatch |
+| A.7 | Keygen heartbeat 401 — licensed heartbeats rejected (JWT required, extension has no JWT) | Bug | High | Yes — all licensed users | ✅ Fixed (Mar 1): replaced JWT auth with license-credential validation on heartbeat path |
 | A.8 | Stripe Portal permits Individual ↔ Business tier switching | Config Bug | High | Yes — any subscriber | ✅ Mitigated (Mar 1): "switch plans" toggle disabled. Full fix (per-tier configs) deferred to Phase 3 Stream 3C item 3.5 |
 
 ### Decision Log
@@ -1400,3 +1399,4 @@ Alternatively, the Keygen webhook endpoint may not be correctly registered or ma
 | A.1–A.5 documented as addendum (round 1) | Prioritization decision deferred to SWR | SWR |
 | A.6–A.8 documented as addendum (round 2) | Further E2E findings after idempotency guard deployment | SWR + agent |
 | A.8 mitigated — "switch plans" disabled; full fix deferred to Stream 3C | Stripe UI cannot restrict to interval-only switching natively; per-tier portal configs require API work best consolidated with SMP finalization | SWR (Mar 1) |
+| A.7 resolved — JWT auth removed from licensed heartbeat path; license-credential validation implemented | Extension has no long-lived JWT; licenseKey + fingerprint + machineId are sufficient; user-device pairing already in DynamoDB from activation | SWR + agent (Mar 1) |
