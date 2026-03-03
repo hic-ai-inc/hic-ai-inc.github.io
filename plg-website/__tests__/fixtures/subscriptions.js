@@ -18,8 +18,6 @@ export const activeMonthly = {
   object: "subscription",
   status: "active",
   customer: "cus_individual_123",
-  current_period_start: NOW - 15 * ONE_DAY,
-  current_period_end: NOW + 15 * ONE_DAY,
   cancel_at_period_end: false,
   canceled_at: null,
   items: {
@@ -28,6 +26,8 @@ export const activeMonthly = {
       {
         id: "si_monthly_123",
         object: "subscription_item",
+        current_period_start: NOW - 15 * ONE_DAY,
+        current_period_end: NOW + 15 * ONE_DAY,
         price: {
           id: "price_individual_monthly",
           product: "prod_individual_123",
@@ -54,8 +54,6 @@ export const activeAnnual = {
   object: "subscription",
   status: "active",
   customer: "cus_annual_123",
-  current_period_start: NOW - 6 * ONE_MONTH,
-  current_period_end: NOW + 6 * ONE_MONTH,
   cancel_at_period_end: false,
   canceled_at: null,
   items: {
@@ -64,6 +62,8 @@ export const activeAnnual = {
       {
         id: "si_annual_123",
         object: "subscription_item",
+        current_period_start: NOW - 6 * ONE_MONTH,
+        current_period_end: NOW + 6 * ONE_MONTH,
         price: {
           id: "price_individual_annual",
           product: "prod_individual_123",
@@ -90,8 +90,6 @@ export const enterpriseSeats = {
   object: "subscription",
   status: "active",
   customer: "cus_enterprise_123",
-  current_period_start: NOW - 20 * ONE_DAY,
-  current_period_end: NOW + 10 * ONE_DAY,
   cancel_at_period_end: false,
   canceled_at: null,
   items: {
@@ -100,6 +98,8 @@ export const enterpriseSeats = {
       {
         id: "si_enterprise_123",
         object: "subscription_item",
+        current_period_start: NOW - 20 * ONE_DAY,
+        current_period_end: NOW + 10 * ONE_DAY,
         price: {
           id: "price_enterprise_100",
           product: "prod_enterprise_123",
@@ -129,8 +129,6 @@ export const pastDue = {
   object: "subscription",
   status: "past_due",
   customer: "cus_expired_123",
-  current_period_start: NOW - ONE_MONTH - 5 * ONE_DAY,
-  current_period_end: NOW - 5 * ONE_DAY,
   cancel_at_period_end: false,
   canceled_at: null,
   items: {
@@ -139,6 +137,8 @@ export const pastDue = {
       {
         id: "si_past_due_123",
         object: "subscription_item",
+        current_period_start: NOW - ONE_MONTH - 5 * ONE_DAY,
+        current_period_end: NOW - 5 * ONE_DAY,
         price: {
           id: "price_individual_monthly",
           product: "prod_individual_123",
@@ -165,8 +165,6 @@ export const canceled = {
   object: "subscription",
   status: "active", // Still active until period ends
   customer: "cus_canceled_123",
-  current_period_start: NOW - 20 * ONE_DAY,
-  current_period_end: NOW + 10 * ONE_DAY,
   cancel_at_period_end: true, // Will cancel at period end
   canceled_at: NOW - 5 * ONE_DAY,
   items: {
@@ -175,6 +173,8 @@ export const canceled = {
       {
         id: "si_canceled_123",
         object: "subscription_item",
+        current_period_start: NOW - 20 * ONE_DAY,
+        current_period_end: NOW + 10 * ONE_DAY,
         price: {
           id: "price_individual_monthly",
           product: "prod_individual_123",
@@ -203,8 +203,6 @@ export const trialing = {
   object: "subscription",
   status: "trialing",
   customer: "cus_trialing_123",
-  current_period_start: NOW - 7 * ONE_DAY,
-  current_period_end: NOW + 7 * ONE_DAY,
   trial_start: NOW - 7 * ONE_DAY,
   trial_end: NOW + 7 * ONE_DAY,
   cancel_at_period_end: false,
@@ -215,6 +213,8 @@ export const trialing = {
       {
         id: "si_trialing_123",
         object: "subscription_item",
+        current_period_start: NOW - 7 * ONE_DAY,
+        current_period_end: NOW + 7 * ONE_DAY,
         price: {
           id: "price_individual_monthly",
           product: "prod_individual_123",

@@ -142,15 +142,17 @@ export async function POST(request) {
 
           if (subscriptions.data[0]) {
             const sub = subscriptions.data[0];
+            // Stripe basil+ moved billing periods to subscription item level
+            const subItem = sub.items?.data?.[0];
             exportData.subscription = {
               id: sub.id,
               status: sub.status,
-              currentPeriodStart: new Date(
-                sub.current_period_start * 1000,
-              ).toISOString(),
-              currentPeriodEnd: new Date(
-                sub.current_period_end * 1000,
-              ).toISOString(),
+              currentPeriodStart: subItem?.current_period_start
+                ? new Date(subItem.current_period_start * 1000).toISOString()
+                : null,
+              currentPeriodEnd: subItem?.current_period_end
+                ? new Date(subItem.current_period_end * 1000).toISOString()
+                : null,
               cancelAtPeriodEnd: sub.cancel_at_period_end,
               created: new Date(sub.created * 1000).toISOString(),
             };

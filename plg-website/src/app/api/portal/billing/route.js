@@ -114,10 +114,10 @@ export async function GET(request) {
         id: activeSubscription.id,
         status: activeSubscription.status,
         currentPeriodStart: new Date(
-          activeSubscription.current_period_start * 1000,
+          priceItem.current_period_start * 1000,
         ).toISOString(),
         currentPeriodEnd: new Date(
-          activeSubscription.current_period_end * 1000,
+          priceItem.current_period_end * 1000,
         ).toISOString(),
         cancelAtPeriodEnd: activeSubscription.cancel_at_period_end,
         cancelAt: activeSubscription.cancel_at
