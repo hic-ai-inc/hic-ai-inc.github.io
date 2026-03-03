@@ -1,17 +1,10 @@
 /**
  * Billing Management Page
  *
- * Manage subscription and payment methods via Stripe Customer Portal
- * using flow_data deep links. Each action button routes through
- * handlePortalAction(flow, options) which sends a targeted POST to
- * /api/portal/stripe-session with a JSON body — no generic portal
- * sessions are ever created.
- *
- * Invoices are fetched inline from /api/portal/invoices and displayed
- * in a table with PDF download links.
+ * Manage subscription and payment methods via Stripe Customer Portal.
+ * Fetches real billing data from /api/portal/billing and /api/portal/invoices.
  *
  * @see PLG User Journey - Section 2.6
- * @see Bugfix: Stripe silently ignores products param on portal config
  */
 
 "use client";
@@ -38,8 +31,6 @@ export default function BillingPage() {
   const [error, setError] = useState(null);
   const [redirecting, setRedirecting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
-  const [seatCount, setSeatCount] = useState(1);
-  const [invoices, setInvoices] = useState([]);
 
   useEffect(() => {
     // Check if returning from Stripe Portal with success indicator
@@ -50,22 +41,18 @@ export default function BillingPage() {
       // Auto-dismiss after 5 seconds
       setTimeout(() => setSuccessMessage(null), 5000);
     }
-
+    
     if (user && !userLoading) {
       fetchBillingData();
-      fetchInvoices();
     }
   }, [searchParams, router, user, userLoading]);
 
-  /**
-   * Fetches billing data from /api/portal/billing.
-   * Redirects non-owners to /portal on 403.
-   */
   async function fetchBillingData() {
     try {
       setLoading(true);
       setError(null);
 
+      // Get session for Authorization header
       const session = await getSession();
       if (!session?.idToken) {
         setError("Not authenticated");
@@ -73,6 +60,7 @@ export default function BillingPage() {
         return;
       }
 
+      // Fetch billing info with Authorization header
       const billingRes = await fetch("/api/portal/billing", {
         credentials: "include",
         headers: {
@@ -82,6 +70,7 @@ export default function BillingPage() {
 
       if (!billingRes.ok) {
         const errorData = await billingRes.json().catch(() => ({}));
+        // Redirect non-owners back to portal dashboard
         if (billingRes.status === 403) {
           router.replace("/portal");
           return;
@@ -91,11 +80,6 @@ export default function BillingPage() {
 
       const billingData = await billingRes.json();
       setBilling(billingData);
-
-      // Initialize seat count from current subscription quantity
-      if (billingData?.subscription?.quantity) {
-        setSeatCount(billingData.subscription.quantity);
-      }
     } catch (err) {
       console.error("[Billing] Fetch error:", err);
       setError(err.message);
@@ -104,43 +88,8 @@ export default function BillingPage() {
     }
   }
 
-  /**
-   * Fetches invoice history from /api/portal/invoices.
-   * Fails silently — invoices are supplementary to the main billing view.
-   */
-  async function fetchInvoices() {
-    try {
-      const session = await getSession();
-      if (!session?.idToken) return;
-
-      const res = await fetch("/api/portal/invoices", {
-        credentials: "include",
-        headers: {
-          Authorization: `Bearer ${session.idToken}`,
-        },
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-      setInvoices(data.invoices || []);
-    } catch (err) {
-      // Invoices are non-critical — log but don't block the page
-      console.error("[Billing] Invoice fetch error:", err);
-    }
-  }
-
-  /**
-   * Opens a Stripe Customer Portal session for a specific action.
-   * Sends a POST with JSON body { flow, ...options } to /api/portal/stripe-session.
-   * Every portal interaction is a flow_data deep link — no generic sessions.
-   *
-   * @param {string} flow - One of: switch_to_annual, switch_to_monthly, adjust_seats, update_payment, cancel
-   * @param {object} [options={}] - Additional options (e.g. { quantity } for adjust_seats)
-   */
-  async function handlePortalAction(flow, options = {}) {
+  async function handleManageSubscription() {
     setRedirecting(true);
-    setError(null);
     try {
       const session = await getSession();
       if (!session?.idToken) {
@@ -156,7 +105,7 @@ export default function BillingPage() {
           Authorization: `Bearer ${session.idToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ flow, ...options }),
+        body: JSON.stringify({ mode: "main_portal" }),
       });
 
       if (!res.ok) {
@@ -167,7 +116,7 @@ export default function BillingPage() {
       const { url } = await res.json();
       window.location.href = url;
     } catch (err) {
-      console.error("[Billing] Portal action error:", err);
+      console.error("[Billing] Portal session error:", err);
       setError(err.message);
       setRedirecting(false);
     }
@@ -217,7 +166,6 @@ export default function BillingPage() {
   const billingCycle = subscription?.billingCycle || "monthly";
   const amount = subscription?.amount;
   const currency = subscription?.currency || "usd";
-  const isBusinessAccount = billing?.accountType === "business";
 
   return (
     <div className="max-w-4xl">
@@ -230,10 +178,9 @@ export default function BillingPage() {
             </svg>
             <p className="text-green-300">{successMessage}</p>
           </div>
-          <button
+          <button 
             onClick={() => setSuccessMessage(null)}
             className="text-green-400 hover:text-green-300"
-            aria-label="Dismiss notification"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -248,6 +195,8 @@ export default function BillingPage() {
           Manage your subscription and payment methods
         </p>
       </div>
+
+      {/* Stripe Portal redirect via fetch with JWT auth */}
 
       {/* Current Plan */}
       <Card className="mb-6">
@@ -266,7 +215,7 @@ export default function BillingPage() {
                   <>
                     Billed {billingCycle === "annual" ? "annually" : "monthly"}
                     {subscription.quantity > 1 &&
-                      ` \u2022 ${subscription.quantity} seats`}
+                      ` • ${subscription.quantity} seats`}
                   </>
                 ) : (
                   "No active subscription"
@@ -288,7 +237,7 @@ export default function BillingPage() {
                   </span>
                 </p>
               ) : (
-                <p className="text-slate-grey">\u2014</p>
+                <p className="text-slate-grey">—</p>
               )}
               {subscription?.currentPeriodEnd && (
                 <p className="text-sm text-slate-grey mt-1">
@@ -299,84 +248,26 @@ export default function BillingPage() {
             </div>
           </div>
 
-          {/* Targeted action buttons — each routes through a flow_data deep link */}
-          <div className="flex flex-wrap gap-4">
-            {/* Billing cycle switch */}
-            {subscription?.status === "active" && (
-              billingCycle === "monthly" ? (
-                <Button
-                  onClick={() => handlePortalAction("switch_to_annual")}
-                  disabled={redirecting}
-                >
-                  {redirecting ? "Redirecting..." : "Switch to Annual (Save 17%)"}
-                </Button>
-              ) : (
+          <div className="flex gap-4">
+            <Button
+              onClick={handleManageSubscription}
+              disabled={redirecting || !billing?.stripeCustomerId}
+            >
+              {redirecting ? "Redirecting..." : "Manage Subscription"}
+            </Button>
+            {billingCycle === "monthly" &&
+              subscription?.status === "active" && (
                 <Button
                   variant="secondary"
-                  onClick={() => handlePortalAction("switch_to_monthly")}
+                  onClick={handleManageSubscription}
                   disabled={redirecting}
                 >
-                  {redirecting ? "Redirecting..." : "Switch to Monthly"}
+                  Switch to Annual (Save 17%)
                 </Button>
-              )
-            )}
-
-            {/* Cancel subscription */}
-            {subscription?.status === "active" && !subscription?.cancelAtPeriodEnd && (
-              <Button
-                variant="ghost"
-                onClick={() => handlePortalAction("cancel")}
-                disabled={redirecting}
-                className="text-red-400 hover:text-red-300"
-              >
-                {redirecting ? "Redirecting..." : "Cancel Subscription"}
-              </Button>
-            )}
+              )}
           </div>
         </CardContent>
       </Card>
-
-      {/* Seat Adjustment — Business accounts only */}
-      {isBusinessAccount && subscription?.status === "active" && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Manage Seats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-slate-grey mb-4">
-              Current seats: {subscription.quantity || 1}
-            </p>
-            <div className="flex items-center gap-4">
-              <label htmlFor="seat-count" className="sr-only">Number of seats</label>
-              <input
-                id="seat-count"
-                type="number"
-                min={1}
-                max={99}
-                value={seatCount}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val)) setSeatCount(val);
-                }}
-                className="w-24 px-3 py-2 bg-card-bg border border-card-border rounded text-frost-white text-center"
-                aria-label="Number of seats"
-              />
-              {seatCount >= 100 ? (
-                <p className="text-amber-400 text-sm">
-                  Contact sales for volume discounts
-                </p>
-              ) : (
-                <Button
-                  onClick={() => handlePortalAction("adjust_seats", { quantity: seatCount })}
-                  disabled={redirecting || seatCount < 1 || seatCount > 99}
-                >
-                  {redirecting ? "Redirecting..." : "Update Seats"}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Payment Method */}
       <Card className="mb-6">
@@ -392,7 +283,7 @@ export default function BillingPage() {
                 </div>
                 <div>
                   <p className="text-frost-white">
-                    \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 {paymentMethod.last4}
+                    •••• •••• •••• {paymentMethod.last4}
                   </p>
                   <p className="text-sm text-slate-grey">
                     Expires {paymentMethod.expMonth}/{paymentMethod.expYear}
@@ -402,10 +293,10 @@ export default function BillingPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handlePortalAction("update_payment")}
+                onClick={handleManageSubscription}
                 disabled={redirecting}
               >
-                Update Payment Method
+                Update
               </Button>
             </div>
           ) : (
@@ -414,7 +305,7 @@ export default function BillingPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => handlePortalAction("update_payment")}
+                onClick={handleManageSubscription}
                 disabled={redirecting}
               >
                 Add Payment Method
@@ -424,70 +315,29 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      {/* Invoices — inline table, no portal redirect */}
+      {/* Billing History */}
       <Card>
         <CardHeader>
-          <CardTitle>Invoices &amp; Payment History</CardTitle>
+          <CardTitle>Invoices & Payment History</CardTitle>
         </CardHeader>
         <CardContent>
-          {invoices.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-card-border">
-                    <th className="pb-3 text-sm text-slate-grey font-medium">Date</th>
-                    <th className="pb-3 text-sm text-slate-grey font-medium">Amount</th>
-                    <th className="pb-3 text-sm text-slate-grey font-medium">Status</th>
-                    <th className="pb-3 text-sm text-slate-grey font-medium text-right">Receipt</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((invoice) => (
-                    <tr key={invoice.id} className="border-b border-card-border/50">
-                      <td className="py-3 text-frost-white text-sm">
-                        {formatDate(invoice.date)}
-                      </td>
-                      <td className="py-3 text-frost-white text-sm">
-                        {formatCurrency(invoice.amount, invoice.currency)}
-                      </td>
-                      <td className="py-3">
-                        <InvoiceStatusBadge status={invoice.status} />
-                      </td>
-                      <td className="py-3 text-right">
-                        {invoice.pdfUrl ? (
-                          <a
-                            href={invoice.pdfUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-400 hover:text-blue-300 underline"
-                          >
-                            Download PDF
-                          </a>
-                        ) : (
-                          <span className="text-sm text-slate-grey">\u2014</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-slate-grey">No invoices yet.</p>
-          )}
+          <p className="text-slate-grey mb-4">
+            View your complete invoice history and download receipts in the
+            Stripe Customer Portal.
+          </p>
+          <Button
+            onClick={handleManageSubscription}
+            variant="outline"
+            disabled={redirecting}
+          >
+            {redirecting ? "Opening..." : "View Invoices"}
+          </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-/**
- * Displays a colored badge for subscription status.
- *
- * @param {object} props
- * @param {string} props.status - Stripe subscription status
- * @returns {JSX.Element}
- */
 function SubscriptionStatusBadge({ status }) {
   const variants = {
     active: "success",
@@ -524,44 +374,6 @@ function SubscriptionStatusBadge({ status }) {
   );
 }
 
-/**
- * Displays a colored badge for invoice payment status.
- *
- * @param {object} props
- * @param {string} props.status - Stripe invoice status (paid, open, void, draft, uncollectible)
- * @returns {JSX.Element}
- */
-function InvoiceStatusBadge({ status }) {
-  const variants = {
-    paid: "success",
-    open: "warning",
-    void: "secondary",
-    draft: "secondary",
-    uncollectible: "danger",
-  };
-
-  const labels = {
-    paid: "Paid",
-    open: "Open",
-    void: "Void",
-    draft: "Draft",
-    uncollectible: "Uncollectible",
-  };
-
-  return (
-    <Badge variant={variants[status] || "secondary"} className="text-xs">
-      {labels[status] || status}
-    </Badge>
-  );
-}
-
-/**
- * Renders a short label for the card brand.
- *
- * @param {object} props
- * @param {string} props.brand - Card brand from Stripe (visa, mastercard, amex, discover)
- * @returns {JSX.Element}
- */
 function CardBrandIcon({ brand }) {
   const brandLabels = {
     visa: "VISA",
@@ -576,14 +388,8 @@ function CardBrandIcon({ brand }) {
   );
 }
 
-/**
- * Formats an ISO date string to a human-readable short date.
- *
- * @param {string} dateString - ISO 8601 date string
- * @returns {string} Formatted date or em dash
- */
 function formatDate(dateString) {
-  if (!dateString) return "\u2014";
+  if (!dateString) return "—";
   return new Date(dateString).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
@@ -591,18 +397,10 @@ function formatDate(dateString) {
   });
 }
 
-/**
- * Formats cents to a currency string.
- *
- * @param {number} cents - Amount in cents
- * @param {string} [currency="usd"] - ISO 4217 currency code
- * @returns {string} Formatted currency string or em dash
- */
 function formatCurrency(cents, currency = "usd") {
-  if (cents == null) return "\u2014";
+  if (cents == null) return "—";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currency.toUpperCase(),
   }).format(cents / 100);
 }
-
