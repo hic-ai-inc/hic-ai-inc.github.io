@@ -6,7 +6,6 @@
  * Behaviors tested:
  * - Client injection for testing
  * - Checkout session creation
- * - Portal session creation
  * - Subscription quantity updates
  * - Webhook signature verification
  * - Product and coupon constants
@@ -26,7 +25,6 @@ import {
   __setStripeClientForTests,
   __resetStripeClientForTests,
   createCheckoutSession,
-  createPortalSession,
   updateSubscriptionQuantity,
   verifyWebhookSignature,
   STRIPE_PRODUCTS,
@@ -203,68 +201,6 @@ describe("stripe.js", () => {
 
       expect(error).toBeDefined();
       expect(error.message).toBe("Invalid price ID");
-    });
-  });
-
-  describe("createPortalSession", () => {
-    it("should create portal session for customer", async () => {
-      const mockSession = {
-        id: "bps_test_123",
-        url: "https://billing.stripe.com/session/test",
-      };
-      stripeMock.billingPortal.sessions.create.mockResolvedValue(mockSession);
-
-      const result = await createPortalSession(
-        "cus_abc123",
-        "https://hic-ai.com/portal",
-      );
-
-      expect(result.id).toBe("bps_test_123");
-      expect(result.url).toBe("https://billing.stripe.com/session/test");
-    });
-
-    it("should pass customer ID to Stripe", async () => {
-      stripeMock.billingPortal.sessions.create.mockResolvedValue({
-        id: "bps_123",
-      });
-
-      await createPortalSession(
-        "cus_customer_456",
-        "https://hic-ai.com/portal",
-      );
-
-      const callArgs = stripeMock.billingPortal.sessions.create.calls[0][0];
-      expect(callArgs.customer).toBe("cus_customer_456");
-    });
-
-    it("should pass return URL to Stripe", async () => {
-      stripeMock.billingPortal.sessions.create.mockResolvedValue({
-        id: "bps_123",
-      });
-
-      await createPortalSession(
-        "cus_abc123",
-        "https://hic-ai.com/portal/billing",
-      );
-
-      const callArgs = stripeMock.billingPortal.sessions.create.calls[0][0];
-      expect(callArgs.return_url).toBe("https://hic-ai.com/portal/billing");
-    });
-
-    it("should throw error when customer not found", async () => {
-      stripeMock.billingPortal.sessions.create.mockRejectedValue(
-        new Error("No such customer: cus_invalid"),
-      );
-
-      let error;
-      try {
-        await createPortalSession("cus_invalid", "https://hic-ai.com/portal");
-      } catch (e) {
-        error = e;
-      }
-
-      expect(error).toBeDefined();
-      expect(error.message).toContain("No such customer");
     });
   });
 

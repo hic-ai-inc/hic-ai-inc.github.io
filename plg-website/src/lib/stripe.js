@@ -202,28 +202,6 @@ export async function createCheckoutSession({
 }
 
 /**
- * Create a Stripe Customer Portal session for subscription management
- * @param {string} customerId - Stripe customer ID
- * @param {string} returnUrl - URL to redirect after portal session
- * @returns {Promise<Stripe.BillingPortal.Session>} Portal session
- */
-export async function createPortalSession(customerId, returnUrl) {
-  const logger = createLogger("createPortalSession");
-  try {
-    const client = await getStripeClient();
-    const session = await client.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: returnUrl,
-    });
-    logger.info("Portal session created", { customerId });
-    return session;
-  } catch (error) {
-    logger.error("Failed to create portal session", { error: error.message });
-    throw error;
-  }
-}
-
-/**
  * Update subscription seat quantity (for Enterprise seat changes per Addendum A.5.4)
  * Prorates charges automatically
  * @param {string} subscriptionId - Stripe subscription ID

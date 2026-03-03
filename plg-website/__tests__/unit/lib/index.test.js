@@ -66,11 +66,6 @@ describe("lib/index.js", () => {
       expect(typeof lib.createCheckoutSession).toBe("function");
     });
 
-    it("should export createPortalSession", () => {
-      expect(lib.createPortalSession).toBeDefined();
-      expect(typeof lib.createPortalSession).toBe("function");
-    });
-
     it("should export updateSubscriptionQuantity", () => {
       expect(lib.updateSubscriptionQuantity).toBeDefined();
       expect(typeof lib.updateSubscriptionQuantity).toBe("function");
