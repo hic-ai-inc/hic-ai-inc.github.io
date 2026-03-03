@@ -225,6 +225,10 @@ export async function getStripeSecrets() {
     return {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+      // Portal config IDs (not secrets — resource identifiers stored here
+      // because Amplify Gen 2 env vars don't propagate to SSR reliably)
+      STRIPE_PORTAL_CONFIG_INDIVIDUAL: process.env.STRIPE_PORTAL_CONFIG_INDIVIDUAL,
+      STRIPE_PORTAL_CONFIG_BUSINESS: process.env.STRIPE_PORTAL_CONFIG_BUSINESS,
     };
   }
 
@@ -236,6 +240,8 @@ export async function getStripeSecrets() {
     return {
       STRIPE_SECRET_KEY: secrets.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: secrets.STRIPE_WEBHOOK_SECRET,
+      STRIPE_PORTAL_CONFIG_INDIVIDUAL: secrets.STRIPE_PORTAL_CONFIG_INDIVIDUAL,
+      STRIPE_PORTAL_CONFIG_BUSINESS: secrets.STRIPE_PORTAL_CONFIG_BUSINESS,
     };
   } catch (error) {
     console.warn("[Secrets] Secrets Manager unavailable:", error.message);
@@ -251,6 +257,8 @@ export async function getStripeSecrets() {
     return {
       STRIPE_SECRET_KEY: ssmSecretKey,
       STRIPE_WEBHOOK_SECRET: ssmWebhookSecret,
+      STRIPE_PORTAL_CONFIG_INDIVIDUAL: process.env.STRIPE_PORTAL_CONFIG_INDIVIDUAL,
+      STRIPE_PORTAL_CONFIG_BUSINESS: process.env.STRIPE_PORTAL_CONFIG_BUSINESS,
     };
   }
 
@@ -271,7 +279,7 @@ export async function getStripeSecrets() {
  * Throws if all production sources fail.
  * See: FINDING-3, FINDING-4 in 20260215_AUDIT_REPORT_ON_SECRETS_HYGIENE.md
  *
- * @returns {Promise<{KEYGEN_PRODUCT_TOKEN: string}>}
+ * @returns {Promise<{KEYGEN_PRODUCT_TOKEN: string, KEYGEN_WEBHOOK_PUBLIC_KEY: string}>}
  */
 export async function getKeygenSecrets() {
   console.log("[Secrets] getKeygenSecrets called, NODE_ENV:", process.env.NODE_ENV);
@@ -281,6 +289,7 @@ export async function getKeygenSecrets() {
     console.log("[Secrets] Non-production mode - using process.env for Keygen");
     return {
       KEYGEN_PRODUCT_TOKEN: process.env.KEYGEN_PRODUCT_TOKEN,
+      KEYGEN_WEBHOOK_PUBLIC_KEY: process.env.KEYGEN_WEBHOOK_PUBLIC_KEY,
     };
   }
 
@@ -291,6 +300,7 @@ export async function getKeygenSecrets() {
     console.log("[Secrets] Secrets Manager success for Keygen");
     return {
       KEYGEN_PRODUCT_TOKEN: secrets.KEYGEN_PRODUCT_TOKEN,
+      KEYGEN_WEBHOOK_PUBLIC_KEY: secrets.KEYGEN_WEBHOOK_PUBLIC_KEY,
     };
   } catch (error) {
     console.warn("[Secrets] Secrets Manager unavailable for Keygen:", error.message);
@@ -304,6 +314,7 @@ export async function getKeygenSecrets() {
     console.log("[Secrets] SSM Keygen token found via fallback");
     return {
       KEYGEN_PRODUCT_TOKEN: ssmToken,
+      KEYGEN_WEBHOOK_PUBLIC_KEY: process.env.KEYGEN_WEBHOOK_PUBLIC_KEY || null,
     };
   }
 

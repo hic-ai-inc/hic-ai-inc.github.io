@@ -19,12 +19,13 @@ import { NextResponse } from "next/server";
 import { machineHeartbeat, getLicenseMachines } from "@/lib/keygen";
 import {
   updateDeviceLastSeen,
-  getLicense,
+  getLicenseByKey,
+  getDeviceByFingerprint,
   recordTrialHeartbeat,
   getVersionConfig,
   getActiveDevicesInWindow,
 } from "@/lib/dynamodb";
-import { verifyAuthToken } from "@/lib/auth-verify";
+
 import {
   rateLimitMiddleware,
   getRateLimitHeaders,
@@ -173,36 +174,24 @@ export async function POST(request) {
     // LICENSED USER HEARTBEAT (with license key)
     // =========================================================================
 
-    // Phase 3E: Authentication is required for licensed heartbeats.
-    // The extension always sends the JWT obtained during browser-delegated activation.
-    const tokenPayload = await verifyAuthToken();
-    if (!tokenPayload) {
-      const authHeader = request.headers.get("authorization");
-      const hasBearerToken =
-        typeof authHeader === "string" && authHeader.startsWith("Bearer ");
-
-      log.warn("licensed_heartbeat_unauthorized", "Licensed heartbeat rejected", {
-        reason: hasBearerToken
-          ? "token_verification_failed"
-          : "missing_or_malformed_bearer",
-        hasAuthorizationHeader: Boolean(authHeader),
-        hasBearerToken,
+    // License-credential validation: the extension sends licenseKey +
+    // fingerprint + machineId on every heartbeat. The user-device pairing
+    // was established during browser-delegated activation (JWT-authenticated)
+    // and is stored in DynamoDB. We look it up here instead of requiring a
+    // JWT, because the extension has no long-lived Cognito token.
+    // Keygen's machine ping (below) validates the machine actually exists.
+    if (!machineId) {
+      log.warn("licensed_heartbeat_missing_machine_id", "Licensed heartbeat rejected", {
+        reason: "missing_machine_id",
         hasSessionId: Boolean(sessionId),
         hasFingerprint: Boolean(fingerprint),
-        hasMachineId: Boolean(machineId),
-        hasBodyUserId: Boolean(userId),
       });
-
-      log.response(401, "Heartbeat rejected", { reason: "unauthorized" });
+      log.response(400, "Heartbeat rejected", { reason: "missing_machine_id" });
       return NextResponse.json(
-        {
-          error: "Unauthorized",
-          detail: "Authentication is required for licensed heartbeats",
-        },
-        { status: 401 },
+        { error: "Machine ID is required for licensed heartbeats" },
+        { status: 400 },
       );
     }
-    const authedUserId = tokenPayload.sub;
 
     // SessionId required for licensed users
     if (!sessionId) {
@@ -253,11 +242,29 @@ export async function POST(request) {
       });
     }
 
-    // Get license details from DynamoDB
-    const license = await getLicense(licenseKey);
+    // Look up license by key (GSI2 query) — getLicense() expects a Keygen
+    // UUID, but the extension sends the MOUSE-XXXX key string.
+    const license = await getLicenseByKey(licenseKey);
+
+    // Resolve the userId from the device record written during activation.
+    // This replaces the former JWT-derived authedUserId.
+    let deviceUserId = null;
+    if (license?.keygenLicenseId) {
+      try {
+        const deviceRecord = await getDeviceByFingerprint(
+          license.keygenLicenseId,
+          fingerprint,
+        );
+        deviceUserId = deviceRecord?.userId || null;
+      } catch (err) {
+        log.warn("device_lookup_failed", "Device lookup for userId failed", {
+          errorMessage: err?.message,
+        });
+      }
+    }
 
     if (!license) {
-      // License not in our database - might be valid in Keygen but not synced
+      // License not in our database — might be valid in Keygen but not synced.
       // Still return version payload so the extension can prompt updates consistently.
       const versionConfig = await getVersionConfig();
 
@@ -281,12 +288,12 @@ export async function POST(request) {
     }
 
     // Update device last seen in DynamoDB (fire and forget)
-    // Phase 3E: Use verified authedUserId from JWT, not body-supplied userId
+    // userId resolved from DynamoDB device record (written during activation)
     if (license.keygenLicenseId) {
       updateDeviceLastSeen(
         license.keygenLicenseId,
         fingerprint,
-        authedUserId,
+        deviceUserId,
       ).catch((err) => {
         log.warn("device_last_seen_update_failed", "Device last seen update failed", {
           errorMessage: err?.message,

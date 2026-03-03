@@ -22,10 +22,7 @@ import {
 import crypto from "crypto";
 import { createApiLogger } from "@/lib/api-log";
 import { safeJsonParse } from "../../../../../../dm/layers/base/src/index.js";
-
-// Ed25519 public key from KeyGen webhook configuration
-// Format: base64-encoded public key
-const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
+import { getKeygenSecrets } from "@/lib/secrets";
 
 /**
  * Verify Keygen webhook signature using Ed25519
@@ -38,11 +35,28 @@ const KEYGEN_WEBHOOK_PUBLIC_KEY = process.env.KEYGEN_WEBHOOK_PUBLIC_KEY;
  * @param {Request} request - Original request for reconstructing signing string
  * @returns {boolean} - Whether signature is valid
  */
-function verifySignature(payload, signatureHeader, request, log) {
+async function verifySignature(payload, signatureHeader, request, log) {
+  // Fetch from Secrets Manager at call time — process.env is unreliable in
+  // Next.js App Router on Amplify Gen 2 (SSR bundle initializes before the
+  // runtime environment is fully hydrated). Mirrors the Stripe webhook pattern.
+  let KEYGEN_WEBHOOK_PUBLIC_KEY;
+  try {
+    const secrets = await getKeygenSecrets();
+    KEYGEN_WEBHOOK_PUBLIC_KEY = secrets.KEYGEN_WEBHOOK_PUBLIC_KEY;
+  } catch (error) {
+    log.error(
+      "webhook_secrets_fetch_failed",
+      "Failed to fetch Keygen secrets from Secrets Manager",
+      error,
+      { errorMessage: error?.message },
+    );
+    return false;
+  }
+
   if (!KEYGEN_WEBHOOK_PUBLIC_KEY) {
     log.error(
       "webhook_public_key_missing",
-      "KEYGEN_WEBHOOK_PUBLIC_KEY not configured - rejecting request",
+      "KEYGEN_WEBHOOK_PUBLIC_KEY not configured in Secrets Manager - rejecting request",
       null,
       { reason: "missing_public_key" },
     );
@@ -151,7 +165,7 @@ export async function POST(request) {
     const payload = await request.text();
     const signatureHeader = request.headers.get("keygen-signature");
 
-    if (!verifySignature(payload, signatureHeader, request, log)) {
+    if (!(await verifySignature(payload, signatureHeader, request, log))) {
       log.decision("signature_invalid", "Invalid Keygen webhook signature", {
         reason: "signature_invalid",
       });
@@ -159,82 +173,94 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    const event = safeJsonParse(payload, { source: "keygen-webhook" });
-    const { data, meta } = event;
+    // Keygen sends JSON:API webhook-event envelope: the event type is at
+    // data.attributes.event and the resource snapshot is a *stringified*
+    // JSON:API document at data.attributes.payload.
+    const envelope = safeJsonParse(payload, { source: "keygen-webhook" });
+    const eventType = envelope.data?.attributes?.event;
+    const idempotencyToken = envelope.data?.meta?.idempotencyToken;
+    const resourcePayload = safeJsonParse(
+      envelope.data?.attributes?.payload ?? "{}",
+      { source: "keygen-webhook-payload" },
+    );
+    // resourceData is the actual license/machine/user object from Keygen
+    const resourceData = resourcePayload.data ?? {};
 
     log.info("keygen_webhook_received", "Keygen webhook event received", {
-      eventType: meta?.event,
-      resourceId: data?.id,
+      eventType,
+      webhookEventId: envelope.data?.id,
+      resourceId: resourceData?.id,
+      idempotencyToken,
     });
 
-    switch (meta.event) {
+    switch (eventType) {
       case "license.created":
         log.info("license_created_acknowledged", "Keygen license.created acknowledged", {
-          licenseId: data.id,
+          licenseId: resourceData.id,
         });
         break;
 
       case "license.deleted":
         log.info("license_deleted_acknowledged", "Keygen license.deleted acknowledged", {
-          licenseId: data.id,
+          licenseId: resourceData.id,
         });
         break;
 
       case "license.expired":
-        await handleLicenseExpired(data, log);
+        await handleLicenseExpired(resourceData, log);
         break;
 
       case "license.suspended":
-        await handleLicenseSuspended(data, log);
+        await handleLicenseSuspended(resourceData, log);
         break;
 
       case "license.reinstated":
-        await handleLicenseReinstated(data, log);
+        await handleLicenseReinstated(resourceData, log);
         break;
 
       case "license.renewed":
-        await handleLicenseRenewed(data, log);
+        await handleLicenseRenewed(resourceData, log);
         break;
 
       case "license.revoked":
-        await handleLicenseRevoked(data, log);
+        await handleLicenseRevoked(resourceData, log);
         break;
 
       case "machine.created":
         log.info("machine_created_acknowledged", "Machine activated event acknowledged", {
-          machineId: data.id,
+          machineId: resourceData.id,
         });
         break;
 
       case "machine.deleted":
-        await handleMachineDeleted(data, log);
+        await handleMachineDeleted(resourceData, log);
         break;
 
       case "machine.heartbeat.ping":
         log.info("machine_heartbeat_ping", "Machine heartbeat ping received", {
-          machineId: data.id,
+          machineId: resourceData.id,
         });
         break;
 
       case "machine.heartbeat.dead":
         log.info("machine_heartbeat_dead", "Machine heartbeat dead event received", {
-          machineId: data.id,
+          machineId: resourceData.id,
         });
         break;
 
       case "policy.updated":
         log.info("policy_updated_acknowledged", "Policy updated event acknowledged", {
-          policyId: data.id,
+          policyId: resourceData.id,
         });
         break;
 
       default:
         log.info("event_unhandled", "Unhandled Keygen webhook event", {
-          eventType: meta.event,
+          eventType,
         });
     }
 
-    log.response(200, "Keygen webhook processed", { eventType: meta?.event });
+    log.response(200, "Keygen webhook processed", { eventType });
     return NextResponse.json({ received: true });
   } catch (error) {
     log.exception(error, "keygen_webhook_failed", "Keygen webhook processing failed");
