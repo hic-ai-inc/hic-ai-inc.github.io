@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth-verify";
 import { getStripeClient } from "@/lib/stripe";
+import { getStripeSecrets } from "@/lib/secrets";
 import { getCustomerByEmail } from "@/lib/dynamodb";
 import { createApiLogger } from "@/lib/api-log";
 
@@ -54,11 +55,26 @@ export async function POST(request) {
     }
 
     const stripe = await getStripeClient();
+    const stripeSecrets = await getStripeSecrets();
 
-    const portalSession = await stripe.billingPortal.sessions.create({
+    // Use tier-specific portal configuration to prevent cross-tier switching.
+    // Individual subscribers see only Individual prices; Business see only Business.
+    const portalConfigId = customer.accountType === "business"
+      ? stripeSecrets.STRIPE_PORTAL_CONFIG_BUSINESS
+      : stripeSecrets.STRIPE_PORTAL_CONFIG_INDIVIDUAL;
+
+    const sessionParams = {
       customer: customer.stripeCustomerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/billing?updated=true`,
-    });
+    };
+
+    // Only pass configuration if we have a tier-specific config ID;
+    // otherwise fall back to the default portal configuration
+    if (portalConfigId) {
+      sessionParams.configuration = portalConfigId;
+    }
+
+    const portalSession = await stripe.billingPortal.sessions.create(sessionParams);
 
     log.response(200, "Portal stripe session created", {
       hasPortalUrl: Boolean(portalSession.url),

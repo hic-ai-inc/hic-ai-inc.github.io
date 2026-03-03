@@ -225,6 +225,10 @@ export async function getStripeSecrets() {
     return {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+      // Portal config IDs (not secrets — resource identifiers stored here
+      // because Amplify Gen 2 env vars don't propagate to SSR reliably)
+      STRIPE_PORTAL_CONFIG_INDIVIDUAL: process.env.STRIPE_PORTAL_CONFIG_INDIVIDUAL,
+      STRIPE_PORTAL_CONFIG_BUSINESS: process.env.STRIPE_PORTAL_CONFIG_BUSINESS,
     };
   }
 
@@ -236,6 +240,8 @@ export async function getStripeSecrets() {
     return {
       STRIPE_SECRET_KEY: secrets.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: secrets.STRIPE_WEBHOOK_SECRET,
+      STRIPE_PORTAL_CONFIG_INDIVIDUAL: secrets.STRIPE_PORTAL_CONFIG_INDIVIDUAL,
+      STRIPE_PORTAL_CONFIG_BUSINESS: secrets.STRIPE_PORTAL_CONFIG_BUSINESS,
     };
   } catch (error) {
     console.warn("[Secrets] Secrets Manager unavailable:", error.message);
@@ -251,6 +257,8 @@ export async function getStripeSecrets() {
     return {
       STRIPE_SECRET_KEY: ssmSecretKey,
       STRIPE_WEBHOOK_SECRET: ssmWebhookSecret,
+      STRIPE_PORTAL_CONFIG_INDIVIDUAL: process.env.STRIPE_PORTAL_CONFIG_INDIVIDUAL,
+      STRIPE_PORTAL_CONFIG_BUSINESS: process.env.STRIPE_PORTAL_CONFIG_BUSINESS,
     };
   }
 

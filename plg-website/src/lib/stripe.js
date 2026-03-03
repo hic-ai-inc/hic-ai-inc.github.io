@@ -62,7 +62,7 @@ export async function initializeStripeClient() {
   cachedSecrets = await getStripeSecrets();
 
   stripeClient = new Stripe(cachedSecrets.STRIPE_SECRET_KEY, {
-    apiVersion: "2024-12-18.acacia",
+    apiVersion: "2026-02-25.clover",
     typescript: false,
   });
 
