@@ -118,8 +118,10 @@ export async function POST(request) {
             cancel_at_period_end: true,
           });
           // Track when access ends for the response
-          if (subscription.current_period_end) {
-            accessUntil = new Date(subscription.current_period_end * 1000).toISOString();
+          // Stripe basil+ moved billing periods to subscription item level
+          const periodEnd = subscription.items?.data?.[0]?.current_period_end;
+          if (periodEnd) {
+            accessUntil = new Date(periodEnd * 1000).toISOString();
           }
         }
       } catch (stripeError) {

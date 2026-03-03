@@ -123,7 +123,7 @@
     - Fix any failures
     - Do not proceed until all tests pass
 
-- [-] 8. Commit and push to development, CI/CD pipeline
+- [x] 8. Commit and push to development, CI/CD pipeline
   - `git add -A && git commit` with descriptive message
   - `git push origin development`
   - Merge `origin development` to trigger Amplify build and automated tests
