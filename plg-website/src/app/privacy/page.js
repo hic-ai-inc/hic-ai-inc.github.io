@@ -2,7 +2,7 @@
  * Privacy Policy Page
  *
  * Privacy practices for Mouse software.
- * Last updated: January 2026
+ * Last updated: March 4, 2026
  */
 
 import { Header, Footer } from "@/components/layout";
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="text-slate-grey mb-12">
-            Last updated: January 23, 2026
+            Last updated: March 4, 2026
           </p>
 
           <div className="prose prose-invert prose-slate max-w-none space-y-8">
@@ -72,7 +72,6 @@ export default function PrivacyPage() {
                 <li>License activation and validation requests</li>
                 <li>Device identifiers (for device limit enforcement)</li>
                 <li>Extension version and VS Code version</li>
-                <li>Error logs (crash reports, if you opt in)</li>
               </ul>
 
               <h3 className="text-lg font-medium text-frost-white mb-2">
@@ -85,6 +84,29 @@ export default function PrivacyPage() {
                 <li>Keystrokes or clipboard contents</li>
                 <li>File paths or project structure</li>
               </ul>
+
+              <h3 className="text-lg font-medium text-frost-white mb-2 mt-4">
+                Website Analytics
+              </h3>
+              <p className="text-silver leading-relaxed">
+                Our website uses{" "}
+                <a
+                  href="https://plausible.io"
+                  className="text-cerulean-mist hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Plausible Analytics
+                </a>
+                , a privacy-friendly analytics service. Plausible does not use
+                cookies, does not collect personal data, and does not track
+                visitors across sites or devices. The data collected is
+                aggregated and anonymous, and includes page URLs, referrer
+                sources, browser and operating system type, and approximate
+                country derived from your IP address (your IP address itself is
+                never stored). This data is used solely to understand how
+                visitors use our website.
+              </p>
             </section>
 
             {/* Section 2 */}
@@ -131,12 +153,6 @@ export default function PrivacyPage() {
                     Legal Requirements:
                   </strong>{" "}
                   When required by law or to protect our rights
-                </li>
-                <li>
-                  <strong className="text-frost-white">
-                    Business Transfers:
-                  </strong>{" "}
-                  In connection with a merger, acquisition, or sale of assets
                 </li>
               </ul>
             </section>
@@ -205,28 +221,20 @@ export default function PrivacyPage() {
               </h2>
               <p className="text-silver leading-relaxed mb-4">
                 <strong className="text-frost-white">
-                  Mouse does not collect telemetry by default.
+                  Mouse does not collect telemetry.
                 </strong>{" "}
                 The Software operates entirely locally on your device without
                 transmitting usage data to our servers.
-              </p>
-              <p className="text-silver leading-relaxed mb-4">
-                For Enterprise customers, we offer the ability to collect
-                anonymized usage analytics through custom arrangements. Such
-                telemetry collection requires explicit written consent and is
-                configured on a case-by-case basis. Telemetry data may include
-                tool usage frequency, operation timing, and error rates—but
-                never source code, file contents, or AI conversations.
               </p>
               <p className="text-silver leading-relaxed">
                 If your organization is interested in usage analytics for
                 internal optimization or compliance purposes, please contact us
                 at{" "}
                 <a
-                  href="mailto:enterprise@hic-ai.com"
+                  href="mailto:sales@hic-ai.com"
                   className="text-cerulean-mist hover:underline"
                 >
-                  enterprise@hic-ai.com
+                  sales@hic-ai.com
                 </a>{" "}
                 to discuss options.
               </p>
