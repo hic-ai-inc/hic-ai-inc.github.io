@@ -160,10 +160,10 @@ _Internal sequencing: 2A → 2B → 2C → 2E. Steps 2D and 2F can run in parall
 
 _Note on AP 11 numbering: Assessment V3 §8.8 numbers items by category (11.1–11.3 = legal review, 11.4 = Plausible, 11.5–11.9 = IP/filings). Execution order has always been 11.4 first (Plausible → accurate Privacy Policy), which is why Step 2A precedes Step 2B here. No source document correction needed._
 
-- [ ] **11.4** Wire up Plausible analytics on staging (30m)
-- [ ] Verify data flowing in Plausible dashboard
+- [x] **11.4** Wire up Plausible analytics on staging (30m) ✅ (Mar 4)
+- [x] Verify data flowing in Plausible dashboard ✅ (Mar 4) — confirmed via DevTools (single script request, single POST to plausible.io/api/event) and Plausible Verify button on staging.hic-ai.com
 
-**Step 2A Checkpoint (CP-1):** Plausible script on staging, data confirmed. → Unlocks 2B.
+**Step 2A Checkpoint (CP-1):** ✅ (Mar 4) — Plausible script on staging, data confirmed. → Unlocks 2B.
 
 #### Step 2B: Legal Review — Privacy Policy & ToS (AP 11.1–11.3)
 
