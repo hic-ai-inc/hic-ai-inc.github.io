@@ -1165,7 +1165,7 @@ _Plan complete. Ready for SWR review and approval before handoff to Spec mode im
 
 **Date:** March 1, 2026
 **Author:** Kiro (AI Agent, supervised by SWR)
-**Status:** Documented — Pending SWR Prioritization Decision
+**Status:** Updated Mar 3, 2026 — A.7 and A.8 resolved; A.3–A.6 deferred per SWR to post-launch (see Technical Debt Log)
 **Context:** Findings from E2E validation of Stream 1D deliverables. Four issues identified: one confirmed bug in the email pipeline, one confirmed bug in the portal routing (fixed during this session), and two portal display gaps not covered by Stream 1D requirements.
 
 ---
@@ -1214,6 +1214,8 @@ Additionally, the status API did not return `cancelAtPeriodEnd` or `accessUntil`
 
 ### A.3 Gap: Portal Shows "Activate Your Mouse License" for `past_due` and `suspended` Users
 
+**Status:** Deferred (post-launch) — tracked in `docs/launch/TECHNICAL_DEBT_LOG.md` as TD-A3.
+
 **Severity:** Medium — misleading UX, but affects a small population (users who have missed multiple payments).
 
 **Symptom:** A user whose subscription is `past_due` (payment failed, within retry window) or `suspended` (payment failed after `MAX_PAYMENT_FAILURES = 3` attempts, Keygen license suspended) sees `NewUserDashboard` with "Activate Your Mouse License" and a checkout CTA. This is wrong — they have an existing account and should be directed to update their payment method, not purchase a new license.
@@ -1232,6 +1234,8 @@ This was not a regression — Stream 1D Requirement 12 only specified portal dis
 
 ### A.4 Gap: Portal Shows "Activate Your Mouse License" for `expired` Users
 
+**Status:** Deferred (post-launch) — tracked in `docs/launch/TECHNICAL_DEBT_LOG.md` as TD-A4.
+
 **Severity:** Low-Medium — the CTA is directionally correct (resubscribe) but the framing is wrong.
 
 **Symptom:** A user whose subscription has fully expired (Stripe subscription deleted, `subscriptionStatus: "expired"` in DynamoDB) sees `NewUserDashboard` with "Activate Your Mouse License." The messaging is not wrong per se — they do need to purchase again — but it treats a returning customer identically to a brand-new user who has never subscribed, which is a missed opportunity and slightly jarring.
@@ -1247,6 +1251,8 @@ This was not a regression — Stream 1D Requirement 12 only specified portal dis
 ---
 
 ### A.5 Gap: Suspended/Revoked Business Members See "Activate Your Mouse License"
+
+**Status:** Deferred (post-launch) — tracked in `docs/launch/TECHNICAL_DEBT_LOG.md` as TD-A5.
 
 **Severity:** High — actively misleading and potentially causes support tickets or accidental duplicate purchases.
 
@@ -1280,7 +1286,7 @@ This is a meaningful gap: the admin action (suspend/revoke) has no visible effec
 
 **Discovered:** E2E validation session, 2026-02-28 (second round, post-idempotency-guard deployment)
 
-**Status:** Open — idempotency guard deployed but not resolving the duplicate.
+**Status:** Deferred (post-launch) — tracked in `docs/launch/TECHNICAL_DEBT_LOG.md` as TD-A6. Idempotency guard deployed but not fully resolving Stripe dual-event duplication.
 
 **Symptom:** The user receives two copies of the "Cancellation Confirmed" email (subject: "We've received your cancellation request...") on every cancellation action. The portal UX is correct; only the email is duplicated.
 
@@ -1359,20 +1365,21 @@ A secondary pre-existing bug was also found: `getLicense(licenseKey)` was being 
 
 **Discovered:** E2E validation session, 2026-02-28
 
-**Status:** Partially resolved — deferred to Phase 3 Stream 3C (per SWR, Mar 1, 2026). "Customers can switch plans" toggle disabled in Stripe Dashboard as immediate mitigation, eliminating the Day 1 risk of cross-tier switching. Full fix (per-tier portal configurations with interval-only switching) deferred to Stream 3C where all SMP and portal finalization work is consolidated. See Tracker item 3.5.
+**Status:** ✅ Resolved — March 3, 2026. Following multi-day investigation and implementation, full fix was deployed using dual Stripe Customer Portal configurations (Individual + Business) and explicit server-side session routing. Front-end billing UX was restored to pre-spec behavior while preserving tier restrictions in the main Stripe Customer Portal.
 
 **Symptom:** The "Update Subscription" option in the Stripe Customer Portal allows customers to switch between Individual and Business tiers (upgrade or downgrade). This is not a supported operation — tier changes require a separate checkout flow with seat configuration, org provisioning, and Cognito RBAC group assignment. Only billing interval switching (monthly ↔ annual) should be permitted via the portal's Update Subscription flow.
 
 **Root cause:** The Stripe Customer Portal is configured to allow product/price switching across all prices in the product catalog, rather than being restricted to interval-only switches within the same product tier.
 
-**Fix:** In the Stripe Dashboard → Customer Portal settings → Subscription updates:
-- Set "Allow customers to switch plans" to restrict to interval changes only (monthly ↔ annual within the same tier).
-- Disable cross-product switching (Individual ↔ Business).
-- Alternatively, configure separate portal configurations per product tier if Stripe's UI does not support interval-only restriction natively — in that case, the portal link generation in `plg-website/src/app/api/portal/billing-portal/route.js` would need to pass the appropriate `configuration` ID based on the customer's current plan.
+**Fix Implemented (Mar 3):**
+- Implemented dual tier-specific Stripe portal configurations (Individual + Business) and server-side selection by account type.
+- Restored billing page UX to main-portal flow while sending explicit session mode (`main_portal`) to avoid deep-flow lock-in.
+- Updated `plg-website/src/app/api/portal/stripe-session/route.js` to enforce explicit mode contract (`main_portal` / `deep_flow`) and require tier config presence (fail-fast if missing).
+- Preserved deep-flow code path as optional/dormant (`deep_flow`) for future use without exposing it in current UX.
 
 **Note:** Even if a customer successfully switches tier via the portal today, the downstream effects (org provisioning, seat limits, Cognito group assignment) would not fire correctly because those are handled in `handleCheckoutCompleted`, not `handleSubscriptionUpdated`. The result would be a billing tier mismatch with no corresponding infrastructure change — a silent data integrity issue.
 
-**Files likely affected:** Stripe Dashboard configuration (no code change required for the simple fix); `plg-website/src/app/api/portal/billing-portal/route.js` if per-tier portal configurations are needed.
+**Files affected:** Stripe dashboard portal configurations; `plg-website/src/app/api/portal/stripe-session/route.js`; `plg-website/src/app/portal/billing/page.js`.
 
 **Severity:** High. Allows customers to take an action that produces a broken account state with no recovery path short of manual intervention.
 
@@ -1384,12 +1391,12 @@ A secondary pre-existing bug was also found: `getLicense(licenseKey)` was being 
 |---|---|---|---|---|---|
 | A.1 | Duplicate `CANCELLATION_REQUESTED` email | Bug | Medium | Yes — any cancellation | Superseded by A.6 (deeper analysis) |
 | A.2 | `cancellation_pending` → "Activate License" | Bug | High | Yes — any cancellation | **Fixed this session** |
-| A.3 | `past_due` / `suspended` → "Activate License" | Gap | Medium | No (requires failed payments) | Fix pre-launch recommended |
-| A.4 | `expired` → "Activate License" | Gap | Low-Medium | No (requires full lapse) | Fix pre-launch or shortly after |
-| A.5 | Suspended/revoked Business member → "Activate License" | Gap | High | No (requires Business + team members) | Fix before Business tier goes live |
-| A.6 | Duplicate cancellation email persists (Stripe dual-event) | Bug | Medium | Yes — any cancellation | Fix: subscription-level state check (Option A) |
+| A.3 | `past_due` / `suspended` → "Activate License" | Gap | Medium | No (requires failed payments) | Deferred (post-launch) — TD-A3 |
+| A.4 | `expired` → "Activate License" | Gap | Low-Medium | No (requires full lapse) | Deferred (post-launch) — TD-A4 |
+| A.5 | Suspended/revoked Business member → "Activate License" | Gap | High | No (requires Business + team members) | Deferred (post-launch) — TD-A5 |
+| A.6 | Duplicate cancellation email persists (Stripe dual-event) | Bug | Medium | Yes — any cancellation | Deferred (post-launch) — TD-A6 (urgent bugfix queue) |
 | A.7 | Keygen heartbeat 401 — licensed heartbeats rejected (JWT required, extension has no JWT) | Bug | High | Yes — all licensed users | ✅ Fixed (Mar 1): replaced JWT auth with license-credential validation on heartbeat path |
-| A.8 | Stripe Portal permits Individual ↔ Business tier switching | Config Bug | High | Yes — any subscriber | ✅ Mitigated (Mar 1): "switch plans" toggle disabled. Full fix (per-tier configs) deferred to Phase 3 Stream 3C item 3.5 |
+| A.8 | Stripe Portal permits Individual ↔ Business tier switching | Config Bug | High | Yes — any subscriber | ✅ Fixed (Mar 3): dual tier-specific portal configurations + explicit session mode contract + restored main-portal UX |
 
 ### Decision Log
 
@@ -1399,4 +1406,5 @@ A secondary pre-existing bug was also found: `getLicense(licenseKey)` was being 
 | A.1–A.5 documented as addendum (round 1) | Prioritization decision deferred to SWR | SWR |
 | A.6–A.8 documented as addendum (round 2) | Further E2E findings after idempotency guard deployment | SWR + agent |
 | A.8 mitigated — "switch plans" disabled; full fix deferred to Stream 3C | Stripe UI cannot restrict to interval-only switching natively; per-tier portal configs require API work best consolidated with SMP finalization | SWR (Mar 1) |
+| A.8 resolved — dual configs + explicit session contract deployed | Multi-day investigation and implementation confirmed stable behavior: restored main portal UX + tier restrictions preserved for Individual and Business | SWR + GC (Mar 3) |
 | A.7 resolved — JWT auth removed from licensed heartbeat path; license-credential validation implemented | Extension has no long-lived JWT; licenseKey + fingerprint + machineId are sufficient; user-device pairing already in DynamoDB from activation | SWR + agent (Mar 1) |
