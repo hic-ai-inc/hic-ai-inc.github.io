@@ -169,7 +169,7 @@ _Note on AP 11 numbering: Assessment V3 §8.8 numbers items by category (11.1–
 
 _SWR reviews as attorney. Depends on 2A (Plausible wired so policy is accurate)._
 
-- [ ] **11.1** Privacy Policy review — reflect Plausible (cookieless), Cognito, DynamoDB, SES, SMP/Link (1h)
+- [x] **11.1** Privacy Policy review — reflect Plausible (cookieless), Cognito, DynamoDB, SES, SMP/Link (1h) ✅ (Mar 4) — Added Website Analytics subsection disclosing Plausible (cookieless, no PII, aggregated only); updated Last Updated date.
 - [ ] **11.2** Terms of Service review — pricing, product details, limitations, seller-of-record (Link / Lemon Squeezy LLC) (1h)
 - [ ] **11.3** ToS ↔ refund policy cross-reference — align with SMP's 60-day discretionary window (30m)
 
