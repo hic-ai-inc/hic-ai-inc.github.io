@@ -34,6 +34,12 @@ const VALID_FLOWS = new Set([
   "cancel",
 ]);
 
+/** Valid endpoint modes */
+const VALID_MODES = new Set([
+  "main_portal",
+  "deep_flow",
+]);
+
 /** Flows that require an active Stripe subscription to proceed */
 const SUBSCRIPTION_FLOWS = new Set([
   "switch_to_annual",
@@ -157,9 +163,76 @@ export async function POST(request) {
       );
     }
 
-    // --- Parse and validate flow parameter ---
-    const body = await request.json();
-    const { flow, quantity } = body;
+    // --- Parse and validate request body contract ---
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      log.decision("invalid_body", "Portal stripe session rejected", {
+        reason: "invalid_json_body",
+      });
+      log.response(400, "Portal stripe session rejected", {
+        reason: "invalid_json_body",
+      });
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400 },
+      );
+    }
+
+    const { mode, flow, quantity } = body || {};
+
+    if (!mode || !VALID_MODES.has(mode)) {
+      log.decision("invalid_mode", "Portal stripe session rejected", {
+        reason: "missing_or_invalid_mode",
+        mode,
+      });
+      log.response(400, "Portal stripe session rejected", {
+        reason: "missing_or_invalid_mode",
+      });
+      return NextResponse.json(
+        { error: "Missing or invalid mode parameter. Valid values: main_portal, deep_flow" },
+        { status: 400 },
+      );
+    }
+
+    const stripe = await getStripeClient();
+    const stripeSecrets = await getStripeSecrets();
+
+    // --- Tier-specific portal config is mandatory ---
+    const portalConfigId = customer.accountType === "business"
+      ? stripeSecrets.STRIPE_PORTAL_CONFIG_BUSINESS
+      : stripeSecrets.STRIPE_PORTAL_CONFIG_INDIVIDUAL;
+
+    if (!portalConfigId) {
+      log.decision("missing_portal_config", "Portal stripe session rejected", {
+        reason: "missing_tier_portal_config",
+        accountType: customer.accountType,
+      });
+      log.response(500, "Portal stripe session rejected", {
+        reason: "missing_tier_portal_config",
+      });
+      return NextResponse.json(
+        { error: "Stripe portal configuration is missing for account tier" },
+        { status: 500 },
+      );
+    }
+
+    const sessionParams = {
+      customer: customer.stripeCustomerId,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/billing?updated=true`,
+      configuration: portalConfigId,
+    };
+
+    if (mode === "main_portal") {
+      const portalSession = await stripe.billingPortal.sessions.create(sessionParams);
+
+      log.response(200, "Portal stripe session created", {
+        mode,
+        hasPortalUrl: Boolean(portalSession.url),
+      });
+      return NextResponse.json({ url: portalSession.url });
+    }
 
     if (!flow || !VALID_FLOWS.has(flow)) {
       log.decision("invalid_flow", "Portal stripe session rejected", {
@@ -175,10 +248,7 @@ export async function POST(request) {
       );
     }
 
-    const stripe = await getStripeClient();
-    const stripeSecrets = await getStripeSecrets();
-
-    // --- Fetch active subscription for flows that need it ---
+    // --- Fetch active subscription for deep-flow actions that need it ---
     let subscription = null;
     if (SUBSCRIPTION_FLOWS.has(flow)) {
       const subscriptions = await stripe.subscriptions.list({
@@ -212,7 +282,6 @@ export async function POST(request) {
       const currentPriceId = subscription.items.data[0].price.id;
       const targetPriceId = STRIPE_PRICES[customer.accountType]?.[targetCycle];
 
-      // Reject if already on the target billing cycle
       if (currentPriceId === targetPriceId) {
         log.decision("already_on_target_cycle", "Portal stripe session rejected", {
           reason: "already_on_target_cycle",
@@ -229,9 +298,7 @@ export async function POST(request) {
       }
 
       flowData = buildCycleSwitchFlowData(targetCycle, customer.accountType, subscription);
-
     } else if (flow === "adjust_seats") {
-      // Individual accounts have fixed quantity — seat adjustment is Business-only
       if (customer.accountType === "individual") {
         log.decision("individual_seat_adjust", "Portal stripe session rejected", {
           reason: "individual_cannot_adjust_seats",
@@ -245,7 +312,6 @@ export async function POST(request) {
         );
       }
 
-      // Validate quantity: must be integer between 1 and 99 inclusive
       if (
         quantity == null ||
         typeof quantity !== "number" ||
@@ -267,34 +333,19 @@ export async function POST(request) {
       }
 
       flowData = buildSeatAdjustFlowData(quantity, subscription);
-
     } else if (flow === "update_payment") {
       flowData = { type: "payment_method_update" };
-
     } else if (flow === "cancel") {
       flowData = buildCancelFlowData(subscription);
     }
 
-    // --- Tier-specific portal config (preserved) ---
-    const portalConfigId = customer.accountType === "business"
-      ? stripeSecrets.STRIPE_PORTAL_CONFIG_BUSINESS
-      : stripeSecrets.STRIPE_PORTAL_CONFIG_INDIVIDUAL;
-
-    const sessionParams = {
-      customer: customer.stripeCustomerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/billing?updated=true`,
+    const portalSession = await stripe.billingPortal.sessions.create({
+      ...sessionParams,
       flow_data: flowData,
-    };
-
-    // Only pass configuration if we have a tier-specific config ID;
-    // otherwise fall back to the default portal configuration
-    if (portalConfigId) {
-      sessionParams.configuration = portalConfigId;
-    }
-
-    const portalSession = await stripe.billingPortal.sessions.create(sessionParams);
+    });
 
     log.response(200, "Portal stripe session created", {
+      mode,
       flow,
       flowDataType: flowData.type,
       hasPortalUrl: Boolean(portalSession.url),

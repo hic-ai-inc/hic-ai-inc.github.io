@@ -131,12 +131,26 @@ _Start after DMARC (0.7) is propagating._
 - [x] Evaluate Windsurf compatibility (promising — skipped in earlier testing, revisit)
 - [x] Confirm Augment/Blackbox status — currently require paid subscriptions for evaluation; defer unless free trial available
 - [x] Document client compatibility matrix — finalize supported vs. compatible vs. untested categories
+- [x] **A.8 follow-up (post-Stream 1D): Stripe Customer Portal remediation** ✅ (Mar 3) — Restored `/portal/billing` UX to pre-spec experience while preserving backend dual-tier portal configuration enforcement. Billing actions now explicitly open main Stripe Customer Portal (`mode: "main_portal"`), deep-flow path retained as optional/dormant (`mode: "deep_flow"`), and tier config fallback removed (fail-fast if tier config missing).
 
-**Stream 1D Checkpoint (CP-E2E):** ✅ (Mar 1) — All tested clients verified. Compatibility matrix finalized. Stream 1D implementation complete: cancellation email system, naming standardization, portal status fixes, all tests passing. ⚠️ See Addendum in `docs/plg/20260228_STREAM_1D_COMPLETION_PLAN.md` for open items (A.3–A.8). A.7 (Keygen heartbeat 401) ✅ resolved Mar 1: replaced JWT auth with license-credential validation on licensed heartbeat path; `machine.heartbeat.ping` now returns 200 OK in Keygen event log. Remaining open: A.3–A.6, A.8 (deferred to Stream 3C). → Unlocks Phase 2 AP 5.
+**Stream 1D Checkpoint (CP-E2E):** ✅ (Mar 3) — All tested clients verified. Compatibility matrix finalized. Stream 1D implementation complete: cancellation email system, naming standardization, portal status fixes, all tests passing. ⚠️ See Addendum in `docs/plg/20260228_STREAM_1D_COMPLETION_PLAN.md` for open items (A.3–A.8). A.7 (Keygen heartbeat 401) ✅ resolved Mar 1: replaced JWT auth with license-credential validation on licensed heartbeat path; `machine.heartbeat.ping` now returns 200 OK in Keygen event log. A.8 (Stripe portal issue) ✅ resolved Mar 3. Remaining open: A.3–A.6. → Unlocks Phase 2 AP 5.
+
+**Post-Stream 1D Addendum Status (A.3–A.8):**
+
+| Item | Current Status | Launch-Blocking? | Recommended Handling |
+| --- | --- | --- | --- |
+| A.3 | Deferred (post-launch) — `past_due` / `suspended` portal state routes to new-user UX (TD-A3) | No (does not affect new signups / first-purchase path) | Track in `docs/launch/TECHNICAL_DEBT_LOG.md`; fix in first post-launch UX batch |
+| A.4 | Deferred (post-launch) — `expired` users get new-user framing (TD-A4) | No | Track in `docs/launch/TECHNICAL_DEBT_LOG.md`; post-launch UX copy/state refinement |
+| A.5 | Deferred (post-launch) — suspended/revoked Business members get misleading checkout CTA (TD-A5) | No for Day 1 launch; Yes before Business team-management scale-up | Track in `docs/launch/TECHNICAL_DEBT_LOG.md`; prioritize before Business scale-up |
+| A.6 | Deferred (post-launch) — duplicate cancellation email on Stripe dual-event (TD-A6) | No hard launch block; user-facing quality bug | Track in `docs/launch/TECHNICAL_DEBT_LOG.md`; urgent post-launch bugfix queue |
+| A.7 | ✅ Resolved (Mar 1) | N/A | Closed |
+| A.8 | ✅ Resolved (Mar 3) | N/A | Closed |
 
 > **NOTE:** Following investigation, the following clients were deprecated: Cline (no project-level MCP configuration file strategy possible), CodeGPT (no longer compatible with MCP), and Copilot CLI (distinct from Copilot Chat; difficult to configure inside Codespaces; implementation deferred until post-launch and possibly until we have a binary version of Mouse to deploy). Claude Code and Claude Code CLI have been consolidated into a single client as they are packaged that way by Anthropic. Per SWR, implementation of Windsurf, Augment, Blackbox, along with Cline and Copilot CLI, will be deferred until post-launch. All other aspects of the installation/setup flows verified and confirmed by SWR to be ready for production and launch.
 
 ---
+
+> **PHASE 1 STATUS:** ✅ Complete. All Phase 1 workstreams are closed or explicitly deferred per SWR for post-launch tracking in the Technical Debt Log.
 
 ### Phase 2 — Website, Documentation & Legal (~2–3 days)
 
@@ -482,7 +496,9 @@ Decisions resolved during the execution sprint. Complements the Open Decisions R
 | Feb 24 | DEFER-1B | Stream 1B (SMP Code Integration) deferred from Phase 1 to Phase 3 Stream 3C. Rationale: avoid premature SMP activation before website/legal/social are complete; consolidate all Stripe/SMP work into single Phase 3 session. Zero Phase 2 impact confirmed. | Phase 1 reduced to 3 active streams (1A, 1C, 1D); Phase 3 Stream 3C expanded to absorb AP 8 AR Phases 1–2 + Phase 3. CP-SMP-2 becomes internal milestone within 3C. Effort: ~5–7h for expanded 3C. | SWR |
 | Feb 24 | HB-WEB-1 | Website heartbeat route fixes complete (4 surgical fixes). `NEXT_HEARTBEAT_SECONDS` extracted to `constants.js` at 600s (10 min) to match Extension client, well within Keygen's 3600s window. Over-limit response now includes version fields. Dead-code ternaries removed. Integration test fully aligned with route output. All 1,483 tests passing. Merged to `main`, CI/CD + Amplify deploy confirmed. | Stream 1A server-side prerequisites complete. Extension-side items (9.8–9.10) unblocked. Spec artifacts archived to `docs/completed-specs/`. | GC + SWR |
 | Mar 2 | PORTAL-FIX-1 | Stripe Customer Portal configuration drift fixed via CLI. Root cause: Dashboard silently added `"quantity"` to `default_allowed_updates` and dropped `products` array from `subscription_update`, allowing cross-tier switching (Individual ↔ Business) and unrestricted quantity changes. Fix: removed `"quantity"`, re-applied product-scoped pricing (each tier sees only its own monthly/annual prices). Single default config (`bpc_1SvKCPA4W8nJ0u4To8mdYBxu`) — two-config approach unnecessary. `setup-stripe-portal.js` updated with drift warning + `verifyConfiguration()` guard. Live-mode replication added as AP8 4.7 in Phase 4B. | Stream 3C step 3.5 complete. Phase 4B gains AP8 4.7 (live-mode portal config). Portal session creation code unchanged — no `configuration` ID needed. | GC + SWR |
+| Mar 3 | PORTAL-FIX-2 | Post-Stream 1D Stripe portal remediation completed in code. Restored pre-spec `/portal/billing` UX while preserving dual-tier portal restrictions. `portal/stripe-session` now requires explicit mode contract (`main_portal` or `deep_flow`), uses mandatory tier-specific config IDs, fails fast on missing tier config, and routes billing UX through `main_portal`. Deep-flow builders/validation retained as optional/dormant path. | A.8 follow-up marked complete in Phase 1 Stream 1D section. Stripe portal issue no longer deferred to Stream 3C. Phase 1 active streams remain complete. | GC + SWR |
 _Add rows as decisions are made during execution._
+
 
 ---
 
