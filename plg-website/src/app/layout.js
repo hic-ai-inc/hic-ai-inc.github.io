@@ -1,4 +1,5 @@
 import { Inter, Manrope } from "next/font/google";
+import Script from "next/script";
 import { CognitoProvider } from "@/lib/cognito-provider";
 import "./globals.css";
 
@@ -67,6 +68,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${manrope.variable}`}>
       <body className="antialiased">
+        <Script
+          src="https://plausible.io/js/pa-oATZnItA7afIgWa2fSRsq.js"
+          strategy="beforeInteractive"
+        />
+        <Script id="plausible-init" strategy="beforeInteractive">
+          {`window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()`}
+        </Script>
         <CognitoProvider>{children}</CognitoProvider>
       </body>
     </html>
