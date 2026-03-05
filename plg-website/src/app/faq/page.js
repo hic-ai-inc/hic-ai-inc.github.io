@@ -30,14 +30,38 @@ const faqCategories = [
           "Execution Slop is when an AI coding agent understands the task, selects the correct editing operation, but the edit still fails—wrong line, mangled syntax, corrupted file. It's the gap between intent and outcome. Mouse's precision tools close this gap.",
       },
       {
-        question: "How is Mouse different from other AI coding tools?",
-        answer:
-          "Mouse is the only tool that offers coordinate-based addressing (edit by line/column without echoing content), zero content-echo (70% fewer tokens), atomic batching (all-or-nothing operations), and in-place refinement (adjust staged edits without starting over). See our Features page for a full comparison.",
+        question: "How is Mouse different from an AI coding agent's built-in file-editing tools?",
+        answerJsx: (
+          <p className="text-silver leading-relaxed">
+            Mouse is the only tool that offers coordinate-based addressing (edit
+            by line/column without echoing content), zero content-echo (70%
+            fewer tokens), atomic batching (all-or-nothing operations), and
+            in-place refinement (adjust staged edits without starting over). See
+            our{" "}
+            <a href="/features" className="text-cerulean-mist hover:underline">
+              Features page
+            </a>{" "}
+            for a full comparison.
+          </p>
+        ),
       },
       {
-        question: "Does Mouse work with my AI assistant?",
-        answer:
-          "Mouse works with any AI coding agent that supports MCP (Model Context Protocol), including GitHub Copilot, Cursor, Claude, and others. The agent uses Mouse tools instead of its default file-editing tools.",
+        question: "Does Mouse work with my coding assistant?",
+        answerJsx: (
+          <p className="text-silver leading-relaxed">
+            Mouse is compatible with a range of integrated development
+            environments, AI coding clients, and models via the Model Context
+            Protocol (MCP), including GitHub Copilot, Cursor, Claude Code, and
+            more. Please see our{" "}
+            <a
+              href="/features#compatibility-heading"
+              className="text-cerulean-mist hover:underline"
+            >
+              Features page
+            </a>{" "}
+            for a complete compatibility summary.
+          </p>
+        ),
       },
     ],
   },
@@ -47,23 +71,39 @@ const faqCategories = [
     faqs: [
       {
         question: "How do I install Mouse?",
-        answer:
-          "Install Mouse via npx: `npx @get-hic/mouse --token=<your-token>`. This installs the MCP server components to your project's .hic/ directory. Then configure your VS Code settings to use the Mouse server. See our Docs for detailed instructions.",
+        answerJsx: (
+          <p className="text-silver leading-relaxed">
+            To install Mouse, navigate to the VS Code Marketplace or Open VSX
+            inside your IDE, search for &ldquo;Mouse&rdquo; by HIC AI, Inc.,
+            and click &ldquo;Install&rdquo;. Then, open the Command Palette
+            (Ctrl-Shift-P on a PC), enter &ldquo;Mouse: Initialize
+            Workspace&rdquo;, and select your coding assistant from the dropdown
+            menu. Click on the popup button to refresh your Developer Window,
+            and Mouse will be automatically added to your MCP config file (or
+            one will be generated automatically for you if you don&apos;t have
+            one already), and your agent is all set to begin using Mouse for
+            precision file navigation and editing! Please see our{" "}
+            <a href="/docs" className="text-cerulean-mist hover:underline">
+              /docs page
+            </a>{" "}
+            for full details.
+          </p>
+        ),
       },
       {
         question: "What IDEs does Mouse support?",
         answer:
-          "Mouse currently supports VS Code and Cursor. Both IDEs use the same installation process. Support for additional IDEs is planned for future releases.",
+          "Mouse currently supports VS Code, Cursor, and Kiro. The installation and setup process is identical across all of them.",
       },
       {
         question: "Does Mouse work offline?",
         answer:
-          "Yes! Mouse operates entirely locally on your device. It only needs internet connectivity for initial license activation and periodic validation (every 7 days). You can also use offline checkout mode for air-gapped environments.",
+          "Yes! Mouse operates entirely locally on your device. It only needs internet connectivity for initial license activation and periodic validation.",
       },
       {
         question: "What are the system requirements?",
         answer:
-          "Mouse requires Node.js 18+ and VS Code 1.85+ (or Cursor). The extension uses approximately 1.3MB of disk space. There are no special hardware requirements.",
+          "Mouse requires a supported IDE along with Node.js 20+. The extension uses approximately 1.3MB of disk space. There are no special hardware requirements.",
       },
     ],
   },
@@ -74,42 +114,113 @@ const faqCategories = [
       {
         question: "How much does Mouse cost?",
         answer:
-          "Individual: $15/month ($150/year, save $30). Enterprise: $25/seat/month or $250/seat/year (2 seat minimum). Both plans include a free trial—14 days for Individual, 30 days for Enterprise. All prices exclude applicable taxes.",
+          "Individual: $15/month ($150/year, save $30). Business: $35/seat/month ($350/seat/year). Both plans include a 14-day free trial. All prices exclude applicable taxes.",
       },
       {
         question: "Is there a free trial?",
         answer:
-          "Yes! Individual plans include a 14-day free trial with no credit card required. Enterprise plans include a 30-day trial. You get full access to all features during the trial.",
+          "Yes! Individual plans include a 14-day free trial with no credit card required. You get full access to all features during the trial.",
       },
       {
         question: "Can I use Mouse for commercial projects?",
         answer:
-          "Yes! Both Individual and Enterprise plans permit commercial use, subject to our Terms of Service.",
+          "Yes! Both Individual and Business plans permit commercial use, subject to our Terms of Service.",
       },
       {
         question: "What counts as a device?",
-        answer:
-          "Each VS Code installation on a unique machine counts as one device. Individual plans allow 3 devices; Enterprise plans allow 2 devices per seat. You can deactivate old devices anytime from your portal to free up slots.",
+        answerJsx: (
+          <>
+            <p className="text-silver leading-relaxed">
+              Each VS Code installation on a unique machine or container counts
+              as one device. Individual plans allow 3 concurrent devices;
+              Business plans allow 5 concurrent devices per seat. You can
+              deactivate old devices anytime from your portal to free up slots.
+            </p>
+            <p className="text-silver leading-relaxed mt-3">
+              <strong className="text-frost-white">Example:</strong> You
+              maintain two repositories on your local laptop at{" "}
+              <code className="text-cerulean-mist">~/source/repos/my-repo-1</code>{" "}
+              and{" "}
+              <code className="text-cerulean-mist">~/source/repos/my-repo-2</code>,
+              and you initialize Mouse in both workspaces in VS Code. This
+              counts as one device.
+            </p>
+            <p className="text-silver leading-relaxed mt-3">
+              <strong className="text-frost-white">Example:</strong> While
+              working on{" "}
+              <code className="text-cerulean-mist">~/source/repos/my-repo-1</code>{" "}
+              inside VS Code, you decide to spin up a GitHub Codespaces
+              container and work in the browser on{" "}
+              <code className="text-cerulean-mist">~/source/repos/my-repo-2</code>{" "}
+              at the same time. This will count as two devices.
+            </p>
+          </>
+        ),
       },
       {
         question: "Can I switch plans?",
-        answer:
-          "Yes! You can upgrade or downgrade at any time. When upgrading, you'll be prorated for the remainder of your billing cycle. When downgrading, the change takes effect at your next billing date.",
+        answerJsx: (
+          <p className="text-silver leading-relaxed">
+            Unfortunately, we are unable to permit Individual subscriptions to
+            convert to Business or vice versa at this time through our
+            self-checkout process. If you would like to upgrade from Individual
+            to Business or downgrade from Business to Individual, please contact{" "}
+            <a
+              href="mailto:billing@hic-ai.com"
+              className="text-cerulean-mist hover:underline"
+            >
+              billing@hic-ai.com
+            </a>{" "}
+            for assistance. You can always switch at any time from monthly to
+            annual payment schedules (or vice versa), update your payment
+            information, and (for Business subscriptions) add or remove seats.
+          </p>
+        ),
       },
       {
         question: "Do you offer refunds?",
-        answer:
-          "Yes. If you're not satisfied within the first 30 days, contact us for a full refund. No questions asked.",
+        answerJsx: (
+          <p className="text-silver leading-relaxed">
+            Yes. If you&apos;re not satisfied within the first 30 days of your
+            initial purchase, contact us at{" "}
+            <a
+              href="mailto:billing@hic-ai.com"
+              className="text-cerulean-mist hover:underline"
+            >
+              billing@hic-ai.com
+            </a>
+            {" "}for a full refund. No questions asked. See our{" "}
+            <a href="/refunds" className="text-cerulean-mist hover:underline">
+              Refund &amp; Cancellation Policy
+            </a>
+            {" "}for full details.
+          </p>
+        ),
       },
       {
         question: "What payment methods do you accept?",
         answer:
-          "We accept all major credit cards, PayPal, and local payment methods depending on your region. Payments are processed securely by our payment partner.",
+          "We accept all major credit cards, as well as numerous local payment methods depending on your region. Payments are processed securely by our payment vendor, Stripe, and handled by our merchant of record, Stripe Managed Payments.",
+      },
+      {
+        question: "How will charges appear on my card statements?",
+        answer: "Charges for your Mouse subscription will appear as: HIC AI INC.",
       },
       {
         question: "Are there volume discounts?",
-        answer:
-          "Yes, for Enterprise plans: 2-9 seats at standard pricing, 10-99 seats at 5% off, 100-499 seats at 10% off, 500-999 seats at 15% off, and 1,000+ seats at 20% off. Discounts apply to all seats in your order.",
+        answerJsx: (
+          <p className="text-silver leading-relaxed">
+            Yes, we provide volume discounts for 100 or more licenses. Please
+            contact sales at{" "}
+            <a
+              href="mailto:sales@hic-ai.com"
+              className="text-cerulean-mist hover:underline"
+            >
+              sales@hic-ai.com
+            </a>
+            {" "}for more information.
+          </p>
+        ),
       },
     ],
   },
@@ -120,23 +231,30 @@ const faqCategories = [
       {
         question: "Does Mouse send my code to your servers?",
         answer:
-          "No. Mouse operates exclusively locally on your device. We do not collect, transmit, or store your source code, file contents, AI prompts, AI responses, or keystrokes. See our Privacy Policy for details.",
+          "No. Mouse operates exclusively locally on your device. We do not collect, transmit, or store your source code, file contents, AI prompts, AI responses, or keystrokes.",
+        answerJsx: (
+          <p className="text-silver leading-relaxed">
+            No. Mouse operates exclusively locally on your device. We do not
+            collect, transmit, or store your source code, file contents, AI
+            prompts, AI responses, or keystrokes. See our{" "}
+            <a href="/privacy" className="text-cerulean-mist hover:underline">
+              Privacy Policy
+            </a>
+            {" "}for details.
+          </p>
+        ),
       },
       {
         question: "What data does Mouse collect?",
         answer:
-          "We collect only: account/payment information, license validation requests, device identifiers (for activation limits), and optional crash reports (opt-in only). We never see your code or AI conversations.",
+          "We collect only: account/payment information, license validation requests, and device identifiers (for activation limits). We never see your code or AI conversations.",
       },
       {
         question: "Is Mouse SOC 2 compliant?",
         answer:
           "We are currently pursuing SOC 2 Type II certification. Enterprise customers can request our security documentation and complete a security questionnaire. Contact enterprise@hic-ai.com.",
       },
-      {
-        question: "Can I use Mouse in an air-gapped environment?",
-        answer:
-          "Yes. Mouse supports offline checkout mode for air-gapped environments. You can validate your license for up to 30 days without network connectivity.",
-      },
+
     ],
   },
   {
@@ -258,9 +376,13 @@ export default function FAQPage() {
                           </svg>
                         </span>
                       </summary>
-                      <p className="mt-4 text-silver leading-relaxed">
-                        {faq.answer}
-                      </p>
+                      <div className="mt-4 overflow-hidden transition-all duration-300 ease-in-out">
+                        {faq.answerJsx ?? (
+                          <p className="text-silver leading-relaxed">
+                            {faq.answer}
+                          </p>
+                        )}
+                      </div>
                     </details>
                   ))}
                 </div>
