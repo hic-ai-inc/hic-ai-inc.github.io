@@ -42,21 +42,12 @@ export const metadata = {
     url: "https://hic-ai.com",
     siteName: "Mouse by HIC AI",
     title: "Mouse — Precision Editing Tools for AI Coding Agents",
-    description: "The first proven treatment for execution slop.",
-    images: [
-      {
-        url: "/images/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Mouse by HIC AI",
-      },
-    ],
+    description: "Mouse gives AI coding agents precision file editing tools — 56% higher accuracy, 58% lower cost, and 3.6× faster than built-in tools.",
   },
   twitter: {
     card: "summary_large_image",
     title: "Mouse — Precision Editing Tools for AI Coding Agents",
-    description: "The first proven treatment for execution slop.",
-    images: ["/images/og-image.png"],
+    description: "Mouse gives AI coding agents precision file editing tools — 56% higher accuracy, 58% lower cost, and 3.6× faster than built-in tools.",
   },
   robots: {
     index: true,

@@ -179,14 +179,20 @@ _SWR reviews as attorney. Depends on 2A (Plausible wired so policy is accurate).
 
 _Depends on 2B (legal pages finalized — don't proofread what will change)._
 
-- [x] **1.1** Fix conflicting pricing on FAQ vs. pricing page (15m) ✅ (Mar 5) — FAQ and pricing page aligned to Individual $15/mo/$150/yr, Business $35/seat/mo/$350/seat/yr. FAQ copy pass also completed: header logo fixed, accordion animation added, 14 Q&A updates (question renames, answer rewrites, Enterprise→Business, air-gapped Q&A removed, trial/data/switch-plans copy corrected).
+- [x] **1.1** Fix conflicting pricing on FAQ vs. pricing page (15m) ✅ (Mar 5) — FAQ and pricing page aligned to Individual $15/mo/$150/yr, Business $35/seat/mo/$350/seat/yr. FAQ copy pass also completed: header logo fixed, accordion animation added, 14 Q&A updates (question renames, answer rewrites, Enterprise→Business, air-gapped Q&A removed, trial/data/switch-plans copy corrected). Additional AP1 fixes completed same session: color token standardization across 11 pages (text-green-* → text-success, text-red-* → text-error, text-amber-* → text-warning, bg-deep-space → bg-midnight-navy, text-silver-mist → text-silver); raw Link CTAs → Button on about/contact (§2.5); stray `3;` removed from features page (§2.3); variant="outline" remains paused (§2.2).
 - [ ] **1.2** Login page — apply brand styling (1–2h)
 - [ ] **1.3** Invite page — apply brand styling (1h)
 - [ ] **1.4** Mobile navigation — implement responsive nav (1h)
 - [x] **1.5** Fix dead documentation links (30m) ✅ (Mar 5) — Removed dead doc links (Tool Reference, Advanced Features, Integration, Troubleshooting categories + dialog-box slug) from docs page; only Getting Started and Core Concepts remain.
 - [x] **1.6** Remove non-functional search bar (5m) ✅ (Mar 5) — Removed non-functional search bar and Input import from docs page.
-- [x] **2.1–2.5** Tier 2 items (partial) ✅ (Mar 5) — Color token standardization complete across docs, features, about, contact, portal/billing, portal/devices, portal/page, portal/team, activate, auth/callback, welcome/complete pages (text-green-* → text-success, text-red-* → text-error, text-amber-* → text-warning, bg-deep-space → bg-midnight-navy, text-silver-mist → text-silver); raw Link CTAs → Button component on about/contact; stray `3;` removed from features page. Sitemap, OG image, 404 page, footer links, accessibility basics remain pending.
-- [ ] **3.1–3.3** Tier 3 items: animation polish, dark mode refinements, micro-interactions
+- [x] **2.1** Sitemap — generate and submit sitemap.xml ✅ (Mar 5) — Created `src/app/sitemap.js` (Next.js App Router convention); covers 16 public routes with priorities and change frequencies. Excludes auth, portal, checkout, invite, activate.
+- [x] **2.2** OG image — create and wire up Open Graph image ✅ (Mar 5) — Created `src/app/opengraph-image.js` (edge runtime, ImageResponse); 1200×630, branded dark theme with MOUSE wordmark, tagline, and stats (56%/58%/3.6×).
+- [x] **2.3** 404 page — implement branded not-found page ✅ (Mar 5) — Created `src/app/not-found.js` (Next.js App Router convention); dark theme, 404 display, links to Home / Docs / Contact Support.
+- [ ] **2.4** Footer links — audit and fix all footer links
+- [ ] **2.5** Accessibility basics — audit and address critical a11y issues
+- [ ] **3.1** Animation polish
+- [ ] **3.2** Dark mode refinements
+- [ ] **3.3** Micro-interactions
 - [ ] Final responsive check across breakpoints
 
 **Step 2C Checkpoint (CP-4):** All pages proofread, no 404s, sitemap live, responsive check passed, OG image verified. → Unlocks 2E, AP 12 Phase 2.
