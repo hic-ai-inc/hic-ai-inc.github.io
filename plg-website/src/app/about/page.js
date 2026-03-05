@@ -10,6 +10,7 @@
 
 import Link from "next/link";
 import { Header, Footer } from "@/components/layout";
+import { Button } from "@/components/ui";
 
 export const metadata = {
   title: "About HIC AI | Humans In Charge - Mouse Precision File Editing",
@@ -67,7 +68,7 @@ export default function AboutPage() {
 
       <Header />
 
-      <main id="main-content" className="min-h-screen bg-deep-space">
+      <main id="main-content" className="min-h-screen bg-midnight-navy">
         {/* Hero Section */}
         <section
           aria-labelledby="about-heading"
@@ -102,7 +103,7 @@ export default function AboutPage() {
           className="px-6 py-20 border-b border-slate-grey/20"
         >
           <div className="max-w-4xl mx-auto animate-fade-in-up animate-delay-4">
-            <div className="bg-gradient-to-br from-cerulean-mist/10 via-deep-space to-cerulean-mist/5 rounded-2xl p-10 border border-cerulean-mist/20">
+            <div className="bg-gradient-to-br from-cerulean-mist/10 via-midnight-navy to-cerulean-mist/5 rounded-2xl p-10 border border-cerulean-mist/20">
               <h2
                 id="vision-heading"
                 className="text-4xl font-bold text-cerulean-mist mb-8 text-center"
@@ -293,28 +294,19 @@ export default function AboutPage() {
             >
               Ready to Try Mouse?
             </h2>
-            <p className="text-xl text-silver-mist mb-8">
+            <p className="text-xl text-silver mb-8">
               Start your 14-day free trial. No credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/pricing"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg bg-cerulean-mist text-deep-space hover:bg-cerulean-mist/90 transition-colors"
-              >
+              <Button href="/pricing" variant="primary" size="lg">
                 View Pricing
-              </Link>
-              <Link
-                href="/docs/quickstart"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg border border-cerulean-mist text-cerulean-mist hover:bg-cerulean-mist/10 transition-colors"
-              >
+              </Button>
+              <Button href="/docs/quickstart" variant="secondary" size="lg">
                 Read the Docs
-              </Link>
-              <Link
-                href="/contact"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg text-silver-mist hover:text-frost-white hover:bg-slate-grey/20 transition-colors"
-              >
+              </Button>
+              <Button href="/contact" variant="ghost" size="lg">
                 Contact Us
-              </Link>
+              </Button>
             </div>
           </div>
         </section>

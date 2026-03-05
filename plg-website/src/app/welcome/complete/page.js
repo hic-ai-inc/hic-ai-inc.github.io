@@ -148,9 +148,9 @@ function WelcomeCompleteContent() {
           <Container>
             <div className="max-w-lg mx-auto py-20">
               <Card className="text-center p-8">
-                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-error/20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg
-                    className="w-8 h-8 text-red-500"
+                    className="w-8 h-8 text-error"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -196,9 +196,9 @@ function WelcomeCompleteContent() {
           <div className="max-w-2xl mx-auto py-16">
             <Card className="p-8 text-center">
               {/* Success Icon */}
-              <div className="w-24 h-24 bg-gradient-to-br from-green-500/20 to-cerulean-mist/20 rounded-full flex items-center justify-center mx-auto mb-8">
+              <div className="w-24 h-24 bg-gradient-to-br from-success/20 to-cerulean-mist/20 rounded-full flex items-center justify-center mx-auto mb-8">
                 <svg
-                  className="w-12 h-12 text-green-500"
+                  className="w-12 h-12 text-success"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -235,7 +235,7 @@ function WelcomeCompleteContent() {
                   >
                     {copied ? (
                       <svg
-                        className="w-5 h-5 text-green-500"
+                        className="w-5 h-5 text-success"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"

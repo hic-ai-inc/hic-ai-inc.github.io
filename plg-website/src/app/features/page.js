@@ -1,4 +1,4 @@
-3; /**
+/**
  * Features Page
  *
  * Standalone features page with capability comparison matrix.
@@ -524,27 +524,27 @@ export default function FeaturesPage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">VS Code</span>
-                    <span className="text-green-400">✓ Confirmed</span>
+                    <span className="text-success">✓ Confirmed</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Cursor</span>
-                    <span className="text-green-400">✓ Confirmed</span>
+                    <span className="text-success">✓ Confirmed</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Kiro</span>
-                    <span className="text-green-400">✓ Confirmed</span>
+                    <span className="text-success">✓ Confirmed</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Windsurf</span>
-                    <span className="text-amber-400">⏳ Pending</span>
+                    <span className="text-warning">⏳ Pending</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Visual Studio</span>
-                    <span className="text-amber-400">⏳ Pending</span>
+                    <span className="text-warning">⏳ Pending</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-silver">JetBrains IDEs</span>
-                    <span className="text-amber-400">⏳ Pending</span>
+                    <span className="text-warning">⏳ Pending</span>
                   </div>
                 </div>
               </div>
@@ -557,31 +557,31 @@ export default function FeaturesPage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">GitHub Copilot</span>
-                    <span className="text-green-400">✓</span>
+                    <span className="text-success">✓</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Amazon Q Developer</span>
-                    <span className="text-green-400">✓</span>
+                    <span className="text-success">✓</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Claude Code</span>
-                    <span className="text-green-400">✓</span>
+                    <span className="text-success">✓</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Roo Code</span>
-                    <span className="text-green-400">✓</span>
+                    <span className="text-success">✓</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Cline</span>
-                    <span className="text-green-400">✓</span>
+                    <span className="text-success">✓</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-card-border/50">
                     <span className="text-silver">Kilo Code</span>
-                    <span className="text-green-400">✓</span>
+                    <span className="text-success">✓</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-silver">CodeGPT Chat</span>
-                    <span className="text-green-400">✓</span>
+                    <span className="text-success">✓</span>
                   </div>
                 </div>
               </div>
@@ -619,8 +619,8 @@ export default function FeaturesPage() {
             </div>
 
             {/* Value Proposition */}
-            <div className="mt-10 bg-card-bg rounded-lg p-8 border-2 border-green-500/60 text-center">
-              <h3 className="text-xl font-bold text-green-400 mb-3">
+            <div className="mt-10 bg-card-bg rounded-lg p-8 border-2 border-success/60 text-center">
+              <h3 className="text-xl font-bold text-success mb-3">
                 Keep Coding When Credits Run Out
               </h3>
               <p className="text-silver max-w-2xl mx-auto text-lg">

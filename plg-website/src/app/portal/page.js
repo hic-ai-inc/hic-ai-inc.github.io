@@ -344,7 +344,7 @@ function ActiveUserDashboard({
                     : "No active subscription"}
             </p>
             {cancelAtPeriodEnd && accessUntil && isOrgOwner && (
-              <p className="text-amber-400 text-xs mt-1">
+              <p className="text-warning text-xs mt-1">
                 Access until {accessUntil}
               </p>
             )}

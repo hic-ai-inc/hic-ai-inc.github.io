@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { Header, Footer, Container } from "@/components/layout";
-import { Input, Card, Badge } from "@/components/ui";
+import { Card, Badge } from "@/components/ui";
 
 // Documentation categories and pages
 const docs = [
@@ -47,112 +47,9 @@ const docs = [
         title: "Edit Operations",
         description: "INSERT, REPLACE, DELETE, FOR_LINES, and ADJUST",
       },
-      {
-        slug: "batch-editing",
-        title: "Batch Editing",
-        description: "Atomic multi-file edits with rollback support",
-      },
-      {
-        slug: "dialog-box",
-        title: "Dialog Box Review",
-        description: "Staged changes and human-in-the-loop approval",
-      },
     ],
   },
-  {
-    category: "Tool Reference",
-    icon: "🔧",
-    items: [
-      {
-        slug: "quick-edit",
-        title: "quick_edit",
-        description: "Single-operation file editing",
-        badge: "Tool",
-      },
-      {
-        slug: "batch-quick-edit",
-        title: "batch_quick_edit",
-        description: "Multi-operation atomic edits",
-        badge: "Tool",
-      },
-      {
-        slug: "find-in-file",
-        title: "find_in_file",
-        description: "Pattern search with column analysis",
-        badge: "Tool",
-      },
-      {
-        slug: "save-cancel-changes",
-        title: "save_changes / cancel_changes",
-        description: "Commit or discard staged edits",
-        badge: "Tool",
-      },
-    ],
-  },
-  {
-    category: "Advanced Features",
-    icon: "⚡",
-    items: [
-      {
-        slug: "columnar-editing",
-        title: "Columnar Editing",
-        description: "FOR_LINES and rect+move patterns",
-      },
-      {
-        slug: "zero-calc-workflow",
-        title: "Zero-Calc Workflow",
-        description: "Copy-paste rect notation from find_in_file",
-        badge: "New",
-      },
-      {
-        slug: "offline-mode",
-        title: "Offline Mode",
-        description: "License checkout for air-gapped environments",
-      },
-    ],
-  },
-  {
-    category: "Integration",
-    icon: "🔌",
-    items: [
-      {
-        slug: "vscode-setup",
-        title: "VS Code Configuration",
-        description: "Settings, keybindings, and workspace setup",
-      },
-      {
-        slug: "cursor-setup",
-        title: "Cursor IDE Setup",
-        description: "Using Mouse with Cursor",
-      },
-      {
-        slug: "agent-prompting",
-        title: "Agent Prompting",
-        description: "Best practices for AI agent instructions",
-      },
-    ],
-  },
-  {
-    category: "Troubleshooting",
-    icon: "🔍",
-    items: [
-      {
-        slug: "common-errors",
-        title: "Common Errors",
-        description: "Solutions to frequent issues",
-      },
-      {
-        slug: "license-issues",
-        title: "License Issues",
-        description: "Activation and validation troubleshooting",
-      },
-      {
-        slug: "debugging",
-        title: "Debugging Guide",
-        description: "Logs, diagnostics, and support",
-      },
-    ],
-  },
+
 ];
 
 export const metadata = {
@@ -177,27 +74,6 @@ export default function DocsPage() {
                 Everything you need to master precision editing with Mouse.
               </p>
 
-              {/* Search */}
-              <div className="relative max-w-xl">
-                <Input
-                  type="search"
-                  placeholder="Search documentation..."
-                  className="pl-10"
-                />
-                <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-frost-white/50"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
             </div>
           </Container>
         </section>

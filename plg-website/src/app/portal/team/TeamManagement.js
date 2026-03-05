@@ -300,7 +300,7 @@ export default function TeamManagement({ initialUserId }) {
       <Card>
         <CardContent className="py-8">
           <div className="text-center">
-            <p className="text-red-400 mb-4">{error}</p>
+            <p className="text-error mb-4">{error}</p>
             <Button onClick={fetchTeamData}>Retry</Button>
           </div>
         </CardContent>
@@ -357,7 +357,7 @@ export default function TeamManagement({ initialUserId }) {
                 </select>
               </div>
               {inviteError && (
-                <p className="text-red-400 text-sm">{inviteError}</p>
+                <p className="text-error text-sm">{inviteError}</p>
               )}
               <div className="flex gap-2 justify-end">
                 <Button
@@ -671,11 +671,11 @@ export default function TeamManagement({ initialUserId }) {
                       <p className="text-sm text-slate-grey">
                         Invited as {invite.role} •{" "}
                         {invite.status === "accepted" ? (
-                          <span className="text-green-400">
+                          <span className="text-success">
                             Accepted{invite.acceptedAt ? ` ${new Date(invite.acceptedAt).toLocaleDateString()}` : ""}
                           </span>
                         ) : expired ? (
-                          <span className="text-red-400">Expired</span>
+                          <span className="text-error">Expired</span>
                         ) : invite.expiresAt ? (
                           `Expires ${new Date(invite.expiresAt).toLocaleDateString()}`
                         ) : (

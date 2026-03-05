@@ -152,7 +152,7 @@ export default function BillingPage() {
         </div>
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-red-400 mb-4">{error}</p>
+            <p className="text-error mb-4">{error}</p>
             <Button onClick={fetchBillingData}>Try Again</Button>
           </CardContent>
         </Card>
@@ -171,16 +171,16 @@ export default function BillingPage() {
     <div className="max-w-4xl">
       {/* Success notification banner */}
       {successMessage && (
-        <div className="mb-6 p-4 bg-green-900/30 border border-green-500/50 rounded-lg flex items-center justify-between">
+        <div className="mb-6 p-4 bg-success/10 border border-success/30 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             <p className="text-green-300">{successMessage}</p>
           </div>
           <button 
             onClick={() => setSuccessMessage(null)}
-            className="text-green-400 hover:text-green-300"
+            className="text-success hover:text-success/80"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -222,7 +222,7 @@ export default function BillingPage() {
                 )}
               </p>
               {subscription?.cancelAtPeriodEnd && (
-                <p className="text-amber-400 text-sm mt-1">
+                <p className="text-warning text-sm mt-1">
                   Cancels on {formatDate(subscription.currentPeriodEnd)}
                 </p>
               )}

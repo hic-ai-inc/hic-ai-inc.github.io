@@ -10,6 +10,7 @@
 
 import Link from "next/link";
 import { Header, Footer } from "@/components/layout";
+import { Button } from "@/components/ui";
 import { EXTERNAL_URLS } from "@/lib/constants";
 
 export const metadata = {
@@ -140,7 +141,7 @@ export default function ContactPage() {
     <>
       <Header />
 
-      <main id="main-content" className="min-h-screen bg-deep-space">
+      <main id="main-content" className="min-h-screen bg-midnight-navy">
         {/* Hero Section */}
         <section
           aria-labelledby="contact-heading"
@@ -153,7 +154,7 @@ export default function ContactPage() {
             >
               Contact Us
             </h1>
-            <p className="text-xl text-silver-mist leading-relaxed mb-8">
+            <p className="text-xl text-silver leading-relaxed mb-8">
               We&apos;re here to help. Choose the channel that best fits your
               needs, and we&apos;ll get back to you as quickly as possible.
             </p>
@@ -166,7 +167,7 @@ export default function ContactPage() {
               <h2 className="text-lg font-semibold text-cerulean-mist mb-3">
                 Quick Contact Reference
               </h2>
-              <ul className="space-y-2 text-silver-mist text-sm">
+              <ul className="space-y-2 text-silver text-sm">
                 <li>
                   <strong className="text-frost-white">Sales:</strong>{" "}
                   <a
@@ -234,7 +235,7 @@ export default function ContactPage() {
             >
               Email Contacts
             </h2>
-            <p className="text-silver-mist mb-10">
+            <p className="text-silver mb-10">
               For the fastest response, please email the team most relevant to
               your inquiry:
             </p>
@@ -264,10 +265,10 @@ export default function ContactPage() {
                       >
                         {channel.email}
                       </a>
-                      <p className="text-silver-mist mt-3 text-sm">
+                      <p className="text-silver mt-3 text-sm">
                         {channel.description}
                       </p>
-                      <p className="text-xs text-silver-mist/70 mt-2">
+                      <p className="text-xs text-silver/70 mt-2">
                         <strong>Response time:</strong> {channel.responseTime}
                       </p>
                       <div className="mt-4">
@@ -303,7 +304,7 @@ export default function ContactPage() {
             >
               Community & Support
             </h2>
-            <p className="text-silver-mist mb-10">
+            <p className="text-silver mb-10">
               For technical questions, bug reports, and community discussions:
             </p>
 
@@ -323,12 +324,12 @@ export default function ContactPage() {
                           {channel.name}
                         </h3>
                         {channel.status === "Coming Soon" && (
-                          <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded">
+                          <span className="text-xs bg-warning/20 text-warning px-2 py-1 rounded">
                             Coming Soon
                           </span>
                         )}
                       </div>
-                      <p className="text-silver-mist text-sm mb-4">
+                      <p className="text-silver text-sm mb-4">
                         {channel.description}
                       </p>
                       {channel.status === "Active" ? (
@@ -342,7 +343,7 @@ export default function ContactPage() {
                           <span aria-hidden="true">→</span>
                         </a>
                       ) : (
-                        <span className="text-silver-mist/50 text-sm">
+                        <span className="text-silver/50 text-sm">
                           {channel.cta} (coming soon)
                         </span>
                       )}
@@ -367,7 +368,7 @@ export default function ContactPage() {
               >
                 Business License Support
               </h2>
-              <p className="text-silver-mist mb-4">
+              <p className="text-silver mb-4">
                 Business plan customers have access to priority email support
                 with 24-hour response times. After signing up for a{" "}
                 <Link
@@ -378,7 +379,7 @@ export default function ContactPage() {
                 </Link>
                 , you&apos;ll receive dedicated support credentials.
               </p>
-              <p className="text-silver-mist">
+              <p className="text-silver">
                 Need enterprise features like SSO, custom contracts, or
                 dedicated support?{" "}
                 <a
@@ -444,22 +445,16 @@ export default function ContactPage() {
             >
               Ready to Get Started?
             </h2>
-            <p className="text-xl text-silver-mist mb-8">
+            <p className="text-xl text-silver mb-8">
               Try Mouse free for 14 days. No credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/pricing"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg bg-cerulean-mist text-deep-space hover:bg-cerulean-mist/90 transition-colors"
-              >
+              <Button href="/pricing" variant="primary" size="lg">
                 View Pricing
-              </Link>
-              <Link
-                href="/docs/quickstart"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg border border-cerulean-mist text-cerulean-mist hover:bg-cerulean-mist/10 transition-colors"
-              >
+              </Button>
+              <Button href="/docs/quickstart" variant="secondary" size="lg">
                 Read the Docs
-              </Link>
+              </Button>
             </div>
           </div>
         </section>
