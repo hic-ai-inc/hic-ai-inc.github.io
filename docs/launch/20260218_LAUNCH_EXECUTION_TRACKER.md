@@ -179,7 +179,7 @@ _SWR reviews as attorney. Depends on 2A (Plausible wired so policy is accurate).
 
 _Depends on 2B (legal pages finalized — don't proofread what will change)._
 
-- [ ] **1.1** Fix conflicting pricing on FAQ vs. pricing page (15m)
+- [x] **1.1** Fix conflicting pricing on FAQ vs. pricing page (15m) ✅ (Mar 5) — FAQ and pricing page aligned to Individual $15/mo/$150/yr, Business $35/seat/mo/$350/seat/yr. FAQ copy pass also completed: header logo fixed, accordion animation added, 14 Q&A updates (question renames, answer rewrites, Enterprise→Business, air-gapped Q&A removed, trial/data/switch-plans copy corrected).
 - [ ] **1.2** Login page — apply brand styling (1–2h)
 - [ ] **1.3** Invite page — apply brand styling (1h)
 - [ ] **1.4** Mobile navigation — implement responsive nav (1h)

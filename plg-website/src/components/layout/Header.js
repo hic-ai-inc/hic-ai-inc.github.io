@@ -20,7 +20,7 @@ export default function Header() {
       <div className="flex items-center h-16">
         {/* Logo Icon - Left corner, fills header height, will toggle sidebar */}
         <button
-          className="h-14 w-14 ml-3 my-1 flex items-center justify-center flex-shrink-0 hover:bg-white/5 transition-colors overflow-hidden rounded"
+          className="ml-3 flex items-center justify-center flex-shrink-0 hover:bg-white/5 transition-colors rounded p-1"
           aria-label="Toggle sidebar"
           onClick={() => {
             // TODO: Implement sidebar toggle
@@ -30,11 +30,10 @@ export default function Header() {
           <Image
             src="/images/mouse-logo.png"
             alt="Mouse Logo"
-            width={192}
-            height={192}
+            width={56}
+            height={56}
             priority
-            className="h-48 w-48 scale-100"
-            style={{ objectFit: "none", objectPosition: "center 55%" }}
+            className="object-contain"
           />
         </button>
 

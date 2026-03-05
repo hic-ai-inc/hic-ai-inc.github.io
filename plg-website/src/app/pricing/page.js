@@ -59,7 +59,7 @@ const tiers = [
       "Full audit logging & exports",
       "License reassignment",
       "Email support (24h response)",
-      "Volume discounts (50+ seats)",
+      "Volume discounts (50+ seats; contact sales)",
       "Enterprise SSO (Contact Sales)",
     ],
     limitations: [],
