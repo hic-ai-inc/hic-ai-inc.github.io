@@ -170,8 +170,8 @@ _Note on AP 11 numbering: Assessment V3 §8.8 numbers items by category (11.1–
 _SWR reviews as attorney. Depends on 2A (Plausible wired so policy is accurate)._
 
 - [x] **11.1** Privacy Policy review — reflect Plausible (cookieless), Cognito, DynamoDB, SES, SMP/Link (1h) ✅ (Mar 4) — Added Website Analytics subsection disclosing Plausible (cookieless, no PII, aggregated only); updated Last Updated date.
-- [ ] **11.2** Terms of Service review — pricing, product details, limitations, seller-of-record (Link / Lemon Squeezy LLC) (1h)
-- [ ] **11.3** ToS ↔ refund policy cross-reference — align with SMP's 60-day discretionary window (30m)
+- [x] **11.2** Terms of Service review — pricing, product details, limitations, seller-of-record (Link / Lemon Squeezy LLC) (1h) ✅ (Mar 5) — Added trial license subparagraph to §2; updated §10/11 prominence; rewrote §12 (cause-based termination, notices, cure provision, refund cross-ref); updated §13 class action waiver; added Customer definition; linked Refund Policy throughout.
+- [x] **11.3** ToS ↔ refund policy cross-reference — align with SMP's 60-day discretionary window (30m) ✅ (Mar 5) — Dedicated /refunds page created; linked from ToS §5 and §12; Stripe/SMP prevailing-terms clause added to Refund Policy §8.
 
 **Step 2B Checkpoint (CP-2):** Privacy Policy and ToS updated on staging, approved by SWR. → Unlocks 2C, Phase 4.
 
@@ -448,7 +448,7 @@ Items requiring SWR's direct action, extracted from all APs. Grouped by hard dea
 | S1  | **SMP-GO** — Review 7 SMP Preview Terms provisions (indemnification, liability cap, beta disclaimers, fee changes, data processing, refund policy, 30-day termination). Issue GO or NO-GO. | Before Phase 3 3C    | Begin Phase 0 | AP 8 AR §4.2, OD #28    | ✅ Feb 23 |
 | S2  | **B-D1 decision** — Keep custom version update layer or rely on VS Code built-in?                                                                                                          | Before Phase 1 1A    | Phase 1 start | OD §3c                  | ✅ Feb 20 |
 | S3  | **Privacy Policy review** — Must reflect Plausible, Cognito, DynamoDB, SES, SMP/Link                                                                                                       | Phase 2 Step 2B      | Day 4         | AP 11.1, OD #29         | ☐      |
-| S4  | **ToS review** — Pricing, product details, seller-of-record, SMP 60-day refund window                                                                                                      | Phase 2 Step 2B      | Day 4         | AP 11.2–11.3, OD #30–31 | ☐      |
+| S4  | **ToS review** — Pricing, product details, seller-of-record, SMP 60-day refund window                                                                                                      | Phase 2 Step 2B      | Day 4         | AP 11.2–11.3, OD #30–31 | ✅ Mar 5 |
 | S5  | **B-D3 decision** — EventBridge `readyVersion` gating: deploy or launch without?                                                                                                           | Before Phase 4       | Day 7         | OD §3b                  | ☐      |
 | S6  | **Pre-Sprint Batch** — Confirm/override GC recommendations on OD #6–15 (AP5-Q1–Q4, AP8-D1–D2, AP4-D5, B-D4/D5/D6)                                                                          | Before Phase 1       | Day 1         | OD §2                   | ☐      |
 | S7  | **IP review** — Remove/generalize sensitive technical details from public docs/FAQ                                                                                                         | Before launch        | Phase 3+      | AP 11.5–11.7, OD #32    | ☐      |
