@@ -96,7 +96,7 @@ export default function CallbackPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
           <div className="text-center">
-            <div className="text-red-500 text-5xl mb-4">❌</div>
+            <div className="text-error text-5xl mb-4">❌</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
               Authentication Failed
             </h1>

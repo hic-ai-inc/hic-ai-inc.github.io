@@ -183,9 +183,9 @@ _Depends on 2B (legal pages finalized — don't proofread what will change)._
 - [ ] **1.2** Login page — apply brand styling (1–2h)
 - [ ] **1.3** Invite page — apply brand styling (1h)
 - [ ] **1.4** Mobile navigation — implement responsive nav (1h)
-- [ ] **1.5** Fix dead documentation links (30m)
-- [ ] **1.6** Remove non-functional search bar (5m)
-- [ ] **2.1–2.5** Tier 2 items: sitemap, OG image, 404 page, footer links, accessibility basics
+- [x] **1.5** Fix dead documentation links (30m) ✅ (Mar 5) — Removed dead doc links (Tool Reference, Advanced Features, Integration, Troubleshooting categories + dialog-box slug) from docs page; only Getting Started and Core Concepts remain.
+- [x] **1.6** Remove non-functional search bar (5m) ✅ (Mar 5) — Removed non-functional search bar and Input import from docs page.
+- [x] **2.1–2.5** Tier 2 items (partial) ✅ (Mar 5) — Color token standardization complete across docs, features, about, contact, portal/billing, portal/devices, portal/page, portal/team, activate, auth/callback, welcome/complete pages (text-green-* → text-success, text-red-* → text-error, text-amber-* → text-warning, bg-deep-space → bg-midnight-navy, text-silver-mist → text-silver); raw Link CTAs → Button component on about/contact; stray `3;` removed from features page. Sitemap, OG image, 404 page, footer links, accessibility basics remain pending.
 - [ ] **3.1–3.3** Tier 3 items: animation polish, dark mode refinements, micro-interactions
 - [ ] Final responsive check across breakpoints
 

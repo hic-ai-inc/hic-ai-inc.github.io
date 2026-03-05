@@ -117,7 +117,7 @@ export default function DevicesPage() {
         </div>
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-red-400 mb-4">{error}</p>
+            <p className="text-error mb-4">{error}</p>
             <Button onClick={fetchDevices}>Try Again</Button>
           </CardContent>
         </Card>
