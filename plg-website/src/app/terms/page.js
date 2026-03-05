@@ -22,7 +22,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-slate-grey mb-12">
-            Last updated: January 23, 2026
+            Last updated: March 4, 2026
           </p>
 
           <div className="prose prose-invert prose-slate max-w-none space-y-8">
@@ -70,6 +70,13 @@ export default function TermsPage() {
                   means a unique VS Code installation on a physical or virtual
                   machine.
                 </li>
+                <li>
+                  <strong className="text-frost-white">
+                    &quot;Customer&quot;
+                  </strong>{" "}
+                  means any person or entity who purchases a license
+                  subscription for the Software.
+                </li>
               </ul>
             </section>
 
@@ -88,6 +95,44 @@ export default function TermsPage() {
               <p className="text-silver leading-relaxed">
                 This license permits use for both personal and commercial
                 purposes, subject to the restrictions below.
+              </p>
+              <h3 className="text-lg font-medium text-frost-white mb-2 mt-6">
+                Trial License
+              </h3>
+              <p className="text-silver leading-relaxed mb-4">
+                Mouse is distributed as a VS Code extension and may be
+                installed free of charge. Upon installation, you will receive a
+                fourteen (14) day trial license that provides full access to
+                all Mouse functionality. During the trial period, the Software
+                will display informational notices (&quot;nag banners&quot;),
+                including a status bar indicator (e.g., &quot;Mouse: Trial
+                (14d)&quot;) and periodic messages accompanying a percentage of
+                Mouse tool responses informing the AI assistant that the Mouse
+                tools are not yet activated and that the trial term will expire.
+                We reserve the right to increase or change the frequency,
+                positioning, or behavior of nag banners at any time.
+              </p>
+              <p className="text-silver leading-relaxed mb-4">
+                We recommend purchasing a subscription prior to expiration of
+                the trial period to remove all nag banners and obtain the full
+                benefits of a licensed version of Mouse. We reserve the right
+                to change the terms of the trial license at any time, without
+                prior notice, including the right to cease offering trial
+                licenses free of charge or without requiring account
+                registration in advance.
+              </p>
+              <p className="text-silver leading-relaxed">
+                If the Mouse tools remain unlicensed beyond the expiration of
+                the license period — whether fourteen (14) days in the case of
+                a trial license, or upon expiration of an existing subscription
+                term without payment of the applicable renewal fee — the Mouse
+                tools will be placed in an expired state and, with the
+                exception of the <code className="text-cerulean-mist">license_status</code> tool,
+                will be disabled. To reactivate the Mouse tools after
+                expiration, you will need to process payment for a subscription
+                and enter a valid, active license key. To avoid disruption, we
+                encourage you to complete your purchase prior to expiration of
+                the trial period.
               </p>
             </section>
 
@@ -148,8 +193,14 @@ export default function TermsPage() {
               <p className="text-silver leading-relaxed mb-4">
                 Subscription fees are billed in advance on a monthly or annual
                 basis. All fees are non-refundable except as expressly provided
-                in our refund policy (30-day money-back guarantee for first-time
-                subscribers).
+                in our{" "}
+                <a
+                  href="/refunds"
+                  className="text-cerulean-mist hover:underline"
+                >
+                  refund policy
+                </a>{" "}
+                (30-day money-back guarantee for first-time subscribers).
               </p>
               <p className="text-silver leading-relaxed">
                 We reserve the right to change pricing with 30 days&apos;
@@ -241,7 +292,7 @@ export default function TermsPage() {
               <h2 className="text-2xl font-semibold text-frost-white mb-4">
                 10. Limitation of Liability
               </h2>
-              <p className="text-silver leading-relaxed uppercase text-sm">
+              <p className="text-frost-white leading-relaxed uppercase text-base font-bold">
                 TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL WE BE
                 LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR
                 PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, DATA, USE, OR
@@ -256,7 +307,7 @@ export default function TermsPage() {
               <h2 className="text-2xl font-semibold text-frost-white mb-4">
                 11. Indemnification
               </h2>
-              <p className="text-silver leading-relaxed">
+              <p className="text-frost-white leading-relaxed text-base font-bold">
                 You agree to indemnify, defend, and hold harmless the Company
                 and its officers, directors, employees, and agents from any
                 claims, damages, losses, or expenses arising out of your use of
@@ -270,14 +321,104 @@ export default function TermsPage() {
                 12. Term and Termination
               </h2>
               <p className="text-silver leading-relaxed mb-4">
-                These Terms remain in effect until terminated. We may terminate
-                or suspend your access immediately, without prior notice, for
-                any reason, including breach of these Terms.
+                These Terms remain in effect until the expiration of the
+                subscription term or earlier cancellation or termination. We
+                may suspend or terminate your access to the Software if, in
+                our sole but reasonable discretion, we determine that:
               </p>
-              <p className="text-silver leading-relaxed">
+              <ul className="list-disc pl-6 space-y-2 text-silver mb-4">
+                <li>
+                  You have failed to pay the subscription fees when due,
+                  notwithstanding any grace period we may provide within our
+                  sole discretion to become current on payment;
+                </li>
+                <li>
+                  You have materially breached these Terms or any applicable
+                  law or regulation;
+                </li>
+                <li>
+                  Your use of the Software poses a security risk or may cause
+                  harm to the Company, other users, or third parties;
+                </li>
+                <li>
+                  Your use of the Software may expose the Company to legal
+                  liability;
+                </li>
+                <li>
+                  You are using the Software to facilitate or further any
+                  unlawful activity; or
+                </li>
+                <li>
+                  You engage in conduct that is abusive, threatening, or
+                  harassing toward Company personnel or representatives.
+                </li>
+              </ul>
+              <p className="text-silver leading-relaxed mb-4">
+                Where practicable, we will provide you with reasonable notice
+                and an opportunity to cure any curable breach before
+                termination. However, we reserve the right to suspend access
+                immediately and without prior notice where we reasonably
+                believe immediate action is necessary to protect the Company,
+                its users, or third parties.
+              </p>
+              <p className="text-silver leading-relaxed mb-4">
+                All notices, complaints, claims, and disputes
+                (&quot;Notices&quot;) shall be made in writing and transmitted
+                by email, and both parties agree that email service of any
+                Notice shall be sufficient if made upon the other
+                party&apos;s valid email address. Each User is identified by
+                the unique email address provided by that User during the
+                registration process or invited by a multi-seat Business
+                license owner or admin user. You must maintain that email
+                address at all times during the term of the license and may
+                not change your user email address, which uniquely identifies
+                your subscription. You agree to contact us immediately if you
+                are no longer able to utilize that email address for any
+                reason, by writing to:{" "}
+                <a
+                  href="mailto:billing@hic-ai.com"
+                  className="text-cerulean-mist hover:underline"
+                >
+                  billing@hic-ai.com
+                </a>
+                . Service of any Notice shall be deemed effective upon
+                transmission if sent by you to:{" "}
+                <a
+                  href="mailto:legal@hic-ai.com"
+                  className="text-cerulean-mist hover:underline"
+                >
+                  legal@hic-ai.com
+                </a>
+                , and if sent by the Company, to the Customer&apos;s or
+                User&apos;s email address, as applicable. In case of a
+                Business license, service upon the Owner (primary billing)
+                account shall be deemed sufficient to effectuate service upon
+                the account, and the Company shall not be obligated to
+                transmit additional copies of the Notice to other members of
+                your team.
+              </p>
+              <p className="text-silver leading-relaxed mb-4">
+                If we terminate your subscription for cause during a prepaid
+                annual term, no refund will be issued for the remaining portion
+                of the term.
+              </p>
+              <p className="text-silver leading-relaxed mb-4">
                 Upon termination, your license to use the Software ceases
                 immediately. Sections 6, 9, 10, 11, and 14 shall survive
                 termination.
+              </p>
+              <p className="text-silver leading-relaxed">
+                You are always entitled to cancel your subscription at any
+                time. If you are a first-time subscriber, you may be entitled
+                to a refund if your request is made within 30 days of your
+                first purchase. Please see our{" "}
+                <a
+                  href="/refunds"
+                  className="text-cerulean-mist hover:underline"
+                >
+                  Refund and Cancellation Policy
+                </a>{" "}
+                for more details.
               </p>
             </section>
 
@@ -294,8 +435,9 @@ export default function TermsPage() {
                 Connecticut.
               </p>
               <p className="text-silver leading-relaxed">
-                YOU AGREE TO WAIVE ANY RIGHT TO PARTICIPATE IN A CLASS ACTION
-                LAWSUIT OR CLASS-WIDE ARBITRATION.
+                TO THE GREATEST EXTENT PERMITTED UNDER APPLICABLE LAW, YOU
+                HEREBY WAIVE ANY RIGHT TO PARTICIPATE IN A CLASS ACTION LAWSUIT
+                OR CLASS WIDE ARBITRATION.
               </p>
             </section>
 
