@@ -460,3 +460,259 @@ After all changes:
 ## 7. Casing Inconsistency (Pre-Existing)
 
 **Flagging but not fixing in this plan:** The `LICENSE_STATUS` enum uses UPPER_CASE values (`"ACTIVE"`, `"REVOKED"`), but Stripe/Keygen webhooks write lowercase to DynamoDB (`"active"`, `"expired"`, `"suspended"`). Some code paths compare against the enum; others compare against raw lowercase strings. This is a separate normalization task that should be tracked independently. For this plan, we use lowercase in DynamoDB (`"payment_suspended"`, `"admin_suspended"`) to match the dominant convention in webhook handlers, and UPPER_CASE in the enum for consistency with existing enum entries.
+
+---
+
+## Addendum A: Casing Inconsistency — Full Scope Investigation
+
+**Date:** March 6, 2026
+**Author:** Kiro (Claude Opus 4.6), Investigator
+**Requested by:** SWR
+**Status:** Findings and recommendations — pending SWR review
+
+### A.1 Summary
+
+Section 7 of this plan correctly flags a casing inconsistency between the `LICENSE_STATUS` enum (UPPER_CASE values) and the status strings actually written to DynamoDB (lowercase). Lines 279-281 identify 3 files to update. Investigation of the codebase reveals the inconsistency is **systemic**, spanning 20+ source files across 8 distinct layers. The 3 files identified are a subset of the problem, not the full extent.
+
+### A.2 The Eight Layers of Casing Inconsistency
+
+#### Layer 1: The `LICENSE_STATUS` Enum — UPPER_CASE, Unused by Writers
+
+`src/lib/constants.js` defines:
+
+```javascript
+export const LICENSE_STATUS = {
+  ACTIVE: "ACTIVE",
+  PAST_DUE: "PAST_DUE",
+  CANCELED: "CANCELED",
+  EXPIRED: "EXPIRED",
+  RETIRED: "RETIRED",
+  DISPUTED: "DISPUTED",
+  REVOKED: "REVOKED",
+  // ...
+};
+```
+
+`LICENSE_STATUS.` appears **zero times** in source code outside of `constants.js` itself. The enum exists but no writer references it. Every file that writes status values uses hardcoded lowercase strings instead.
+
+#### Layer 2: DynamoDB Writes — All Lowercase (8 Files, Not 3)
+
+Every file that writes `subscriptionStatus` or calls `updateLicenseStatus()` uses hardcoded lowercase strings:
+
+| File | Status Values Written |
+|---|---|
+| `src/app/api/webhooks/stripe/route.js` | `"active"`, `"past_due"`, `"suspended"`, `"expired"`, `"disputed"`, `"cancellation_pending"` |
+| `src/app/api/webhooks/keygen/route.js` | `"active"`, `"suspended"`, `"expired"`, `"revoked"` |
+| `infrastructure/lambda/customer-update/index.js` | `"active"`, `"past_due"`, `"suspended"`, `"expired"` |
+| `src/app/api/provision-license/route.js` | `"active"` |
+| `src/app/api/portal/team/route.js` | `"active"`, `"suspended"`, `"revoked"` (MEMBER# records) |
+| `src/app/api/portal/settings/route.js` | `"none"` |
+| `src/app/api/admin/provision-test-license/route.js` | `"active"` |
+| `src/lib/dynamodb.js` | `"active"`, `"pending"` (org member/invite functions) |
+
+The plan identified only the first 3. The remaining 5 also write lowercase status strings and would need to reference the normalized enum if casing is standardized.
+
+#### Layer 3: Keygen API — Lowercase Status, UPPER_CASE Codes
+
+Keygen returns `license.attributes.status` as lowercase (`"active"`, `"suspended"`, `"expired"`). The `keygen.js` library passes these through directly. The validate endpoint (`/api/license/validate`) returns `result.license.status` straight from Keygen — lowercase.
+
+However, Keygen validation *codes* (the `code` field, distinct from `status`) are UPPER_CASE: `"SUSPENDED"`, `"EXPIRED"`, `"HEARTBEAT_NOT_STARTED"`. This is a separate namespace but adds to the confusion — `"SUSPENDED"` as a code and `"suspended"` as a status coexist in the same API response.
+
+#### Layer 4: Portal UI — Ad-Hoc `.toUpperCase()` Bridges
+
+Two portal pages bridge the gap with runtime casing conversion:
+
+- `portal/page.js` ~line 264: `LICENSE_STATUS_DISPLAY[subscriptionStatus?.toUpperCase()]`
+- `portal/license/page.js` ~line 111: `license.status?.toUpperCase() || "ACTIVE"`
+
+These `.toUpperCase()` calls are the duct tape holding the display layer together. They convert lowercase DynamoDB/Keygen values to match the UPPER_CASE `LICENSE_STATUS_DISPLAY` keys. Without them, the portal would show the fallback "Active" badge for every status.
+
+#### Layer 5: Billing Page — Separate Lowercase Labels Map
+
+`portal/billing/page.js` ~lines 355-365 has a completely independent hardcoded lowercase labels map:
+
+```javascript
+const labels = {
+  active: "Active",
+  trialing: "Trial",
+  past_due: "Past Due",
+  cancellation_pending: "Cancellation Pending",
+  canceled: "Canceled",
+  expired: "Expired",
+  unpaid: "Unpaid",
+  incomplete: "Incomplete",
+  incomplete_expired: "Expired",
+};
+```
+
+This map does not reference `LICENSE_STATUS_DISPLAY` at all. It doesn't include `"suspended"` as a key. It's a third source of truth for status display labels.
+
+#### Layer 6: plg-metrics.js — Compares Against UPPER_CASE
+
+`scripts/plg-metrics.js` ~line 293 compares `license.attributes.status` from the Keygen API against UPPER_CASE strings:
+
+```javascript
+if (status === "ACTIVE") metrics.licenses.active++;
+else if (status === "INACTIVE") metrics.licenses.inactive++;
+else if (status === "SUSPENDED") metrics.licenses.suspended++;
+else if (status === "EXPIRED") metrics.licenses.expired++;
+```
+
+This is correct for Keygen's API response format (Keygen returns UPPER_CASE status in list responses), but it's a third casing convention in the system — distinct from both the enum values and the DynamoDB values.
+
+**Note:** This requires verification. The Keygen list API (`/licenses?limit=100`) may return status in a different casing than the single-license endpoints. If Keygen list responses use UPPER_CASE while single-license responses use lowercase, this is a Keygen API inconsistency that the metrics script correctly handles but that should be documented.
+
+#### Layer 7: Test Fixtures — Contradictory Casing
+
+`__tests__/fixtures/licenses.js` ~line 96 has:
+
+```javascript
+export const suspendedLicense = {
+  status: "SUSPENDED",  // UPPER_CASE
+  // ...
+};
+```
+
+But `__tests__/unit/api/portal.test.js` ~line 202 mocks the same Keygen response as:
+
+```javascript
+const keygenLicense = { status: "suspended" };  // lowercase
+```
+
+These fixtures contradict each other. One simulates Keygen returning UPPER_CASE, the other lowercase. Both pass their respective tests because the code under test handles both (or only one is actually exercised).
+
+#### Layer 8: Extension (`.hic/licensing/`) — Lowercase with UPPER_CASE Internal States
+
+The extension has its own casing split:
+
+| Component | Convention | Values |
+|---|---|---|
+| `VALID_LICENSE_STATES` (validation.js) | lowercase | `"active"`, `"suspended"`, `"expired"`, `"revoked"`, `"inactive"` |
+| `LICENSE_STATES` (constants.js) | UPPER_CASE | `SUSPENDED: "SUSPENDED"`, `EXPIRED: "EXPIRED"` |
+| `state.js` `getStatus()` | normalizes to lowercase | `return rawStatus.toLowerCase()` |
+| `http-client.js` | compares lowercase | `response.license?.status === "suspended"` |
+| `heartbeat.js` | converts to lowercase | `config.LICENSE_STATES.SUSPENDED.toLowerCase()` |
+
+The extension works because `state.js` normalizes everything to lowercase via `.toLowerCase()`. But the internal `LICENSE_STATES` enum stores UPPER_CASE values that are immediately lowercased on read — unnecessary indirection.
+
+### A.3 Complete Affected File Inventory (Source Files Only)
+
+| # | File | Casing Used | Issue |
+|---|---|---|---|
+| 1 | `src/lib/constants.js` | UPPER_CASE (enum values) | Enum defined but never referenced by writers |
+| 2 | `src/app/api/webhooks/stripe/route.js` | lowercase | Writes hardcoded lowercase, never references enum |
+| 3 | `src/app/api/webhooks/keygen/route.js` | lowercase | Writes hardcoded lowercase, never references enum |
+| 4 | `infrastructure/lambda/customer-update/index.js` | lowercase | Writes hardcoded lowercase, never references enum |
+| 5 | `src/app/api/provision-license/route.js` | lowercase | Writes hardcoded lowercase |
+| 6 | `src/app/api/portal/team/route.js` | lowercase | Writes hardcoded lowercase |
+| 7 | `src/app/api/portal/settings/route.js` | lowercase | Writes hardcoded lowercase |
+| 8 | `src/app/api/admin/provision-test-license/route.js` | lowercase | Writes hardcoded lowercase |
+| 9 | `src/lib/dynamodb.js` | lowercase | Writes lowercase in org member/invite functions |
+| 10 | `src/app/portal/page.js` | `.toUpperCase()` bridge | Runtime conversion to match UPPER_CASE enum |
+| 11 | `src/app/portal/license/page.js` | `.toUpperCase()` bridge | Runtime conversion to match UPPER_CASE enum |
+| 12 | `src/app/portal/billing/page.js` | lowercase (separate map) | Independent labels map, doesn't use enum |
+| 13 | `src/app/portal/team/TeamManagement.js` | lowercase | Compares against lowercase |
+| 14 | `src/app/api/portal/status/route.js` | lowercase | Compares against lowercase |
+| 15 | `scripts/plg-metrics.js` | UPPER_CASE | Compares Keygen API responses (UPPER_CASE) |
+| 16 | `src/app/api/license/validate/route.js` | passthrough | Returns Keygen status as-is (lowercase) |
+| 17 | `src/app/api/portal/license/route.js` | passthrough | Prefers Keygen status over DynamoDB (`keygenLicense?.status \|\| localLicense?.status`) |
+| 18 | `.hic/licensing/validation.js` | lowercase | `VALID_LICENSE_STATES` uses lowercase |
+| 19 | `.hic/licensing/constants.js` | UPPER_CASE | `LICENSE_STATES` uses UPPER_CASE values |
+| 20 | `.hic/licensing/state.js` | normalizes to lowercase | `getStatus()` calls `.toLowerCase()` |
+| 21 | `.hic/licensing/http-client.js` | lowercase | Compares `=== "suspended"` |
+| 22 | `.hic/licensing/heartbeat.js` | converts to lowercase | `LICENSE_STATES.SUSPENDED.toLowerCase()` |
+
+Plus test files: `__tests__/fixtures/licenses.js` (UPPER_CASE), `__tests__/unit/api/portal.test.js` (lowercase), and all other test files that use hardcoded status strings.
+
+### A.4 Recommendation: Standardize on Lowercase
+
+The plan's suggestion at line 275 to "use whichever casing is already dominant in each file's context" perpetuates the inconsistency. The correct fix is to pick one convention and enforce it everywhere.
+
+**Lowercase wins decisively:**
+
+- 8 out of 8 DynamoDB writer files use lowercase
+- Keygen single-license API returns lowercase
+- The extension normalizes to lowercase
+- The portal status API compares against lowercase
+- The team management UI compares against lowercase
+
+**Proposed normalization:**
+
+1. Change `LICENSE_STATUS` enum values to lowercase: `ACTIVE: "active"`, `PAST_DUE: "past_due"`, etc.
+2. Change `LICENSE_STATUS_DISPLAY` keys to lowercase: `active: { label: "Active", variant: "success" }`, etc.
+3. Remove `.toUpperCase()` bridges in `portal/page.js` and `portal/license/page.js`
+4. Consolidate `portal/billing/page.js` labels map into `LICENSE_STATUS_DISPLAY`
+5. Have all writer files reference the enum constants instead of hardcoded strings (e.g., `LICENSE_STATUS.ACTIVE` instead of `"active"`)
+6. Update `plg-metrics.js` to handle Keygen list API casing (verify actual Keygen response format first)
+7. In the extension: change `LICENSE_STATES` values to lowercase, remove `.toLowerCase()` normalization calls
+8. Fix contradictory test fixtures to use consistent lowercase
+
+**This normalization should be done as part of the disambiguation work, not separately.** The disambiguation plan already touches most of these files. Doing casing normalization in the same pass avoids rewriting the same files twice and ensures the new `"payment_suspended"` / `"admin_suspended"` values are introduced with consistent casing from the start.
+
+### A.5 Interaction with the Disambiguation Plan
+
+If casing normalization is integrated into the disambiguation:
+
+- Section 4.2 (Update Constants): Change enum values to lowercase at the same time as adding `PAYMENT_SUSPENDED` and `ADMIN_SUSPENDED`
+- Section 4.3 (Update Payment Path): Replace hardcoded strings with enum references
+- Section 4.4 (Split Email Templates): Use lowercase event type values consistently
+- Section 4.5 (Update Admin Path): Replace hardcoded strings with enum references
+- Section 4.7 (Migration): The reconciliation job normalizes casing for all existing records, not just `"suspended"` → `"payment_suspended"`
+
+This increases the scope of the disambiguation work but eliminates the need for a separate casing normalization pass later.
+
+---
+
+## Addendum B: RETIRED Status — Dead Code Confirmation
+
+**Date:** March 6, 2026
+**Author:** Kiro (Claude Opus 4.6), Investigator
+**Requested by:** SWR
+**Status:** Confirmed dead code — pending SWR review
+
+### B.1 Summary
+
+`RETIRED: "RETIRED"` in the `LICENSE_STATUS` enum (line 235 of this plan, line ~131 of `constants.js`) is confirmed dead code. It exists in exactly 3 locations in the codebase, all definitional — no business logic references it.
+
+### B.2 Complete Reference Inventory
+
+| # | File | Line | Context | Type |
+|---|---|---|---|---|
+| 1 | `src/lib/constants.js` | ~131 | `RETIRED: "RETIRED", // A.5.3 - Enterprise seat retired by admin` | Enum definition |
+| 2 | `src/lib/constants.js` | ~144 | `RETIRED: { label: "Retired", variant: "error" }` | Display config |
+| 3 | `__tests__/unit/lib/constants.test.js` | ~216 | `expect(LICENSE_STATUS.RETIRED).toBe("RETIRED")` | Test asserting enum exists |
+
+**Not referenced by:**
+- Any webhook handler (Stripe, Keygen)
+- Any Lambda function (customer-update, email-sender)
+- Any API route (portal, license, provision, admin)
+- Any UI component (portal pages, team management)
+- Any DynamoDB write path
+- The extension (`VALID_LICENSE_STATES` and `LICENSE_STATES` have no retired entry)
+- The email template system (no `licenseRetired` template, no `LICENSE_RETIRED` event type)
+- The metrics script
+
+### B.3 Origin and Context
+
+The comment `// A.5.3 - Enterprise seat retired by admin` references the Phase 2 user journey document (`docs/plg/20260122_GC_USER_JOURNEY_AND_GUEST_CHECKOUT_v2.md`), which describes an Enterprise tier seat reduction feature where an admin reduces seat count and selected licenses transition to `RETIRED` status.
+
+The `docs/plg/20260123_TODO_COLLECTION_FOR_PHASE_2.md` at line ~183 confirms this was a planned addition: `"Add RETIRED status for Enterprise seat reduction"`. The status was added to the enum as a forward-looking placeholder.
+
+However, the Enterprise tier was explicitly deferred to post-launch per the v4 pricing addendum. The `constants.js` file header confirms: `"v4.2: Individual ($15/mo) / Business ($35/seat/mo) — Note: Enterprise tier deferred to post-launch per v4 addendum"`.
+
+### B.4 Recommendation
+
+Remove `RETIRED` from `LICENSE_STATUS`, `LICENSE_STATUS_DISPLAY`, and the corresponding test assertion. The status has no business logic, no data path, and no UI integration. It references a deferred Enterprise tier feature that does not exist in the current 2-tier model.
+
+If/when the Enterprise tier is implemented post-launch, `RETIRED` (or whatever status name is appropriate at that time) can be re-added with actual business logic behind it. Keeping dead enum values in a codebase where naming consistency is a stated high-priority concern (Core Rule #4) creates unnecessary noise and risks future confusion — particularly given that AI-generated code may reference the enum value assuming it has meaning.
+
+### B.5 Scope of Removal
+
+| File | Change |
+|---|---|
+| `src/lib/constants.js` | Remove `RETIRED: "RETIRED"` from `LICENSE_STATUS` |
+| `src/lib/constants.js` | Remove `RETIRED: { label: "Retired", variant: "error" }` from `LICENSE_STATUS_DISPLAY` |
+| `__tests__/unit/lib/constants.test.js` | Remove `it("should have RETIRED status (A.5.3)")` test |
+
+No other files are affected. This is a 3-line removal with zero risk of runtime impact.
+
