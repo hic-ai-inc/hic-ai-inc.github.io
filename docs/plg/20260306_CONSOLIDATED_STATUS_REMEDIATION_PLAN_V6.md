@@ -7,7 +7,7 @@
 
 ---
 
-## 8 Bugs, 8 Fixes
+## 9 Bugs, 9 Fixes
 
 ### Fix 1: Keygen Licenses Expire Even When Stripe Is Paid
 
@@ -345,6 +345,105 @@ Every value already exists as a hardcoded string. No new events. Replace all har
 
 ---
 
+### Fix 9: Admin Suspension/Revocation Does Not Deactivate Member Devices
+
+**Problem:** When a Business account Owner suspends or revokes a team Member via `POST /api/portal/team` (`update_status` action), the code updates `ORG#{orgId}/MEMBER#{memberId}` status and fires an email event — but never deactivates the Member's devices in Keygen or DynamoDB. The heartbeat endpoint reads the `LICENSE#` record (which stays "active" since the Owner is paying) and the `DEVICE#` record (which has no status field). The suspended/revoked Member's extension continues to heartbeat successfully and retains indefinite free tool access.
+
+**Fix:**
+
+Two changes: (A) deactivate devices at suspension/revocation time, and (B) block re-activation of suspended/revoked members.
+
+**Part A — Deactivate Member Devices on Suspension/Revocation:**
+
+In `src/app/api/portal/team/route.js`, within the `update_status` case, after `updateOrgMemberStatus` and before the email event, deactivate all of the member's devices:
+
+```javascript
+// Deactivate suspended/revoked member's devices
+if (status === "suspended" || status === "revoked") {
+  // Get org's license via the owner's customer record
+  const org = await getOrganization(orgId);
+  const ownerCustomer = await getCustomerByUserId(org.ownerId);
+  const keygenLicenseId = ownerCustomer?.keygenLicenseId;
+
+  if (keygenLicenseId) {
+    const memberDevices = await getUserDevices(keygenLicenseId, memberId);
+    for (const device of memberDevices) {
+      try {
+        await deactivateDevice(device.keygenMachineId);  // Keygen DELETE
+      } catch (e) {
+        log.warn("device_keygen_deactivation_failed", "Keygen device deactivation failed", {
+          machineId: device.keygenMachineId,
+          errorMessage: e?.message,
+        });
+        // Continue — DDB cleanup is more important than Keygen sync
+      }
+      await removeDeviceActivation(keygenLicenseId, device.keygenMachineId, device.fingerprint);
+    }
+    log.info("member_devices_deactivated", "Member devices deactivated", {
+      memberId,
+      deviceCount: memberDevices.length,
+    });
+  }
+}
+```
+
+The `org` variable is already fetched later in the existing code (for the email event). Move or merge the `getOrganization` call to avoid a duplicate fetch.
+
+New imports required in `src/app/api/portal/team/route.js`:
+- `getUserDevices`, `removeDeviceActivation` from `@/lib/dynamodb`
+- `deactivateDevice` from `@/lib/keygen`
+
+**Part B — Block Re-Activation of Suspended/Revoked Members:**
+
+In `src/app/api/license/activate/route.js`, after JWT authentication and before the Keygen `validateLicense` call, check org membership status for Business plan activations:
+
+```javascript
+// Block activation for suspended/revoked org members
+const ddbLicense = await getDynamoLicense(validation.license.id);
+if (ddbLicense?.planName === "Business") {
+  const orgMembership = await getUserOrgMembership(userId);
+  if (orgMembership && ["suspended", "revoked"].includes(orgMembership.status)) {
+    return NextResponse.json(
+      {
+        error: "Your team access has been " + orgMembership.status,
+        code: "MEMBER_" + orgMembership.status.toUpperCase(),
+        detail: "Contact your team administrator to restore access",
+      },
+      { status: 403 },
+    );
+  }
+}
+```
+
+Note: This check must happen after `validateLicense` returns the `license.id` (since we need it to look up `planName`), so it goes in the activation path between validation and device limit enforcement. The `getUserOrgMembership` function already exists in `dynamodb.js` and is already imported in the team route; add the import to the activation route.
+
+New import required in `src/app/api/license/activate/route.js`:
+- `getUserOrgMembership` from `@/lib/dynamodb`
+
+**Enforcement Timing:**
+
+- Suspension takes effect within 10 minutes (next heartbeat returns `machine_not_found` since devices are deleted)
+- A malicious member who tries to re-activate before the heartbeat fires is blocked by the Part B guard
+- Reinstatement: Owner sets member status back to "active" via `update_status`. Member re-activates through the normal browser-delegated activation flow. This is the correct UX for a rare admin action.
+
+**Files:**
+- `src/app/api/portal/team/route.js` — deactivate member devices on suspension/revocation
+- `src/app/api/license/activate/route.js` — block re-activation of suspended/revoked members
+- `src/lib/dynamodb.js` — no new functions needed (`getUserDevices`, `removeDeviceActivation`, `getUserOrgMembership` already exist)
+- `src/lib/keygen.js` — no new functions needed (`deactivateDevice` already exists)
+
+**Tests:**
+- `update_status` to "suspended" deactivates all member devices (Keygen + DDB)
+- `update_status` to "revoked" deactivates all member devices (Keygen + DDB)
+- `update_status` to "active" does NOT deactivate devices (reinstatement)
+- Activation returns 403 `MEMBER_SUSPENDED` for suspended org members
+- Activation returns 403 `MEMBER_REVOKED` for revoked org members
+- Activation succeeds for active org members (no regression)
+- Keygen deactivation failure is non-blocking (DDB cleanup still happens)
+- Member with zero devices — suspension succeeds with no-op device cleanup
+
+---
+
 ## Production Config (Not Code)
 
 1. **Stripe Dashboard:** Smart Retries ON, 8 retries, 2-week max, cancel subscription after failure
@@ -375,14 +474,15 @@ active → past_due (2-week Stripe dunning, tools WORK) → expired (tools BLOCK
 | 6 | Fix 2 (Heartbeat) | Depends on Fix 5 (status list) and Fix 3 (casing). |
 | 7 | Fix 4 (Portal status) | Depends on Fix 3 (casing). |
 | 8 | Fix 7 (Keygen reads) | Last. Removes Keygen dependency from hot path. |
+| 9 | Fix 9 (Admin suspension) | After Fix 5 (suspended cleanup). Ensures admin suspension works correctly now that "suspended" is reserved for this purpose. |
 
 Test gate after each fix. 100% before moving to the next.
 
 ---
 
-## File Inventory (36 files)
+## File Inventory (39 files)
 
-### Website Source (14)
+### Website Source (16)
 
 | # | File | Fixes |
 |---|---|---|
@@ -400,38 +500,41 @@ Test gate after each fix. 100% before moving to the next.
 | 12 | `dm/layers/ses/src/email-templates.js` | 5, 8 |
 | 13 | `infrastructure/lambda/customer-update/index.js` | 5 |
 | 14 | `scripts/plg-metrics.js` | 3 |
+| 15 | `src/app/api/portal/team/route.js` | 9 |
+| 16 | `src/app/api/license/activate/route.js` | 9 |
 
 ### Extension Source (9) — in Extension repo (`~/source/repos/hic`), NOT `.hic/` in this workspace
 
 | # | File | Fixes |
 |---|---|---|
-| 15 | `licensing/constants.js` | 3 |
-| 16 | `licensing/validation.js` | 5 |
-| 17 | `licensing/state.js` | 3 |
-| 18 | `licensing/http-client.js` | 5 |
-| 19 | `licensing/heartbeat.js` | 5 |
-| 20 | `licensing/commands/validate.js` | 5 |
-| 21 | `mouse-vscode/src/licensing/heartbeat.js` | 5 |
-| 22 | `mouse-vscode/src/licensing/validation.js` | 5 |
-| 23 | `mouse-vscode/src/extension.js` | 5 |
+| 17 | `licensing/constants.js` | 3 |
+| 18 | `licensing/validation.js` | 5 |
+| 19 | `licensing/state.js` | 3 |
+| 20 | `licensing/http-client.js` | 5 |
+| 21 | `licensing/heartbeat.js` | 5 |
+| 22 | `licensing/commands/validate.js` | 5 |
+| 23 | `mouse-vscode/src/licensing/heartbeat.js` | 5 |
+| 24 | `mouse-vscode/src/licensing/validation.js` | 5 |
+| 25 | `mouse-vscode/src/extension.js` | 5 |
 
-### Test Files (13)
+### Test Files (14)
 
 | # | File |
 |---|---|
-| 24 | `__tests__/unit/lib/constants.test.js` |
-| 25 | `__tests__/unit/lib/keygen.test.js` |
-| 26 | `__tests__/unit/api/webhooks.test.js` |
-| 27 | `__tests__/unit/api/license.test.js` |
-| 28 | `__tests__/unit/api/portal.test.js` |
-| 29 | `__tests__/unit/lambda/customer-update.test.js` |
-| 30 | `__tests__/unit/lambda/email-sender.test.js` |
-| 31 | `__tests__/unit/scripts/plg-metrics.test.js` |
-| 32 | `__tests__/fixtures/licenses.js` |
-| 33 | `__tests__/fixtures/index.js` |
-| 34 | `__tests__/e2e/contracts/webhook-api.test.js` |
-| 35 | `__tests__/e2e/journeys/j3-license-activation.test.js` |
-| 36 | `__tests__/e2e/journeys/j8-subscription-lifecycle.test.js` |
+| 26 | `__tests__/unit/lib/constants.test.js` |
+| 27 | `__tests__/unit/lib/keygen.test.js` |
+| 28 | `__tests__/unit/api/webhooks.test.js` |
+| 29 | `__tests__/unit/api/license.test.js` |
+| 30 | `__tests__/unit/api/portal.test.js` |
+| 31 | `__tests__/unit/lambda/customer-update.test.js` |
+| 32 | `__tests__/unit/lambda/email-sender.test.js` |
+| 33 | `__tests__/unit/scripts/plg-metrics.test.js` |
+| 34 | `__tests__/fixtures/licenses.js` |
+| 35 | `__tests__/fixtures/index.js` |
+| 36 | `__tests__/e2e/contracts/webhook-api.test.js` |
+| 37 | `__tests__/e2e/journeys/j3-license-activation.test.js` |
+| 38 | `__tests__/e2e/journeys/j8-subscription-lifecycle.test.js` |
+| 39 | `__tests__/unit/api/team.test.js` |
 
 ---
 
@@ -440,7 +543,7 @@ Test gate after each fix. 100% before moving to the next.
 - SQS queue + DLQ for async Keygen mutation sync
 - License reconciliation scheduled task
 - Circuit breaker for Keygen mutation calls
-- Admin → Keygen device deactivation sync
+- ~~Admin → Keygen device deactivation sync~~ (addressed by Fix 9)
 - Legacy DynamoDB data migration (staging has zero data)
 - CloudWatch alarms for Keygen sync
 - New email templates (memberSuspended, memberRevoked, memberReactivated — deferred, can be added as SNS topic consumers later) — **Technical Debt: events are wired to DDB but downstream SES templates and Lambda triggers are not yet implemented**
