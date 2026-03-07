@@ -40,7 +40,7 @@ import {
   DEVICE_ACTIVITY_WINDOW_HOURS,
   DEVICE_ACTIVITY_WINDOW_MS,
   getMaxDevicesForAccountType,
-  MAX_PAYMENT_FAILURES,
+  EVENT_TYPES,
 } from "../../../src/lib/constants.js";
 
 describe("constants.js", () => {
@@ -69,12 +69,9 @@ describe("constants.js", () => {
   });
 
   describe("MAX_PAYMENT_FAILURES", () => {
-    it("should equal 3", () => {
-      expect(MAX_PAYMENT_FAILURES).toBe(3);
-    });
-
-    it("should be a number", () => {
-      expect(typeof MAX_PAYMENT_FAILURES).toBe("number");
+    it("should not be exported from constants (Requirement 4.8)", async () => {
+      const constants = await import("../../../src/lib/constants.js");
+      expect(constants.MAX_PAYMENT_FAILURES).toBeUndefined();
     });
   });
 
@@ -189,78 +186,88 @@ describe("constants.js", () => {
 
   describe("LICENSE_STATUS", () => {
     it("should have PENDING_ACCOUNT status", () => {
-      expect(LICENSE_STATUS.PENDING_ACCOUNT).toBe("PENDING_ACCOUNT");
+      expect(LICENSE_STATUS.PENDING_ACCOUNT).toBe("pending_account");
     });
 
     it("should have TRIAL status", () => {
-      expect(LICENSE_STATUS.TRIAL).toBe("TRIAL");
+      expect(LICENSE_STATUS.TRIAL).toBe("trial");
     });
 
     it("should have ACTIVE status", () => {
-      expect(LICENSE_STATUS.ACTIVE).toBe("ACTIVE");
+      expect(LICENSE_STATUS.ACTIVE).toBe("active");
     });
 
     it("should have PAST_DUE status", () => {
-      expect(LICENSE_STATUS.PAST_DUE).toBe("PAST_DUE");
+      expect(LICENSE_STATUS.PAST_DUE).toBe("past_due");
     });
 
     it("should have CANCELED status", () => {
-      expect(LICENSE_STATUS.CANCELED).toBe("CANCELED");
+      expect(LICENSE_STATUS.CANCELED).toBe("canceled");
     });
 
     it("should have EXPIRED status", () => {
-      expect(LICENSE_STATUS.EXPIRED).toBe("EXPIRED");
+      expect(LICENSE_STATUS.EXPIRED).toBe("expired");
     });
 
-    it("should have RETIRED status (A.5.3)", () => {
-      expect(LICENSE_STATUS.RETIRED).toBe("RETIRED");
+    it("should NOT have RETIRED status (Fix 6 — dead code removed)", () => {
+      expect(LICENSE_STATUS.RETIRED).toBeUndefined();
     });
 
     it("should have DISPUTED status (A.6.2)", () => {
-      expect(LICENSE_STATUS.DISPUTED).toBe("DISPUTED");
+      expect(LICENSE_STATUS.DISPUTED).toBe("disputed");
     });
 
     it("should have REVOKED status (A.7)", () => {
-      expect(LICENSE_STATUS.REVOKED).toBe("REVOKED");
+      expect(LICENSE_STATUS.REVOKED).toBe("revoked");
     });
 
     it("should have CANCELLATION_PENDING status", () => {
-      expect(LICENSE_STATUS.CANCELLATION_PENDING).toBe("CANCELLATION_PENDING");
+      expect(LICENSE_STATUS.CANCELLATION_PENDING).toBe("cancellation_pending");
     });
 
     it("should NOT have CANCELLED (double-L) status", () => {
       expect(LICENSE_STATUS.CANCELLED).toBeUndefined();
     });
+
+    it("should have SUSPENDED status (Fix 3 — admin-only)", () => {
+      expect(LICENSE_STATUS.SUSPENDED).toBe("suspended");
+    });
   });
 
   describe("LICENSE_STATUS_DISPLAY", () => {
     it("should have display config for all LICENSE_STATUS values", () => {
-      Object.keys(LICENSE_STATUS).forEach((status) => {
-        expect(LICENSE_STATUS_DISPLAY[status]).toBeDefined();
-        expect(LICENSE_STATUS_DISPLAY[status].label).toBeDefined();
-        expect(LICENSE_STATUS_DISPLAY[status].variant).toBeDefined();
+      Object.keys(LICENSE_STATUS).forEach((key) => {
+        const value = LICENSE_STATUS[key];
+        expect(LICENSE_STATUS_DISPLAY[value]).toBeDefined();
+        expect(LICENSE_STATUS_DISPLAY[value].label).toBeDefined();
+        expect(LICENSE_STATUS_DISPLAY[value].variant).toBeDefined();
       });
     });
 
     it("ACTIVE should have success variant", () => {
-      expect(LICENSE_STATUS_DISPLAY.ACTIVE.variant).toBe("success");
+      expect(LICENSE_STATUS_DISPLAY.active.variant).toBe("success");
     });
 
     it("PAST_DUE should have error variant", () => {
-      expect(LICENSE_STATUS_DISPLAY.PAST_DUE.variant).toBe("error");
+      expect(LICENSE_STATUS_DISPLAY.past_due.variant).toBe("error");
     });
 
     it("TRIAL should have info variant", () => {
-      expect(LICENSE_STATUS_DISPLAY.TRIAL.variant).toBe("info");
+      expect(LICENSE_STATUS_DISPLAY.trial.variant).toBe("info");
     });
 
     it("DISPUTED should have warning variant", () => {
-      expect(LICENSE_STATUS_DISPLAY.DISPUTED.variant).toBe("warning");
+      expect(LICENSE_STATUS_DISPLAY.disputed.variant).toBe("warning");
     });
 
     it("CANCELLATION_PENDING should have warning variant and correct label", () => {
-      expect(LICENSE_STATUS_DISPLAY.CANCELLATION_PENDING.variant).toBe("warning");
-      expect(LICENSE_STATUS_DISPLAY.CANCELLATION_PENDING.label).toBe("Cancellation Pending");
+      expect(LICENSE_STATUS_DISPLAY.cancellation_pending.variant).toBe("warning");
+      expect(LICENSE_STATUS_DISPLAY.cancellation_pending.label).toBe("Cancellation Pending");
+    });
+
+    it("should NOT have RETIRED key (Fix 6 — dead code removed)", () => {
+      expect(LICENSE_STATUS_DISPLAY.RETIRED).toBeUndefined();
+      expect(Object.keys(LICENSE_STATUS_DISPLAY)).not.toContain("RETIRED");
     });
   });
 
@@ -385,4 +392,114 @@ describe("constants.js", () => {
       expect(COMPANY_NAME).toBe("HIC AI");
     });
   });
+
+
+  describe("EVENT_TYPES", () => {
+    const EXPECTED_KEYS = [
+      "CUSTOMER_CREATED",
+      "LICENSE_CREATED",
+      "PAYMENT_FAILED",
+      "SUBSCRIPTION_REACTIVATED",
+      "CANCELLATION_REQUESTED",
+      "CANCELLATION_REVERSED",
+      "VOLUNTARY_CANCELLATION_EXPIRED",
+      "NONPAYMENT_CANCELLATION_EXPIRED",
+      "TEAM_INVITE_CREATED",
+      "TEAM_INVITE_RESENT",
+    ];
+
+    it("should contain all 10 expected event type keys", () => {
+      const keys = Object.keys(EVENT_TYPES);
+      expect(keys.length).toBe(10);
+      for (const key of EXPECTED_KEYS) {
+        expect(EVENT_TYPES[key]).toBeDefined();
+      }
+    });
+
+    it("should have string values matching their keys", () => {
+      for (const [key, value] of Object.entries(EVENT_TYPES)) {
+        expect(typeof value).toBe("string");
+        expect(value).toBe(key);
+      }
+    });
+
+    it("should have no unexpected keys beyond the 10 defined", () => {
+      const keys = Object.keys(EVENT_TYPES);
+      for (const key of keys) {
+        expect(EXPECTED_KEYS).toContain(key);
+      }
+    });
+
+    it("Stripe webhook handler should use EVENT_TYPES enum, not hardcoded strings", async () => {
+      // Grep verification: read the Stripe webhook source and confirm no bare event strings
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+      // Match quoted strings like "PAYMENT_FAILED" that are NOT preceded by EVENT_TYPES.
+      for (const key of EXPECTED_KEYS) {
+        const barePattern = new RegExp(`(?<!EVENT_TYPES\\.)"${key}"`, "g");
+        const matches = src.match(barePattern) || [];
+        expect(matches.length).toBe(0);
+      }
+    });
+
+    it("Keygen webhook handler should use EVENT_TYPES enum, not hardcoded strings", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/keygen/route.js"),
+        "utf-8",
+      );
+      for (const key of EXPECTED_KEYS) {
+        const barePattern = new RegExp(`(?<!EVENT_TYPES\\.)"${key}"`, "g");
+        const matches = src.match(barePattern) || [];
+        expect(matches.length).toBe(0);
+      }
+    });
+
+    it("Portal team route should use EVENT_TYPES enum, not hardcoded strings", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/portal/team/route.js"),
+        "utf-8",
+      );
+      for (const key of EXPECTED_KEYS) {
+        const barePattern = new RegExp(`(?<!EVENT_TYPES\\.)"${key}"`, "g");
+        const matches = src.match(barePattern) || [];
+        expect(matches.length).toBe(0);
+      }
+    });
+
+    it("Email templates EVENT_TYPE_TO_TEMPLATE should cover all EVENT_TYPES keys", async () => {
+      const { EVENT_TYPE_TO_TEMPLATE } = await import("../../../../dm/layers/ses/src/email-templates.js");
+      const templateKeys = Object.keys(EVENT_TYPE_TO_TEMPLATE);
+      for (const key of EXPECTED_KEYS) {
+        expect(templateKeys).toContain(key);
+      }
+    });
+
+  });
+
+  // Feature: status-remediation-plan, Property 1
+  // **Validates: Requirements 2.1, 2.2**
+  describe("Property 1: LICENSE_STATUS values are lowercase and DISPLAY keys match", () => {
+    it("every LICENSE_STATUS value should be a lowercase string", () => {
+      for (const [key, value] of Object.entries(LICENSE_STATUS)) {
+        expect(typeof value).toBe("string");
+        expect(value).toBe(value.toLowerCase());
+      }
+    });
+
+    it("every LICENSE_STATUS_DISPLAY key should exist as a value in LICENSE_STATUS", () => {
+      const statusValues = Object.values(LICENSE_STATUS);
+      for (const displayKey of Object.keys(LICENSE_STATUS_DISPLAY)) {
+        expect(statusValues).toContain(displayKey);
+      }
+    });
+  });
+
 });

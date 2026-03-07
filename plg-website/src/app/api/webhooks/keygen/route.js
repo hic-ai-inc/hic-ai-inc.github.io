@@ -297,22 +297,9 @@ async function handleLicenseExpired(data, log) {
 
 async function handleLicenseSuspended(data, log) {
   const licenseId = data.id;
-  log.info("license_suspended", "License suspended event received", { licenseId });
-
-  const license = await getLicense(licenseId);
-
-  await updateLicenseStatus(licenseId, "suspended", {
-    suspendedAt: new Date().toISOString(),
-    eventType: "LICENSE_SUSPENDED",
-    email: license?.email,
-  });
-
-  if (license?.email) {
-    log.info("license_suspended_email_pipeline_triggered", "License suspension email will be sent via event pipeline", {
-      hasEmail: true,
-      licenseId,
-    });
-  }
+  // Log only — Keygen suspension is a side effect of our own suspendLicense calls.
+  // DDB status is already set by the originating handler (Stripe webhook or team route).
+  log.info("license_suspended_acknowledged", "License suspended event received (log-only, no DDB write)", { licenseId });
 }
 
 async function handleLicenseReinstated(data, log) {

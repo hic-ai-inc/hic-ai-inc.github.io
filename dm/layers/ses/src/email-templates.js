@@ -544,62 +544,6 @@ ${COMPANY_NAME}`,
     }),
 
     // ========================================================================
-    // 8. LICENSE SUSPENDED - Due to billing/policy issues
-    // ========================================================================
-    licenseSuspended: ({ email }) => ({
-      subject: `Your ${PRODUCT_NAME} License Has Been Suspended`,
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B1220; color: #F6F8FB; padding: 40px 20px;">
-  <div style="max-width: 600px; margin: 0 auto;">
-    <h1 style="color: #F87171; margin-bottom: 24px;">License Suspended ⚠️</h1>
-    
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      Your ${PRODUCT_NAME} license has been suspended.
-    </p>
-    
-    <p style="color: #B8C4D0; font-size: 16px; line-height: 1.6;">
-      This may be due to a billing issue or policy violation. Please check your account status or contact support to resolve this.
-    </p>
-    
-    <div style="margin: 32px 0;">
-      <a href="${APP_URL}/portal/billing" 
-         style="display: inline-block; background-color: #C9DBF0; color: #0B1220; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-        Check Account Status
-      </a>
-    </div>
-    
-    <p style="color: #6B7C93; font-size: 14px;">
-      Need help? Contact billing@hic-ai.com
-    </p>
-    
-    <hr style="border: none; border-top: 1px solid rgba(201, 219, 240, 0.2); margin: 32px 0;">
-    
-    <p style="color: #6B7C93; font-size: 12px;">
-      ${COMPANY_NAME} • Precision Editing Tools for AI Coding Agents
-    </p>
-  </div>
-</body>
-</html>`,
-      text: `License Suspended
-
-Your ${PRODUCT_NAME} license has been suspended.
-
-This may be due to a billing issue or policy violation. Please check your account status or contact billing@hic-ai.com to resolve this.
-
-Check account: ${APP_URL}/portal/billing
-
-Need help? Contact billing@hic-ai.com
-
-${COMPANY_NAME}`,
-    }),
-
-    // ========================================================================
     // 9. WIN-BACK 30 - 30 days post-cancellation (A.9.2)
     // ========================================================================
     winBack30: ({ email }) => ({
@@ -886,7 +830,6 @@ export const TEMPLATE_NAMES = [
   "voluntaryCancellationExpired",
   "nonpaymentCancellationExpired",
   "licenseRevoked",
-  "licenseSuspended",
   "winBack30",
   "winBack90",
   "enterpriseInvite",
@@ -896,11 +839,14 @@ export const TEMPLATE_NAMES = [
 /**
  * Event type to template name mapping
  * Used by event-driven email Lambda
+ *
+ * Keys must stay in sync with EVENT_TYPES enum in plg-website/src/lib/constants.js.
+ * DM layer cannot import from plg-website — grep verification in constants.test.js
+ * ensures no drift between these keys and the canonical EVENT_TYPES enum.
  */
 export const EVENT_TYPE_TO_TEMPLATE = {
   LICENSE_CREATED: "licenseDelivery",
   LICENSE_REVOKED: "licenseRevoked",
-  LICENSE_SUSPENDED: "licenseSuspended",
   CUSTOMER_CREATED: "welcome",
   CANCELLATION_REQUESTED: "cancellationRequested",
   CANCELLATION_REVERSED: "cancellationReversed",

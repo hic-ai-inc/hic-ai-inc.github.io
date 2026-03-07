@@ -548,3 +548,42 @@ Test gate after each fix. 100% before moving to the next.
 - CloudWatch alarms for Keygen sync
 - New email templates (memberSuspended, memberRevoked, memberReactivated — deferred, can be added as SNS topic consumers later) — **Technical Debt: events are wired to DDB but downstream SES templates and Lambda triggers are not yet implemented**
 - Stripe-specific statuses in LICENSE_STATUS enum (billing page keeps its own map)
+
+---
+
+## Addendum: Extension VSIX Packaging Issue (Discovered 2026-03-07)
+
+During Fix 3 implementation, test files were found shipping inside the installed `.hic/` extension directory:
+
+- `.hic/licensing/tests/commands.test.js`
+- `.hic/licensing/tests/heartbeat.test.js`
+- `.hic/licensing/tests/http-client.test.js`
+- `.hic/licensing/tests/state.test.js`
+- `.hic/licensing/tests/version.test.js`
+
+These test files should not be included in the VSIX package distributed to end users. The extension repo's `.vscodeignore` (or equivalent build pipeline config) at `~/source/repos/hic` needs a `**/tests/**` exclusion added before the next VSIX publish. This is a packaging hygiene issue, not a functional bug — but it increases the extension's install size and exposes internal test infrastructure to users.
+
+## Addendum: paymentFailed Email Template Copy Issue (Discovered 2026-03-07)
+
+During Fix 5 implementation (Task 6.8), the `licenseSuspended` template was removed from `dm/layers/ses/src/email-templates.js`. However, the `paymentFailed` template still contains user-facing copy referencing suspension:
+
+- Line ~186: "Your subscription has been suspended"
+- Line ~216: Similar suspension language
+
+With the new `active → past_due → expired` lifecycle, this copy is inaccurate — payment failure no longer leads to suspension. The template text should be updated to reflect the actual lifecycle (e.g., "Your payment failed and your subscription is now past due" or similar).
+
+This is a cosmetic/UX issue, not a functional bug. The template is triggered correctly by `PAYMENT_FAILED` events; only the body copy is stale. Recommend addressing in a follow-up pass after the core remediation is complete.
+
+
+## Addendum: handlePaymentFailed Allowlist Guard Tightened (2026-03-07)
+
+During Task 6.14/6.15 implementation review, the `PAYMENT_FAILURE_ELIGIBLE_STATUSES` allowlist in `handlePaymentFailed` was tightened from `["active", "past_due", "trial", "cancellation_pending"]` to `["active", "past_due"]` only.
+
+Rationale: Only customers with active renewal subscriptions should transition to "past_due" (which grants a full 2-week dunning period of continued usage). Trial users have no renewal invoice — Stripe won't fire `invoice.payment_failed` for them. Cancellation-pending users have an already-paid term that expires into cancellation with no renewal attempt. Allowing either status to resolve to "past_due" would be a privilege escalation vector (CWE-367).
+
+Changes applied to:
+- `plg-website/src/app/api/webhooks/stripe/route.js` (source)
+- `plg-website/__tests__/unit/webhooks/stripe.test.js` (unit tests — added trial and cancellation_pending ineligible tests)
+- `plg-website/__tests__/property/webhooks/stripe.property.test.js` (Property 5 — updated generators)
+
+All 1787 tests pass after this change.

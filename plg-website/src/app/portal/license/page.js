@@ -108,13 +108,13 @@ export default function LicensePage() {
 
   const fullLicenseKey = license.licenseKey || "";
   const licenseKey = formatLicenseKeyForDisplay(fullLicenseKey);
-  const licenseStatus = license.status?.toUpperCase() || "ACTIVE";
+  const licenseStatus = license.status || "active";
   const accountType = license.planName || license.accountType || "Individual";
   const expiresAt = license.expiresAt;
   const issuedAt = license.createdAt;
 
   const statusDisplay =
-    LICENSE_STATUS_DISPLAY[licenseStatus] || LICENSE_STATUS_DISPLAY.ACTIVE;
+    LICENSE_STATUS_DISPLAY[licenseStatus] || LICENSE_STATUS_DISPLAY.active;
 
   return (
     <div className="max-w-4xl">

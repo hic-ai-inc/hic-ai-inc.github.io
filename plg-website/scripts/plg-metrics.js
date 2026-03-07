@@ -288,11 +288,11 @@ async function getKeygenMetrics() {
 
   for (const license of licenses.data || []) {
     metrics.licenses.total++;
-    const status = license.attributes?.status;
-    if (status === "ACTIVE") metrics.licenses.active++;
-    else if (status === "INACTIVE") metrics.licenses.inactive++;
-    else if (status === "SUSPENDED") metrics.licenses.suspended++;
-    else if (status === "EXPIRED") metrics.licenses.expired++;
+    const status = license.attributes?.status?.toLowerCase();
+    if (status === "active") metrics.licenses.active++;
+    else if (status === "inactive") metrics.licenses.inactive++;
+    else if (status === "suspended") metrics.licenses.suspended++;
+    else if (status === "expired") metrics.licenses.expired++;
   }
 
   // Get all machines (activations)

@@ -106,6 +106,17 @@ async function keygenRequest(endpoint, options = {}) {
 }
 
 // ===========================================
+
+/**
+ * Normalize a Keygen status string to lowercase.
+ * Keygen API returns mixed-case statuses; our system uses lowercase throughout.
+ * @param {string} status - Raw status from Keygen API
+ * @returns {string} Lowercase status string
+ */
+export function normalizeStatus(status) {
+  return typeof status === "string" ? status.toLowerCase() : status;
+}
+
 // LICENSE OPERATIONS
 // ===========================================
 
@@ -137,7 +148,7 @@ export async function createLicense({ policyId, name, email, metadata = {} }) {
   return {
     id: response.data.id,
     key: response.data.attributes.key,
-    status: response.data.attributes.status,
+    status: normalizeStatus(response.data.attributes.status),
     expiresAt: response.data.attributes.expiry,
     maxMachines: response.data.attributes.maxMachines,
     metadata: response.data.attributes.metadata,
@@ -162,7 +173,7 @@ export async function getLicensesByEmail(email) {
     return response.data.map((license) => ({
       id: license.id,
       key: license.attributes.key,
-      status: license.attributes.status,
+      status: normalizeStatus(license.attributes.status),
       expiresAt: license.attributes.expiry,
       maxMachines: license.attributes.maxMachines,
       uses: license.attributes.uses,
@@ -184,7 +195,7 @@ export async function getLicense(licenseId) {
   return {
     id: response.data.id,
     key: response.data.attributes.key,
-    status: response.data.attributes.status,
+    status: normalizeStatus(response.data.attributes.status),
     expiresAt: response.data.attributes.expiry,
     maxMachines: response.data.attributes.maxMachines,
     uses: response.data.attributes.uses,
@@ -217,7 +228,7 @@ export async function validateLicense(licenseKey, fingerprint) {
       license: response.data
         ? {
             id: response.data.id,
-            status: response.data.attributes.status,
+            status: normalizeStatus(response.data.attributes.status),
             expiresAt: response.data.attributes.expiry,
           }
         : null,
@@ -250,6 +261,19 @@ export async function reinstateLicense(licenseId) {
     method: "POST",
   });
 }
+
+/**
+ * Renew a Keygen license to reset its expiration clock.
+ * Called on every successful Stripe payment to prevent Keygen expiration drift.
+ * @param {string} licenseId - Keygen license UUID
+ * @returns {Promise<Object>} Renewed license data from Keygen
+ */
+export async function renewLicense(licenseId) {
+  return keygenRequest(`/licenses/${licenseId}/actions/renew`, {
+    method: "POST",
+  });
+}
+
 
 /**
  * Revoke (delete) a license

@@ -23,9 +23,6 @@ export const DEVICE_ACTIVITY_WINDOW_MS =
 // Matches Extension repo HEARTBEAT.INTERVAL_MS in .hic/licensing/constants.js.
 export const NEXT_HEARTBEAT_SECONDS = 600;
 
-// Payment failure threshold — suspend license after this many consecutive failures
-export const MAX_PAYMENT_FAILURES = 3;
-
 export function getMaxDevicesForAccountType(accountType) {
   const planConfig = PRICING[accountType];
   return (
@@ -121,29 +118,48 @@ export const PROMO_CODES = {
 // ===========================================
 
 export const LICENSE_STATUS = {
-  PENDING_ACCOUNT: "PENDING_ACCOUNT",
-  TRIAL: "TRIAL",
-  ACTIVE: "ACTIVE",
-  PAST_DUE: "PAST_DUE",
-  CANCELLATION_PENDING: "CANCELLATION_PENDING",
-  CANCELED: "CANCELED",
-  EXPIRED: "EXPIRED",
-  RETIRED: "RETIRED", // A.5.3 - Enterprise seat retired by admin
-  DISPUTED: "DISPUTED", // A.6.2 - Chargeback dispute in progress
-  REVOKED: "REVOKED", // A.7 - License revoked by admin
+  PENDING_ACCOUNT: "pending_account",
+  TRIAL: "trial",
+  ACTIVE: "active",
+  PAST_DUE: "past_due",
+  CANCELLATION_PENDING: "cancellation_pending",
+  CANCELED: "canceled",
+  EXPIRED: "expired",
+  DISPUTED: "disputed", // A.6.2 - Chargeback dispute in progress
+  REVOKED: "revoked", // A.7 - License revoked by admin
+  SUSPENDED: "suspended", // Admin-only: team member suspended by owner
 };
 
 export const LICENSE_STATUS_DISPLAY = {
-  PENDING_ACCOUNT: { label: "Pending Setup", variant: "warning" },
-  TRIAL: { label: "Trial", variant: "info" },
-  ACTIVE: { label: "Active", variant: "success" },
-  PAST_DUE: { label: "Past Due", variant: "error" },
-  CANCELLATION_PENDING: { label: "Cancellation Pending", variant: "warning" },
-  CANCELED: { label: "Canceled", variant: "error" },
-  EXPIRED: { label: "Expired", variant: "error" },
-  RETIRED: { label: "Retired", variant: "error" },
-  DISPUTED: { label: "Disputed", variant: "warning" },
-  REVOKED: { label: "Revoked", variant: "error" },
+  pending_account: { label: "Pending Setup", variant: "warning" },
+  trial: { label: "Trial", variant: "info" },
+  active: { label: "Active", variant: "success" },
+  past_due: { label: "Past Due", variant: "error" },
+  cancellation_pending: { label: "Cancellation Pending", variant: "warning" },
+  canceled: { label: "Canceled", variant: "error" },
+  expired: { label: "Expired", variant: "error" },
+  disputed: { label: "Disputed", variant: "warning" },
+  revoked: { label: "Revoked", variant: "error" },
+  suspended: { label: "Suspended", variant: "error" },
+};
+
+// ===========================================
+// EVENT TYPES
+// ===========================================
+
+// Centralized event type strings written to DDB and used by the event-driven email pipeline.
+// Every event write across webhook handlers and portal routes must reference this enum.
+export const EVENT_TYPES = {
+  CUSTOMER_CREATED: "CUSTOMER_CREATED",
+  LICENSE_CREATED: "LICENSE_CREATED",
+  PAYMENT_FAILED: "PAYMENT_FAILED",
+  SUBSCRIPTION_REACTIVATED: "SUBSCRIPTION_REACTIVATED",
+  CANCELLATION_REQUESTED: "CANCELLATION_REQUESTED",
+  CANCELLATION_REVERSED: "CANCELLATION_REVERSED",
+  VOLUNTARY_CANCELLATION_EXPIRED: "VOLUNTARY_CANCELLATION_EXPIRED",
+  NONPAYMENT_CANCELLATION_EXPIRED: "NONPAYMENT_CANCELLATION_EXPIRED",
+  TEAM_INVITE_CREATED: "TEAM_INVITE_CREATED",
+  TEAM_INVITE_RESENT: "TEAM_INVITE_RESENT",
 };
 
 // ===========================================
@@ -225,7 +241,6 @@ export const APP_NAME = "Mouse";
 export const APP_DESCRIPTION = "Precision Editing Tools for AI Coding Agents";
 export const COMPANY_NAME = "HIC AI";
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://hic-ai.com";
-
 
 // ===========================================
 // LICENSE KEY UTILITIES

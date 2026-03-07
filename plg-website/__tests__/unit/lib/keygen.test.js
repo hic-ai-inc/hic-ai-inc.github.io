@@ -40,6 +40,8 @@ import {
   getPolicyId,
   createLicenseForPlan,
   KEYGEN_POLICIES,
+  normalizeStatus,
+  renewLicense,
 } from "../../../src/lib/keygen.js";
 
 describe("keygen.js", () => {
@@ -87,7 +89,7 @@ describe("keygen.js", () => {
 
       expect(result.id).toBe("lic_test_123");
       expect(result.key).toBe("XXXX-XXXX-XXXX-XXXX");
-      expect(result.status).toBe("ACTIVE");
+      expect(result.status).toBe("active");
       expect(result.maxMachines).toBe(3);
     });
 
@@ -158,7 +160,7 @@ describe("keygen.js", () => {
 
       expect(result.id).toBe("lic_abc123");
       expect(result.key).toBe("ABCD-EFGH-IJKL-MNOP");
-      expect(result.status).toBe("ACTIVE");
+      expect(result.status).toBe("active");
       expect(result.uses).toBe(5);
     });
 
@@ -200,7 +202,7 @@ describe("keygen.js", () => {
 
       expect(result.valid).toBe(true);
       expect(result.code).toBe("VALID");
-      expect(result.license.status).toBe("ACTIVE");
+      expect(result.license.status).toBe("active");
     });
 
     it("should return invalid result for expired license", async () => {
@@ -523,6 +525,84 @@ describe("keygen.js", () => {
     });
   });
 
+  describe("normalizeStatus", () => {
+    it("should lowercase an UPPER_CASE status", () => {
+      expect(normalizeStatus("ACTIVE")).toBe("active");
+    });
+
+    it("should lowercase a Mixed_Case status", () => {
+      expect(normalizeStatus("Past_Due")).toBe("past_due");
+    });
+
+    it("should pass through an already-lowercase status", () => {
+      expect(normalizeStatus("expired")).toBe("expired");
+    });
+
+    it("should return non-string values unchanged", () => {
+      expect(normalizeStatus(null)).toBe(null);
+      expect(normalizeStatus(undefined)).toBe(undefined);
+    });
+  });
+
+  describe("Keygen module normalizes status in responses (Fix 3)", () => {
+    it("createLicense should return lowercase status", async () => {
+      keygenMock.whenCreateLicense().resolves({
+        data: {
+          id: "lic_123",
+          attributes: {
+            key: "KEY",
+            status: "ACTIVE",
+            expiry: null,
+            maxMachines: 3,
+            metadata: {},
+          },
+        },
+      });
+
+      const result = await createLicense({
+        policyId: "pol_123",
+        name: "User",
+        email: "user@example.com",
+      });
+
+      expect(result.status).toBe("active");
+    });
+
+    it("getLicense should return lowercase status", async () => {
+      keygenMock.whenGetLicense("lic_abc").resolves({
+        data: {
+          id: "lic_abc",
+          attributes: {
+            key: "KEY",
+            status: "SUSPENDED",
+            expiry: null,
+            maxMachines: 3,
+            uses: 0,
+            metadata: {},
+          },
+        },
+      });
+
+      const result = await getLicense("lic_abc");
+
+      expect(result.status).toBe("suspended");
+    });
+
+    it("validateLicense should return lowercase status", async () => {
+      keygenMock.whenValidateLicense().resolves({
+        meta: { valid: true, code: "VALID", detail: "ok" },
+        data: {
+          id: "lic_123",
+          attributes: { status: "EXPIRED", expiry: null },
+        },
+      });
+
+      const result = await validateLicense("KEY", "fp");
+
+      expect(result.license.status).toBe("expired");
+    });
+  });
+
   describe("createLicenseForPlan", () => {
     it("should throw when policy not configured", async () => {
       // When env vars aren't set, createLicenseForPlan will fail at getPolicyId
@@ -541,4 +621,74 @@ describe("keygen.js", () => {
       }
     });
   });
+
+  describe("renewLicense", () => {
+    it("should call POST /licenses/{id}/actions/renew endpoint", async () => {
+      keygenMock.whenRenewLicense("lic_renew_123").resolves({});
+
+      await renewLicense("lic_renew_123");
+
+      expect(keygenMock.request.calls.length).toBe(1);
+      expect(keygenMock.request.calls[0][0]).toBe(
+        "/licenses/lic_renew_123/actions/renew",
+      );
+      expect(keygenMock.request.calls[0][1].method).toBe("POST");
+    });
+
+    it("should propagate errors from Keygen API", async () => {
+      keygenMock.request.mockRejectedValue(new Error("License not found"));
+
+      let error;
+      try {
+        await renewLicense("lic_nonexistent");
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.message).toBe("License not found");
+    });
+
+    it("should return the Keygen response on success", async () => {
+      const mockResponse = { data: { id: "lic_abc", attributes: { expiry: "2027-06-01T00:00:00Z" } } };
+      keygenMock.whenRenewLicense("lic_abc").resolves(mockResponse);
+
+      const result = await renewLicense("lic_abc");
+
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
 });
+
+// Feature: status-remediation-plan, Property 2: Keygen status normalization
+// **Validates: Requirements 2.3**
+describe("Property 2: Keygen status normalization", () => {
+  it("for any status string, normalizeStatus returns a strictly lowercase result", () => {
+    // Generate 100 random status strings with mixed casing
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+    for (let i = 0; i < 100; i++) {
+      // Build a random status string of length 3-15
+      const len = 3 + Math.floor(Math.random() * 13);
+      let status = "";
+      for (let j = 0; j < len; j++) {
+        status += chars[Math.floor(Math.random() * chars.length)];
+      }
+
+      const result = normalizeStatus(status);
+
+      expect(typeof result).toBe("string");
+      expect(result).toBe(result.toLowerCase());
+      expect(result).toBe(status.toLowerCase());
+    }
+  });
+
+  it("normalizes known Keygen statuses regardless of original casing", () => {
+    const knownStatuses = ["ACTIVE", "INACTIVE", "SUSPENDED", "EXPIRED", "Active", "active", "Expired", "PAST_DUE", "Past_Due"];
+    for (const status of knownStatuses) {
+      const result = normalizeStatus(status);
+      expect(result).toBe(status.toLowerCase());
+    }
+  });
+});
+

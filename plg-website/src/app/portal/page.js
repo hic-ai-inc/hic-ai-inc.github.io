@@ -261,8 +261,8 @@ function ActiveUserDashboard({
   subscriptionStatus,
 }) {
   const statusDisplay =
-    LICENSE_STATUS_DISPLAY[subscriptionStatus?.toUpperCase()] ||
-    LICENSE_STATUS_DISPLAY.ACTIVE;
+    LICENSE_STATUS_DISPLAY[subscriptionStatus] ||
+    LICENSE_STATUS_DISPLAY.active;
   const maxDevices = portalStatus?.maxDevices || (accountType === "business" ? 5 : 3);
   const activatedDevices = portalStatus?.activatedDevices || 0;
 

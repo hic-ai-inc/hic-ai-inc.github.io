@@ -30,6 +30,7 @@ import {
 import {
   suspendLicense,
   reinstateLicense,
+  renewLicense,
   createLicense,
   getPolicyId,
 } from "@/lib/keygen";
@@ -40,7 +41,7 @@ import { sendDisputeAlert } from "@/lib/ses";
 // Cognito admin operations for RBAC group assignment
 import { assignOwnerRole } from "@/lib/cognito-admin";
 import { createApiLogger } from "@/lib/api-log";
-import { MAX_PAYMENT_FAILURES } from "@/lib/constants";
+import { EVENT_TYPES } from "@/lib/constants";
 
 // Cooldown window (seconds) to prevent email flooding from rapid cancel/uncancel toggling
 const COOLDOWN_SECONDS = 3600;
@@ -265,7 +266,7 @@ async function handleCheckoutCompleted(session, log) {
         stripeSubscriptionId: subscription,
         seats,
         createdFromCheckout: session.id,
-        eventType: "CUSTOMER_CREATED",
+        eventType: EVENT_TYPES.CUSTOMER_CREATED,
         sessionId: session.id,
       },
     });
@@ -454,7 +455,7 @@ async function handleSubscriptionUpdated(subscription, log) {
     active: "active",
     past_due: "past_due",
     canceled: "expired",
-    unpaid: "suspended",
+    unpaid: "expired",
     incomplete: "pending",
     incomplete_expired: "expired",
     trialing: "trialing",
@@ -482,15 +483,15 @@ async function handleSubscriptionUpdated(subscription, log) {
       : "the end of your billing period";
     // Override statusMap result — cancellation_pending is an intermediate state
     subscriptionUpdate.subscriptionStatus = "cancellation_pending";
-    eventTypeToWrite = "CANCELLATION_REQUESTED";
-    clearEmailsSent = ["CANCELLATION_REVERSED"];
+    eventTypeToWrite = EVENT_TYPES.CANCELLATION_REQUESTED;
+    clearEmailsSent = [EVENT_TYPES.CANCELLATION_REVERSED];
     subscriptionUpdate.email = dbCustomer.email;
     subscriptionUpdate.accessUntil = cancelAt;
   } else if (!cancel_at_period_end && dbCustomer.cancelAtPeriodEnd) {
     // User reversed a pending cancellation ("Don't Cancel" in Stripe Customer Portal)
     subscriptionUpdate.subscriptionStatus = "active";
-    eventTypeToWrite = "CANCELLATION_REVERSED";
-    clearEmailsSent = ["CANCELLATION_REQUESTED"];
+    eventTypeToWrite = EVENT_TYPES.CANCELLATION_REVERSED;
+    clearEmailsSent = [EVENT_TYPES.CANCELLATION_REQUESTED];
     subscriptionUpdate.email = dbCustomer.email;
   }
 
@@ -521,17 +522,6 @@ async function handleSubscriptionUpdated(subscription, log) {
         await suspendLicense(dbCustomer.keygenLicenseId);
       } catch (e) {
         log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
-          errorMessage: e?.message,
-        });
-      }
-    } else if (
-      status === "active" &&
-      dbCustomer.subscriptionStatus === "suspended"
-    ) {
-      try {
-        await reinstateLicense(dbCustomer.keygenLicenseId);
-      } catch (e) {
-        log.warn("license_reinstate_failed", "Failed to reinstate Keygen license", {
           errorMessage: e?.message,
         });
       }
@@ -584,11 +574,11 @@ async function handleSubscriptionDeleted(subscription, log) {
   const priorStatus = dbCustomer.subscriptionStatus;
   let expirationEventType;
   if (priorStatus === "cancellation_pending") {
-    expirationEventType = "VOLUNTARY_CANCELLATION_EXPIRED";
-  } else if (priorStatus === "past_due" || priorStatus === "suspended") {
-    expirationEventType = "NONPAYMENT_CANCELLATION_EXPIRED";
+    expirationEventType = EVENT_TYPES.VOLUNTARY_CANCELLATION_EXPIRED;
+  } else if (priorStatus === "past_due") {
+    expirationEventType = EVENT_TYPES.NONPAYMENT_CANCELLATION_EXPIRED;
   } else {
-    expirationEventType = "VOLUNTARY_CANCELLATION_EXPIRED"; // safe default
+    expirationEventType = EVENT_TYPES.VOLUNTARY_CANCELLATION_EXPIRED; // safe default
   }
 
   await updateCustomerSubscription(dbCustomer.userId, {
@@ -643,12 +633,23 @@ async function handlePaymentSucceeded(invoice, log) {
     });
   }
 
-  if (dbCustomer.subscriptionStatus === "past_due" || dbCustomer.subscriptionStatus === "suspended") {
+  // Renew Keygen license expiration clock on every successful payment
+  if (dbCustomer.keygenLicenseId) {
+    try {
+      await renewLicense(dbCustomer.keygenLicenseId);
+    } catch (e) {
+      log.warn("license_renew_failed", "Failed to renew Keygen license — non-blocking", {
+        errorMessage: e?.message,
+      });
+    }
+  }
+
+  if (dbCustomer.subscriptionStatus === "past_due") {
     await updateCustomerSubscription(dbCustomer.userId, {
       subscriptionStatus: "active",
-      eventType: "SUBSCRIPTION_REACTIVATED",
+      eventType: EVENT_TYPES.SUBSCRIPTION_REACTIVATED,
       email: dbCustomer.email,
-    }, { clearEmailsSent: ["PAYMENT_FAILED"] });
+    }, { clearEmailsSent: [EVENT_TYPES.PAYMENT_FAILED] });
 
     if (dbCustomer.keygenLicenseId) {
       try {
@@ -687,6 +688,20 @@ async function handlePaymentFailed(invoice, log) {
     return;
   }
 
+  // Allowlist guard: only "active" and "past_due" can transition to "past_due".
+  // Trial users have no renewal invoice; cancellation_pending users have a paid term
+  // that expires into cancellation (no renewal attempt). All other statuses (expired,
+  // canceled, revoked, suspended, disputed) must never spring back to "past_due",
+  // which would grant a full dunning period (2 weeks) of usage. CWE-367 TOCTOU.
+  const PAYMENT_FAILURE_ELIGIBLE_STATUSES = ["active", "past_due"];
+  if (!PAYMENT_FAILURE_ELIGIBLE_STATUSES.includes(dbCustomer.subscriptionStatus)) {
+    log.decision("ineligible_status_guard", "Skipping past_due write — current status is not eligible for payment failure processing", {
+      currentStatus: dbCustomer.subscriptionStatus,
+      eligibleStatuses: PAYMENT_FAILURE_ELIGIBLE_STATUSES,
+    });
+    return;
+  }
+
   const retryDate = next_payment_attempt
     ? new Date(next_payment_attempt * 1000).toLocaleDateString()
     : null;
@@ -694,7 +709,7 @@ async function handlePaymentFailed(invoice, log) {
   await updateCustomerSubscription(dbCustomer.userId, {
     subscriptionStatus: "past_due",
     paymentFailureCount: attempt_count,
-    eventType: "PAYMENT_FAILED",
+    eventType: EVENT_TYPES.PAYMENT_FAILED,
     email: customer_email,
     attemptCount: attempt_count,
     retryDate,
@@ -707,27 +722,6 @@ async function handlePaymentFailed(invoice, log) {
   log.info("payment_failure_email_pipeline_triggered", "Payment failure email will be sent via event pipeline", {
     attemptCount: attempt_count,
   });
-
-  if (attempt_count >= MAX_PAYMENT_FAILURES) {
-    log.decision("max_payment_attempts_reached", "Max payment attempts reached, suspending license", {
-      attemptCount: attempt_count,
-    });
-
-    await updateCustomerSubscription(dbCustomer.userId, {
-      subscriptionStatus: "suspended",
-    });
-
-    if (dbCustomer.keygenLicenseId) {
-      await updateLicenseStatus(dbCustomer.keygenLicenseId, "suspended");
-      try {
-        await suspendLicense(dbCustomer.keygenLicenseId);
-      } catch (e) {
-        log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
-          errorMessage: e?.message,
-        });
-      }
-    }
-  }
 }
 
 /**
@@ -818,11 +812,22 @@ async function handleDisputeClosed(dispute, log) {
     });
   } else {
     await updateCustomerSubscription(dbCustomer.userId, {
-      subscriptionStatus: "suspended",
+      subscriptionStatus: "expired",
       fraudulent: true,
     });
 
-    log.info("dispute_lost_suspended", "License remains suspended after lost dispute", {
+    if (dbCustomer.keygenLicenseId) {
+      await updateLicenseStatus(dbCustomer.keygenLicenseId, "expired");
+      try {
+        await suspendLicense(dbCustomer.keygenLicenseId);
+      } catch (e) {
+        log.warn("license_suspend_failed", "Failed to suspend Keygen license after lost dispute", {
+          errorMessage: e?.message,
+        });
+      }
+    }
+
+    log.info("dispute_lost_expired", "License expired after lost dispute", {
       disputeStatus: status,
     });
   }

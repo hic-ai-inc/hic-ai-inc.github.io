@@ -106,6 +106,19 @@ export function createKeygenMock() {
     },
 
     /**
+     * Configure mock response for license renewal
+     */
+    whenRenewLicense(licenseId) {
+      return createEndpointMatcher(
+        requestSpy,
+        responseRegistry,
+        `/licenses/${licenseId}/actions/renew`,
+        "POST",
+      );
+    },
+
+
+    /**
      * Configure mock response for license revocation
      */
     whenRevokeLicense(licenseId) {
