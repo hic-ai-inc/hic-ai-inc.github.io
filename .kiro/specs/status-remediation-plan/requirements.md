@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This spec covers the 8-bug remediation of the license status and payment lifecycle system across the HIC platform (PLG website + Mouse extension). The authoritative plan is `docs/plg/20260306_CONSOLIDATED_STATUS_REMEDIATION_PLAN_V6.md`.
+This spec covers the 9-bug remediation of the license status and payment lifecycle system across the HIC platform (PLG website + Mouse extension). The authoritative plan is `docs/plg/20260306_CONSOLIDATED_STATUS_REMEDIATION_PLAN_V6.md`.
 
 The bugs span casing mismatches, missing API calls, incorrect status semantics, dead code, hardcoded strings, and wrong data sources. After remediation, the payment lifecycle becomes `active → past_due → expired`, "suspended" means only admin-suspended team member, DynamoDB is the sole read source, and all status values are lowercase throughout the stack.
 
