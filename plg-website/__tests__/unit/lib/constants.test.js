@@ -189,8 +189,8 @@ describe("constants.js", () => {
       expect(LICENSE_STATUS.PENDING_ACCOUNT).toBe("pending_account");
     });
 
-    it("should have TRIAL status", () => {
-      expect(LICENSE_STATUS.TRIAL).toBe("trial");
+    it("should NOT have TRIAL status (Task 11.0 — dead code removed)", () => {
+      expect(LICENSE_STATUS.TRIAL).toBeUndefined();
     });
 
     it("should have ACTIVE status", () => {
@@ -252,8 +252,8 @@ describe("constants.js", () => {
       expect(LICENSE_STATUS_DISPLAY.past_due.variant).toBe("error");
     });
 
-    it("TRIAL should have info variant", () => {
-      expect(LICENSE_STATUS_DISPLAY.trial.variant).toBe("info");
+    it("TRIAL should NOT have display config (Task 11.0 — dead code removed)", () => {
+      expect(LICENSE_STATUS_DISPLAY.trial).toBeUndefined();
     });
 
     it("DISPUTED should have warning variant", () => {
@@ -406,11 +406,13 @@ describe("constants.js", () => {
       "NONPAYMENT_CANCELLATION_EXPIRED",
       "TEAM_INVITE_CREATED",
       "TEAM_INVITE_RESENT",
+      "LICENSE_REVOKED",
+      "LICENSE_SUSPENDED",
     ];
 
-    it("should contain all 10 expected event type keys", () => {
+    it("should contain all 12 expected event type keys", () => {
       const keys = Object.keys(EVENT_TYPES);
-      expect(keys.length).toBe(10);
+      expect(keys.length).toBe(12);
       for (const key of EXPECTED_KEYS) {
         expect(EVENT_TYPES[key]).toBeDefined();
       }
@@ -474,11 +476,27 @@ describe("constants.js", () => {
       }
     });
 
-    it("Email templates EVENT_TYPE_TO_TEMPLATE should cover all EVENT_TYPES keys", async () => {
+    it("Email templates EVENT_TYPE_TO_TEMPLATE keys should all be valid EVENT_TYPES", async () => {
       const { EVENT_TYPE_TO_TEMPLATE } = await import("../../../../dm/layers/ses/src/email-templates.js");
       const templateKeys = Object.keys(EVENT_TYPE_TO_TEMPLATE);
+      // Every template key must be a valid EVENT_TYPES key (template keys ⊂ EVENT_TYPES)
+      // Not all EVENT_TYPES trigger emails — LICENSE_SUSPENDED is audit-only (removed in Fix 5)
+      for (const key of templateKeys) {
+        expect(EXPECTED_KEYS).toContain(key);
+      }
+    });
+
+    it("DynamoDB module should use EVENT_TYPES enum, not hardcoded strings", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/lib/dynamodb.js"),
+        "utf-8",
+      );
       for (const key of EXPECTED_KEYS) {
-        expect(templateKeys).toContain(key);
+        const barePattern = new RegExp(`(?<!EVENT_TYPES\\.)"${key}"`, "g");
+        const matches = src.match(barePattern) || [];
+        expect(matches.length).toBe(0);
       }
     });
 

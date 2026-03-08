@@ -341,7 +341,6 @@ export default function BillingPage() {
 function SubscriptionStatusBadge({ status }) {
   const variants = {
     active: "success",
-    trialing: "info",
     past_due: "warning",
     cancellation_pending: "warning",
     canceled: "secondary",
@@ -353,7 +352,6 @@ function SubscriptionStatusBadge({ status }) {
 
   const labels = {
     active: "Active",
-    trialing: "Trial",
     past_due: "Past Due",
     cancellation_pending: "Cancellation Pending",
     canceled: "Canceled",

@@ -4,7 +4,7 @@
  * Tests for the centralized email template system in hic-ses-layer.
  * Verifies:
  * - Template creation with configuration
- * - All 14 template functions exist and return correct structure
+ * - All 13 template functions exist and return correct structure
  * - Template content includes required elements (subject, html, text)
  * - Dynamic interpolation of configuration values
  * - EVENT_TYPE_TO_TEMPLATE mapping is complete
@@ -90,7 +90,7 @@ describe("Email Templates", () => {
   describe("TEMPLATE_NAMES", () => {
     test("should export array of all template names", () => {
       expect(Array.isArray(TEMPLATE_NAMES)).toBe(true);
-      expect(TEMPLATE_NAMES.length).toBe(14);
+      expect(TEMPLATE_NAMES.length).toBe(13);
     });
 
     test("should include all expected template names", () => {
@@ -104,7 +104,6 @@ describe("Email Templates", () => {
         "voluntaryCancellationExpired",
         "nonpaymentCancellationExpired",
         "licenseRevoked",
-        "licenseSuspended",
         "winBack30",
         "winBack90",
         "enterpriseInvite",
@@ -134,10 +133,6 @@ describe("Email Templates", () => {
 
     test("should map LICENSE_REVOKED to licenseRevoked", () => {
       expect(EVENT_TYPE_TO_TEMPLATE.LICENSE_REVOKED).toBe("licenseRevoked");
-    });
-
-    test("should map LICENSE_SUSPENDED to licenseSuspended", () => {
-      expect(EVENT_TYPE_TO_TEMPLATE.LICENSE_SUSPENDED).toBe("licenseSuspended");
     });
 
     test("should map CUSTOMER_CREATED to welcome", () => {
@@ -226,10 +221,6 @@ describe("Email Templates", () => {
       {
         name: "licenseRevoked",
         data: { email: "test@example.com", organizationName: "Acme Corp" },
-      },
-      {
-        name: "licenseSuspended",
-        data: { email: "test@example.com" },
       },
       {
         name: "winBack30",
@@ -572,7 +563,6 @@ describe("Dead Code Removal Verification", () => {
   });
 });
 
-
 // ===========================================
 // PROPERTY TESTS — Stream 1D Completion Plan
 // ===========================================
@@ -595,7 +585,6 @@ describe("Property 7: EVENT_TYPE_TO_TEMPLATE exhaustive mapping", () => {
     CUSTOMER_CREATED: "welcome",
     LICENSE_CREATED: "licenseDelivery",
     LICENSE_REVOKED: "licenseRevoked",
-    LICENSE_SUSPENDED: "licenseSuspended",
     TEAM_INVITE_CREATED: "enterpriseInvite",
     TEAM_INVITE_RESENT: "enterpriseInvite",
   };
@@ -615,9 +604,9 @@ describe("Property 7: EVENT_TYPE_TO_TEMPLATE exhaustive mapping", () => {
     }
   });
 
-  test("all 12 event types are covered", () => {
-    expect(Object.keys(EXPECTED_MAPPINGS).length).toBe(12);
-    expect(Object.keys(EVENT_TYPE_TO_TEMPLATE).length).toBe(12);
+  test("all 11 event types are covered", () => {
+    expect(Object.keys(EXPECTED_MAPPINGS).length).toBe(11);
+    expect(Object.keys(EVENT_TYPE_TO_TEMPLATE).length).toBe(11);
   });
 
   test("no orphaned mappings exist (every mapping key is in expected set)", () => {
@@ -704,4 +693,3 @@ describe("Property 10: Template content validation with random inputs", () => {
     }
   });
 });
-

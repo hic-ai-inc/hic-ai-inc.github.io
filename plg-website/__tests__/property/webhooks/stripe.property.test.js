@@ -101,7 +101,7 @@ function generateEligibleStatus() {
 
 /** Generate a random ineligible subscription status (statuses that must be blocked from past_due write) */
 function generateIneligibleStatus() {
-  const statuses = ["expired", "canceled", "revoked", "suspended", "disputed", "pending_account", "trial", "cancellation_pending"];
+  const statuses = ["expired", "canceled", "revoked", "suspended", "disputed", "pending_account", "cancellation_pending"];
   return statuses[Math.floor(Math.random() * statuses.length)];
 }
 
@@ -487,7 +487,6 @@ function generatePaymentSucceededInvoice() {
 /** All statuses that are NOT "past_due" — reinstatement must NOT trigger for these */
 const NON_PAST_DUE_STATUSES = [
   "active",
-  "trial",
   "cancellation_pending",
   "canceled",
   "expired",
@@ -615,6 +614,237 @@ describe("Property 22: Payment success reinstates from past_due only", () => {
 
       // No license status update either (no keygenLicenseId)
       expect(deps.updateLicenseStatus.callCount).toBe(0);
+    }
+  });
+});
+
+
+// ============================================================================
+// Extracted logic: mirrors handlePaymentSucceeded from route.js
+// Includes renewLicense call — Properties 7 and 8 test this path.
+// Property 22's extraction above omits renewLicense (focuses on reinstatement).
+// ============================================================================
+
+/**
+ * Core logic extracted from handlePaymentSucceeded — full version with renewLicense.
+ * @param {Object} invoice - Stripe invoice object
+ * @param {Object} deps - Injected dependencies
+ */
+async function handlePaymentSucceededWithRenew(invoice, deps) {
+  const { customer, lines } = invoice;
+  const { resolveCustomer, updateCustomerSubscription, updateLicenseStatus, renewLicense, reinstateLicense, log } = deps;
+
+  const dbCustomer = await resolveCustomer(customer, log);
+  if (!dbCustomer) return;
+
+  const periodEnd = lines.data[0]?.period?.end;
+  const expiresAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
+
+  // Step 1: License status always updated to "active" with expiresAt
+  if (dbCustomer.keygenLicenseId && expiresAt) {
+    await updateLicenseStatus(dbCustomer.keygenLicenseId, "active", { expiresAt });
+  }
+
+  // Step 2: renewLicense — non-blocking, wrapped in try/catch
+  if (dbCustomer.keygenLicenseId) {
+    try {
+      await renewLicense(dbCustomer.keygenLicenseId);
+    } catch (e) {
+      log.warn("license_renew_failed", "Failed to renew Keygen license — non-blocking", {
+        errorMessage: e?.message,
+      });
+    }
+  }
+
+  // Step 3: Reinstatement from past_due
+  if (dbCustomer.subscriptionStatus === "past_due") {
+    await updateCustomerSubscription(dbCustomer.userId, {
+      subscriptionStatus: "active",
+      eventType: "SUBSCRIPTION_REACTIVATED",
+      email: dbCustomer.email,
+    }, { clearEmailsSent: ["PAYMENT_FAILED"] });
+
+    if (dbCustomer.keygenLicenseId) {
+      try {
+        await reinstateLicense(dbCustomer.keygenLicenseId);
+      } catch (e) {
+        log.warn("license_reinstate_failed", "Failed to reinstate Keygen license", {
+          errorMessage: e?.message,
+        });
+      }
+    }
+  }
+}
+
+// ============================================================================
+// Generators — Properties 7 and 8
+// ============================================================================
+
+/** All valid subscription statuses */
+const ALL_STATUSES = [
+  "active", "past_due", "cancellation_pending",
+  "canceled", "expired", "disputed", "revoked", "suspended", "pending_account",
+];
+
+/** Generate a random customer with guaranteed keygenLicenseId for renew tests */
+function generateRenewCustomer() {
+  return {
+    userId: `user-${randomString(10)}`,
+    email: `${randomString(8)}@${randomString(5)}.com`,
+    keygenLicenseId: `lic-${randomString(12)}`,
+    subscriptionStatus: ALL_STATUSES[Math.floor(Math.random() * ALL_STATUSES.length)],
+  };
+}
+
+/** Create mock deps for full handlePaymentSucceeded (with renewLicense) */
+function createRenewMockDeps(dbCustomer) {
+  return {
+    resolveCustomer: createSpy("resolveCustomer").mockResolvedValue(dbCustomer),
+    updateCustomerSubscription: createSpy("updateCustomerSubscription").mockResolvedValue(undefined),
+    updateLicenseStatus: createSpy("updateLicenseStatus").mockResolvedValue(undefined),
+    renewLicense: createSpy("renewLicense").mockResolvedValue(undefined),
+    reinstateLicense: createSpy("reinstateLicense").mockResolvedValue(undefined),
+    log: createMockLog(),
+  };
+}
+
+// ============================================================================
+// Property 7: Payment success calls renewLicense
+// Feature: status-remediation-plan, Property 7
+// **Validates: Requirements 6.2**
+// ============================================================================
+
+describe("Property 7: Payment success calls renewLicense", () => {
+
+  it("for any payment success where customer has keygenLicenseId, renewLicense is called with that ID (100 iterations)", async () => {
+    for (let i = 0; i < 100; i++) {
+      const customer = generateRenewCustomer();
+      const deps = createRenewMockDeps(customer);
+      const invoice = generatePaymentSucceededInvoice();
+
+      await handlePaymentSucceededWithRenew(invoice, deps);
+
+      // renewLicense must be called exactly once with the customer's keygenLicenseId
+      expect(deps.renewLicense.callCount).toBe(1);
+      expect(deps.renewLicense.calls[0][0]).toBe(customer.keygenLicenseId);
+    }
+  });
+
+  it("for any payment success where customer has no keygenLicenseId, renewLicense is never called (100 iterations)", async () => {
+    for (let i = 0; i < 100; i++) {
+      const customer = generateRenewCustomer();
+      customer.keygenLicenseId = Math.random() > 0.5 ? null : undefined;
+      const deps = createRenewMockDeps(customer);
+      const invoice = generatePaymentSucceededInvoice();
+
+      await handlePaymentSucceededWithRenew(invoice, deps);
+
+      // renewLicense must NOT be called
+      expect(deps.renewLicense.callCount).toBe(0);
+    }
+  });
+
+  it("renewLicense is called regardless of subscriptionStatus (100 iterations)", async () => {
+    for (let i = 0; i < 100; i++) {
+      const status = ALL_STATUSES[Math.floor(Math.random() * ALL_STATUSES.length)];
+      const customer = generateRenewCustomer();
+      customer.subscriptionStatus = status;
+      const deps = createRenewMockDeps(customer);
+      const invoice = generatePaymentSucceededInvoice();
+
+      await handlePaymentSucceededWithRenew(invoice, deps);
+
+      // renewLicense is called on every payment success, regardless of status
+      expect(deps.renewLicense.callCount).toBe(1);
+    }
+  });
+});
+
+// ============================================================================
+// Property 8: renewLicense failure does not block DDB active write
+// Feature: status-remediation-plan, Property 8
+// **Validates: Requirements 6.3**
+// ============================================================================
+
+describe("Property 8: renewLicense failure does not block DDB active write", () => {
+
+  it("for any payment success where renewLicense throws, DDB still writes 'active' (100 iterations)", async () => {
+    const errors = [
+      "Keygen API timeout",
+      "503 Service Unavailable",
+      "Network error",
+      "ECONNREFUSED",
+      "License not found",
+      "401 Unauthorized",
+      "Rate limit exceeded",
+      "Internal Server Error",
+    ];
+
+    for (let i = 0; i < 100; i++) {
+      const customer = generateRenewCustomer();
+      const deps = createRenewMockDeps(customer);
+      const errorMsg = errors[Math.floor(Math.random() * errors.length)];
+      deps.renewLicense.mockRejectedValue(new Error(errorMsg));
+      const invoice = generatePaymentSucceededInvoice();
+      // Ensure invoice has line item data so expiresAt is computed
+      invoice.lines = { data: [{ period: { end: Math.floor(Date.now() / 1000) + 86400 * 30 } }] };
+
+      await handlePaymentSucceededWithRenew(invoice, deps);
+
+      // DDB license status must be updated to "active" despite renewLicense failure
+      expect(deps.updateLicenseStatus.callCount).toBe(1);
+      expect(deps.updateLicenseStatus.calls[0][1]).toBe("active");
+    }
+  });
+
+  it("renewLicense failure does not throw — handler completes normally (100 iterations)", async () => {
+    for (let i = 0; i < 100; i++) {
+      const customer = generateRenewCustomer();
+      const deps = createRenewMockDeps(customer);
+      deps.renewLicense.mockRejectedValue(new Error(`Failure iteration ${i}`));
+      const invoice = generatePaymentSucceededInvoice();
+
+      // Must NOT throw
+      let threw = false;
+      try {
+        await handlePaymentSucceededWithRenew(invoice, deps);
+      } catch {
+        threw = true;
+      }
+      expect(threw).toBe(false);
+    }
+  });
+
+  it("renewLicense failure logs a warning (100 iterations)", async () => {
+    for (let i = 0; i < 100; i++) {
+      const customer = generateRenewCustomer();
+      const deps = createRenewMockDeps(customer);
+      deps.renewLicense.mockRejectedValue(new Error("test error"));
+      const invoice = generatePaymentSucceededInvoice();
+
+      await handlePaymentSucceededWithRenew(invoice, deps);
+
+      // Must log a warning for the failure
+      expect(deps.log.warn.callCount).toBeGreaterThanOrEqual(1);
+      const warnCalls = deps.log.warn.calls.map((c) => c[0]);
+      expect(warnCalls).toContain("license_renew_failed");
+    }
+  });
+
+  it("for past_due customers, renewLicense failure does not block reinstatement (100 iterations)", async () => {
+    for (let i = 0; i < 100; i++) {
+      const customer = generateRenewCustomer();
+      customer.subscriptionStatus = "past_due";
+      const deps = createRenewMockDeps(customer);
+      deps.renewLicense.mockRejectedValue(new Error("Keygen down"));
+      const invoice = generatePaymentSucceededInvoice();
+
+      await handlePaymentSucceededWithRenew(invoice, deps);
+
+      // Reinstatement must still happen — updateCustomerSubscription writes "active"
+      expect(deps.updateCustomerSubscription.callCount).toBe(1);
+      const [, payload] = deps.updateCustomerSubscription.calls[0];
+      expect(payload.subscriptionStatus).toBe("active");
     }
   });
 });

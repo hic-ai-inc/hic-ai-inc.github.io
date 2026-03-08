@@ -728,7 +728,7 @@ describe("Property 9: Lambda expiration routing matches webhook handler routing"
   test("should produce identical routing across 100 random prior statuses", () => {
     const allStatuses = [
       "active", "cancellation_pending", "past_due", "suspended",
-      "expired", "disputed", "trialing", "pending", "paused",
+      "expired", "disputed", "pending", "paused",
     ];
 
     for (let i = 0; i < 100; i++) {

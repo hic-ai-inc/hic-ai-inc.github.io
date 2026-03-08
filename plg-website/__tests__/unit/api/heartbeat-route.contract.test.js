@@ -132,7 +132,8 @@ describe("Heartbeat Route - Contract", () => {
     expect(hasOwn(data, "minVersion")).toBe(false);
   });
 
-  test("licensed heartbeat returns version payload when license missing in DB (no minVersion)", async () => {
+  // Fix 2 / Task 9.1: null license now returns 404 with valid: false
+  test("licensed heartbeat returns 404 when license missing in DB", async () => {
     const fingerprint = "fp_licensed_missing_123";
 
     const keygenMock = createKeygenMock();
@@ -146,11 +147,6 @@ describe("Heartbeat Route - Contract", () => {
       // GetCommand: LICENSE# lookup (getDeviceByFingerprint)
       if (typeof pk === "string" && pk.startsWith("LICENSE#")) {
         return Promise.resolve({ Item: undefined });
-      }
-
-      // GetCommand: VERSION# lookup
-      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
-        return Promise.resolve({ Item: versionItem });
       }
 
       // QueryCommand: GSI2 license-by-key lookup (getLicenseByKey) — no license in DB
@@ -170,16 +166,13 @@ describe("Heartbeat Route - Contract", () => {
       }),
     );
 
+    expect(response.status).toBe(404);
+
     const data = await response.json();
 
-    expect(data.valid).toBe(true);
-    expect(data.status).toBe("active");
-
-    expect(data.latestVersion).toBe("0.10.0");
-    expect(data.readyVersion).toBe("0.10.0");
-    expect(data.readyUpdateUrl).toContain("marketplace.visualstudio.com");
-
-    expect(hasOwn(data, "minVersion")).toBe(false);
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("not_found");
+    expect(data.reason).toBe("License not found");
   });
 
   test("licensed heartbeat includes version payload for known licenses (no minVersion)", async () => {
@@ -418,4 +411,220 @@ describe("Heartbeat Route - Contract", () => {
     const expectedFields = ["valid", "status", "reason"];
     expect(Object.keys(data).length).toBe(expectedFields.length);
   });
+
+  // =========================================================================
+  // Fix 2: Heartbeat null-license guard and status classification
+  // Feature: status-remediation-plan, Tasks 9.1 / 9.2 / 9.3
+  // Validates: Requirements 7.1, 7.2, 7.3, 7.4
+  // =========================================================================
+
+  /**
+   * Helper: builds a mockSend that returns a license with the given status.
+   * The license has no keygenLicenseId so the device-lookup and device-count
+   * code paths are skipped, isolating the status-classification logic.
+   */
+  function mockSendWithLicenseStatus(status) {
+    return (command) => {
+      const input = command?.input;
+      const pk = input?.Key?.PK;
+
+      // GetCommand: VERSION# lookup
+      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
+        return Promise.resolve({ Item: versionItem });
+      }
+
+      // QueryCommand: GSI2 license-by-key lookup
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({
+          Items: [{
+            PK: "LICENSE#lic_status_test",
+            SK: "DETAILS",
+            maxDevices: 3,
+            keygenLicenseId: null,
+            status,
+          }],
+        });
+      }
+
+      return Promise.resolve({});
+    };
+  }
+
+  /** Helper: creates a standard licensed heartbeat request. */
+  function licensedRequest(fingerprint) {
+    return createMockRequest({
+      fingerprint,
+      sessionId: "sess_status_test",
+      machineId: "mach_status_test",
+      licenseKey: generateValidLicenseKey(),
+    });
+  }
+
+  // ---- Task 9.1: null license ➜ 404 ----
+
+  test("null license returns 404 with valid: false and exact field count", async () => {
+    const fingerprint = "fp_null_lic_shape";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation((command) => {
+      const input = command?.input;
+      const pk = input?.Key?.PK;
+
+      if (typeof pk === "string" && pk.startsWith("LICENSE#")) {
+        return Promise.resolve({ Item: undefined });
+      }
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({ Items: [] });
+      }
+      return Promise.resolve({});
+    });
+
+    const response = await POST(licensedRequest(fingerprint));
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("not_found");
+    expect(data.reason).toBe("License not found");
+
+    // Exact field count — no version payload on 404
+    const expectedFields = ["valid", "status", "reason"];
+    expect(Object.keys(data).length).toBe(expectedFields.length);
+  });
+
+  // ---- Task 9.2: invalid statuses ➜ valid: false ----
+
+  test("expired license returns valid: false", async () => {
+    const fingerprint = "fp_expired_test";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation(mockSendWithLicenseStatus("expired"));
+
+    const response = await POST(licensedRequest(fingerprint));
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("expired");
+    expect(data.reason).toBe("License is expired");
+  });
+
+  test("suspended license returns valid: false", async () => {
+    const fingerprint = "fp_suspended_test";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation(mockSendWithLicenseStatus("suspended"));
+
+    const response = await POST(licensedRequest(fingerprint));
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("suspended");
+    expect(data.reason).toBe("License is suspended");
+  });
+
+  test("revoked license returns valid: false", async () => {
+    const fingerprint = "fp_revoked_test";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation(mockSendWithLicenseStatus("revoked"));
+
+    const response = await POST(licensedRequest(fingerprint));
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("revoked");
+    expect(data.reason).toBe("License is revoked");
+  });
+
+  test("invalid-status response has exact 3 fields (no version payload)", async () => {
+    const fingerprint = "fp_invalid_shape";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation(mockSendWithLicenseStatus("expired"));
+
+    const response = await POST(licensedRequest(fingerprint));
+    const data = await response.json();
+
+    const expectedFields = ["valid", "status", "reason"];
+    expect(Object.keys(data).length).toBe(expectedFields.length);
+  });
+
+  // ---- Task 9.2: valid statuses ➜ valid: true ----
+
+  test("active license returns valid: true", async () => {
+    const fingerprint = "fp_active_test";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation(mockSendWithLicenseStatus("active"));
+
+    const response = await POST(licensedRequest(fingerprint));
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    expect(data.valid).toBe(true);
+    expect(data.status).toBe("active");
+  });
+
+  test("past_due license returns valid: true (dunning window)", async () => {
+    const fingerprint = "fp_past_due_test";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation(mockSendWithLicenseStatus("past_due"));
+
+    const response = await POST(licensedRequest(fingerprint));
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    expect(data.valid).toBe(true);
+    // past_due falls through to the normal success path which always writes "active"
+    // as the heartbeat status (it's the heartbeat-specific status, not the license status)
+  });
+
+  test("cancellation_pending license returns valid: true", async () => {
+    const fingerprint = "fp_cancel_pending_test";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation(mockSendWithLicenseStatus("cancellation_pending"));
+
+    const response = await POST(licensedRequest(fingerprint));
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    expect(data.valid).toBe(true);
+  });
+
 });

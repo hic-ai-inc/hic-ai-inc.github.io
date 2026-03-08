@@ -2238,7 +2238,7 @@ describe("portal/status API - org member status resolution", () => {
     // When org membership is found, prefer ownerCustomer (bare profile has no subscription)
     const effectiveCustomer = membership ? (ownerCustomer || customer) : customer;
     const subscriptionStatus = effectiveCustomer?.subscriptionStatus || "none";
-    const hasSubscription = ["active", "trialing"].includes(subscriptionStatus);
+    const hasSubscription = ["active"].includes(subscriptionStatus);
     const accountType = membership ? "business" : (effectiveCustomer?.accountType || "individual");
 
     return {
@@ -2380,17 +2380,17 @@ describe("portal/status API - org member status resolution", () => {
     assert.strictEqual(result.orgMembership.role, "admin");
   });
 
-  it("should handle org member with trialing subscription", () => {
+  it("should handle org member with past_due subscription", () => {
     const result = resolveUserStatus({
       customerByUserId: null,
       customerByEmail: null,
-      orgMembership: { orgId: "cus_trial", role: "member", status: "active" },
-      orgDetails: { orgId: "cus_trial", stripeCustomerId: "cus_trial" },
-      orgOwnerCustomer: { subscriptionStatus: "trialing", accountType: "business" },
+      orgMembership: { orgId: "cus_pastdue", role: "member", status: "active" },
+      orgDetails: { orgId: "cus_pastdue", stripeCustomerId: "cus_pastdue" },
+      orgOwnerCustomer: { subscriptionStatus: "past_due", accountType: "business" },
     });
 
-    assert.strictEqual(result.hasSubscription, true);
-    assert.strictEqual(result.subscriptionStatus, "trialing");
+    assert.strictEqual(result.hasSubscription, false);
+    assert.strictEqual(result.subscriptionStatus, "past_due");
     assert.strictEqual(result.accountType, "business");
   });
 
@@ -2565,18 +2565,18 @@ describe("effectiveCustomer priority - org member with bare profile", () => {
       createdAt: "2026-02-01T00:00:00Z",
     };
     const orgOwner = {
-      subscriptionStatus: "trialing",
+      subscriptionStatus: "past_due",
       accountType: "business",
-      keygenLicenseId: "lic_trial",
+      keygenLicenseId: "lic_pastdue",
       currentPeriodEnd: "2026-03-01T00:00:00Z",
     };
-    const membership = { orgId: "cus_trial_org", role: "admin" };
+    const membership = { orgId: "cus_pastdue_org", role: "admin" };
 
     const effective = resolveEffectiveCustomer({ customer: bareProfile, orgOwnerCustomer: orgOwner, membership });
 
     assert.strictEqual(effective, orgOwner);
-    assert.strictEqual(effective.subscriptionStatus, "trialing");
-    assert.strictEqual(effective.keygenLicenseId, "lic_trial");
+    assert.strictEqual(effective.subscriptionStatus, "past_due");
+    assert.strictEqual(effective.keygenLicenseId, "lic_pastdue");
   });
 
   it("should handle null customer with valid orgOwnerCustomer (no bare profile)", () => {
@@ -2675,7 +2675,6 @@ describe("SubscriptionStatusBadge — variant and label mapping", () => {
   // Extracted from portal/billing/page.js SubscriptionStatusBadge component
   const variants = {
     active: "success",
-    trialing: "info",
     past_due: "warning",
     cancellation_pending: "warning",
     canceled: "secondary",
@@ -2687,7 +2686,6 @@ describe("SubscriptionStatusBadge — variant and label mapping", () => {
 
   const labels = {
     active: "Active",
-    trialing: "Trial",
     past_due: "Past Due",
     cancellation_pending: "Cancellation Pending",
     canceled: "Canceled",
@@ -2727,7 +2725,7 @@ describe("SubscriptionStatusBadge — variant and label mapping", () => {
 describe("Billing card status text — cancellation_pending handling", () => {
   // Extracted from portal/page.js billing card status logic
   function getBillingStatusText(subscriptionStatus) {
-    if (subscriptionStatus === "active" || subscriptionStatus === "trialing") {
+    if (subscriptionStatus === "active") {
       return "Subscription active";
     } else if (subscriptionStatus === "cancellation_pending") {
       return "Cancellation pending";
@@ -2741,10 +2739,6 @@ describe("Billing card status text — cancellation_pending handling", () => {
 
   it("should display 'Subscription active' for active status", () => {
     assert.strictEqual(getBillingStatusText("active"), "Subscription active");
-  });
-
-  it("should display 'Subscription active' for trialing status", () => {
-    assert.strictEqual(getBillingStatusText("trialing"), "Subscription active");
   });
 
   it("should display 'No active subscription' for expired status", () => {

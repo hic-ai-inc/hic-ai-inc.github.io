@@ -32,7 +32,7 @@ import {
   RATE_LIMIT_PRESETS,
 } from "@/lib/rate-limit";
 import { createApiLogger } from "@/lib/api-log";
-import { NEXT_HEARTBEAT_SECONDS } from "@/lib/constants";
+import { NEXT_HEARTBEAT_SECONDS, LICENSE_STATUS } from "@/lib/constants";
 
 /**
  * Validate license key format before any server calls
@@ -264,26 +264,43 @@ export async function POST(request) {
     }
 
     if (!license) {
-      // License not in our database — might be valid in Keygen but not synced.
-      // Still return version payload so the extension can prompt updates consistently.
-      const versionConfig = await getVersionConfig();
+      // Fix 2 / Task 9.1: Null license must return 404, not "active".
+      // If the license key is not in DynamoDB the extension should not
+      // continue operating as though the user has a valid license.
+      log.decision("license_not_found", "Heartbeat rejected", {
+        reason: "license_not_found",
+      });
+      log.response(404, "License not found", { reason: "license_not_found" });
+      return NextResponse.json(
+        {
+          valid: false,
+          status: "not_found",
+          reason: "License not found",
+        },
+        { status: 404 },
+      );
+    }
 
+    // Fix 2 / Task 9.2: Status classification — reject invalid statuses
+    // before proceeding to device counting and success response.
+    // expired / suspended / revoked → tools must stop working immediately.
+    // past_due is deliberately EXCLUDED — users keep access during the
+    // 2-week dunning (payment retry) window.
+    const INVALID_STATUSES = [
+      LICENSE_STATUS.EXPIRED,
+      LICENSE_STATUS.SUSPENDED,
+      LICENSE_STATUS.REVOKED,
+    ];
+
+    if (INVALID_STATUSES.includes(license.status)) {
+      log.decision("license_invalid_status", "Heartbeat rejected", {
+        status: license.status,
+      });
+      log.response(200, "Heartbeat license invalid", { status: license.status });
       return NextResponse.json({
-        valid: true,
-        status: "active",
-        reason: "Heartbeat successful",
-        concurrentMachines: 1,
-        maxMachines: null, // Unknown
-        nextHeartbeat: NEXT_HEARTBEAT_SECONDS,
-        // Auto-update fields (B2)
-        latestVersion: versionConfig?.latestVersion || null,
-        releaseNotesUrl: versionConfig?.releaseNotesUrl || null,
-        updateUrl: versionConfig?.updateUrl?.marketplace || null,
-        // Daily-gated notification fields (see scheduled task: mouse-version-notify)
-        readyVersion: versionConfig?.readyVersion || null,
-        readyReleaseNotesUrl: versionConfig?.readyReleaseNotesUrl || null,
-        readyUpdateUrl: versionConfig?.readyUpdateUrl || null,
-        readyUpdatedAt: versionConfig?.readyUpdatedAt || null,
+        valid: false,
+        status: license.status,
+        reason: `License is ${license.status}`,
       });
     }
 

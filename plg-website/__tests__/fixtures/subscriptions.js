@@ -196,44 +196,6 @@ export const canceled = {
 };
 
 /**
- * Trialing subscription (new user in trial period)
- */
-export const trialing = {
-  id: "sub_trialing_123",
-  object: "subscription",
-  status: "trialing",
-  customer: "cus_trialing_123",
-  trial_start: NOW - 7 * ONE_DAY,
-  trial_end: NOW + 7 * ONE_DAY,
-  cancel_at_period_end: false,
-  canceled_at: null,
-  items: {
-    object: "list",
-    data: [
-      {
-        id: "si_trialing_123",
-        object: "subscription_item",
-        current_period_start: NOW - 7 * ONE_DAY,
-        current_period_end: NOW + 7 * ONE_DAY,
-        price: {
-          id: "price_individual_monthly",
-          product: "prod_individual_123",
-          unit_amount: 2900,
-          currency: "usd",
-          recurring: {
-            interval: "month",
-            interval_count: 1,
-          },
-        },
-        quantity: 1,
-      },
-    ],
-  },
-  metadata: {},
-  default_payment_method: null, // No payment method during trial
-};
-
-/**
  * All test subscriptions exported as a collection
  */
 export const testSubscriptions = {
@@ -242,7 +204,6 @@ export const testSubscriptions = {
   enterpriseSeats,
   pastDue,
   canceled,
-  trialing,
 };
 
 /**

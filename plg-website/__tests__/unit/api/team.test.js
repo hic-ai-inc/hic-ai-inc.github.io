@@ -556,10 +556,10 @@ describe("Team API Logic", () => {
       assert.strictEqual(result.hasLicense, false);
     });
 
-    it("allows invite when subscription is trialing (not active)", () => {
+    it("allows invite when subscription is past_due (not active)", () => {
       const result = checkExistingLicense({
         email: "user@example.com",
-        subscriptionStatus: "trialing",
+        subscriptionStatus: "past_due",
       });
       assert.strictEqual(result.hasLicense, false);
     });

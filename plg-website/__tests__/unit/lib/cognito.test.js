@@ -184,17 +184,6 @@ describe("cognito.js", () => {
       expect(result).toBe("active");
     });
 
-    it("should return trialing subscription status", () => {
-      const session = {
-        user: {
-          email: "trial@example.com",
-          [`${NAMESPACE}/subscription_status`]: "trialing",
-        },
-      };
-      const result = getSubscriptionStatus(session);
-      expect(result).toBe("trialing");
-    });
-
     it("should return canceled subscription status", () => {
       const session = {
         user: {
@@ -430,7 +419,7 @@ describe("cognito.js", () => {
           familyName: "Solo",
           email_verified: true,
           [`${NAMESPACE}/account_type`]: "individual",
-          [`${NAMESPACE}/subscription_status`]: "trialing",
+          [`${NAMESPACE}/subscription_status`]: "active",
           [`${NAMESPACE}/plan_type`]: "individual",
           [`${NAMESPACE}/stripe_customer_id`]: "cus_stripe_solo",
         },
@@ -442,7 +431,7 @@ describe("cognito.js", () => {
       expect(isEnterpriseUser(session)).toBe(false);
       expect(getAccountType(session)).toBe("individual");
       expect(getOrgRole(session)).toBe(null);
-      expect(getSubscriptionStatus(session)).toBe("trialing");
+      expect(getSubscriptionStatus(session)).toBe("active");
       expect(getPlanType(session)).toBe("individual");
     });
 

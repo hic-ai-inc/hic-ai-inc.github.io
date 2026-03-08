@@ -98,7 +98,7 @@ export async function GET(request) {
 
     if (customer && customer.keygenLicenseId) {
       // We have a stored license key - use it
-      const hasActiveSubscription = ["active", "trialing"].includes(
+      const hasActiveSubscription = ["active"].includes(
         customer.subscriptionStatus,
       );
 

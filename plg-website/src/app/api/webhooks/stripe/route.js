@@ -458,7 +458,6 @@ async function handleSubscriptionUpdated(subscription, log) {
     unpaid: "expired",
     incomplete: "pending",
     incomplete_expired: "expired",
-    trialing: "trialing",
     paused: "paused",
   };
 

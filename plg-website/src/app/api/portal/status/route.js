@@ -117,10 +117,14 @@ export async function GET(request) {
     const subscriptionStatus = effectiveCustomer?.subscriptionStatus || "none";
     // cancellation_pending = active subscription with cancel_at_period_end set;
     // the license is still valid until the period ends, so treat it as active
-    const hasActiveSubscription = ["active", "trialing", "cancellation_pending"].includes(
+    const hasActiveSubscription = ["active", "cancellation_pending"].includes(
       subscriptionStatus,
     );
-    const hasExpiredSubscription = ["canceled", "past_due", "unpaid"].includes(
+    // Fix 4 / Task 11.1: past_due is its own category — past-due customers
+    // retain full portal access to update their payment method during the
+    // 2-week dunning window. They must NOT see "expired".
+    const hasPastDueSubscription = subscriptionStatus === "past_due";
+    const hasExpiredSubscription = ["canceled", "unpaid"].includes(
       subscriptionStatus,
     );
 
@@ -153,13 +157,15 @@ export async function GET(request) {
     const response = {
       status: hasActiveSubscription
         ? "active"
-        : hasExpiredSubscription
-          ? "expired"
-          : "none",
+        : hasPastDueSubscription
+          ? "past_due"
+          : hasExpiredSubscription
+            ? "expired"
+            : "none",
       subscriptionStatus,
-      hasSubscription: hasActiveSubscription,
+      hasSubscription: hasActiveSubscription || hasPastDueSubscription,
       shouldRedirectToCheckout:
-        !hasActiveSubscription && !hasExpiredSubscription,
+        !hasActiveSubscription && !hasPastDueSubscription && !hasExpiredSubscription,
       accountType,
       keygenLicenseId: licenseId || null,
       stripeCustomerId: effectiveCustomer?.stripeCustomerId || null,

@@ -31,7 +31,6 @@ export {
   enterpriseSeats,
   pastDue,
   canceled,
-  trialing,
   createCheckoutSession,
   createPortalSession,
 } from "./subscriptions.js";

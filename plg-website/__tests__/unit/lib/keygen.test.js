@@ -692,3 +692,63 @@ describe("Property 2: Keygen status normalization", () => {
   });
 });
 
+
+// ============================================================================
+// Property 21: renewLicense calls correct endpoint
+// Feature: status-remediation-plan, Property 21
+// **Validates: Requirements 6.1**
+// ============================================================================
+
+describe("Property 21: renewLicense calls correct endpoint", () => {
+  let keygenMock;
+
+  beforeEach(() => {
+    keygenMock = createKeygenMock();
+    __setKeygenRequestForTests(keygenMock.request);
+  });
+
+  afterEach(() => {
+    __resetKeygenRequestForTests();
+  });
+
+  it("for any licenseId, renewLicense issues POST to /licenses/{licenseId}/actions/renew (100 iterations)", async () => {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789-_";
+    for (let i = 0; i < 100; i++) {
+      // Generate a random licenseId of varying length (8-36 chars)
+      const len = 8 + Math.floor(Math.random() * 29);
+      let licenseId = "";
+      for (let j = 0; j < len; j++) {
+        licenseId += chars[Math.floor(Math.random() * chars.length)];
+      }
+
+      keygenMock.whenRenewLicense(licenseId).resolves({});
+
+      await renewLicense(licenseId);
+
+      // Verify the last call used the correct endpoint and method
+      const lastCallIdx = keygenMock.request.calls.length - 1;
+      const [url, options] = keygenMock.request.calls[lastCallIdx];
+      expect(url).toBe(`/licenses/${licenseId}/actions/renew`);
+      expect(options.method).toBe("POST");
+    }
+  });
+
+  it("licenseId with UUID format calls correct endpoint (100 iterations)", async () => {
+    for (let i = 0; i < 100; i++) {
+      // Generate UUID-like licenseId (matching Keygen's format)
+      const hex = "0123456789abcdef";
+      const seg = (n) => { let s = ""; for (let j = 0; j < n; j++) s += hex[Math.floor(Math.random() * 16)]; return s; };
+      const licenseId = `${seg(8)}-${seg(4)}-${seg(4)}-${seg(4)}-${seg(12)}`;
+
+      keygenMock.whenRenewLicense(licenseId).resolves({});
+
+      await renewLicense(licenseId);
+
+      const lastCallIdx = keygenMock.request.calls.length - 1;
+      const [url, options] = keygenMock.request.calls[lastCallIdx];
+      expect(url).toBe(`/licenses/${licenseId}/actions/renew`);
+      expect(options.method).toBe("POST");
+    }
+  });
+});
+

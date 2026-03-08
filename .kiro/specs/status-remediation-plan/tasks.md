@@ -80,7 +80,7 @@ All extension tasks batched together:
   > **🔀 EXTENSION REPO** — Tasks 3.6, 3.7, 3.10, 3.11 target `~/source/repos/hic`. Defer to Phase 2.
     - Change all values in `~/source/repos/hic/licensing/constants.js` to lowercase
     - _Requirements: 2.7_
-  - [x] 3.7 Add state migration logic in extension state module
+  - [ ] 3.7 Add state migration logic in extension state module
     - When loading persisted state, normalize any UPPER_CASE status values to lowercase
     - File: `~/source/repos/hic/licensing/state.js`
     - _Requirements: 2.8_
@@ -97,12 +97,12 @@ All extension tasks batched together:
     - For any status string returned by the Keygen module (regardless of original casing), the returned value must be strictly lowercase
     - Tag: `// Feature: status-remediation-plan, Property 2`
     - **Validates: Requirements 2.3**
-  - [x] 3.10 Write property test — Property 3: Extension LICENSE_STATES lowercase
+  - [ ] 3.10 Write property test — Property 3: Extension LICENSE_STATES lowercase
     - **Property 3: Extension LICENSE_STATES lowercase**
     - For any value in the extension's LICENSE_STATES constants object, the value must be a lowercase string
     - Tag: `// Feature: status-remediation-plan, Property 3`
     - **Validates: Requirements 2.7**
-  - [x] 3.11 Write property test — Property 4: Extension state migration normalizes to lowercase
+  - [ ] 3.11 Write property test — Property 4: Extension state migration normalizes to lowercase
     - **Property 4: Extension state migration normalizes to lowercase**
     - For any persisted status string (including UPPER_CASE values from prior installs), loading it through the state module must produce a lowercase result
     - Tag: `// Feature: status-remediation-plan, Property 4`
@@ -114,28 +114,30 @@ All extension tasks batched together:
 
 - [x] 5. Fix 8 — Centralize event type strings in EVENT_TYPES enum
   - [x] 5.1 Add EVENT_TYPES enum to `plg-website/src/lib/constants.js`
-    - Add all 10 event type strings: CUSTOMER_CREATED, LICENSE_CREATED, PAYMENT_FAILED, SUBSCRIPTION_REACTIVATED, CANCELLATION_REQUESTED, CANCELLATION_REVERSED, VOLUNTARY_CANCELLATION_EXPIRED, NONPAYMENT_CANCELLATION_EXPIRED, TEAM_INVITE_CREATED, TEAM_INVITE_RESENT
+    - Added all 12 event type strings: CUSTOMER_CREATED, LICENSE_CREATED, PAYMENT_FAILED, SUBSCRIPTION_REACTIVATED, CANCELLATION_REQUESTED, CANCELLATION_REVERSED, VOLUNTARY_CANCELLATION_EXPIRED, NONPAYMENT_CANCELLATION_EXPIRED, TEAM_INVITE_CREATED, TEAM_INVITE_RESENT, LICENSE_REVOKED, LICENSE_SUSPENDED
+    - LICENSE_REVOKED and LICENSE_SUSPENDED added to complete centralization of all event strings
     - _Requirements: 3.1_
   - [x] 5.2 Replace hardcoded event strings in Stripe webhook handler
     - File: `plg-website/src/app/api/webhooks/stripe/route.js`
-    - Import EVENT_TYPES and replace all hardcoded event type strings
+    - Import EVENT_TYPES and replace all remaining hardcoded event type strings
     - _Requirements: 3.2, 3.3_
   - [x] 5.3 Replace hardcoded event strings in Keygen webhook handler
     - File: `plg-website/src/app/api/webhooks/keygen/route.js`
-    - Import EVENT_TYPES and replace all hardcoded event type strings
+    - Imported EVENT_TYPES; replaced `"LICENSE_REVOKED"` with `EVENT_TYPES.LICENSE_REVOKED`
     - _Requirements: 3.4_
   - [x] 5.4 Replace hardcoded event strings in portal team route
     - File: `plg-website/src/app/api/portal/team/route.js`
-    - Import EVENT_TYPES and replace all hardcoded event type strings
+    - Imported EVENT_TYPES; replaced `"LICENSE_SUSPENDED"`, `"LICENSE_REVOKED"` (×2) with enum references
     - _Requirements: 3.5_
-  - [x] 5.5 Replace hardcoded event strings in email templates module
-    - File: `dm/layers/ses/src/email-templates.js`
-    - Import EVENT_TYPES and use enum values as keys in EVENT_TYPE_TO_TEMPLATE
+  - [x] 5.5 Replace hardcoded event strings in DynamoDB module and email templates
+    - File: `plg-website/src/lib/dynamodb.js` — imported EVENT_TYPES; replaced `"LICENSE_CREATED"`, `"TEAM_INVITE_CREATED"`, `"TEAM_INVITE_RESENT"` with enum references
+    - File: `dm/layers/ses/src/email-templates.js` — EVENT_TYPE_TO_TEMPLATE keys already use string literals that match EVENT_TYPES values; no direct import needed (avoids circular dependency between DM and PLG modules)
     - _Requirements: 3.6_
   - [x] 5.6 Write unit tests for EVENT_TYPES enum
-    - Assert EVENT_TYPES contains all 10 expected keys
-    - Assert no hardcoded event strings remain in source files (grep verification)
-    - Test file: `tests/lib/constants.test.js`
+    - Assert EVENT_TYPES contains all 12 expected keys
+    - Assert no hardcoded event strings remain in source files (grep verification for stripe, keygen, team, dynamodb)
+    - Assert EMAIL_TYPE_TO_TEMPLATE keys are all valid EVENT_TYPES keys
+    - Test file: `__tests__/unit/lib/constants.test.js`
     - _Requirements: 13.11_
 
 - [-] 6. Fix 5 — Remove "suspended" from the payment path
@@ -194,7 +196,7 @@ All extension tasks batched together:
   - [ ] 6.13 Remove suspended status mapping from extension validate command
     - File: extension `licensing/commands/validate.js`
     - _Requirements: 5.6_
-  - [x] 6.14 Write unit tests for suspended removal from payment path
+  - [~] 6.14 Write unit tests for suspended removal from payment path [EXTENSION ONLY REMAINING]
     - Assert `handlePaymentFailed` writes "past_due" only and never "suspended"
     - Assert `handlePaymentFailed` skips write when status is already "expired"
     - Assert `handleDisputeClosed` writes "expired" on lost dispute
@@ -228,7 +230,7 @@ All extension tasks batched together:
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify no regressions from EVENT_TYPES centralization and suspended removal
 
-- [ ] 8. Fix 1 — Add license renewal on payment success
+- [x] 8. Fix 1 — Add license renewal on payment success
   - [x] 8.1 Implement `renewLicense(licenseId)` in Keygen module
     - Add function calling `POST /licenses/{id}/actions/renew`
     - File: `plg-website/src/lib/keygen.js`
@@ -239,59 +241,78 @@ All extension tasks batched together:
     - Skip `renewLicense` if customer has no `keygenLicenseId`
     - File: `plg-website/src/app/api/webhooks/stripe/route.js`
     - _Requirements: 6.2, 6.3, 6.4_
-  - [-] 8.3 Write unit tests for renewLicense
+  - [x] 8.3 Write unit tests for renewLicense
     - Assert `renewLicense` calls correct Keygen endpoint
     - Assert `handlePaymentSucceeded` calls `renewLicense` on every successful payment
     - Assert `handlePaymentSucceeded` writes "active" to DDB even if `renewLicense` fails
     - Assert `renewLicense` is skipped when customer has no `keygenLicenseId`
-    - Test files: `tests/lib/keygen.test.js`, `tests/webhooks/stripe.test.js`
+    - Test files: `__tests__/unit/lib/keygen.test.js`, `__tests__/unit/webhooks/stripe.test.js`
     - _Requirements: 13.2, 13.3_
-  - [~] 8.4 Write property test — Property 7: Payment success calls renewLicense
+  - [x] 8.4 Write property test — Property 7: Payment success calls renewLicense
     - **Property 7: Payment success calls renewLicense**
     - For any payment success where customer has a keygenLicenseId, `handlePaymentSucceeded` must call `renewLicense(keygenLicenseId)`
+    - 3 sub-tests: with licenseId (100 iter), without licenseId (100 iter), across all statuses (100 iter)
+    - File: `__tests__/property/webhooks/stripe.property.test.js`
     - Tag: `// Feature: status-remediation-plan, Property 7`
     - **Validates: Requirements 6.2**
-  - [~] 8.5 Write property test — Property 8: renewLicense failure does not block DDB active write
+  - [x] 8.5 Write property test — Property 8: renewLicense failure does not block DDB active write
     - **Property 8: renewLicense failure does not block DDB active write**
     - For any payment success where `renewLicense` throws, `handlePaymentSucceeded` must still write "active" to DDB
+    - 4 sub-tests: DDB writes "active" (100 iter), handler doesn't throw (100 iter), logs warning (100 iter), past_due reinstatement unblocked (100 iter)
+    - File: `__tests__/property/webhooks/stripe.property.test.js`
     - Tag: `// Feature: status-remediation-plan, Property 8`
     - **Validates: Requirements 6.3**
-  - [~] 8.6 Write property test — Property 21: renewLicense calls correct endpoint
+  - [x] 8.6 Write property test — Property 21: renewLicense calls correct endpoint
     - **Property 21: renewLicense calls correct endpoint**
     - For any licenseId, `renewLicense(licenseId)` must issue a POST to `/licenses/{licenseId}/actions/renew`
+    - 2 sub-tests: random string IDs (100 iter), UUID-format IDs (100 iter)
+    - File: `__tests__/unit/lib/keygen.test.js`
     - Tag: `// Feature: status-remediation-plan, Property 21`
     - **Validates: Requirements 6.1**
 
-- [ ] 9. Fix 2 — Fix heartbeat null license and status checks
-  - [ ] 9.1 Add null license guard to heartbeat endpoint
+- [x] 9. Fix 2 — Fix heartbeat null license and status checks
+  - [x] 9.1 Add null license guard to heartbeat endpoint
     - When `getLicenseByKey` returns null, return HTTP 404 with `{ valid: false, error: "License not found" }`
     - File: `plg-website/src/app/api/license/heartbeat/route.js`
     - _Requirements: 7.1_
-  - [ ] 9.2 Add status classification to heartbeat endpoint
+  - [x] 9.2 Add status classification to heartbeat endpoint
     - If status is "expired", "suspended", or "revoked": return `{ valid: false, status, reason: "License is <status>" }`
     - If status is "active", "past_due", "cancellation_pending", or "trial": return `{ valid: true }` with status
     - "past_due" returns `valid: true` (tools work during dunning window)
     - File: `plg-website/src/app/api/license/heartbeat/route.js`
     - _Requirements: 7.2, 7.3, 7.4_
-  - [ ] 9.3 Write unit tests for heartbeat endpoint
+  - [x] 9.3 Write unit tests for heartbeat endpoint
     - Assert 404 when license is null
     - Assert `valid: false` for expired, suspended, revoked
     - Assert `valid: true` for active, past_due, cancellation_pending, trial
     - Assert "past_due" returns `valid: true` with status
     - Test file: `tests/license/heartbeat.test.js`
     - _Requirements: 13.4_
-  - [ ] 9.4 Write property test — Property 9: Heartbeat status classification
+  - [x] 9.4 Write property test — Property 9: Heartbeat status classification
     - **Property 9: Heartbeat status classification**
     - For any license record, heartbeat returns `valid: true` iff status is in {active, past_due, cancellation_pending, trial}; `valid: false` for {expired, suspended, revoked}; HTTP 404 for null
     - Tag: `// Feature: status-remediation-plan, Property 9`
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
 
-- [ ] 10. Checkpoint — Fix 1 + Fix 2 complete
+- [x] 10. Checkpoint — Fix 1 + Fix 2 complete
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify renewLicense and heartbeat fixes
 
 - [ ] 11. Fix 4 — Fix portal status for past-due customers
-  - [ ] 11.1 Reclassify status categories in portal status route
+  - [x] 11.0 Remove dead "trialing" and unused LICENSE_STATUS.TRIAL from source
+    - `"trialing"` is Stripe's trial subscription status, but Mouse has no Stripe trial — the 14-day trial is extension-side, device-bound, and never touches Stripe
+    - `LICENSE_STATUS.TRIAL` ("trial") is NOT used as a subscriptionStatus anywhere — it's only a heartbeat/validate API response status for device-level trials
+    - No authenticated user ever receives "trial" or "trialing" as a subscriptionStatus; users without subscriptions get "none"
+    - Remove `trialing: "trialing"` from `statusMap` in `src/app/api/webhooks/stripe/route.js`
+    - Remove `"trialing"` from `hasActiveSubscription` array in `src/app/api/portal/status/route.js`
+    - Remove `"trialing"` from `hasActiveSubscription` array in `src/app/api/license/check/route.js`
+    - Remove `subscriptionStatus === "trialing"` branch in `src/app/portal/page.js`
+    - Remove `trialing` entries from `SubscriptionStatusBadge` in `src/app/portal/billing/page.js`
+    - Remove `TRIAL: "trial"` from `LICENSE_STATUS` and `trial: { ... }` from `LICENSE_STATUS_DISPLAY` in constants.js — the enum entry is never imported or referenced; heartbeat/validate use the string literal `"trial"` directly
+    - Preserve all heartbeat/validate `status: "trial"` response literals — those are live device-trial API responses, not subscription statuses
+    - Update affected tests (fixtures, cognito tests, plg-metrics tests)
+    - _Discovered during Fix 4 implementation — "trialing" is dead code per business logic_
+  - [x] 11.1 Reclassify status categories in portal status route
     - Active: `["active", "trial", "cancellation_pending"]`
     - Past Due: `["past_due"]` (new category, separate from expired)
     - Expired: `["expired"]` (remove "past_due" from expired array)

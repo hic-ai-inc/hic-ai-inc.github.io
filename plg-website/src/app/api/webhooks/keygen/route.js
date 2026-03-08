@@ -21,6 +21,7 @@ import {
 // updateLicenseStatus() with eventType → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
 import crypto from "crypto";
 import { createApiLogger } from "@/lib/api-log";
+import { EVENT_TYPES } from "@/lib/constants";
 import { safeJsonParse } from "../../../../../../dm/layers/base/src/index.js";
 import { getKeygenSecrets } from "@/lib/secrets";
 
@@ -333,7 +334,7 @@ async function handleLicenseRevoked(data, log) {
 
   await updateLicenseStatus(licenseId, "revoked", {
     revokedAt: new Date().toISOString(),
-    eventType: "LICENSE_REVOKED",
+    eventType: EVENT_TYPES.LICENSE_REVOKED,
     email: license?.email,
     organizationName: license?.organizationName,
   });

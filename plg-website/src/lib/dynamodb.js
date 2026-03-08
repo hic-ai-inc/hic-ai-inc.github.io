@@ -20,7 +20,7 @@ import {
 } from "../../../dm/layers/dynamodb/src/index.js";
 import { HicLog, safeJsonParse } from "../../../dm/layers/base/src/index.js";
 import { randomBytes } from "node:crypto";
-import { DEVICE_ACTIVITY_WINDOW_HOURS } from "@/lib/constants";
+import { DEVICE_ACTIVITY_WINDOW_HOURS, EVENT_TYPES } from "@/lib/constants";
 
 // Initialize DynamoDB client with HIC logging
 const client = new DynamoDBClient({
@@ -537,7 +537,7 @@ export async function createLicense({
     maxDevices,
     activatedDevices: 0,
     // Event-driven email fields
-    eventType: "LICENSE_CREATED",
+    eventType: EVENT_TYPES.LICENSE_CREATED,
     email,
     planName,
     ...metadata,
@@ -1841,7 +1841,7 @@ export async function createOrgInvite(
       invitedBy,
       createdAt: now,
       expiresAt,
-      eventType: "TEAM_INVITE_CREATED",
+      eventType: EVENT_TYPES.TEAM_INVITE_CREATED,
       organizationName: inviteMetadata.organizationName,
       inviterName: inviteMetadata.inviterName,
       metadata: inviteMetadata.metadata,
@@ -1925,7 +1925,7 @@ export async function resendOrgInvite(orgId, inviteId) {
           ":now": new Date().toISOString(),
           ":zero": 0,
           ":one": 1,
-          ":eventType": "TEAM_INVITE_RESENT",
+          ":eventType": EVENT_TYPES.TEAM_INVITE_RESENT,
         },
         ReturnValues: "ALL_NEW",
       }),

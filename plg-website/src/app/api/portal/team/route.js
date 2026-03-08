@@ -30,6 +30,7 @@ import {
   getOrganization,
 } from "@/lib/dynamodb";
 import { createApiLogger } from "@/lib/api-log";
+import { EVENT_TYPES } from "@/lib/constants";
 
 /**
  * GET /api/portal/team
@@ -391,7 +392,7 @@ export async function POST(request) {
 
         // Trigger notification email and clean up invite for suspension/revocation
         if (status === "suspended" || status === "revoked") {
-          const eventType = status === "suspended" ? "LICENSE_SUSPENDED" : "LICENSE_REVOKED";
+          const eventType = status === "suspended" ? EVENT_TYPES.LICENSE_SUSPENDED : EVENT_TYPES.LICENSE_REVOKED;
           if (targetMember.email) {
             const org = await getOrganization(orgId);
             await writeEventRecord(eventType, {
@@ -653,7 +654,7 @@ export async function DELETE(request) {
         // Trigger revocation email before removing the member record
         if (targetMember.email) {
           const org = await getOrganization(orgId);
-          await writeEventRecord("LICENSE_REVOKED", {
+          await writeEventRecord(EVENT_TYPES.LICENSE_REVOKED, {
             email: targetMember.email,
             userId: memberId,
             organizationName: org?.name,

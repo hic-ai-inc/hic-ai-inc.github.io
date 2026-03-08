@@ -58,7 +58,6 @@ describe("webhooks/stripe API logic", () => {
       canceled: "canceled",
       incomplete: "incomplete",
       incomplete_expired: "expired",
-      trialing: "trialing",
       unpaid: "unpaid",
     };
     return statusMap[status] || "unknown";
@@ -200,8 +199,8 @@ describe("webhooks/stripe API logic", () => {
       );
     });
 
-    it("should map trialing status", () => {
-      assert.strictEqual(determineSubscriptionStatus("trialing"), "trialing");
+    it("should return unknown for trialing (Task 11.0 — dead Stripe trial removed)", () => {
+      assert.strictEqual(determineSubscriptionStatus("trialing"), "unknown");
     });
 
     it("should return unknown for unrecognized status", () => {
@@ -1924,7 +1923,7 @@ describe("Stream 1D — Cancel/Uncancel/Cooldown/Expiration Logic", () => {
   // =========================================================================
   describe("Property 5: Subscription deletion routes to correct expiration event type", () => {
     it("should route correctly across 100 random prior statuses", () => {
-      const allStatuses = ["active", "cancellation_pending", "past_due", "suspended", "expired", "disputed", "trialing", "pending", "paused"];
+      const allStatuses = ["active", "cancellation_pending", "past_due", "suspended", "expired", "disputed", "pending", "paused"];
 
       for (let i = 0; i < 100; i++) {
         const priorStatus = allStatuses[Math.floor(Math.random() * allStatuses.length)];
@@ -1946,7 +1945,7 @@ describe("Stream 1D — Cancel/Uncancel/Cooldown/Expiration Logic", () => {
   // =========================================================================
   describe("Property 6: Payment recovery triggers reactivation for past_due and suspended", () => {
     it("should trigger/skip correctly across 100 random statuses", () => {
-      const allStatuses = ["active", "cancellation_pending", "past_due", "suspended", "expired", "disputed", "trialing"];
+      const allStatuses = ["active", "cancellation_pending", "past_due", "suspended", "expired", "disputed"];
 
       for (let i = 0; i < 100; i++) {
         const status = allStatuses[Math.floor(Math.random() * allStatuses.length)];

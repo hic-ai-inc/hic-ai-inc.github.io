@@ -119,7 +119,6 @@ export const PROMO_CODES = {
 
 export const LICENSE_STATUS = {
   PENDING_ACCOUNT: "pending_account",
-  TRIAL: "trial",
   ACTIVE: "active",
   PAST_DUE: "past_due",
   CANCELLATION_PENDING: "cancellation_pending",
@@ -132,7 +131,6 @@ export const LICENSE_STATUS = {
 
 export const LICENSE_STATUS_DISPLAY = {
   pending_account: { label: "Pending Setup", variant: "warning" },
-  trial: { label: "Trial", variant: "info" },
   active: { label: "Active", variant: "success" },
   past_due: { label: "Past Due", variant: "error" },
   cancellation_pending: { label: "Cancellation Pending", variant: "warning" },
@@ -160,6 +158,8 @@ export const EVENT_TYPES = {
   NONPAYMENT_CANCELLATION_EXPIRED: "NONPAYMENT_CANCELLATION_EXPIRED",
   TEAM_INVITE_CREATED: "TEAM_INVITE_CREATED",
   TEAM_INVITE_RESENT: "TEAM_INVITE_RESENT",
+  LICENSE_REVOKED: "LICENSE_REVOKED",
+  LICENSE_SUSPENDED: "LICENSE_SUSPENDED",
 };
 
 // ===========================================

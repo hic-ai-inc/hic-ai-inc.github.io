@@ -336,8 +336,7 @@ function ActiveUserDashboard({
             <p className="text-slate-grey text-sm mb-4">
               {!isOrgOwner
                 ? "Managed by subscription owner"
-                : subscriptionStatus === "active" ||
-                    subscriptionStatus === "trialing"
+                : subscriptionStatus === "active"
                   ? "Subscription active"
                   : subscriptionStatus === "cancellation_pending"
                     ? "Cancellation pending"
