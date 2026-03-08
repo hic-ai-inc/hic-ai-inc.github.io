@@ -77,7 +77,7 @@ console.log("\n=== getDateRange() Tests ===\n");
   expect(result.days).toBe(7);
   const diff = result.endTimestamp - result.startTimestamp;
   const expectedDiff = 7 * 24 * 60 * 60; // 7 days in seconds
-  expect(diff).toBeCloseTo(expectedDiff, 1000); // Allow 1000s tolerance
+  expect(diff).toBeCloseTo(expectedDiff, 7200); // Allow 7200s tolerance (DST transitions)
   console.log("✓ getDateRange: parses 7d correctly");
 }
 
