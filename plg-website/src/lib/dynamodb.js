@@ -1567,7 +1567,7 @@ export async function getOrganizationByStripeCustomer(stripeCustomerId) {
  * @param {string} userId - User ID (Cognito sub)
  * @returns {Promise<Object|null>} Membership record with orgId, role, status, or null if not a member
  */
-export async function getUserOrgMembership(userId) {
+export async function getUserOrgMembership(userId, { includeAll = false } = {}) {
   const logger = createLogger("getUserOrgMembership");
 
   try {
@@ -1584,8 +1584,11 @@ export async function getUserOrgMembership(userId) {
       }),
     );
 
-    // Return the first active membership (users can only be in one org)
-    const membership = result.Items?.find((item) => item.status === "active");
+    // Return the first matching membership (users can only be in one org)
+    // By default only returns active memberships; includeAll returns any status
+    const membership = includeAll
+      ? result.Items?.[0]
+      : result.Items?.find((item) => item.status === "active");
 
     if (!membership) {
       logger.info("No org membership found", { userId });

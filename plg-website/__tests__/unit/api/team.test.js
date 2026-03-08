@@ -1545,3 +1545,276 @@ describe("Organization Lookup Fallback", () => {
 });
 
 });
+
+// ===========================================
+// FIX 9 — DEVICE DEACTIVATION ON SUSPENSION/REVOCATION
+// Tests for Task 14.3: Admin suspension deactivates devices
+// Feature: status-remediation-plan, Fix 9
+// ===========================================
+
+describe("Fix 9: Device Deactivation on Suspend/Revoke (Task 14.3)", () => {
+  /**
+   * Extracted logic: mirrors the device-deactivation block in the team route's
+   * update_status handler. Uses dependency injection for testability.
+   *
+   * @param {string} status - Target member status ("suspended", "revoked", or "active")
+   * @param {string} memberId - Member being updated
+   * @param {Object} deps - Injected dependencies
+   */
+  async function handleStatusUpdateDeviceCleanup(status, memberId, deps) {
+    const {
+      getOrganization,
+      getCustomerByUserId,
+      getUserDevices,
+      deactivateDevice,
+      removeDeviceActivation,
+      log,
+    } = deps;
+
+    if (status === "suspended" || status === "revoked") {
+      const org = await getOrganization();
+      const ownerCustomer = await getCustomerByUserId(org.ownerId);
+      const keygenLicenseId = ownerCustomer?.keygenLicenseId;
+
+      if (keygenLicenseId) {
+        const devices = await getUserDevices(keygenLicenseId, memberId);
+        for (const device of devices) {
+          try {
+            await deactivateDevice(device.keygenMachineId);
+          } catch (err) {
+            log.warn("keygen_device_deactivation_failed", "Keygen device deactivation failed (non-blocking)", {
+              machineId: device.keygenMachineId,
+              memberId,
+              error: err.message,
+            });
+          }
+          await removeDeviceActivation(keygenLicenseId, device.keygenMachineId, device.fingerprint);
+        }
+      }
+    }
+    // "active" (reinstatement): no device cleanup
+  }
+
+  function createMockDevice(overrides = {}) {
+    return {
+      keygenMachineId: `mach_${Math.random().toString(36).slice(2, 14)}`,
+      fingerprint: `fp_${Math.random().toString(36).slice(2, 18)}`,
+      userId: "member_user123",
+      ...overrides,
+    };
+  }
+
+  function createMockDeps(devices = [], overrides = {}) {
+    const deactivateDevice = mock.fn(async () => {});
+    const removeDeviceActivation = mock.fn(async () => ({ removed: true }));
+    const getUserDevices = mock.fn(async () => devices);
+    const getOrganization = mock.fn(async () => ({
+      orgId: "org_test123",
+      ownerId: "owner_user456",
+      name: "Test Org",
+      ...overrides.org,
+    }));
+    const getCustomerByUserId = mock.fn(async () => ({
+      userId: "owner_user456",
+      keygenLicenseId: "lic_owner789",
+      ...overrides.ownerCustomer,
+    }));
+    const log = {
+      warn: mock.fn(),
+      info: mock.fn(),
+    };
+
+    return {
+      deactivateDevice,
+      removeDeviceActivation,
+      getUserDevices,
+      getOrganization,
+      getCustomerByUserId,
+      log,
+    };
+  }
+
+  // ---- Suspension deactivates all devices (Keygen + DDB) ----
+
+  it("should deactivate all member devices in both Keygen and DDB on suspension", async () => {
+    const devices = [
+      createMockDevice({ keygenMachineId: "mach_aaa", fingerprint: "fp_111" }),
+      createMockDevice({ keygenMachineId: "mach_bbb", fingerprint: "fp_222" }),
+      createMockDevice({ keygenMachineId: "mach_ccc", fingerprint: "fp_333" }),
+    ];
+    const deps = createMockDeps(devices);
+
+    await handleStatusUpdateDeviceCleanup("suspended", "member_user123", deps);
+
+    // Keygen: deactivateDevice called for each device
+    assert.strictEqual(deps.deactivateDevice.mock.callCount(), 3);
+    assert.deepStrictEqual(deps.deactivateDevice.mock.calls[0].arguments, ["mach_aaa"]);
+    assert.deepStrictEqual(deps.deactivateDevice.mock.calls[1].arguments, ["mach_bbb"]);
+    assert.deepStrictEqual(deps.deactivateDevice.mock.calls[2].arguments, ["mach_ccc"]);
+
+    // DDB: removeDeviceActivation called for each device with licenseId, machineId, fingerprint
+    assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 3);
+    assert.deepStrictEqual(deps.removeDeviceActivation.mock.calls[0].arguments, ["lic_owner789", "mach_aaa", "fp_111"]);
+    assert.deepStrictEqual(deps.removeDeviceActivation.mock.calls[1].arguments, ["lic_owner789", "mach_bbb", "fp_222"]);
+    assert.deepStrictEqual(deps.removeDeviceActivation.mock.calls[2].arguments, ["lic_owner789", "mach_ccc", "fp_333"]);
+  });
+
+  // ---- Revocation deactivates all devices (Keygen + DDB) ----
+
+  it("should deactivate all member devices in both Keygen and DDB on revocation", async () => {
+    const devices = [
+      createMockDevice({ keygenMachineId: "mach_ddd", fingerprint: "fp_444" }),
+      createMockDevice({ keygenMachineId: "mach_eee", fingerprint: "fp_555" }),
+    ];
+    const deps = createMockDeps(devices);
+
+    await handleStatusUpdateDeviceCleanup("revoked", "member_user123", deps);
+
+    // Keygen: deactivateDevice called for each device
+    assert.strictEqual(deps.deactivateDevice.mock.callCount(), 2);
+    assert.deepStrictEqual(deps.deactivateDevice.mock.calls[0].arguments, ["mach_ddd"]);
+    assert.deepStrictEqual(deps.deactivateDevice.mock.calls[1].arguments, ["mach_eee"]);
+
+    // DDB: removeDeviceActivation called for each device
+    assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 2);
+    assert.deepStrictEqual(deps.removeDeviceActivation.mock.calls[0].arguments, ["lic_owner789", "mach_ddd", "fp_444"]);
+    assert.deepStrictEqual(deps.removeDeviceActivation.mock.calls[1].arguments, ["lic_owner789", "mach_eee", "fp_555"]);
+  });
+
+  // ---- Reinstatement to "active" does NOT deactivate any devices ----
+
+  it("should NOT deactivate any devices when reinstating member to active", async () => {
+    const devices = [
+      createMockDevice({ keygenMachineId: "mach_fff", fingerprint: "fp_666" }),
+    ];
+    const deps = createMockDeps(devices);
+
+    await handleStatusUpdateDeviceCleanup("active", "member_user123", deps);
+
+    assert.strictEqual(deps.deactivateDevice.mock.callCount(), 0);
+    assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 0);
+    // Should not even query for devices or org
+    assert.strictEqual(deps.getOrganization.mock.callCount(), 0);
+    assert.strictEqual(deps.getUserDevices.mock.callCount(), 0);
+  });
+
+  // ---- Zero-device member completes successfully as no-op ----
+
+  it("should complete successfully with no-op when member has zero devices", async () => {
+    const deps = createMockDeps([]); // zero devices
+
+    await handleStatusUpdateDeviceCleanup("suspended", "member_user123", deps);
+
+    // Should query for devices but not call deactivate/remove
+    assert.strictEqual(deps.getUserDevices.mock.callCount(), 1);
+    assert.strictEqual(deps.deactivateDevice.mock.callCount(), 0);
+    assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 0);
+  });
+
+  // ---- Keygen deactivation failure is non-blocking ----
+
+  it("should continue DDB cleanup when Keygen deactivation fails (non-blocking)", async () => {
+    const devices = [
+      createMockDevice({ keygenMachineId: "mach_fail", fingerprint: "fp_fail1" }),
+      createMockDevice({ keygenMachineId: "mach_ok", fingerprint: "fp_ok1" }),
+    ];
+    const deps = createMockDeps(devices);
+
+    // First device: Keygen fails; second device: Keygen succeeds
+    let callIndex = 0;
+    deps.deactivateDevice.mock.mockImplementation(async () => {
+      callIndex++;
+      if (callIndex === 1) {
+        throw new Error("Keygen API timeout");
+      }
+    });
+
+    await handleStatusUpdateDeviceCleanup("suspended", "member_user123", deps);
+
+    // Both Keygen calls attempted
+    assert.strictEqual(deps.deactivateDevice.mock.callCount(), 2);
+
+    // Both DDB removals still completed (non-blocking)
+    assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 2);
+    assert.deepStrictEqual(deps.removeDeviceActivation.mock.calls[0].arguments, ["lic_owner789", "mach_fail", "fp_fail1"]);
+    assert.deepStrictEqual(deps.removeDeviceActivation.mock.calls[1].arguments, ["lic_owner789", "mach_ok", "fp_ok1"]);
+
+    // Warning logged for failed Keygen call
+    assert.strictEqual(deps.log.warn.mock.callCount(), 1);
+  });
+
+  // ---- Keygen failure for ALL devices still completes DDB cleanup ----
+
+  it("should complete DDB cleanup for all devices even if ALL Keygen calls fail", async () => {
+    const devices = [
+      createMockDevice({ keygenMachineId: "mach_x1", fingerprint: "fp_x1" }),
+      createMockDevice({ keygenMachineId: "mach_x2", fingerprint: "fp_x2" }),
+      createMockDevice({ keygenMachineId: "mach_x3", fingerprint: "fp_x3" }),
+    ];
+    const deps = createMockDeps(devices);
+    deps.deactivateDevice.mock.mockImplementation(async () => {
+      throw new Error("Keygen down");
+    });
+
+    await handleStatusUpdateDeviceCleanup("revoked", "member_user123", deps);
+
+    // All 3 Keygen calls attempted
+    assert.strictEqual(deps.deactivateDevice.mock.callCount(), 3);
+
+    // All 3 DDB removals completed
+    assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 3);
+
+    // 3 warnings logged
+    assert.strictEqual(deps.log.warn.mock.callCount(), 3);
+  });
+
+  // ---- Resolves license via org → owner → customer ----
+
+  it("should resolve Keygen license ID via org ownerId → owner customer record", async () => {
+    const devices = [createMockDevice()];
+    const deps = createMockDeps(devices, {
+      org: { ownerId: "custom_owner_id" },
+      ownerCustomer: { keygenLicenseId: "lic_custom_123" },
+    });
+
+    await handleStatusUpdateDeviceCleanup("suspended", "member_user123", deps);
+
+    // getCustomerByUserId called with the org's ownerId
+    assert.strictEqual(deps.getCustomerByUserId.mock.callCount(), 1);
+    assert.deepStrictEqual(deps.getCustomerByUserId.mock.calls[0].arguments, ["custom_owner_id"]);
+
+    // removeDeviceActivation uses the resolved license ID
+    assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 1);
+    assert.strictEqual(deps.removeDeviceActivation.mock.calls[0].arguments[0], "lic_custom_123");
+  });
+
+  // ---- No-op when owner has no Keygen license ID ----
+
+  it("should skip device cleanup when owner has no keygenLicenseId", async () => {
+    const deps = createMockDeps([], {
+      ownerCustomer: { keygenLicenseId: null },
+    });
+
+    await handleStatusUpdateDeviceCleanup("suspended", "member_user123", deps);
+
+    // Should not query devices or attempt deactivation
+    assert.strictEqual(deps.getUserDevices.mock.callCount(), 0);
+    assert.strictEqual(deps.deactivateDevice.mock.callCount(), 0);
+    assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 0);
+  });
+
+  // ---- Suspended and revoked follow identical device-cleanup path ----
+
+  it("should follow identical device-cleanup path for both suspended and revoked", async () => {
+    for (const status of ["suspended", "revoked"]) {
+      const devices = [createMockDevice({ keygenMachineId: "mach_same", fingerprint: "fp_same" })];
+      const deps = createMockDeps(devices);
+
+      await handleStatusUpdateDeviceCleanup(status, "member_user123", deps);
+
+      assert.strictEqual(deps.deactivateDevice.mock.callCount(), 1, `${status}: should deactivate`);
+      assert.strictEqual(deps.removeDeviceActivation.mock.callCount(), 1, `${status}: should remove from DDB`);
+    }
+  });
+});
+

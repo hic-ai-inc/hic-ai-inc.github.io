@@ -381,8 +381,8 @@ All extension tasks batched together:
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify portal status and DDB migration fixes
 
-- [ ] 14. Fix 9 — Admin suspension: deactivate devices and block activation
-  - [ ] 14.1 Implement device deactivation on suspend/revoke in team route
+- [-] 14. Fix 9 — Admin suspension: deactivate devices and block activation
+  - [x] 14.1 Implement device deactivation on suspend/revoke in team route
     - When status is "suspended" or "revoked": query member's devices via `getUserDevices(keygenLicenseId, memberId)`, then for each device call `deactivateDevice(keygenMachineId)` (Keygen) and `removeDeviceActivation(keygenLicenseId, keygenMachineId, fingerprint)` (DDB)
     - Resolve org's Keygen license ID: fetch org → get `ownerId` → get owner's customer record → `keygenLicenseId`
     - Log warning and continue if individual Keygen deactivation fails (non-blocking)
@@ -390,7 +390,7 @@ All extension tasks batched together:
     - When status is "active" (reinstatement): do NOT deactivate any devices
     - File: `plg-website/src/app/api/portal/team/route.js`
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.6, 10.7_
-  - [ ] 14.2 Block activation for suspended/revoked org members
+  - [x] 14.2 Block activation for suspended/revoked org members
     - After license validation, check if Business plan license
     - If Business: look up user's org membership via `getUserOrgMembership(userId)`
     - If membership status is "suspended": return HTTP 403 with `{ code: "MEMBER_SUSPENDED", message: "Your team membership has been suspended. Contact your team administrator." }`
@@ -474,3 +474,48 @@ All extension tasks batched together:
 - Production configuration (Requirement 12) is marked optional — requires manual Stripe/Keygen dashboard changes
 - Extension repo is at `~/source/repos/hic` (separate repo, separate git history). Extension changes (Fix 3 casing, Fix 5 suspended removal) target that repo; all other changes target `plg-website/`
 - Target LICENSE_STATUS enum scope: ACTIVE, EXPIRED, PAST_DUE (new), SUSPENDED (new, admin-only). PENDING_ACCOUNT, CANCELED, DISPUTED from the design's "After" block are not implemented in this remediation — CANCELED maps to EXPIRED from the Extension's perspective, DISPUTED remains ACTIVE until resolved, PENDING_ACCOUNT does not exist as a status
+
+## Deferred Decisions — Post-Launch Technical Debt
+
+The following items are explicitly deferred from the Phase 1 Status Remediation to post-launch. They are documented here for traceability and must be logged in the Technical Debt Log.
+
+### D1. Email Templates for Member Suspension, Revocation, and Reinstatement
+
+**Decision:** Defer creation of `memberSuspended`, `memberRevoked`, and `memberReinstated` email templates until post-launch.
+
+**Current state:** The team route writes `EVENT_TYPES.LICENSE_SUSPENDED` and `EVENT_TYPES.LICENSE_REVOKED` events to DDB via `writeEventRecord()` when a member is suspended or revoked. These events are persisted in DDB as an audit trail. However, the downstream email delivery pipeline (SES templates + Lambda email generator) does not yet have templates for these events — the `licenseSuspended` template was removed in Fix 5 (it was a payment-path template, not an admin-action template), and new admin-action templates were never created.
+
+**What needs to happen post-launch:**
+1. Create new SES email templates: `memberSuspended`, `memberRevoked`, `memberReinstated`
+2. Wire the SNS topic to publish event notifications for these event types
+3. Update the Lambda email generator to consume these events and transmit the new templates
+4. **Admin/Owner notification:** Notify the account Owner (and Admins) when a member's access is suspended or revoked
+5. **Affected user notification:** Notify the suspended/revoked user with an invitation to purchase an Individual account
+6. **Reinstatement notification:** Notify the user when their access is reinstated to active
+
+**Risk:** Until implemented, Owners/Admins and affected users receive no email communication about suspension/revocation actions. The action itself is fully functional — devices are deactivated, activation is blocked, heartbeat returns `valid: false` — but the communication gap means affected users may not understand why their access stopped working until they check the portal or contact support.
+
+### D2. Revoked vs. Expired: Distinct Marketing and Communication Paths
+
+**Decision:** Defer the distinct marketing/communication treatment of "revoked" vs. "expired" members until post-launch.
+
+**Current state:** Both "revoked" and "expired" result in the user being blocked from using Mouse tools (heartbeat returns `valid: false`, activation returns 403 for revoked Business members). However, they represent fundamentally different situations:
+- **Revoked:** An admin action on a multi-seat Business license. The member's seat is freed. The member did nothing wrong — the Owner simply reclaimed the seat. The member should be invited to purchase their own Individual account.
+- **Expired:** A payment lifecycle terminal state. The subscription lapsed after the 2-week dunning window. The user needs to update their payment method or resubscribe.
+
+**What needs to happen post-launch:**
+1. Design distinct email copy and communication flows for revoked vs. expired users
+2. Revoked users: send a warm message explaining the seat was reclaimed, with a CTA to purchase an Individual plan
+3. Expired users: send a re-engagement message with a CTA to update payment method
+4. Ensure portal UI surfaces appropriate messaging for each status
+5. Consider a grace period or trial offer for revoked users transitioning to Individual plans
+
+**Risk:** Until implemented, revoked and expired users see similar generic messaging. This is a marketing/UX gap, not a functional gap — the underlying enforcement is correct.
+
+### D3. Revocation Does Not Expire the Org License
+
+**Decision:** Revoking a member updates only the member's org membership status to "revoked" in DDB. It does NOT modify the org's Keygen license status or the license record itself.
+
+**Rationale:** A Business license is a multi-seat license owned by the organization. Revoking one member simply frees one seat — the license itself remains active for the Owner and other members. The revoked member's devices are deactivated and re-activation is blocked, but the license continues serving the organization.
+
+This is the correct and final behavior — not deferred, but documented here for clarity since it was discussed during implementation.

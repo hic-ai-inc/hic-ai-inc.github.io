@@ -16,6 +16,7 @@ import {
   getLicense as getDynamoLicense,
   getActiveDevicesInWindow,
   getActiveUserDevicesInWindow,
+  getUserOrgMembership,
 } from "@/lib/dynamodb";
 import { verifyAuthToken } from "@/lib/auth-verify";
 import { PRICING } from "@/lib/constants";
@@ -143,6 +144,27 @@ export async function POST(request) {
     const ddbLicense = await getDynamoLicense(license.id);
     const planName = ddbLicense?.planName || "Individual";
     const isBusiness = planName === "Business";
+
+    // Business plan: block activation for suspended/revoked org members
+    if (isBusiness) {
+      const membership = await getUserOrgMembership(userId, { includeAll: true });
+      if (membership?.status === "suspended") {
+        log.decision("member_suspended", "License activation rejected", { reason: "member_suspended", userId });
+        log.response(403, "License activation rejected", { reason: "member_suspended" });
+        return NextResponse.json(
+          { code: "MEMBER_SUSPENDED", message: "Your team membership has been suspended. Contact your team administrator." },
+          { status: 403 },
+        );
+      }
+      if (membership?.status === "revoked") {
+        log.decision("member_revoked", "License activation rejected", { reason: "member_revoked", userId });
+        log.response(403, "License activation rejected", { reason: "member_revoked" });
+        return NextResponse.json(
+          { code: "MEMBER_REVOKED", message: "Your team membership has been revoked. Contact your team administrator." },
+          { status: 403 },
+        );
+      }
+    }
 
     let activeDevices;
     let perSeatLimit;

@@ -25,10 +25,13 @@ import {
   getCustomerByUserId,
   getCustomerByEmail,
   getUserOrgMembership,
+  getUserDevices,
+  removeDeviceActivation,
   resendOrgInvite,
   getOrganizationByStripeCustomer,
   getOrganization,
 } from "@/lib/dynamodb";
+import { deactivateDevice } from "@/lib/keygen";
 import { createApiLogger } from "@/lib/api-log";
 import { EVENT_TYPES } from "@/lib/constants";
 
@@ -390,11 +393,12 @@ export async function POST(request) {
 
         const updated = await updateOrgMemberStatus(orgId, memberId, status);
 
-        // Trigger notification email and clean up invite for suspension/revocation
+        // Trigger notification email, clean up invite, and deactivate devices for suspension/revocation
         if (status === "suspended" || status === "revoked") {
           const eventType = status === "suspended" ? EVENT_TYPES.LICENSE_SUSPENDED : EVENT_TYPES.LICENSE_REVOKED;
+          const org = await getOrganization(orgId);
+
           if (targetMember.email) {
-            const org = await getOrganization(orgId);
             await writeEventRecord(eventType, {
               email: targetMember.email,
               userId: memberId,
@@ -405,6 +409,25 @@ export async function POST(request) {
           // Remove deactivated member's invite from the Invitations list
           if (targetMember.inviteId) {
             await updateOrgInviteStatus(orgId, targetMember.inviteId, status);
+          }
+
+          // Deactivate member's devices in both Keygen and DDB
+          const ownerCustomer = await getCustomerByUserId(org.ownerId);
+          const keygenLicenseId = ownerCustomer?.keygenLicenseId;
+          if (keygenLicenseId) {
+            const devices = await getUserDevices(keygenLicenseId, memberId);
+            for (const device of devices) {
+              try {
+                await deactivateDevice(device.keygenMachineId);
+              } catch (err) {
+                log.warn("keygen_device_deactivation_failed", "Keygen device deactivation failed (non-blocking)", {
+                  machineId: device.keygenMachineId,
+                  memberId,
+                  error: err.message,
+                });
+              }
+              await removeDeviceActivation(keygenLicenseId, device.keygenMachineId, device.fingerprint);
+            }
           }
         }
 
