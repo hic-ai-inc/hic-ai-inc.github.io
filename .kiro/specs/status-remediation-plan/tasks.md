@@ -298,7 +298,7 @@ All extension tasks batched together:
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify renewLicense and heartbeat fixes
 
-- [ ] 11. Fix 4 — Fix portal status for past-due customers
+- [x] 11. Fix 4 — Fix portal status for past-due customers
   - [x] 11.0 Remove dead "trialing" and unused LICENSE_STATUS.TRIAL from source
     - `"trialing"` is Stripe's trial subscription status, but Mouse has no Stripe trial — the 14-day trial is extension-side, device-bound, and never touches Stripe
     - `LICENSE_STATUS.TRIAL` ("trial") is NOT used as a subscriptionStatus anywhere — it's only a heartbeat/validate API response status for device-level trials
@@ -321,7 +321,7 @@ All extension tasks batched together:
     - All statuses receive full portal access (portal access is not gated by payment status)
     - File: `plg-website/src/app/api/portal/status/route.js`
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
-  - [ ] 11.2 Write unit tests for portal status classification
+  - [x] 11.2 Write unit tests for portal status classification
     - Assert "past_due" is its own category, not lumped with expired
     - Assert active/trial/cancellation_pending classified as active
     - Assert "expired" classified as expired
@@ -329,7 +329,7 @@ All extension tasks batched together:
     - Assert expired customer gets full portal access
     - Test file: `tests/portal/status.test.js`
     - _Requirements: 13.9_
-  - [ ] 11.3 Write property test — Property 10: Portal status classification
+  - [x] 11.3 Write property test — Property 10: Portal status classification
     - **Property 10: Portal status classification**
     - For any subscription status, portal classifies: active if in {active, trial, cancellation_pending}; past_due if "past_due"; expired if "expired"; all get full portal access
     - Tag: `// Feature: status-remediation-plan, Property 10`
