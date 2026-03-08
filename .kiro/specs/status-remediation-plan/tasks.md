@@ -381,7 +381,7 @@ All extension tasks batched together:
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify portal status and DDB migration fixes
 
-- [-] 14. Fix 9 — Admin suspension: deactivate devices and block activation
+- [x] 14. Fix 9 — Admin suspension: deactivate devices and block activation
   - [x] 14.1 Implement device deactivation on suspend/revoke in team route
     - When status is "suspended" or "revoked": query member's devices via `getUserDevices(keygenLicenseId, memberId)`, then for each device call `deactivateDevice(keygenMachineId)` (Keygen) and `removeDeviceActivation(keygenLicenseId, keygenMachineId, fingerprint)` (DDB)
     - Resolve org's Keygen license ID: fetch org → get `ownerId` → get owner's customer record → `keygenLicenseId`
@@ -398,7 +398,7 @@ All extension tasks batched together:
     - Individual plan activations bypass this check entirely
     - File: `plg-website/src/app/api/license/activate/route.js`
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
-  - [ ] 14.3 Write unit tests for device deactivation on suspend/revoke
+  - [x] 14.3 Write unit tests for device deactivation on suspend/revoke
     - Assert suspending a member deactivates all devices in both Keygen and DDB
     - Assert revoking a member deactivates all devices in both Keygen and DDB
     - Assert reinstating a member to "active" does not deactivate any devices
@@ -406,45 +406,45 @@ All extension tasks batched together:
     - Assert Keygen deactivation failure is non-blocking (DDB cleanup still happens)
     - Test file: `tests/portal/team.test.js`
     - _Requirements: 13.13, 13.14, 13.15_
-  - [ ] 14.4 Write unit tests for activation blocking
+  - [x] 14.4 Write unit tests for activation blocking
     - Assert activation returns 403 MEMBER_SUSPENDED for suspended org members on Business licenses
     - Assert activation returns 403 MEMBER_REVOKED for revoked org members on Business licenses
     - Assert activation succeeds for active org members on Business licenses (no regression)
     - Assert Individual plan activations skip membership check entirely
     - Test file: `tests/license/activate.test.js`
     - _Requirements: 13.16, 13.17, 13.18_
-  - [ ] 14.5 Write property test — Property 14: Suspend/revoke deactivates all member devices
+  - [x] 14.5 Write property test — Property 14: Suspend/revoke deactivates all member devices
     - **Property 14: Suspend/revoke deactivates all member devices**
     - For any member with N devices (N ≥ 0), setting status to "suspended" or "revoked" must call deactivateDevice (Keygen) and removeDeviceActivation (DDB) for each device; N=0 completes as no-op
     - Tag: `// Feature: status-remediation-plan, Property 14`
     - **Validates: Requirements 10.1, 10.2, 10.7**
-  - [ ] 14.6 Write property test — Property 15: Keygen device deactivation failure is non-blocking
+  - [x] 14.6 Write property test — Property 15: Keygen device deactivation failure is non-blocking
     - **Property 15: Keygen device deactivation failure is non-blocking**
     - For any device where Keygen deactivateDevice fails, DDB removeDeviceActivation must still be called and the overall operation must complete
     - Tag: `// Feature: status-remediation-plan, Property 15`
     - **Validates: Requirements 10.3**
-  - [ ] 14.7 Write property test — Property 16: Reinstatement does not deactivate devices
+  - [x] 14.7 Write property test — Property 16: Reinstatement does not deactivate devices
     - **Property 16: Reinstatement does not deactivate devices**
     - For any member status change to "active", zero calls to deactivateDevice or removeDeviceActivation must be made
     - Tag: `// Feature: status-remediation-plan, Property 16`
     - **Validates: Requirements 10.4**
-  - [ ] 14.8 Write property test — Property 17: Business activation blocked for suspended/revoked members
+  - [x] 14.8 Write property test — Property 17: Business activation blocked for suspended/revoked members
     - **Property 17: Business activation blocked for suspended/revoked members**
     - For any activation on a Business plan where membership is "suspended" or "revoked", must return HTTP 403 with appropriate code
     - Tag: `// Feature: status-remediation-plan, Property 17`
     - **Validates: Requirements 11.1, 11.2, 11.3**
-  - [ ] 14.9 Write property test — Property 18: Active Business members proceed with activation
+  - [x] 14.9 Write property test — Property 18: Active Business members proceed with activation
     - **Property 18: Active Business members proceed with activation**
     - For any activation on a Business plan where membership is "active", must proceed with normal activation (no 403)
     - Tag: `// Feature: status-remediation-plan, Property 18`
     - **Validates: Requirements 11.4**
-  - [ ] 14.10 Write property test — Property 19: Individual plan activations skip membership check
+  - [x] 14.10 Write property test — Property 19: Individual plan activations skip membership check
     - **Property 19: Individual plan activations skip membership check**
     - For any activation on an Individual plan, must not call getUserOrgMembership and must proceed directly
     - Tag: `// Feature: status-remediation-plan, Property 19`
     - **Validates: Requirements 11.5**
 
-- [ ] 15. Checkpoint — Fix 9 complete
+- [x] 15. Checkpoint — Fix 9 complete
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify admin suspension and activation blocking
 
