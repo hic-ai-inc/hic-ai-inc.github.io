@@ -18,12 +18,13 @@
  */
 
 import { NextResponse } from "next/server";
-import { validateLicense, machineHeartbeat } from "@/lib/keygen";
+import { machineHeartbeat } from "@/lib/keygen";
 import {
   updateDeviceLastSeen,
   getTrialByFingerprint,
   createTrial,
-  getLicenseDevices,
+  getLicenseByKey,
+  getDeviceByFingerprint,
 } from "@/lib/dynamodb";
 import { createApiLogger } from "@/lib/api-log";
 
@@ -213,16 +214,71 @@ export async function POST(request) {
       return await handleTrialValidation(fingerprint);
     }
 
-    // Mode 2: License key provided = validate with Keygen
-    const result = await validateLicense(licenseKey, fingerprint);
+    // Mode 2: License key provided = validate against DynamoDB
+    // Fix 7 / Task 12.1: Replace Keygen validateLicense read with DDB reads.
+    // DDB is the sole source of truth for license status. Keygen writes
+    // (machineHeartbeat) are preserved — only the read is migrated.
+    const license = await getLicenseByKey(licenseKey);
 
-    // If valid, update heartbeat and last-seen
-    if (result.valid && result.license?.id) {
-      // Fire and forget - don't block response
+    if (!license) {
+      log.response(200, "License validation completed", {
+        valid: false,
+        code: "NOT_FOUND",
+      });
+      return NextResponse.json({
+        valid: false,
+        code: "NOT_FOUND",
+        detail: "License key not found",
+        userId: null,
+        userEmail: null,
+        machineId: null,
+        license: null,
+      });
+    }
+
+    // Classify license status
+    const INVALID_STATUSES = ["expired", "suspended", "revoked"];
+    const licenseValid = !INVALID_STATUSES.includes(license.status);
+    const code = licenseValid ? "VALID" : license.status.toUpperCase();
+    const detail = licenseValid
+      ? "License is valid"
+      : `License is ${license.status}`;
+
+    // Look up device record for this fingerprint
+    const licenseId = license.keygenLicenseId;
+    let deviceUserId = null;
+    let deviceUserEmail = null;
+    let deviceMachineId = null;
+    let deviceFound = false;
+
+    const deviceRecord = await getDeviceByFingerprint(licenseId, fingerprint);
+    if (deviceRecord) {
+      deviceFound = true;
+      deviceUserId = deviceRecord.userId || null;
+      deviceUserEmail = deviceRecord.userEmail || null;
+      deviceMachineId = deviceRecord.keygenMachineId || null;
+    }
+
+    // Determine effective validity: license must be valid AND device must
+    // be associated with this fingerprint (mirrors Keygen's scope check)
+    let effectiveValid = licenseValid && deviceFound;
+    let effectiveCode = effectiveValid
+      ? "VALID"
+      : !licenseValid
+        ? code
+        : "FINGERPRINT_SCOPE_MISMATCH";
+    let effectiveDetail = effectiveValid
+      ? detail
+      : !licenseValid
+        ? detail
+        : "Device not associated with this license";
+
+    // If valid, update heartbeat and last-seen (fire and forget)
+    if (effectiveValid && licenseId) {
       const tasks = [];
-      tasks.push(updateDeviceLastSeen(result.license.id, fingerprint));
-      if (machineId) {
-        tasks.push(machineHeartbeat(machineId));
+      tasks.push(updateDeviceLastSeen(licenseId, fingerprint));
+      if (deviceMachineId || machineId) {
+        tasks.push(machineHeartbeat(deviceMachineId || machineId));
       }
       Promise.all(tasks).catch((err) => {
         log.warn("heartbeat_update_failed", "Heartbeat update failed", {
@@ -231,67 +287,22 @@ export async function POST(request) {
       });
     }
 
-    // Look up device record to include userId/userEmail/machineId in response.
-    // Also runs for HEARTBEAT_NOT_STARTED: machine IS activated but hasn't
-    // sent its first heartbeat, so Keygen returns valid: false. We look up
-    // the device, send the first heartbeat, and return valid: true.
-    let deviceUserId = null;
-    let deviceUserEmail = null;
-    let deviceMachineId = null;
-    let effectiveValid = result.valid;
-    const shouldLookupDevice =
-      (result.valid || result.code === "HEARTBEAT_NOT_STARTED") &&
-      result.license?.id;
-
-    if (shouldLookupDevice) {
-      try {
-        const devices = await getLicenseDevices(result.license.id);
-        const deviceRecord = devices.find((d) => d.fingerprint === fingerprint);
-        if (deviceRecord) {
-          deviceUserId = deviceRecord.userId || null;
-          deviceUserEmail = deviceRecord.userEmail || null;
-          deviceMachineId = deviceRecord.keygenMachineId || null;
-        }
-      } catch (err) {
-        // Non-critical — proceed without user identity
-        log.warn("device_lookup_failed", "Device lookup for user identity failed", {
-          errorMessage: err?.message,
-        });
-      }
-
-      // Self-healing: if HEARTBEAT_NOT_STARTED and we found the machine,
-      // send the first heartbeat so Keygen recognizes the machine as alive.
-      if (result.code === "HEARTBEAT_NOT_STARTED" && deviceMachineId) {
-        try {
-          await machineHeartbeat(deviceMachineId);
-          effectiveValid = true;
-        } catch (hbErr) {
-          log.warn("self_healing_heartbeat_failed", "Self-healing heartbeat failed", {
-            errorMessage: hbErr.message,
-          });
-          // Still return machineId so extension can start its own heartbeats
-        }
-      }
-    }
-
     // Return validation result
     log.response(200, "License validation completed", {
       valid: effectiveValid,
-      code: result.code,
+      code: effectiveCode,
     });
     return NextResponse.json({
       valid: effectiveValid,
-      code: result.code,
-      detail: result.detail,
+      code: effectiveCode,
+      detail: effectiveDetail,
       userId: deviceUserId,
       userEmail: deviceUserEmail,
       machineId: deviceMachineId,
-      license: result.license
-        ? {
-            status: result.license.status,
-            expiresAt: result.license.expiresAt,
-          }
-        : null,
+      license: {
+        status: license.status,
+        expiresAt: license.expiresAt,
+      },
     });
   } catch (error) {
     log.exception(error, "license_validation_failed", "License validation failed");

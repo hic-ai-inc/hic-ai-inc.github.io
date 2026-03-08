@@ -283,11 +283,25 @@ async function handleLicenseExpired(data, log) {
   const licenseId = data.id;
   log.info("license_expired", "License expired event received", { licenseId });
 
+  // Guard: If DDB already says "active" with a future expiresAt, suppress this
+  // stale Keygen event. This prevents a failed renewLicense() from cascading:
+  // Stripe pays → DDB active → Keygen renew fails → Keygen fires license.expired
+  // → without this guard, DDB would be overwritten with "expired" (wrong).
+  const license = await getLicense(licenseId);
+  if (license?.status === "active" && license?.expiresAt && license.expiresAt > new Date().toISOString()) {
+    log.warn("stale_keygen_expiration_suppressed",
+      "Keygen expired event conflicts with DDB active status — suppressed to preserve DDB as source of truth", {
+        licenseId,
+        ddbStatus: license.status,
+        ddbExpiresAt: license.expiresAt,
+      });
+    return;
+  }
+
   await updateLicenseStatus(licenseId, "expired", {
     expiredAt: new Date().toISOString(),
   });
 
-  const license = await getLicense(licenseId);
   if (license?.email) {
     log.info("license_expired_processed", "License expiration processed", {
       hasEmail: true,
@@ -307,6 +321,20 @@ async function handleLicenseReinstated(data, log) {
   const licenseId = data.id;
   log.info("license_reinstated", "License reinstated event received", { licenseId });
 
+  // Guard: If DDB already reflects a Stripe-authoritative terminal state
+  // (e.g., disputed, revoked, expired), do not let a stale Keygen reinstate
+  // event flip it back to active. DDB is the source of truth.
+  const PROTECTED_STATUSES = ["disputed", "revoked", "expired"];
+  const license = await getLicense(licenseId);
+  if (license && PROTECTED_STATUSES.includes(license.status)) {
+    log.warn("stale_keygen_reinstate_suppressed",
+      "Keygen reinstated event conflicts with DDB authoritative status — suppressed", {
+        licenseId,
+        ddbStatus: license.status,
+      });
+    return;
+  }
+
   await updateLicenseStatus(licenseId, "active", {
     reinstatedAt: new Date().toISOString(),
   });
@@ -314,11 +342,25 @@ async function handleLicenseReinstated(data, log) {
 
 async function handleLicenseRenewed(data, log) {
   const licenseId = data.id;
-  const newExpiry = data.attributes.expiry;
+  const newExpiry = data.attributes?.expiry;
   log.info("license_renewed", "License renewed event received", {
     licenseId,
     hasNewExpiry: Boolean(newExpiry),
   });
+
+  // Guard: If DDB reflects a Stripe-authoritative terminal state
+  // (e.g., disputed, revoked), do not let a stale Keygen renew event
+  // flip it back to active. DDB is the source of truth.
+  const PROTECTED_STATUSES = ["disputed", "revoked"];
+  const license = await getLicense(licenseId);
+  if (license && PROTECTED_STATUSES.includes(license.status)) {
+    log.warn("stale_keygen_renew_suppressed",
+      "Keygen renewed event conflicts with DDB authoritative status — suppressed", {
+        licenseId,
+        ddbStatus: license.status,
+      });
+    return;
+  }
 
   await updateLicenseStatus(licenseId, "active", {
     expiresAt: newExpiry,

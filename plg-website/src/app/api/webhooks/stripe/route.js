@@ -42,6 +42,7 @@ import { sendDisputeAlert } from "@/lib/ses";
 import { assignOwnerRole } from "@/lib/cognito-admin";
 import { createApiLogger } from "@/lib/api-log";
 import { EVENT_TYPES } from "@/lib/constants";
+import { withRetry } from "@/lib/retry";
 
 // Cooldown window (seconds) to prevent email flooding from rapid cancel/uncancel toggling
 const COOLDOWN_SECONDS = 3600;
@@ -517,13 +518,10 @@ async function handleSubscriptionUpdated(subscription, log) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, newStatus);
 
     if (status === "unpaid" || status === "canceled") {
-      try {
-        await suspendLicense(dbCustomer.keygenLicenseId);
-      } catch (e) {
-        log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
-          errorMessage: e?.message,
-        });
-      }
+      await withRetry(() => suspendLicense(dbCustomer.keygenLicenseId), {
+        label: "license_suspend",
+        log,
+      });
     }
   }
 
@@ -589,13 +587,10 @@ async function handleSubscriptionDeleted(subscription, log) {
 
   if (dbCustomer.keygenLicenseId) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, "expired");
-    try {
-      await suspendLicense(dbCustomer.keygenLicenseId);
-    } catch (e) {
-      log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
-        errorMessage: e?.message,
-      });
-    }
+    await withRetry(() => suspendLicense(dbCustomer.keygenLicenseId), {
+      label: "license_suspend",
+      log,
+    });
   }
 
   log.info("subscription_expiration_processed", "Subscription expiration processed", {
@@ -634,13 +629,10 @@ async function handlePaymentSucceeded(invoice, log) {
 
   // Renew Keygen license expiration clock on every successful payment
   if (dbCustomer.keygenLicenseId) {
-    try {
-      await renewLicense(dbCustomer.keygenLicenseId);
-    } catch (e) {
-      log.warn("license_renew_failed", "Failed to renew Keygen license — non-blocking", {
-        errorMessage: e?.message,
-      });
-    }
+    await withRetry(() => renewLicense(dbCustomer.keygenLicenseId), {
+      label: "license_renew",
+      log,
+    });
   }
 
   if (dbCustomer.subscriptionStatus === "past_due") {
@@ -651,13 +643,10 @@ async function handlePaymentSucceeded(invoice, log) {
     }, { clearEmailsSent: [EVENT_TYPES.PAYMENT_FAILED] });
 
     if (dbCustomer.keygenLicenseId) {
-      try {
-        await reinstateLicense(dbCustomer.keygenLicenseId);
-      } catch (e) {
-        log.warn("license_reinstate_failed", "Failed to reinstate Keygen license", {
-          errorMessage: e?.message,
-        });
-      }
+      await withRetry(() => reinstateLicense(dbCustomer.keygenLicenseId), {
+        label: "license_reinstate",
+        log,
+      });
     }
 
     log.info("reactivation_email_pipeline_triggered", "Reactivation email will be sent via event pipeline");
@@ -744,13 +733,10 @@ async function handleDisputeCreated(dispute, log) {
 
   if (dbCustomer.keygenLicenseId) {
     await updateLicenseStatus(dbCustomer.keygenLicenseId, "disputed");
-    try {
-      await suspendLicense(dbCustomer.keygenLicenseId);
-    } catch (e) {
-      log.warn("license_suspend_failed", "Failed to suspend Keygen license", {
-        errorMessage: e?.message,
-      });
-    }
+    await withRetry(() => suspendLicense(dbCustomer.keygenLicenseId), {
+      label: "license_suspend",
+      log,
+    });
   }
 
   await updateCustomerSubscription(dbCustomer.userId, {
@@ -793,13 +779,10 @@ async function handleDisputeClosed(dispute, log) {
   if (reinstateStatuses.includes(status)) {
     if (dbCustomer.keygenLicenseId) {
       await updateLicenseStatus(dbCustomer.keygenLicenseId, "active");
-      try {
-        await reinstateLicense(dbCustomer.keygenLicenseId);
-      } catch (e) {
-        log.warn("license_reinstate_failed", "Failed to reinstate Keygen license", {
-          errorMessage: e?.message,
-        });
-      }
+      await withRetry(() => reinstateLicense(dbCustomer.keygenLicenseId), {
+        label: "license_reinstate",
+        log,
+      });
     }
 
     await updateCustomerSubscription(dbCustomer.userId, {
@@ -817,13 +800,10 @@ async function handleDisputeClosed(dispute, log) {
 
     if (dbCustomer.keygenLicenseId) {
       await updateLicenseStatus(dbCustomer.keygenLicenseId, "expired");
-      try {
-        await suspendLicense(dbCustomer.keygenLicenseId);
-      } catch (e) {
-        log.warn("license_suspend_failed", "Failed to suspend Keygen license after lost dispute", {
-          errorMessage: e?.message,
-        });
-      }
+      await withRetry(() => suspendLicense(dbCustomer.keygenLicenseId), {
+        label: "license_suspend",
+        log,
+      });
     }
 
     log.info("dispute_lost_expired", "License expired after lost dispute", {

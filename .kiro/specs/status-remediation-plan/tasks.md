@@ -335,49 +335,49 @@ All extension tasks batched together:
     - Tag: `// Feature: status-remediation-plan, Property 10`
     - **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 
-- [ ] 12. Fix 7 — Replace Keygen reads with DDB reads
-  - [ ] 12.1 Migrate validate route to DDB reads
+- [x] 12. Fix 7 — Replace Keygen reads with DDB reads
+  - [x] 12.1 Migrate validate route to DDB reads
     - Replace `validateLicense(licenseKey, fingerprint)` Keygen call with `getLicenseByKey(licenseKey)` + `getDeviceByFingerprint(licenseId, fingerprint)` from DDB
     - Remove `validateLicense` import from keygen module
     - Preserve trial flow (fingerprint-only path) unchanged
     - File: `plg-website/src/app/api/license/validate/route.js`
     - _Requirements: 9.1, 9.4_
-  - [ ] 12.2 Migrate portal license route to DDB reads
+  - [x] 12.2 Migrate portal license route to DDB reads
     - Remove `getKeygenLicense` call in `buildLicenseResponse`
     - Use DDB `getLicense` data only for status, expiresAt, etc.
     - Remove `import { getLicense as getKeygenLicense } from "@/lib/keygen"`
     - File: `plg-website/src/app/api/portal/license/route.js`
     - _Requirements: 9.2, 9.5_
-  - [ ] 12.3 Migrate check route to DDB reads
+  - [x] 12.3 Migrate check route to DDB reads
     - Replace `getLicensesByEmail(email)` Keygen call with `getCustomerLicensesByEmail(email)` DDB call
     - Remove `import { getLicensesByEmail } from "@/lib/keygen"`
     - Adapt response mapping to use DDB license record shape
     - File: `plg-website/src/app/api/license/check/route.js`
     - _Requirements: 9.3, 9.6_
-  - [ ] 12.4 Write unit tests for DDB migration
+  - [x] 12.4 Write unit tests for DDB migration
     - Assert validate route calls DDB functions, not Keygen
     - Assert portal license route uses DDB only, no Keygen import
     - Assert check route calls DDB function, not Keygen
     - Assert no Keygen read imports remain in migrated routes
     - Test files: `tests/license/validate.test.js`, `tests/portal/license.test.js`, `tests/license/check.test.js`
     - _Requirements: 13.10_
-  - [ ] 12.5 Write property test — Property 11: Validate route reads from DDB only
+  - [x] 12.5 Write property test — Property 11: Validate route reads from DDB only
     - **Property 11: Validate route reads from DDB only**
     - For any validation request, must call getLicenseByKey and getDeviceByFingerprint from DDB, must not call validateLicense from Keygen
     - Tag: `// Feature: status-remediation-plan, Property 11`
     - **Validates: Requirements 9.1, 9.4**
-  - [ ] 12.6 Write property test — Property 12: Portal license route reads from DDB only
+  - [x] 12.6 Write property test — Property 12: Portal license route reads from DDB only
     - **Property 12: Portal license route reads from DDB only**
     - For any portal license request, buildLicenseResponse must use DDB data only, must not call getKeygenLicense
     - Tag: `// Feature: status-remediation-plan, Property 12`
     - **Validates: Requirements 9.2, 9.5**
-  - [ ] 12.7 Write property test — Property 13: Check route reads from DDB only
+  - [x] 12.7 Write property test — Property 13: Check route reads from DDB only
     - **Property 13: Check route reads from DDB only**
     - For any check request by email, must call getCustomerLicensesByEmail from DDB, must not call getLicensesByEmail from Keygen
     - Tag: `// Feature: status-remediation-plan, Property 13`
     - **Validates: Requirements 9.3, 9.6**
 
-- [ ] 13. Checkpoint — Fix 4 + Fix 7 complete
+- [x] 13. Checkpoint — Fix 4 + Fix 7 complete
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify portal status and DDB migration fixes
 

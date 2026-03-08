@@ -855,7 +855,7 @@ describe("Fix 1 — handlePaymentSucceeded: renewLicense integration", () => {
       expect(fnBody).toMatch(/renewLicense/);
     });
 
-    it("handlePaymentSucceeded source should wrap renewLicense in try/catch", async () => {
+    it("handlePaymentSucceeded source should wrap renewLicense in withRetry", async () => {
       const { readFileSync } = await import("node:fs");
       const { resolve } = await import("node:path");
       const src = readFileSync(
@@ -867,10 +867,10 @@ describe("Fix 1 — handlePaymentSucceeded: renewLicense integration", () => {
       const fnEnd = src.indexOf("\nasync function", fnStart + 1);
       const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
 
-      // renewLicense should be inside a try block
-      expect(fnBody).toMatch(/try\s*\{[^}]*renewLicense/s);
-      // Should log warning on failure
-      expect(fnBody).toMatch(/license_renew_failed/);
+      // renewLicense should be wrapped in withRetry (replaces bare try/catch)
+      expect(fnBody).toMatch(/withRetry\(\(\)\s*=>\s*renewLicense/);
+      // Label should be license_renew for log traceability
+      expect(fnBody).toMatch(/label:\s*"license_renew"/);
     });
 
     it("handlePaymentSucceeded source should guard renewLicense with keygenLicenseId check", async () => {

@@ -11,8 +11,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { getLicensesByEmail } from "@/lib/keygen";
-import { getCustomerByEmail } from "@/lib/dynamodb";
+import { getCustomerByEmail, getCustomerLicensesByEmail } from "@/lib/dynamodb";
 import { checkRateLimit, RATE_LIMIT_PRESETS } from "@/lib/rate-limit";
 import { createApiLogger } from "@/lib/api-log";
 
@@ -117,26 +116,24 @@ export async function GET(request) {
       }
     }
 
-    // Fall back to KeyGen direct lookup by email metadata
-    const licenses = await getLicensesByEmail(email);
+    // Fall back to DDB license lookup by email
+    const licenses = await getCustomerLicensesByEmail(email);
 
     // Find the first active license
     const activeLicense = licenses.find(
-      (lic) => lic.status === "ACTIVE" || lic.status === "active",
+      (lic) => lic.status === "active",
     );
 
     if (activeLicense) {
       log.info("active_license_found", "Active license found", {
-        source: "keygen",
+        source: "dynamodb",
       });
       log.response(200, "License check completed", { status: "active" });
       return NextResponse.json({
         status: "active",
-        licenseKey: activeLicense.key,
-        licenseId: activeLicense.id,
-        plan: activeLicense.policyId?.includes("business")
-          ? "business"
-          : "individual",
+        licenseKey: activeLicense.licenseKey || null,
+        licenseId: activeLicense.keygenLicenseId,
+        plan: activeLicense.planName?.toLowerCase() || "individual",
         expiresAt: activeLicense.expiresAt,
         email: email.toLowerCase(),
       });
@@ -146,18 +143,16 @@ export async function GET(request) {
     const anyLicense = licenses[0];
     if (anyLicense) {
       log.info("non_active_license_found", "Non-active license found", {
-        status: anyLicense.status?.toLowerCase() || "unknown",
+        status: anyLicense.status || "unknown",
       });
       log.response(200, "License check completed", {
-        status: anyLicense.status?.toLowerCase() || "unknown",
+        status: anyLicense.status || "unknown",
       });
       return NextResponse.json({
-        status: anyLicense.status.toLowerCase(),
-        licenseKey: anyLicense.key,
-        licenseId: anyLicense.id,
-        plan: anyLicense.policyId?.includes("business")
-          ? "business"
-          : "individual",
+        status: anyLicense.status || "unknown",
+        licenseKey: anyLicense.licenseKey || null,
+        licenseId: anyLicense.keygenLicenseId,
+        plan: anyLicense.planName?.toLowerCase() || "individual",
         expiresAt: anyLicense.expiresAt,
         email: email.toLowerCase(),
       });

@@ -18,7 +18,6 @@ import {
   getUserOrgMembership,
   getOrganization,
 } from "@/lib/dynamodb";
-import { getLicense as getKeygenLicense } from "@/lib/keygen";
 import { createApiLogger } from "@/lib/api-log";
 
 export async function GET(request) {
@@ -112,18 +111,6 @@ async function buildLicenseResponse(customer, orgContext = null, log = null) {
   // Get license from DynamoDB
   const localLicense = await getLicense(customer.keygenLicenseId);
 
-  // Also fetch from Keygen for accurate status
-  let keygenLicense = null;
-  try {
-    keygenLicense = await getKeygenLicense(customer.keygenLicenseId);
-  } catch (e) {
-    if (log) {
-      log.warn("keygen_fetch_failed", "Keygen license fetch failed", {
-        errorMessage: e?.message,
-      });
-    }
-  }
-
   // Determine plan name (only Individual and Business exist)
   const planName =
     customer.accountType === "business" ? "Business" : "Individual";
@@ -138,10 +125,10 @@ async function buildLicenseResponse(customer, orgContext = null, log = null) {
       id: customer.keygenLicenseId,
       licenseKey: localLicense?.licenseKey, // Full key for authenticated user
       maskedKey,
-      status: keygenLicense?.status || localLicense?.status || "unknown",
+      status: localLicense?.status || "unknown",
       planType: customer.accountType,
       planName,
-      expiresAt: keygenLicense?.expiresAt || localLicense?.expiresAt,
+      expiresAt: localLicense?.expiresAt,
       maxDevices: localLicense?.maxDevices || 3,
       activatedDevices: localLicense?.activatedDevices || 0,
       createdAt: localLicense?.createdAt,
