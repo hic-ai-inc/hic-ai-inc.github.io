@@ -55,7 +55,7 @@ All extension tasks batched together:
 - [x] 2. Checkpoint — Fix 6 complete
   - Run the full test suite to verify no regressions from RETIRED removal (Requirement 14.2 compliance)
 
-- [-] 3. Fix 3 — Normalize status casing to lowercase
+- [x] 3. Fix 3 — Normalize status casing to lowercase
   - [x] 3.1 Update LICENSE_STATUS enum values to lowercase in `plg-website/src/lib/constants.js`
     - Change all values to lowercase strings (e.g., `ACTIVE: "active"`, `PAST_DUE: "past_due"`)
     - Add `SUSPENDED: "suspended"` entry (not currently in enum, needed by Fixes 2 and 9)
@@ -76,11 +76,11 @@ All extension tasks batched together:
   - [x] 3.5 Update PLG metrics script to compare against lowercase values
     - Find and update any Keygen status comparisons in the metrics script
     - _Requirements: 2.6_
-  - [ ] 3.6 Update extension LICENSE_STATES to lowercase in `hic/` repo
+  - [x] 3.6 Update extension LICENSE_STATES to lowercase in `hic/` repo
   > **🔀 EXTENSION REPO** — Tasks 3.6, 3.7, 3.10, 3.11 target `~/source/repos/hic`. Defer to Phase 2.
     - Change all values in `~/source/repos/hic/licensing/constants.js` to lowercase
     - _Requirements: 2.7_
-  - [ ] 3.7 Add state migration logic in extension state module
+  - [x] 3.7 Add state migration logic in extension state module
     - When loading persisted state, normalize any UPPER_CASE status values to lowercase
     - File: `~/source/repos/hic/licensing/state.js`
     - _Requirements: 2.8_
@@ -97,18 +97,18 @@ All extension tasks batched together:
     - For any status string returned by the Keygen module (regardless of original casing), the returned value must be strictly lowercase
     - Tag: `// Feature: status-remediation-plan, Property 2`
     - **Validates: Requirements 2.3**
-  - [ ] 3.10 Write property test — Property 3: Extension LICENSE_STATES lowercase
+  - [x] 3.10 Write property test — Property 3: Extension LICENSE_STATES lowercase
     - **Property 3: Extension LICENSE_STATES lowercase**
     - For any value in the extension's LICENSE_STATES constants object, the value must be a lowercase string
     - Tag: `// Feature: status-remediation-plan, Property 3`
     - **Validates: Requirements 2.7**
-  - [ ] 3.11 Write property test — Property 4: Extension state migration normalizes to lowercase
+  - [x] 3.11 Write property test — Property 4: Extension state migration normalizes to lowercase
     - **Property 4: Extension state migration normalizes to lowercase**
     - For any persisted status string (including UPPER_CASE values from prior installs), loading it through the state module must produce a lowercase result
     - Tag: `// Feature: status-remediation-plan, Property 4`
     - **Validates: Requirements 2.8**
 
-- [ ] 4. Checkpoint — Fix 6 + Fix 3 complete
+- [x] 4. Checkpoint — Fix 6 + Fix 3 complete
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify no regressions from RETIRED removal and casing normalization
 
@@ -140,7 +140,7 @@ All extension tasks batched together:
     - Test file: `__tests__/unit/lib/constants.test.js`
     - _Requirements: 13.11_
 
-- [-] 6. Fix 5 — Remove "suspended" from the payment path
+- [x] 6. Fix 5 — Remove "suspended" from the payment path
   - [x] 6.1 Update `handlePaymentFailed` in Stripe webhook handler
     - Remove `MAX_PAYMENT_FAILURES` import and the `>= MAX_PAYMENT_FAILURES` branch that writes "suspended"
     - Always write "past_due" to DDB on payment failure
@@ -176,27 +176,27 @@ All extension tasks batched together:
     - Remove `licenseSuspended` template, `LICENSE_SUSPENDED` from `EVENT_TYPE_TO_TEMPLATE`, `licenseSuspended` from `TEMPLATE_NAMES`
     - File: `dm/layers/ses/src/email-templates.js`
     - _Requirements: 4.9, 4.10, 4.11_
-  - [ ] 6.9 Remove "suspended" from extension heartbeat module
+  - [x] 6.9 Remove "suspended" from extension heartbeat module
   > **🔀 EXTENSION REPO** — Tasks 6.9–6.13, 6.17 target `~/source/repos/hic`. Defer to Phase 2.
     - Remove `_handleLicenseSuspended` handler and `case "suspended"` / `case "license_suspended"` branches
     - Map "past_due" to active state (tools continue working)
     - File: extension `licensing/heartbeat.js`
     - _Requirements: 5.1, 5.3_
-  - [ ] 6.10 Remove "suspended" from extension validation module
+  - [x] 6.10 Remove "suspended" from extension validation module
     - Remove "suspended" from `VALID_HEARTBEAT_STATUSES`
     - File: extension `licensing/validation.js`
     - _Requirements: 5.2_
-  - [ ] 6.11 Remove "suspended" check from extension HTTP client
+  - [x] 6.11 Remove "suspended" check from extension HTTP client
     - Remove `response.license?.status === "suspended"` check
     - File: extension `licensing/http-client.js`
     - _Requirements: 5.4_
-  - [ ] 6.12 Remove suspended-specific handling from extension VSCode module
+  - [x] 6.12 Remove suspended-specific handling from extension VSCode module
     - Remove suspended-specific status bar and notification handling
     - _Requirements: 5.5_
-  - [ ] 6.13 Remove suspended status mapping from extension validate command
+  - [x] 6.13 Remove suspended status mapping from extension validate command
     - File: extension `licensing/commands/validate.js`
     - _Requirements: 5.6_
-  - [~] 6.14 Write unit tests for suspended removal from payment path [EXTENSION ONLY REMAINING]
+  - [x] 6.14 Write unit tests for suspended removal from payment path [EXTENSION ONLY REMAINING]
     - Assert `handlePaymentFailed` writes "past_due" only and never "suspended"
     - Assert `handlePaymentFailed` skips write when status is already "expired"
     - Assert `handleDisputeClosed` writes "expired" on lost dispute
@@ -215,7 +215,7 @@ All extension tasks batched together:
     - For any lost dispute event, `handleDisputeClosed` must write "expired" with `fraudulent: true` and never "suspended"
     - Tag: `// Feature: status-remediation-plan, Property 6`
     - **Validates: Requirements 4.6**
-  - [ ] 6.17 Write property test — Property 20: Extension maps "past_due" to active
+  - [x] 6.17 Write property test — Property 20: Extension maps "past_due" to active
     - **Property 20: Extension maps "past_due" to active**
     - For any heartbeat response with status "past_due", the extension heartbeat module must map it to an active state where all tools continue to work
     - Tag: `// Feature: status-remediation-plan, Property 20`
@@ -226,7 +226,7 @@ All extension tasks batched together:
     - Tag: `// Feature: status-remediation-plan, Property 22`
     - **Validates: Requirements 4.3**
 
-- [ ] 7. Checkpoint — Fix 8 + Fix 5 complete
+- [x] 7. Checkpoint — Fix 8 + Fix 5 complete
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify no regressions from EVENT_TYPES centralization and suspended removal
 
