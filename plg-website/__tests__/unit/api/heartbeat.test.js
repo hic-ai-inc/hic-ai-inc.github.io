@@ -278,7 +278,7 @@ describe("heartbeat API - response formatting", () => {
   function formatSuccessResponse(data) {
     return {
       valid: true,
-      status: "active",
+      status: data.status || "active",
       reason: "Heartbeat successful",
       concurrentMachines: data.concurrentMachines || 1,
       maxMachines: data.maxMachines || null,
@@ -295,8 +295,9 @@ describe("heartbeat API - response formatting", () => {
     };
   }
 
-  test("should format success response correctly", () => {
+  test("should format success response correctly (active)", () => {
     const response = formatSuccessResponse({
+      status: "active",
       concurrentMachines: 2,
       maxMachines: 5,
     });
@@ -306,6 +307,28 @@ describe("heartbeat API - response formatting", () => {
     expect(response.reason).toBe("Heartbeat successful");
     expect(response.concurrentMachines).toBe(2);
     expect(response.maxMachines).toBe(5);
+  });
+
+  test("should pass through past_due status in success response", () => {
+    const response = formatSuccessResponse({
+      status: "past_due",
+      concurrentMachines: 1,
+      maxMachines: 3,
+    });
+
+    expect(response.valid).toBe(true);
+    expect(response.status).toBe("past_due");
+  });
+
+  test("should pass through cancellation_pending status in success response", () => {
+    const response = formatSuccessResponse({
+      status: "cancellation_pending",
+      concurrentMachines: 1,
+      maxMachines: 3,
+    });
+
+    expect(response.valid).toBe(true);
+    expect(response.status).toBe("cancellation_pending");
   });
 
   test("should handle null maxMachines (unlimited)", () => {
@@ -720,23 +743,20 @@ describe("heartbeat API - license-credential validation", () => {
   });
 
   describe("license not found in DynamoDB", () => {
-    test("should return graceful fallback when getLicenseByKey returns null", () => {
-      // When the license is not in our DynamoDB (might be valid in Keygen
-      // but not synced), the route still returns a success response with
-      // version payload so the extension can prompt updates.
+    test("should return valid: false with status not_found when license is null", () => {
+      // Fix 2 / Task 9.1: null license guard returns 404 with valid: false.
+      // The success path is never reached when the license is not in DDB.
       const license = null;
-      const fallbackResponse = {
-        valid: true,
-        status: "active",
-        reason: "Heartbeat successful",
-        concurrentMachines: 1,
-        maxMachines: null, // Unknown when license not in DB
+      const response = {
+        valid: false,
+        status: "not_found",
+        reason: "License not found",
       };
 
       expect(license).toBeNull();
-      expect(fallbackResponse.valid).toBe(true);
-      expect(fallbackResponse.status).toBe("active");
-      expect(fallbackResponse.maxMachines).toBeNull();
+      expect(response.valid).toBe(false);
+      expect(response.status).toBe("not_found");
+      expect(response.reason).toBe("License not found");
     });
   });
 });

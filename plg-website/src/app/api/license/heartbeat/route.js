@@ -372,11 +372,11 @@ export async function POST(request) {
       RATE_LIMIT_PRESETS.heartbeat,
     );
 
-    log.response(200, "Heartbeat succeeded", { status: "active" });
+    log.response(200, "Heartbeat succeeded", { status: license.status });
     return NextResponse.json(
       {
         valid: true,
-        status: "active",
+        status: license.status,
         reason: "Heartbeat successful",
         concurrentMachines,
         maxMachines,

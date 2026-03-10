@@ -606,8 +606,7 @@ describe("Heartbeat Route - Contract", () => {
     const data = await response.json();
 
     expect(data.valid).toBe(true);
-    // past_due falls through to the normal success path which always writes "active"
-    // as the heartbeat status (it's the heartbeat-specific status, not the license status)
+    expect(data.status).toBe("past_due");
   });
 
   test("cancellation_pending license returns valid: true", async () => {
@@ -625,6 +624,7 @@ describe("Heartbeat Route - Contract", () => {
     const data = await response.json();
 
     expect(data.valid).toBe(true);
+    expect(data.status).toBe("cancellation_pending");
   });
 
 });

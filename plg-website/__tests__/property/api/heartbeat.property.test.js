@@ -213,3 +213,65 @@ describe("Property 9: Heartbeat status classification", () => {
     }
   });
 });
+
+// ============================================================================
+// Feature: status-remediation-plan, Property 24
+// ============================================================================
+
+describe("Property 24: Heartbeat status passthrough", () => {
+  /**
+   * Property 24: For any license with a valid (non-blocking) status, the
+   * heartbeat success response's `status` field must equal `license.status`.
+   * The route must never hardcode `status: "active"` for the success path.
+   *
+   * This validates the Phase 3 fix (P3.1): the success response now passes
+   * through `license.status` instead of always returning `"active"`.
+   *
+   * **Validates: Requirements 7.3, 7.4**
+   */
+
+  // ---- 24a: any valid status is passed through unchanged ----
+
+  it("valid status is passed through unchanged (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const status = randomPick(VALID_STATUSES);
+      const license = randomLicense(status);
+      const result = classifyHeartbeat(license);
+
+      // The classified result must carry the exact license status
+      expect(result.valid).toBe(true);
+      expect(result.status).toBe(status);
+      // Specifically: must NOT always be "active"
+      if (status !== "active") {
+        expect(result.status).not.toBe("active");
+      }
+    }
+  });
+
+  // ---- 24b: past_due specifically passes through as "past_due" ----
+
+  it("past_due is passed through as 'past_due', not 'active' (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const license = randomLicense(LICENSE_STATUS.PAST_DUE);
+      const result = classifyHeartbeat(license);
+
+      expect(result.valid).toBe(true);
+      expect(result.status).toBe("past_due");
+      expect(result.status).not.toBe("active");
+    }
+  });
+
+  // ---- 24c: cancellation_pending specifically passes through ----
+
+  it("cancellation_pending is passed through, not 'active' (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const license = randomLicense(LICENSE_STATUS.CANCELLATION_PENDING);
+      const result = classifyHeartbeat(license);
+
+      expect(result.valid).toBe(true);
+      expect(result.status).toBe("cancellation_pending");
+      expect(result.status).not.toBe("active");
+    }
+  });
+});
+

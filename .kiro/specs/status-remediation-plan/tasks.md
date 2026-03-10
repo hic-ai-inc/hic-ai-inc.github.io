@@ -448,6 +448,42 @@ All extension tasks batched together:
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite to verify admin suspension and activation blocking
 
+- [x] P3.1. Fix heartbeat status passthrough (Phase 1 Req 7.3/7.4 completion)
+  - [x] P3.1.1 Change success response from status: "active" to status: license.status
+  - [x] P3.1.2 Update log line to reflect actual status
+  - [x] P3.1.3 Add status passthrough unit tests (active, past_due, cancellation_pending)
+  - [x] P3.1.4 Property 24: Heartbeat status passthrough
+
+- [ ] P3.2. Implement fingerprint-based device resolution in heartbeat route
+  - [ ] P3.2.1 Add putDevicePointer and getDevicePointer to dynamodb.js
+  - [ ] P3.2.2 Replace trial heartbeat branch with fingerprint resolution
+  - [ ] P3.2.3 Add opportunistic pointer write (fire-and-forget, original-key-only)
+  - [ ] P3.2.4 Update rate limiter to fall back to fingerprint identifier
+  - [ ] P3.2.5 Update getRateLimitHeaders to fall back to fingerprint
+  - [ ] P3.2.6 Change const → let for destructured body fields
+  - [ ] P3.2.7 Update JSDoc header
+  - [ ] P3.2.8 Unit tests for pointer record CRUD
+  - [ ] P3.2.9 Unit tests for fingerprint-based heartbeat resolution
+  - [ ] P3.2.10 Unit tests for opportunistic pointer write
+  - [ ] P3.2.11 Property 23: Fingerprint-based heartbeat equivalence
+  - [ ] P3.2.12 Property 25: Opportunistic pointer write consistency
+
+- [ ] P3.3. Remove dead trial heartbeat code and tests
+  - [ ] P3.3.1 Remove recordTrialHeartbeat from dynamodb.js
+  - [ ] P3.3.2 Remove recordTrialHeartbeat import from heartbeat route
+  - [ ] P3.3.3 Remove/update trial heartbeat test cases in heartbeat.test.js
+  - [ ] P3.3.4 Remove trial heartbeat contract test in heartbeat-route.contract.test.js
+  - [ ] P3.3.5 Remove recordTrialHeartbeat tests from dynamodb.test.js
+
+- [ ] P3.4. Checkpoint — Phase 3 implementation complete
+  - Run full test suite, verify no regressions
+
+- [ ] P3.5. Staging deployment
+  - [ ] P3.5.1 Build and publish hic-ses-layer (version bump 0.2.8 → 0.2.9)
+  - [ ] P3.5.2 Run update-lambdas.sh staging
+  - [ ] P3.5.3 Push to development (triggers Amplify staging deploy)
+
+
 - [ ] 16. Production configuration (manual)
   - [ ] 16.1 Configure Stripe dashboard
     - Enable Smart Retries with maximum 8 retries over 2-week maximum duration
