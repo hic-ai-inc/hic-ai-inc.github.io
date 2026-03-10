@@ -91,8 +91,15 @@ describe("Journey 5: Heartbeat Loop", () => {
       });
 
       if (heartbeatResponse.status === 200) {
-        expectHeartbeat(heartbeatResponse.json);
-        log.info("Session established", { sessionId });
+        if (heartbeatResponse.json.status === "machine_not_found") {
+          // No pointer record — fingerprint-only heartbeat without prior
+          // activation returns machine_not_found (correct post-P3.2 behavior)
+          assert.strictEqual(heartbeatResponse.json.valid, false);
+          log.info("Heartbeat returned machine_not_found (no pointer record)");
+        } else {
+          expectHeartbeat(heartbeatResponse.json);
+          log.info("Session established", { sessionId });
+        }
       }
     });
 

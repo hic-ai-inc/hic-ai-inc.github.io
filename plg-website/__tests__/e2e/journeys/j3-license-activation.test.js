@@ -241,13 +241,21 @@ describe("Journey 3: License Activation Flow", () => {
         heartbeatData,
       );
 
-      // Heartbeat should work for trial or licensed devices
+      // Fingerprint-only heartbeats (no licenseKey) resolve via device pointer.
+      // Without a prior activation that wrote a pointer record, the route
+      // returns machine_not_found — this is correct post-P3.2 behavior.
       if (response.status === 200) {
-        expectHeartbeat(response.json);
-        log.info("Heartbeat accepted");
+        if (response.json.status === "machine_not_found") {
+          // No pointer record — expected for devices that haven't activated
+          assert.strictEqual(response.json.valid, false);
+          log.info("Heartbeat returned machine_not_found (no pointer record)");
+        } else {
+          expectHeartbeat(response.json);
+          log.info("Heartbeat accepted");
+        }
       } else if (response.status === 404) {
-        // Device not found - expected in E2E
-        log.info("Heartbeat rejected (device not registered)");
+        // License not found - expected in E2E
+        log.info("Heartbeat rejected (license not found)");
       } else {
         // Should not be 500
         assert.ok(
@@ -283,9 +291,15 @@ describe("Journey 3: License Activation Flow", () => {
       );
 
       if (response.status === 200) {
-        expectHeartbeat(response.json);
-        // Next heartbeat should include last-seen update
-        log.info("Heartbeat timestamp updated");
+        if (response.json.status === "machine_not_found") {
+          // No pointer record — fingerprint-only heartbeat without prior
+          // activation returns machine_not_found (correct post-P3.2 behavior)
+          assert.strictEqual(response.json.valid, false);
+          log.info("Heartbeat returned machine_not_found (no pointer record)");
+        } else {
+          expectHeartbeat(response.json);
+          log.info("Heartbeat timestamp updated");
+        }
       }
     });
 
@@ -295,11 +309,13 @@ describe("Journey 3: License Activation Flow", () => {
         timestamp: new Date().toISOString(),
       });
 
-      // Unknown device heartbeats MUST return 200 and record the device.
-      // This is critical for trial users - their device must be tracked
-      // so it can be linked to their account when they purchase a license.
+      // Unknown fingerprint with no pointer record returns machine_not_found.
+      // Post-P3.2: fingerprint-only heartbeats resolve via device pointer;
+      // without one the device is treated as unactivated.
       expectStatus(response, 200);
-      log.info("Unknown device heartbeat accepted and recorded");
+      assert.strictEqual(response.json.status, "machine_not_found");
+      assert.strictEqual(response.json.valid, false);
+      log.info("Unknown device heartbeat returned machine_not_found");
     });
 
     test("should complete heartbeat within timeout", async () => {
