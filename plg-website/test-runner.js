@@ -109,18 +109,18 @@ async function findTestFiles(options) {
     return [resolve(options.file)];
   }
 
-  // Determine the search root
-  // Default to __tests__/unit to avoid running E2E tests (which require live servers)
-  // Use --directory __tests__ or specific path to include other test directories
-  let searchRoot = join(TESTS_ROOT, "unit");
-  if (options.directory) {
-    searchRoot = resolve(options.directory);
-  }
+  // Default: run unit + property tests. E2E and integration tests are excluded
+  // because they require live servers. Pass --directory to override.
+  const searchRoots = options.directory
+    ? [resolve(options.directory)]
+    : [join(TESTS_ROOT, "unit"), join(TESTS_ROOT, "property")];
 
-  const pattern = `${searchRoot}/**/*.test.js`;
   let files = [];
-  for await (const file of glob(pattern)) {
-    files.push(file);
+  for (const root of searchRoots) {
+    const pattern = `${root}/**/*.test.js`;
+    for await (const file of glob(pattern)) {
+      files.push(file);
+    }
   }
 
   if (options.pattern) {

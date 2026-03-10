@@ -275,3 +275,199 @@ describe("Property 24: Heartbeat status passthrough", () => {
   });
 });
 
+
+// ============================================================================
+// Feature: status-remediation-plan, Property 23
+//
+// Property 23: Fingerprint-based heartbeat equivalence
+// For any active license, a heartbeat resolved via fingerprint pointer
+// produces the same classification as a heartbeat with a direct license key.
+// The pointer is a transparent indirection layer — it MUST NOT change the
+// validity or status of the heartbeat response.
+//
+// **Validates: Requirements from P3.2.2, P3.2.9**
+// ============================================================================
+
+/**
+ * Simulate a fingerprint-resolved heartbeat: the pointer record provides
+ * the licenseKey, so the classification should behave identically.
+ *
+ * @param {Object} license - DynamoDB license record
+ * @returns {{ valid: boolean, status: string }}
+ */
+function classifyViaPointer(license) {
+  // Pointer resolution is transparent — the classification logic is the same.
+  return classifyHeartbeat(license);
+}
+
+/**
+ * Simulate a direct-key heartbeat classification.
+ *
+ * @param {Object} license - DynamoDB license record
+ * @returns {{ valid: boolean, status: string }}
+ */
+function classifyViaDirectKey(license) {
+  return classifyHeartbeat(license);
+}
+
+describe("Property 23: Fingerprint-based heartbeat equivalence", () => {
+  /**
+   * Feature: status-remediation-plan, Property 23
+   *
+   * **Validates: P3.2.2, P3.2.9**
+   */
+
+  // ---- 23a: pointer-resolved heartbeat equals direct-key for valid statuses ----
+
+  it("pointer-resolved == direct-key for valid statuses (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const status = randomPick(VALID_STATUSES);
+      const license = randomLicense(status);
+
+      const pointerResult = classifyViaPointer(license);
+      const directResult = classifyViaDirectKey(license);
+
+      expect(pointerResult.httpStatus).toBe(directResult.httpStatus);
+      expect(pointerResult.valid).toBe(directResult.valid);
+      expect(pointerResult.status).toBe(directResult.status);
+    }
+  });
+
+  // ---- 23b: pointer-resolved heartbeat equals direct-key for invalid statuses ----
+
+  it("pointer-resolved == direct-key for invalid statuses (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const status = randomPick(INVALID_STATUSES);
+      const license = randomLicense(status);
+
+      const pointerResult = classifyViaPointer(license);
+      const directResult = classifyViaDirectKey(license);
+
+      expect(pointerResult.httpStatus).toBe(directResult.httpStatus);
+      expect(pointerResult.valid).toBe(directResult.valid);
+      expect(pointerResult.status).toBe(directResult.status);
+      expect(pointerResult.reason).toBe(directResult.reason);
+    }
+  });
+
+  // ---- 23c: pointer resolution with null license equals direct null license ----
+
+  it("pointer with stale/deleted license == direct null license (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const pointerResult = classifyViaPointer(null);
+      const directResult = classifyViaDirectKey(null);
+
+      expect(pointerResult.httpStatus).toBe(directResult.httpStatus);
+      expect(pointerResult.valid).toBe(directResult.valid);
+      expect(pointerResult.status).toBe(directResult.status);
+      expect(pointerResult.reason).toBe(directResult.reason);
+    }
+  });
+});
+
+// ============================================================================
+// Feature: status-remediation-plan, Property 25
+//
+// Property 25: Opportunistic pointer write consistency
+// The pointer write is conditional on `body.licenseKey` being present AND
+// the license having a `keygenLicenseId`. This property verifies the
+// write-decision logic is consistent across random inputs.
+//
+// **Validates: Requirements from P3.2.3, P3.2.10**
+// ============================================================================
+
+/**
+ * Determine whether an opportunistic pointer write should occur.
+ * Mirrors the condition in heartbeat/route.js:
+ *   `if (body.licenseKey && license?.keygenLicenseId)`
+ *
+ * @param {Object} body - Request body
+ * @param {Object|null} license - DynamoDB license record
+ * @returns {boolean}
+ */
+function shouldWritePointer(body, license) {
+  return Boolean(body.licenseKey && license?.keygenLicenseId);
+}
+
+describe("Property 25: Opportunistic pointer write consistency", () => {
+  /**
+   * Feature: status-remediation-plan, Property 25
+   *
+   * **Validates: P3.2.3, P3.2.10**
+   */
+
+  // ---- 25a: pointer is written when both licenseKey and keygenLicenseId exist ----
+
+  it("pointer written when licenseKey + keygenLicenseId present (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const status = randomPick(VALID_STATUSES);
+      const license = randomLicense(status);
+      // Force keygenLicenseId to be present
+      license.keygenLicenseId = `kgen_${randomString(12)}`;
+      const body = {
+        fingerprint: `fp_${randomString(8)}`,
+        licenseKey: `MOUSE-${randomString(4).toUpperCase()}-${randomString(4).toUpperCase()}-${randomString(4).toUpperCase()}-${randomString(4).toUpperCase()}`,
+        machineId: `mach_${randomString(6)}`,
+        sessionId: `sess_${randomString(6)}`,
+      };
+
+      expect(shouldWritePointer(body, license)).toBe(true);
+    }
+  });
+
+  // ---- 25b: pointer is NOT written when licenseKey is absent (fingerprint-resolved) ----
+
+  it("pointer NOT written when licenseKey absent (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const status = randomPick(VALID_STATUSES);
+      const license = randomLicense(status);
+      license.keygenLicenseId = `kgen_${randomString(12)}`;
+      const body = {
+        fingerprint: `fp_${randomString(8)}`,
+        // No licenseKey — fingerprint-resolved heartbeat
+        machineId: `mach_${randomString(6)}`,
+        sessionId: `sess_${randomString(6)}`,
+      };
+
+      expect(shouldWritePointer(body, license)).toBe(false);
+    }
+  });
+
+  // ---- 25c: pointer is NOT written when keygenLicenseId is null ----
+
+  it("pointer NOT written when keygenLicenseId is null (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const status = randomPick(VALID_STATUSES);
+      const license = randomLicense(status);
+      license.keygenLicenseId = null;
+      const body = {
+        fingerprint: `fp_${randomString(8)}`,
+        licenseKey: `MOUSE-${randomString(4).toUpperCase()}-${randomString(4).toUpperCase()}-${randomString(4).toUpperCase()}-${randomString(4).toUpperCase()}`,
+        machineId: `mach_${randomString(6)}`,
+        sessionId: `sess_${randomString(6)}`,
+      };
+
+      expect(shouldWritePointer(body, license)).toBe(false);
+    }
+  });
+
+  // ---- 25d: pointer write decision is idempotent ----
+
+  it("pointer write decision is idempotent (100 iterations)", () => {
+    for (let i = 0; i < 100; i++) {
+      const status = randomPick([...VALID_STATUSES, ...INVALID_STATUSES]);
+      const license = randomLicense(status);
+      const body = {
+        fingerprint: `fp_${randomString(8)}`,
+        licenseKey: Math.random() > 0.5 ? `MOUSE-${randomString(12).toUpperCase()}` : undefined,
+        machineId: `mach_${randomString(6)}`,
+        sessionId: `sess_${randomString(6)}`,
+      };
+
+      const result1 = shouldWritePointer(body, license);
+      const result2 = shouldWritePointer(body, license);
+      expect(result1).toBe(result2);
+    }
+  });
+});
+

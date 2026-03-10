@@ -170,7 +170,7 @@ describe("heartbeat API - input validation", () => {
   /**
    * Input validation rules:
    * 1. fingerprint is ALWAYS required (device identification for concurrent sessions)
-   * 2. For trial users: fingerprint only is sufficient
+   * 2. For fingerprint-only heartbeats (post-activation, no licenseKey): resolves device via pointer
    * 3. For licensed users: fingerprint + sessionId + licenseKey required
    * 
    * This ensures each container/device has a unique fingerprint for device limit enforcement.
@@ -184,9 +184,9 @@ describe("heartbeat API - input validation", () => {
       return { valid: false, error: "Device fingerprint is required", status: 400 };
     }
 
-    // Trial heartbeat - fingerprint only is sufficient
+    // Fingerprint-only heartbeat — resolves device via pointer record
     if (!licenseKey) {
-      return { valid: true, type: "trial" };
+      return { valid: true, type: "fingerprint_only" };
     }
 
     // Licensed heartbeat - need sessionId too
@@ -198,7 +198,7 @@ describe("heartbeat API - input validation", () => {
   }
 
   describe("fingerprint requirement (all heartbeats)", () => {
-    test("should reject missing fingerprint for trial heartbeat", () => {
+    test("should reject missing fingerprint", () => {
       const result = validateHeartbeatInput({
         // No fingerprint - should fail
       });
@@ -228,22 +228,22 @@ describe("heartbeat API - input validation", () => {
     });
   });
 
-  describe("trial heartbeat (no license key)", () => {
-    test("should accept fingerprint-only for trial users", () => {
+  describe("fingerprint-only heartbeat (no license key)", () => {
+    test("should accept fingerprint-only for device resolution", () => {
       const result = validateHeartbeatInput({
         fingerprint: "fp_test_device_123",
       });
       expect(result.valid).toBe(true);
-      expect(result.type).toBe("trial");
+      expect(result.type).toBe("fingerprint_only");
     });
 
-    test("should accept trial heartbeat with optional machineId", () => {
+    test("should accept fingerprint-only heartbeat with optional machineId", () => {
       const result = validateHeartbeatInput({
         fingerprint: "fp_test_device_123",
         machineId: "mach_optional",
       });
       expect(result.valid).toBe(true);
-      expect(result.type).toBe("trial");
+      expect(result.type).toBe("fingerprint_only");
     });
   });
 
@@ -604,7 +604,7 @@ describe("heartbeat API - license-credential validation", () => {
       return { valid: false, error: "Device fingerprint is required", status: 400 };
     }
     if (!licenseKey) {
-      return { valid: true, type: "trial" };
+      return { valid: true, type: "fingerprint_only" };
     }
     if (!machineId) {
       return { valid: false, error: "Machine ID is required for licensed heartbeats", status: 400 };
@@ -660,12 +660,12 @@ describe("heartbeat API - license-credential validation", () => {
       expect(result.type).toBe("licensed");
     });
 
-    test("trial heartbeats still do not require auth", () => {
+    test("fingerprint-only heartbeats do not require auth", () => {
       const result = validateLicensedHeartbeatCredentials({
-        fingerprint: "fp_trial",
+        fingerprint: "fp_fingerprint_only",
       });
       expect(result.valid).toBe(true);
-      expect(result.type).toBe("trial");
+      expect(result.type).toBe("fingerprint_only");
     });
   });
 

@@ -164,7 +164,7 @@ export function generateDeviceData() {
 /**
  * Generate heartbeat request data
  * @param {Object} [options] - Optional overrides
- * @param {string} [options.licenseKey] - License key (optional for trial heartbeats)
+ * @param {string} [options.licenseKey] - License key (optional for fingerprint-based heartbeats)
  * @param {string} [options.fingerprint] - Device fingerprint
  * @param {string} [options.machineId] - Machine identifier
  * @param {string} [options.sessionId] - Session identifier

@@ -47,6 +47,8 @@ import {
   getOrgLicenseUsage,
   getVersionConfig,
   claimWebhookIdempotencyKey,
+  putDevicePointer,
+  getDevicePointer,
   dynamodb,
   // Organization management functions
   upsertOrganization,
@@ -2384,6 +2386,181 @@ describe("claimWebhookIdempotencyKey", () => {
     expect(cmd.input.Item.claimedAt).toBeDefined();
     // claimedAt should be a valid ISO string
     expect(() => new Date(cmd.input.Item.claimedAt).toISOString()).not.toThrow();
+  });
+});
+
+
+// =========================================================================
+// DEVICE POINTER OPERATIONS
+// Feature: status-remediation-plan, P3.2.8
+// =========================================================================
+
+describe("putDevicePointer", () => {
+  let originalSend;
+  let mockSend;
+
+  beforeEach(() => {
+    originalSend = dynamodb.send;
+    mockSend = createSpy("dynamodb.send");
+    dynamodb.send = mockSend;
+  });
+
+  afterEach(() => {
+    dynamodb.send = originalSend;
+  });
+
+  it("should write a PutCommand with correct PK and SK", async () => {
+    mockSend.mockResolvedValue({});
+
+    await putDevicePointer("fp_abc123", {
+      keygenLicenseId: "kgen_lic_1",
+      licenseKey: "MOUSE-ABCD-1234-EFGH-XXXX",
+      userId: "user_1",
+    });
+
+    expect(mockSend.callCount).toBe(1);
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Item.PK).toBe("DEVICE_FP#fp_abc123");
+    expect(cmd.input.Item.SK).toBe("POINTER");
+  });
+
+  it("should include all three fields in the Item", async () => {
+    mockSend.mockResolvedValue({});
+
+    await putDevicePointer("fp_fields_test", {
+      keygenLicenseId: "kgen_lic_2",
+      licenseKey: "MOUSE-WXYZ-5678-ABCD-YYYY",
+      userId: "user_2",
+    });
+
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Item.keygenLicenseId).toBe("kgen_lic_2");
+    expect(cmd.input.Item.licenseKey).toBe("MOUSE-WXYZ-5678-ABCD-YYYY");
+    expect(cmd.input.Item.userId).toBe("user_2");
+  });
+
+  it("should set createdAt and updatedAt timestamps", async () => {
+    mockSend.mockResolvedValue({});
+
+    await putDevicePointer("fp_timestamp_test", {
+      keygenLicenseId: "kgen_lic_3",
+      licenseKey: "MOUSE-AAAA-BBBB-CCCC-DDDD",
+      userId: null,
+    });
+
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Item.createdAt).toBeDefined();
+    expect(cmd.input.Item.updatedAt).toBeDefined();
+    // Both should be valid ISO strings
+    expect(() => new Date(cmd.input.Item.createdAt).toISOString()).not.toThrow();
+    expect(() => new Date(cmd.input.Item.updatedAt).toISOString()).not.toThrow();
+  });
+
+  it("should accept null userId (pre-resolution)", async () => {
+    mockSend.mockResolvedValue({});
+
+    await putDevicePointer("fp_null_user", {
+      keygenLicenseId: "kgen_lic_4",
+      licenseKey: "MOUSE-EEEE-FFFF-GGGG-HHHH",
+      userId: null,
+    });
+
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Item.userId).toBe(null);
+  });
+
+  it("should propagate DynamoDB errors", async () => {
+    const error = new Error("Throughput exceeded");
+    error.name = "ProvisionedThroughputExceededException";
+    mockSend.mockRejectedValue(error);
+
+    let thrown = null;
+    try {
+      await putDevicePointer("fp_error", {
+        keygenLicenseId: "kgen_lic_5",
+        licenseKey: "MOUSE-IIII-JJJJ-KKKK-LLLL",
+        userId: "user_5",
+      });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).not.toBe(null);
+    expect(thrown.name).toBe("ProvisionedThroughputExceededException");
+  });
+});
+
+describe("getDevicePointer", () => {
+  let originalSend;
+  let mockSend;
+
+  beforeEach(() => {
+    originalSend = dynamodb.send;
+    mockSend = createSpy("dynamodb.send");
+    dynamodb.send = mockSend;
+  });
+
+  afterEach(() => {
+    dynamodb.send = originalSend;
+  });
+
+  it("should query with correct PK and SK", async () => {
+    mockSend.mockResolvedValue({ Item: { PK: "DEVICE_FP#fp_get_test", SK: "POINTER" } });
+
+    await getDevicePointer("fp_get_test");
+
+    expect(mockSend.callCount).toBe(1);
+    const cmd = mockSend.calls[0][0];
+    expect(cmd.input.Key.PK).toBe("DEVICE_FP#fp_get_test");
+    expect(cmd.input.Key.SK).toBe("POINTER");
+  });
+
+  it("should return the pointer record when found", async () => {
+    const pointerRecord = {
+      PK: "DEVICE_FP#fp_found",
+      SK: "POINTER",
+      keygenLicenseId: "kgen_lic_found",
+      licenseKey: "MOUSE-MMMM-NNNN-OOOO-PPPP",
+      userId: "user_found",
+    };
+    mockSend.mockResolvedValue({ Item: pointerRecord });
+
+    const result = await getDevicePointer("fp_found");
+
+    expect(result).not.toBe(null);
+    expect(result.keygenLicenseId).toBe("kgen_lic_found");
+    expect(result.licenseKey).toBe("MOUSE-MMMM-NNNN-OOOO-PPPP");
+    expect(result.userId).toBe("user_found");
+  });
+
+  it("should return null when no pointer exists", async () => {
+    mockSend.mockResolvedValue({});
+
+    const result = await getDevicePointer("fp_unknown");
+
+    expect(result).toBe(null);
+  });
+
+  it("should return null when Item is undefined", async () => {
+    mockSend.mockResolvedValue({ Item: undefined });
+
+    const result = await getDevicePointer("fp_undefined_item");
+
+    expect(result).toBe(null);
+  });
+
+  it("should propagate DynamoDB errors", async () => {
+    const error = new Error("Service unavailable");
+    error.name = "ServiceUnavailableException";
+    mockSend.mockRejectedValue(error);
+
+    let thrown = null;
+    try {
+      await getDevicePointer("fp_error");
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).not.toBe(null);
+    expect(thrown.name).toBe("ServiceUnavailableException");
   });
 });
 

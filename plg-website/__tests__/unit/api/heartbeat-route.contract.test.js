@@ -101,36 +101,417 @@ describe("Heartbeat Route - Contract", () => {
     dynamodb.send = originalSend;
   });
 
-  test("trial heartbeat includes readyVersion payload and no minVersion", async () => {
+  test("fingerprint-only heartbeat returns machine_not_found when no pointer exists", async () => {
+    // No device pointer exists for this fingerprint — getDevicePointer returns null
     mockSend.mockImplementation((command) => {
-      const pk = command?.input?.Key?.PK;
-      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
-        return Promise.resolve({ Item: versionItem });
-      }
       return Promise.resolve({});
     });
 
     const response = await POST(
       createMockRequest({
-        fingerprint: "fp_trial_123",
-        machineId: "mach_123",
+        fingerprint: "fp_no_pointer_123",
       }),
     );
 
     const data = await response.json();
 
-    expect(data.valid).toBe(true);
-    expect(data.status).toBe("trial");
-
-    expect(data.latestVersion).toBe("0.10.0");
-    expect(data.readyVersion).toBe("0.10.0");
-    expect(data.readyUpdateUrl).toContain("marketplace.visualstudio.com");
-
-    expect(hasOwn(data, "readyReleaseNotesUrl")).toBe(true);
-    expect(hasOwn(data, "readyUpdatedAt")).toBe(true);
-
-    expect(hasOwn(data, "minVersion")).toBe(false);
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("machine_not_found");
+    expect(data.reason).toBe("No activated device found for this fingerprint");
   });
+
+  // =========================================================================
+  // P3.2.9: Fingerprint-based heartbeat resolution
+  // Feature: status-remediation-plan
+  // =========================================================================
+
+  test("fingerprint-resolved heartbeat returns same response as direct-key heartbeat", async () => {
+    const fingerprint = "fp_resolved_same";
+    const licenseKey = generateValidLicenseKey();
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    // getDevicePointer returns a pointer (DEVICE_FP# key) with licenseKey
+    // getLicenseByKey returns the license (GSI2 query)
+    // Other calls return empty
+    mockSend.mockImplementation((command) => {
+      const input = command?.input;
+      const pk = input?.Key?.PK;
+
+      // getDevicePointer: DEVICE_FP#fingerprint / SK: POINTER
+      if (typeof pk === "string" && pk.startsWith("DEVICE_FP#")) {
+        return Promise.resolve({
+          Item: {
+            PK: `DEVICE_FP#${fingerprint}`,
+            SK: "POINTER",
+            keygenLicenseId: "kgen_lic_resolved",
+            licenseKey,
+            userId: "user_resolved",
+          },
+        });
+      }
+
+      // VERSION# lookup
+      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
+        return Promise.resolve({ Item: versionItem });
+      }
+
+      // GSI2 license-by-key lookup
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({
+          Items: [{
+            PK: "LICENSE#kgen_lic_resolved",
+            SK: "DETAILS",
+            maxDevices: 3,
+            keygenLicenseId: "kgen_lic_resolved",
+            status: "active",
+          }],
+        });
+      }
+
+      // Device lookup by fingerprint (getDeviceByFingerprint)
+      if (typeof pk === "string" && pk.startsWith("LICENSE#") && input?.Key?.SK) {
+        return Promise.resolve({
+          Item: { fingerprint, userId: "user_resolved", keygenMachineId: "mach_resolved" },
+        });
+      }
+
+      // Active devices in window query
+      if (input?.KeyConditionExpression) {
+        return Promise.resolve({
+          Items: [{ fingerprint, lastSeenAt: new Date().toISOString() }],
+        });
+      }
+
+      return Promise.resolve({});
+    });
+
+    // Fingerprint-only request (no licenseKey) — should resolve via pointer
+    const response = await POST(
+      createMockRequest({
+        fingerprint,
+        sessionId: "sess_resolved",
+        machineId: "mach_resolved",
+        // No licenseKey — triggers fingerprint resolution
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+
+    expect(data.valid).toBe(true);
+    expect(data.status).toBe("active");
+    expect(data.concurrentMachines).toBe(1);
+    expect(data.maxMachines).toBe(3);
+    expect(data.nextHeartbeat).toBe(NEXT_HEARTBEAT_SECONDS);
+  });
+
+  test("fingerprint-resolved heartbeat with no license in DB returns 404", async () => {
+    const fingerprint = "fp_resolved_no_license";
+    const licenseKey = generateValidLicenseKey();
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation((command) => {
+      const input = command?.input;
+      const pk = input?.Key?.PK;
+
+      // getDevicePointer returns pointer
+      if (typeof pk === "string" && pk.startsWith("DEVICE_FP#")) {
+        return Promise.resolve({
+          Item: {
+            PK: `DEVICE_FP#${fingerprint}`,
+            SK: "POINTER",
+            keygenLicenseId: "kgen_stale",
+            licenseKey,
+            userId: "user_stale",
+          },
+        });
+      }
+
+      // GSI2 license-by-key: no items (license deleted from DB)
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({ Items: [] });
+      }
+
+      return Promise.resolve({});
+    });
+
+    const response = await POST(
+      createMockRequest({
+        fingerprint,
+        sessionId: "sess_stale",
+        machineId: "mach_stale",
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+
+    expect(data.valid).toBe(false);
+    expect(data.status).toBe("not_found");
+  });
+
+  test("direct licenseKey heartbeat is not affected by fingerprint resolution", async () => {
+    const fingerprint = "fp_direct_key";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    // When licenseKey is present, getDevicePointer should NOT be called
+    let devicePointerCalled = false;
+    mockSend.mockImplementation((command) => {
+      const input = command?.input;
+      const pk = input?.Key?.PK;
+
+      if (typeof pk === "string" && pk.startsWith("DEVICE_FP#")) {
+        devicePointerCalled = true;
+        return Promise.resolve({});
+      }
+
+      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
+        return Promise.resolve({ Item: versionItem });
+      }
+
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({
+          Items: [{
+            PK: "LICENSE#lic_direct",
+            SK: "DETAILS",
+            maxDevices: 3,
+            keygenLicenseId: null,
+            status: "active",
+          }],
+        });
+      }
+
+      return Promise.resolve({});
+    });
+
+    const response = await POST(
+      createMockRequest({
+        fingerprint,
+        sessionId: "sess_direct",
+        machineId: "mach_direct",
+        licenseKey: generateValidLicenseKey(),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.valid).toBe(true);
+    expect(data.status).toBe("active");
+
+    // getDevicePointer should not have been called
+    expect(devicePointerCalled).toBe(false);
+  });
+
+  // =========================================================================
+  // P3.2.10: Opportunistic pointer write
+  // Feature: status-remediation-plan
+  // =========================================================================
+
+  test("licensed heartbeat with licenseKey writes device pointer opportunistically", async () => {
+    const fingerprint = "fp_pointer_write";
+    const licenseKey = generateValidLicenseKey();
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    let pointerWritten = false;
+    let pointerWriteItem = null;
+    mockSend.mockImplementation((command) => {
+      const input = command?.input;
+      const pk = input?.Key?.PK;
+
+      // PutCommand for device pointer (putDevicePointer)
+      if (input?.Item?.PK?.startsWith("DEVICE_FP#") && input?.Item?.SK === "POINTER") {
+        pointerWritten = true;
+        pointerWriteItem = input.Item;
+        return Promise.resolve({});
+      }
+
+      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
+        return Promise.resolve({ Item: versionItem });
+      }
+
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({
+          Items: [{
+            PK: "LICENSE#lic_pw",
+            SK: "DETAILS",
+            maxDevices: 3,
+            keygenLicenseId: "kgen_lic_pw",
+            status: "active",
+          }],
+        });
+      }
+
+      return Promise.resolve({});
+    });
+
+    const response = await POST(
+      createMockRequest({
+        fingerprint,
+        sessionId: "sess_pw",
+        machineId: "mach_pw",
+        licenseKey,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.valid).toBe(true);
+
+    // Wait briefly for the fire-and-forget pointer write
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(pointerWritten).toBe(true);
+    expect(pointerWriteItem.PK).toBe(`DEVICE_FP#${fingerprint}`);
+    expect(pointerWriteItem.keygenLicenseId).toBe("kgen_lic_pw");
+    expect(pointerWriteItem.licenseKey).toBe(licenseKey);
+  });
+
+  test("pointer write failure does not affect heartbeat response", async () => {
+    const fingerprint = "fp_pointer_fail";
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    mockSend.mockImplementation((command) => {
+      const input = command?.input;
+      const pk = input?.Key?.PK;
+
+      // PutCommand for device pointer — FAIL
+      if (input?.Item?.PK?.startsWith("DEVICE_FP#") && input?.Item?.SK === "POINTER") {
+        return Promise.reject(new Error("DynamoDB write failed"));
+      }
+
+      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
+        return Promise.resolve({ Item: versionItem });
+      }
+
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({
+          Items: [{
+            PK: "LICENSE#lic_pf",
+            SK: "DETAILS",
+            maxDevices: 3,
+            keygenLicenseId: "kgen_lic_pf",
+            status: "active",
+          }],
+        });
+      }
+
+      return Promise.resolve({});
+    });
+
+    const response = await POST(
+      createMockRequest({
+        fingerprint,
+        sessionId: "sess_pf",
+        machineId: "mach_pf",
+        licenseKey: generateValidLicenseKey(),
+      }),
+    );
+
+    // Response should succeed despite pointer write failure
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.valid).toBe(true);
+    expect(data.status).toBe("active");
+  });
+
+  test("fingerprint-resolved heartbeat does not re-write device pointer", async () => {
+    const fingerprint = "fp_no_rewrite";
+    const licenseKey = generateValidLicenseKey();
+
+    const keygenMock = createKeygenMock();
+    keygenMock.whenMachineHeartbeat(fingerprint).resolves({});
+    __setKeygenRequestForTests(keygenMock.request);
+
+    let pointerWriteCount = 0;
+    mockSend.mockImplementation((command) => {
+      const input = command?.input;
+      const pk = input?.Key?.PK;
+
+      // Track pointer writes
+      if (input?.Item?.PK?.startsWith("DEVICE_FP#") && input?.Item?.SK === "POINTER") {
+        pointerWriteCount++;
+        return Promise.resolve({});
+      }
+
+      // getDevicePointer: return existing pointer
+      if (typeof pk === "string" && pk.startsWith("DEVICE_FP#")) {
+        return Promise.resolve({
+          Item: {
+            PK: `DEVICE_FP#${fingerprint}`,
+            SK: "POINTER",
+            keygenLicenseId: "kgen_lic_nr",
+            licenseKey,
+            userId: "user_nr",
+          },
+        });
+      }
+
+      if (typeof pk === "string" && pk.startsWith("VERSION#")) {
+        return Promise.resolve({ Item: versionItem });
+      }
+
+      if (input?.IndexName === "GSI2") {
+        return Promise.resolve({
+          Items: [{
+            PK: "LICENSE#kgen_lic_nr",
+            SK: "DETAILS",
+            maxDevices: 3,
+            keygenLicenseId: "kgen_lic_nr",
+            status: "active",
+          }],
+        });
+      }
+
+      if (typeof pk === "string" && pk.startsWith("LICENSE#") && input?.Key?.SK) {
+        return Promise.resolve({
+          Item: { fingerprint, userId: "user_nr", keygenMachineId: "mach_nr" },
+        });
+      }
+
+      if (input?.KeyConditionExpression) {
+        return Promise.resolve({
+          Items: [{ fingerprint, lastSeenAt: new Date().toISOString() }],
+        });
+      }
+
+      return Promise.resolve({});
+    });
+
+    const response = await POST(
+      createMockRequest({
+        fingerprint,
+        sessionId: "sess_nr",
+        machineId: "mach_nr",
+        // No licenseKey — resolved from pointer, so body.licenseKey is falsy
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.valid).toBe(true);
+
+    // Wait for any async writes
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Pointer should NOT be re-written because body.licenseKey was absent
+    expect(pointerWriteCount).toBe(0);
+  });
+
 
   // Fix 2 / Task 9.1: null license now returns 404 with valid: false
   test("licensed heartbeat returns 404 when license missing in DB", async () => {

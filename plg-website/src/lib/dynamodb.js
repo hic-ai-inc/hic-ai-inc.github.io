@@ -1263,48 +1263,55 @@ export async function createTrial({
 }
 
 /**
- * Record a heartbeat from a trial device
- * Updates lastSeenAt, or creates record if device hasn't initialized trial yet.
- * This allows us to track devices before they purchase, for later linking.
+ * Write a fingerprint→license pointer record.
+ * Enables heartbeat device resolution when licenseKey is absent.
+ * Pattern: PK=DEVICE_FP#${fingerprint}, SK=POINTER
  *
- * @param {string} deviceId - Device identifier (fingerprint or machineId)
- * @param {Object} metadata - Additional device metadata
- * @param {string} [metadata.fingerprint] - Machine fingerprint
- * @param {string} [metadata.machineId] - Machine ID
- * @param {string} [metadata.sessionId] - Session ID
- * @param {string} [metadata.lastSeen] - ISO timestamp
+ * @param {string} fingerprint - Device fingerprint
+ * @param {Object} data - Pointer data
+ * @param {string} data.keygenLicenseId - Keygen license UUID
+ * @param {string} data.licenseKey - MOUSE-XXXX license key
+ * @param {string} data.userId - Cognito user ID
  * @returns {Promise<void>}
  */
-export async function recordTrialHeartbeat(deviceId, metadata = {}) {
-  const logger = createLogger("recordTrialHeartbeat");
-  try {
-    await dynamodb.send(
-      new UpdateCommand({
-        TableName: TABLE_NAME,
-        Key: {
-          PK: `TRIAL#${deviceId}`,
-          SK: "HEARTBEAT",
-        },
-        UpdateExpression:
-          "SET lastSeenAt = :now, fingerprint = :fp, machineId = :mid, sessionId = :sid, updatedAt = :now",
-        ExpressionAttributeValues: {
-          ":now": metadata.lastSeen || new Date().toISOString(),
-          ":fp": metadata.fingerprint || null,
-          ":mid": metadata.machineId || null,
-          ":sid": metadata.sessionId || null,
-        },
-      }),
-    );
-    logger.info("Trial heartbeat recorded", {
-      deviceId: deviceId.substring(0, 8) + "...",
-    });
-  } catch (error) {
-    logger.error("Failed to record trial heartbeat", {
-      deviceId: deviceId.substring(0, 8) + "...",
-      error: error.message,
-    });
-    throw error;
-  }
+export async function putDevicePointer(
+  fingerprint,
+  { keygenLicenseId, licenseKey, userId },
+) {
+  await dynamodb.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        PK: `DEVICE_FP#${fingerprint}`,
+        SK: "POINTER",
+        keygenLicenseId,
+        licenseKey,
+        userId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    }),
+  );
+}
+
+/**
+ * Look up a device's license by fingerprint.
+ * Returns the pointer record or null if no activated device exists.
+ *
+ * @param {string} fingerprint - Device fingerprint
+ * @returns {Promise<Object|null>} Pointer record or null
+ */
+export async function getDevicePointer(fingerprint) {
+  const result = await dynamodb.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `DEVICE_FP#${fingerprint}`,
+        SK: "POINTER",
+      },
+    }),
+  );
+  return result.Item || null;
 }
 
 // ===========================================

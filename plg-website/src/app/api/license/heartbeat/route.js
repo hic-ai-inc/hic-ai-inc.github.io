@@ -4,14 +4,16 @@
  * POST /api/license/heartbeat
  *
  * Called periodically by the VS Code extension (default: every 10 minutes)
- * to verify concurrent device limits and update last-seen timestamps.
+ * to verify license status, enforce concurrent device limits, and update
+ * last-seen timestamps.
  *
- * This endpoint is lightweight and optimized for high-frequency calls:
- * - No full license validation (assumes already validated on activation)
- * - Quick machine ping to Keygen
- * - DynamoDB update for device tracking
+ * Post-activation heartbeats do not carry the license key. The device's
+ * fingerprint resolves to the license via a pointer record written during
+ * the first heartbeat after activation. If the license key IS present
+ * (e.g., the initial heartbeat triggered by activation), it is used
+ * directly and the pointer record is written opportunistically.
  *
- * @see Security Considerations for Keygen Licensing
+ * @see 20260309_HEARTBEAT_REQUEST_RESPONSE_SCHEMA_ANALYSIS.md
  * @see PLG Technical Specification v2 - Section 3.3
  */
 
@@ -21,7 +23,8 @@ import {
   updateDeviceLastSeen,
   getLicenseByKey,
   getDeviceByFingerprint,
-  recordTrialHeartbeat,
+  getDevicePointer,
+  putDevicePointer,
   getVersionConfig,
   getActiveDevicesInWindow,
 } from "@/lib/dynamodb";
@@ -93,7 +96,7 @@ export async function POST(request) {
   try {
     // Rate limiting: 10 heartbeats per minute per license key
     const rateLimitResult = await rateLimitMiddleware(request, {
-      getIdentifier: (body) => body.licenseKey,
+      getIdentifier: (body) => body.licenseKey || body.fingerprint,
       limits: "heartbeat",
     });
 
@@ -111,7 +114,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { machineId, sessionId, licenseKey, fingerprint, userId } = body;
+    let { machineId, sessionId, licenseKey, fingerprint, userId } = body;
 
     // Validate required fields - fingerprint is always required
     // Each container/device must have a unique fingerprint for concurrent session tracking
@@ -127,46 +130,35 @@ export async function POST(request) {
     }
 
     // =========================================================================
-    // TRIAL USER HEARTBEAT (no license key)
+    // FINGERPRINT-BASED DEVICE RESOLUTION (no license key)
     // =========================================================================
-    // Trial users send heartbeats before purchasing. We record their device
-    // so it can be linked to their account when they purchase a license.
+    // Post-activation heartbeats do not carry the license key. The device was
+    // bound to a user and license during the authenticated activation flow.
+    // We resolve the device by fingerprint alone using the pointer record.
     if (!licenseKey) {
-      // Record trial device heartbeat in DynamoDB using fingerprint as unique key
-      try {
-        await recordTrialHeartbeat(fingerprint, {
-          fingerprint,
-          machineId,
-          sessionId,
-          lastSeen: new Date().toISOString(),
+      const devicePointer = await getDevicePointer(fingerprint);
+
+      if (!devicePointer) {
+        log.decision(
+          "device_pointer_not_found",
+          "No activated device for fingerprint",
+          { fingerprint: fingerprint.substring(0, 8) + "..." },
+        );
+        log.response(200, "Heartbeat device not found", {
+          status: "machine_not_found",
         });
-      } catch (err) {
-        log.warn("trial_heartbeat_record_failed", "Trial heartbeat recording failed", {
-          errorMessage: err?.message,
+        return NextResponse.json({
+          valid: false,
+          status: "machine_not_found",
+          reason: "No activated device found for this fingerprint",
         });
-        // Non-critical - continue with success response
       }
 
-      // Get version config for auto-update notification (B2)
-      const versionConfig = await getVersionConfig();
-
-      log.response(200, "Trial heartbeat recorded", { status: "trial" });
-      return NextResponse.json({
-        valid: true,
-        status: "trial",
-        reason: "Trial heartbeat recorded",
-        concurrentMachines: 1,
-        maxMachines: 1,
-        nextHeartbeat: NEXT_HEARTBEAT_SECONDS,
-        // Auto-update fields (B2)
-        latestVersion: versionConfig?.latestVersion || null,
-        releaseNotesUrl: versionConfig?.releaseNotesUrl || null,
-        updateUrl: versionConfig?.updateUrl?.marketplace || null,
-        // Daily-gated notification fields (see scheduled task: mouse-version-notify)
-        readyVersion: versionConfig?.readyVersion || null,
-        readyReleaseNotesUrl: versionConfig?.readyReleaseNotesUrl || null,
-        readyUpdateUrl: versionConfig?.readyUpdateUrl || null,
-        readyUpdatedAt: versionConfig?.readyUpdatedAt || null,
+      // Resolved — continue with the licensed-user flow using the pointer's licenseKey.
+      licenseKey = devicePointer.licenseKey;
+      log.info("fingerprint_resolved", "Device resolved by fingerprint", {
+        fingerprint: fingerprint.substring(0, 8) + "...",
+        hasLicenseKey: true,
       });
     }
 
@@ -245,6 +237,25 @@ export async function POST(request) {
     // Look up license by key (GSI2 query) — getLicense() expects a Keygen
     // UUID, but the extension sends the MOUSE-XXXX key string.
     const license = await getLicenseByKey(licenseKey);
+
+    // Write device pointer opportunistically for future fingerprint-based resolution.
+    // Only when licenseKey was in the original request (not already resolved from pointer).
+    if (body.licenseKey && license?.keygenLicenseId) {
+      putDevicePointer(fingerprint, {
+        keygenLicenseId: license.keygenLicenseId,
+        licenseKey: body.licenseKey,
+        userId: null, // Will be resolved below from device record
+      }).catch((err) => {
+        log.warn(
+          "pointer_write_failed",
+          "Opportunistic pointer write failed (non-fatal)",
+          {
+            fingerprint: fingerprint.substring(0, 8) + "...",
+            error: err.message,
+          },
+        );
+      });
+    }
 
     // Resolve the userId from the device record written during activation.
     // This replaces the former JWT-derived authedUserId.
@@ -368,7 +379,7 @@ export async function POST(request) {
 
     // Success response with rate limit headers
     const rateLimitHeaders = getRateLimitHeaders(
-      licenseKey,
+      body.licenseKey || fingerprint,
       RATE_LIMIT_PRESETS.heartbeat,
     );
 
