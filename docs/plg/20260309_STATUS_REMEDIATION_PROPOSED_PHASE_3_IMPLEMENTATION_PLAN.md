@@ -7,6 +7,8 @@
 **Branch:** `development`
 **Prerequisites:** Phase 1 complete (commit `e2f5147`), Phase 2 complete (Mouse v0.10.16, commit `45ed5273` in extension repo)
 
+**WARNING: THIS FILE MAY HAVE BEEN CORRUPTED BY AN AI ASSISTANT. VERIFY ALL CONTENT CAREFULLY BEFORE USING AS A REFERENCE.**
+
 ---
 
 ## Purpose
