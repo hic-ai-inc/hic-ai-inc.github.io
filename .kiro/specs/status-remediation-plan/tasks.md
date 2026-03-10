@@ -475,13 +475,13 @@ All extension tasks batched together:
   - [x] P3.3.4 Remove trial heartbeat contract test in heartbeat-route.contract.test.js
   - [x] P3.3.5 Remove recordTrialHeartbeat tests from dynamodb.test.js
 
-- [ ] P3.4. Checkpoint — Phase 3 implementation complete
+- [x] P3.4. Checkpoint — Phase 3 implementation complete
   - Run full test suite, verify no regressions
 
-- [ ] P3.5. Staging deployment
-  - [ ] P3.5.1 Build and publish hic-ses-layer (version bump 0.2.8 → 0.2.9)
-  - [ ] P3.5.2 Run update-lambdas.sh staging
-  - [ ] P3.5.3 Push to development (triggers Amplify staging deploy)
+- [x] P3.5. Staging deployment
+  - [x] P3.5.1 Build and publish hic-ses-layer (version bump 0.2.8 → 0.2.9)
+  - [x] P3.5.2 Run update-lambdas.sh staging
+  - [x] P3.5.3 Push to development (triggers Amplify staging deploy)
 
 
 - [ ] 16. Production configuration (manual)
