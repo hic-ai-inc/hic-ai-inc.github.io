@@ -50,8 +50,10 @@ const SSM_SECRET_PATHS = {
   STRIPE_SECRET_KEY: `/plg/secrets/${AMPLIFY_APP_ID}/STRIPE_SECRET_KEY`,
   STRIPE_WEBHOOK_SECRET: `/plg/secrets/${AMPLIFY_APP_ID}/STRIPE_WEBHOOK_SECRET`,
   KEYGEN_PRODUCT_TOKEN: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_PRODUCT_TOKEN`,
-  KEYGEN_POLICY_ID_INDIVIDUAL: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_INDIVIDUAL`,
-  KEYGEN_POLICY_ID_BUSINESS: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_BUSINESS`,
+  KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY`,
+  KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL`,
+  KEYGEN_POLICY_ID_BUSINESS_MONTHLY: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_BUSINESS_MONTHLY`,
+  KEYGEN_POLICY_ID_BUSINESS_ANNUAL: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_BUSINESS_ANNUAL`,
 };
 
 // Cache TTL: 5 minutes (secrets rarely change, but we want eventual consistency)
@@ -330,7 +332,7 @@ export async function getKeygenSecrets() {
  * 1. Non-production (dev/test/CI): process.env (from .env.local)
  * 2. SSM Parameter Store: /plg/secrets/<app-id>/KEYGEN_POLICY_ID_*
  *
- * @returns {Promise<{individual: string, business: string}>}
+ * @returns {Promise<{individualMonthly: string, individualAnnual: string, businessMonthly: string, businessAnnual: string}>}
  */
 export async function getKeygenPolicyIds() {
   console.log("[Secrets] getKeygenPolicyIds called, NODE_ENV:", process.env.NODE_ENV);
@@ -339,8 +341,10 @@ export async function getKeygenPolicyIds() {
   if (process.env.NODE_ENV !== "production") {
     console.log("[Secrets] Non-production mode - using process.env for Keygen policy IDs");
     return {
-      individual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL,
-      business: process.env.KEYGEN_POLICY_ID_BUSINESS,
+      individualMonthly: process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY,
+      individualAnnual: process.env.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL,
+      businessMonthly: process.env.KEYGEN_POLICY_ID_BUSINESS_MONTHLY,
+      businessAnnual: process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL,
     };
   }
 
@@ -348,18 +352,22 @@ export async function getKeygenPolicyIds() {
   console.log("[Secrets] Production mode - fetching Keygen policy IDs from SSM...");
   console.log("[Secrets] SSM paths:", JSON.stringify(SSM_SECRET_PATHS));
   
-  const [individualId, businessId] = await Promise.all([
-    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_INDIVIDUAL),
-    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_BUSINESS),
+  const [individualMonthlyId, individualAnnualId, businessMonthlyId, businessAnnualId] = await Promise.all([
+    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY),
+    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL),
+    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_BUSINESS_MONTHLY),
+    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_BUSINESS_ANNUAL),
   ]);
 
-  console.log("[Secrets] SSM results - individual:", individualId ? "found" : "NULL", "business:", businessId ? "found" : "NULL");
+  console.log("[Secrets] SSM results - individualMonthly:", individualMonthlyId ? "found" : "NULL", "individualAnnual:", individualAnnualId ? "found" : "NULL", "businessMonthly:", businessMonthlyId ? "found" : "NULL", "businessAnnual:", businessAnnualId ? "found" : "NULL");
 
-  if (individualId && businessId) {
+  if (individualMonthlyId && individualAnnualId && businessMonthlyId && businessAnnualId) {
     console.log("[Secrets] SSM Keygen policy IDs found");
     return {
-      individual: individualId,
-      business: businessId,
+      individualMonthly: individualMonthlyId,
+      individualAnnual: individualAnnualId,
+      businessMonthly: businessMonthlyId,
+      businessAnnual: businessAnnualId,
     };
   }
 

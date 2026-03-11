@@ -891,3 +891,558 @@ describe("Fix 1 — handlePaymentSucceeded: renewLicense integration", () => {
   });
 });
 
+
+
+// ============================================================================
+// Task 15A — Billing interval change detection in handleSubscriptionUpdated
+// Tests the new block that detects monthly ↔ annual interval changes
+// and calls changeLicensePolicy() to update the Keygen policy.
+//
+// Uses extracted logic with dependency injection (same pattern as Fix 5 tests).
+// ============================================================================
+
+/**
+ * Extracted billing interval change detection logic.
+ * Mirrors lines 557-583 of stripe/route.js handleSubscriptionUpdated.
+ *
+ * @param {Object} subscription - Stripe subscription object
+ * @param {Object} dbCustomer - DynamoDB customer record
+ * @param {Object} deps - Injected dependencies
+ */
+async function detectBillingIntervalChange(subscription, dbCustomer, deps) {
+  const { resolvePlanType, getPolicyId, getKeygenLicense, changeLicensePolicy, log } = deps;
+  const { items } = subscription;
+
+  try {
+    const currentItem = items?.data?.[0];
+    const currentInterval = currentItem?.plan?.interval; // "month" or "year"
+
+    if (currentInterval && dbCustomer.keygenLicenseId) {
+      const newBillingCycle = currentInterval === "year" ? "annual" : "monthly";
+      const currentPlan = dbCustomer.accountType || "individual";
+      const newPlanType = resolvePlanType(currentPlan, newBillingCycle);
+      const newPolicyId = await getPolicyId(newPlanType);
+
+      const currentLicense = await getKeygenLicense(dbCustomer.keygenLicenseId);
+      const currentPolicyId = currentLicense?.policyId;
+
+      if (currentPolicyId && currentPolicyId !== newPolicyId) {
+        await changeLicensePolicy(dbCustomer.keygenLicenseId, newPolicyId);
+        log.info("license_policy_changed", "License policy updated for billing interval change", {
+          previousPolicyId: currentPolicyId,
+          newPolicyId,
+          newBillingCycle,
+          plan: currentPlan,
+        });
+      }
+    }
+  } catch (error) {
+    log.warn("billing_interval_change_failed", "Failed to update license policy for interval change", {
+      errorMessage: error?.message,
+    });
+  }
+}
+
+describe("Task 15A — handleSubscriptionUpdated: billing interval change detection", () => {
+  describe("detectBillingIntervalChange", () => {
+    let mockLog;
+
+    beforeEach(() => {
+      mockLog = createMockLog();
+    });
+
+    it("should change policy from monthly to annual when interval changes to 'year'", async () => {
+      const subscription = {
+        items: { data: [{ plan: { interval: "year" } }] },
+      };
+      const dbCustomer = {
+        keygenLicenseId: "lic_123",
+        accountType: "individual",
+      };
+      const deps = {
+        resolvePlanType: (plan, cycle) => `${plan === "business" ? "business" : "individual"}${cycle === "annual" ? "Annual" : "Monthly"}`,
+        getPolicyId: createSpy("getPolicyId").mockResolvedValue("pol_individual_annual"),
+        getKeygenLicense: createSpy("getKeygenLicense").mockResolvedValue({ policyId: "pol_individual_monthly" }),
+        changeLicensePolicy: createSpy("changeLicensePolicy").mockResolvedValue({}),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(deps.getPolicyId.callCount).toBe(1);
+      expect(deps.getPolicyId.calls[0][0]).toBe("individualAnnual");
+      expect(deps.changeLicensePolicy.callCount).toBe(1);
+      expect(deps.changeLicensePolicy.calls[0][0]).toBe("lic_123");
+      expect(deps.changeLicensePolicy.calls[0][1]).toBe("pol_individual_annual");
+      expect(mockLog.info.callCount).toBe(1);
+      expect(mockLog.info.calls[0][0]).toBe("license_policy_changed");
+    });
+
+    it("should change policy from annual to monthly when interval changes to 'month'", async () => {
+      const subscription = {
+        items: { data: [{ plan: { interval: "month" } }] },
+      };
+      const dbCustomer = {
+        keygenLicenseId: "lic_456",
+        accountType: "business",
+      };
+      const deps = {
+        resolvePlanType: (plan, cycle) => `${plan === "business" ? "business" : "individual"}${cycle === "annual" ? "Annual" : "Monthly"}`,
+        getPolicyId: createSpy("getPolicyId").mockResolvedValue("pol_business_monthly"),
+        getKeygenLicense: createSpy("getKeygenLicense").mockResolvedValue({ policyId: "pol_business_annual" }),
+        changeLicensePolicy: createSpy("changeLicensePolicy").mockResolvedValue({}),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(deps.getPolicyId.calls[0][0]).toBe("businessMonthly");
+      expect(deps.changeLicensePolicy.callCount).toBe(1);
+      expect(deps.changeLicensePolicy.calls[0][1]).toBe("pol_business_monthly");
+    });
+
+    it("should skip policy change when current and new policy IDs match", async () => {
+      const subscription = {
+        items: { data: [{ plan: { interval: "month" } }] },
+      };
+      const dbCustomer = {
+        keygenLicenseId: "lic_789",
+        accountType: "individual",
+      };
+      const deps = {
+        resolvePlanType: () => "individualMonthly",
+        getPolicyId: createSpy("getPolicyId").mockResolvedValue("pol_same"),
+        getKeygenLicense: createSpy("getKeygenLicense").mockResolvedValue({ policyId: "pol_same" }),
+        changeLicensePolicy: createSpy("changeLicensePolicy").mockResolvedValue({}),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(deps.changeLicensePolicy.callCount).toBe(0);
+      expect(mockLog.info.callCount).toBe(0);
+    });
+
+    it("should skip when customer has no keygenLicenseId", async () => {
+      const subscription = {
+        items: { data: [{ plan: { interval: "year" } }] },
+      };
+      const dbCustomer = {
+        keygenLicenseId: null,
+        accountType: "individual",
+      };
+      const deps = {
+        resolvePlanType: () => "individualAnnual",
+        getPolicyId: createSpy("getPolicyId"),
+        getKeygenLicense: createSpy("getKeygenLicense"),
+        changeLicensePolicy: createSpy("changeLicensePolicy"),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(deps.getPolicyId.callCount).toBe(0);
+      expect(deps.getKeygenLicense.callCount).toBe(0);
+      expect(deps.changeLicensePolicy.callCount).toBe(0);
+    });
+
+    it("should skip when subscription has no items", async () => {
+      const subscription = { items: null };
+      const dbCustomer = {
+        keygenLicenseId: "lic_abc",
+        accountType: "business",
+      };
+      const deps = {
+        resolvePlanType: () => "businessMonthly",
+        getPolicyId: createSpy("getPolicyId"),
+        getKeygenLicense: createSpy("getKeygenLicense"),
+        changeLicensePolicy: createSpy("changeLicensePolicy"),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(deps.getPolicyId.callCount).toBe(0);
+      expect(deps.changeLicensePolicy.callCount).toBe(0);
+    });
+
+    it("should skip when subscription items data is empty", async () => {
+      const subscription = { items: { data: [] } };
+      const dbCustomer = {
+        keygenLicenseId: "lic_abc",
+        accountType: "business",
+      };
+      const deps = {
+        resolvePlanType: () => "businessMonthly",
+        getPolicyId: createSpy("getPolicyId"),
+        getKeygenLicense: createSpy("getKeygenLicense"),
+        changeLicensePolicy: createSpy("changeLicensePolicy"),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(deps.getPolicyId.callCount).toBe(0);
+    });
+
+    it("should default accountType to 'individual' when not set", async () => {
+      const subscription = {
+        items: { data: [{ plan: { interval: "year" } }] },
+      };
+      const dbCustomer = {
+        keygenLicenseId: "lic_no_type",
+        accountType: undefined,
+      };
+      const deps = {
+        resolvePlanType: createSpy("resolvePlanType").mockReturnValue("individualAnnual"),
+        getPolicyId: createSpy("getPolicyId").mockResolvedValue("pol_ia"),
+        getKeygenLicense: createSpy("getKeygenLicense").mockResolvedValue({ policyId: "pol_im" }),
+        changeLicensePolicy: createSpy("changeLicensePolicy").mockResolvedValue({}),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      // Should default to "individual" when accountType is undefined
+      expect(deps.resolvePlanType.calls[0][0]).toBe("individual");
+      expect(deps.resolvePlanType.calls[0][1]).toBe("annual");
+    });
+
+    it("should handle changeLicensePolicy error gracefully — non-blocking", async () => {
+      const subscription = {
+        items: { data: [{ plan: { interval: "year" } }] },
+      };
+      const dbCustomer = {
+        keygenLicenseId: "lic_error",
+        accountType: "business",
+      };
+      const deps = {
+        resolvePlanType: () => "businessAnnual",
+        getPolicyId: createSpy("getPolicyId").mockResolvedValue("pol_ba"),
+        getKeygenLicense: createSpy("getKeygenLicense").mockResolvedValue({ policyId: "pol_bm" }),
+        changeLicensePolicy: createSpy("changeLicensePolicy").mockRejectedValue(new Error("Keygen API error")),
+        log: mockLog,
+      };
+
+      // Should NOT throw — error is caught and logged as warning
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(mockLog.warn.callCount).toBe(1);
+      expect(mockLog.warn.calls[0][0]).toBe("billing_interval_change_failed");
+    });
+
+    it("should handle getPolicyId error gracefully — non-blocking", async () => {
+      const subscription = {
+        items: { data: [{ plan: { interval: "year" } }] },
+      };
+      const dbCustomer = {
+        keygenLicenseId: "lic_pol_err",
+        accountType: "individual",
+      };
+      const deps = {
+        resolvePlanType: () => "individualAnnual",
+        getPolicyId: createSpy("getPolicyId").mockRejectedValue(new Error("Unknown plan type")),
+        getKeygenLicense: createSpy("getKeygenLicense"),
+        changeLicensePolicy: createSpy("changeLicensePolicy"),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(mockLog.warn.callCount).toBe(1);
+      expect(deps.changeLicensePolicy.callCount).toBe(0);
+    });
+
+    it("should skip when current license has no policyId", async () => {
+      const subscription = {
+        items: { data: [{ plan: { interval: "year" } }] },
+      };
+      const dbCustomer = {
+        keygenLicenseId: "lic_no_pol",
+        accountType: "individual",
+      };
+      const deps = {
+        resolvePlanType: () => "individualAnnual",
+        getPolicyId: createSpy("getPolicyId").mockResolvedValue("pol_ia"),
+        getKeygenLicense: createSpy("getKeygenLicense").mockResolvedValue({ policyId: null }),
+        changeLicensePolicy: createSpy("changeLicensePolicy"),
+        log: mockLog,
+      };
+
+      await detectBillingIntervalChange(subscription, dbCustomer, deps);
+
+      expect(deps.changeLicensePolicy.callCount).toBe(0);
+    });
+  });
+
+  describe("Source-level verification: billing interval change in handleSubscriptionUpdated", () => {
+    it("handleSubscriptionUpdated source should call changeLicensePolicy", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleSubscriptionUpdated");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      expect(fnBody).toMatch(/changeLicensePolicy/);
+    });
+
+    it("handleSubscriptionUpdated source should call resolvePlanType for interval change", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleSubscriptionUpdated");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      expect(fnBody).toMatch(/resolvePlanType/);
+      expect(fnBody).toMatch(/getPolicyId/);
+    });
+
+    it("handleSubscriptionUpdated source should wrap interval change in try/catch (non-fatal)", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleSubscriptionUpdated");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      // The billing interval change block should be wrapped in try/catch
+      expect(fnBody).toMatch(/billing_interval_change_failed/);
+    });
+
+    it("handleSubscriptionUpdated source should check currentPolicyId !== newPolicyId", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleSubscriptionUpdated");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      // Should compare current vs new policy before changing
+      expect(fnBody).toMatch(/currentPolicyId\s*!==\s*newPolicyId/);
+    });
+
+    it("handleSubscriptionUpdated source should use getKeygenLicense alias (not DDB getLicense)", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      // Import should alias Keygen's getLicense as getKeygenLicense
+      expect(src).toMatch(/getLicense\s+as\s+getKeygenLicense/);
+
+      // The handleSubscriptionUpdated function should use the alias
+      const fnStart = src.indexOf("async function handleSubscriptionUpdated");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      expect(fnBody).toMatch(/getKeygenLicense/);
+    });
+  });
+});
+
+
+
+// ============================================================================
+// Task 15A — handleCheckoutCompleted: 4-policy integration verification
+// Source-level tests verifying the checkout handler uses resolvePlanType and
+// builds plan names with billing cycle. Plus extracted-logic behavioral tests.
+// ============================================================================
+
+/**
+ * Extracted checkout plan resolution logic.
+ * Mirrors handleCheckoutCompleted lines 209-216 of route.js.
+ */
+function resolveCheckoutPlan(metadata) {
+  const plan = metadata?.plan || metadata?.planType || "individual";
+  const billingCycle = metadata?.billingCycle || "monthly";
+  return { plan, billingCycle };
+}
+
+/**
+ * Extracted plan name builder for LICENSE# record.
+ * Mirrors the inline template at lines ~292 and ~340.
+ */
+function buildCheckoutPlanName(plan, billingCycle) {
+  return `${plan === "business" ? "Business" : "Individual"} ${billingCycle === "annual" ? "Annual" : "Monthly"}`;
+}
+
+describe("Task 15A — handleCheckoutCompleted: 4-policy logic", () => {
+  describe("checkout plan resolution from metadata", () => {
+    it("should resolve individual + monthly from explicit metadata", () => {
+      const { plan, billingCycle } = resolveCheckoutPlan({ plan: "individual", billingCycle: "monthly" });
+      expect(plan).toBe("individual");
+      expect(billingCycle).toBe("monthly");
+    });
+
+    it("should resolve business + annual from explicit metadata", () => {
+      const { plan, billingCycle } = resolveCheckoutPlan({ plan: "business", billingCycle: "annual" });
+      expect(plan).toBe("business");
+      expect(billingCycle).toBe("annual");
+    });
+
+    it("should default to individual + monthly when metadata is empty", () => {
+      const { plan, billingCycle } = resolveCheckoutPlan({});
+      expect(plan).toBe("individual");
+      expect(billingCycle).toBe("monthly");
+    });
+
+    it("should fall back from planType when plan is missing", () => {
+      const { plan } = resolveCheckoutPlan({ planType: "business" });
+      expect(plan).toBe("business");
+    });
+
+    it("should prefer plan over planType when both exist", () => {
+      const { plan } = resolveCheckoutPlan({ plan: "individual", planType: "business" });
+      expect(plan).toBe("individual");
+    });
+
+    it("should default billingCycle to monthly when missing", () => {
+      const { billingCycle } = resolveCheckoutPlan({ plan: "business" });
+      expect(billingCycle).toBe("monthly");
+    });
+  });
+
+  describe("LICENSE# record plan name builder", () => {
+    it("should build 'Individual Monthly'", () => {
+      expect(buildCheckoutPlanName("individual", "monthly")).toBe("Individual Monthly");
+    });
+
+    it("should build 'Individual Annual'", () => {
+      expect(buildCheckoutPlanName("individual", "annual")).toBe("Individual Annual");
+    });
+
+    it("should build 'Business Monthly'", () => {
+      expect(buildCheckoutPlanName("business", "monthly")).toBe("Business Monthly");
+    });
+
+    it("should build 'Business Annual'", () => {
+      expect(buildCheckoutPlanName("business", "annual")).toBe("Business Annual");
+    });
+
+    it("should default unknown plan to Individual", () => {
+      expect(buildCheckoutPlanName("enterprise", "monthly")).toBe("Individual Monthly");
+    });
+
+    it("should default unknown cycle to Monthly", () => {
+      expect(buildCheckoutPlanName("business", "quarterly")).toBe("Business Monthly");
+    });
+  });
+
+  describe("Source-level verification: handleCheckoutCompleted 4-policy integration", () => {
+    it("handleCheckoutCompleted source should call resolvePlanType", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleCheckoutCompleted");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      expect(fnBody).toMatch(/resolvePlanType/);
+    });
+
+    it("handleCheckoutCompleted source should call getPolicyId with resolved plan type", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleCheckoutCompleted");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      expect(fnBody).toMatch(/getPolicyId\(planType\)/);
+    });
+
+    it("handleCheckoutCompleted source should extract billingCycle from metadata", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleCheckoutCompleted");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      expect(fnBody).toMatch(/billingCycle/);
+      expect(fnBody).toMatch(/metadata\?\.billingCycle/);
+    });
+
+    it("handleCheckoutCompleted source should store billingCycle in Keygen license metadata", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleCheckoutCompleted");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      // billingCycle should be in the metadata passed to createLicense
+      expect(fnBody).toMatch(/billingCycle[,\s]/);
+    });
+
+    it("handleCheckoutCompleted source should build plan name with billing cycle for LICENSE# record", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleCheckoutCompleted");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      // planName should include both tier and cycle
+      expect(fnBody).toMatch(/planName/);
+      expect(fnBody).toMatch(/Annual/);
+      expect(fnBody).toMatch(/Monthly/);
+    });
+
+    it("handleCheckoutCompleted source should check for existing license before creating", async () => {
+      const { readFileSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const src = readFileSync(
+        resolve(import.meta.dirname, "../../../src/app/api/webhooks/stripe/route.js"),
+        "utf-8",
+      );
+
+      const fnStart = src.indexOf("async function handleCheckoutCompleted");
+      const fnEnd = src.indexOf("\nasync function", fnStart + 1);
+      const fnBody = fnEnd > fnStart ? src.slice(fnStart, fnEnd) : src.slice(fnStart);
+
+      expect(fnBody).toMatch(/existingCustomer\?\.keygenLicenseId/);
+    });
+  });
+});
+

@@ -42,6 +42,9 @@ import {
   KEYGEN_POLICIES,
   normalizeStatus,
   renewLicense,
+  changeLicensePolicy,
+  resolvePlanType,
+  getLicensesByEmail,
 } from "../../../src/lib/keygen.js";
 
 describe("keygen.js", () => {
@@ -57,12 +60,20 @@ describe("keygen.js", () => {
   });
 
   describe("KEYGEN_POLICIES", () => {
-    it("should have individual policy from env", () => {
-      expect(KEYGEN_POLICIES).toHaveProperty("individual");
+    it("should have individualMonthly policy", () => {
+      expect(KEYGEN_POLICIES).toHaveProperty("individualMonthly");
     });
 
-    it("should have business policy from env", () => {
-      expect(KEYGEN_POLICIES).toHaveProperty("business");
+    it("should have individualAnnual policy", () => {
+      expect(KEYGEN_POLICIES).toHaveProperty("individualAnnual");
+    });
+
+    it("should have businessMonthly policy", () => {
+      expect(KEYGEN_POLICIES).toHaveProperty("businessMonthly");
+    });
+
+    it("should have businessAnnual policy", () => {
+      expect(KEYGEN_POLICIES).toHaveProperty("businessAnnual");
     });
   });
 
@@ -509,18 +520,22 @@ describe("keygen.js", () => {
       expect(error.message).toContain("Unknown plan type");
     });
 
-    it("should throw error when policy env var not set", () => {
-      // When env vars aren't set, KEYGEN_POLICIES values are undefined
+    it("should throw error when policy env var not set", async () => {
+      // When env vars aren't set, policy IDs are undefined
       // The function should throw for any plan type that maps to undefined
-      if (!KEYGEN_POLICIES.individual) {
+      const savedEnv = process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY;
+      delete process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY;
+      try {
         let error;
         try {
-          getPolicyId("individual");
+          await getPolicyId("individualMonthly");
         } catch (e) {
           error = e;
         }
-        // When env var is not set, the policy is undefined, which causes "Unknown plan type"
         expect(error).toBeDefined();
+        expect(error.message).toContain("Unknown plan type");
+      } finally {
+        if (savedEnv !== undefined) process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY = savedEnv;
       }
     });
   });
@@ -603,22 +618,336 @@ describe("keygen.js", () => {
     });
   });
 
+  describe("getLicensesByEmail", () => {
+    it("should return licenses matching email metadata filter", async () => {
+      keygenMock.request.mockResolvedValue({
+        data: [
+          {
+            id: "lic_1",
+            attributes: {
+              key: "key/ABC",
+              status: "ACTIVE",
+              expiry: "2027-12-31T00:00:00Z",
+              maxMachines: 3,
+              uses: 1,
+              metadata: { email: "user@example.com" },
+            },
+            relationships: { policy: { data: { id: "pol_im" } } },
+          },
+          {
+            id: "lic_2",
+            attributes: {
+              key: "key/DEF",
+              status: "EXPIRED",
+              expiry: "2026-01-01T00:00:00Z",
+              maxMachines: 5,
+              uses: 0,
+              metadata: { email: "user@example.com" },
+            },
+            relationships: { policy: { data: { id: "pol_bm" } } },
+          },
+        ],
+      });
+
+      const result = await getLicensesByEmail("user@example.com");
+
+      expect(result.length).toBe(2);
+      expect(result[0].id).toBe("lic_1");
+      expect(result[0].key).toBe("key/ABC");
+      expect(result[0].status).toBe("active");
+      expect(result[0].policyId).toBe("pol_im");
+      expect(result[1].id).toBe("lic_2");
+      expect(result[1].status).toBe("expired");
+    });
+
+    it("should return empty array when no licenses found", async () => {
+      keygenMock.request.mockResolvedValue({ data: [] });
+
+      const result = await getLicensesByEmail("nobody@example.com");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should return empty array on API error (graceful degradation)", async () => {
+      keygenMock.request.mockRejectedValue(new Error("API timeout"));
+
+      const result = await getLicensesByEmail("user@example.com");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should lowercase email in query parameter", async () => {
+      keygenMock.request.mockResolvedValue({ data: [] });
+
+      await getLicensesByEmail("USER@EXAMPLE.COM");
+
+      expect(keygenMock.request.calls[0][0]).toContain("user%40example.com");
+    });
+
+    it("should normalize status to lowercase in returned licenses", async () => {
+      keygenMock.request.mockResolvedValue({
+        data: [
+          {
+            id: "lic_x",
+            attributes: {
+              key: "key/X",
+              status: "SUSPENDED",
+              expiry: null,
+              maxMachines: 3,
+              uses: 0,
+              metadata: {},
+            },
+            relationships: { policy: { data: { id: "pol_1" } } },
+          },
+        ],
+      });
+
+      const result = await getLicensesByEmail("test@example.com");
+
+      expect(result[0].status).toBe("suspended");
+    });
+  });
+
   describe("createLicenseForPlan", () => {
-    it("should throw when policy not configured", async () => {
-      // When env vars aren't set, createLicenseForPlan will fail at getPolicyId
-      if (!KEYGEN_POLICIES.individual) {
-        let error;
-        try {
-          await createLicenseForPlan("individual", {
-            name: "Test User",
-            email: "test@example.com",
-          });
-        } catch (e) {
-          error = e;
-        }
-        expect(error).toBeDefined();
-        expect(error.message).toContain("Unknown plan type");
+    it("should call getPolicyId then createLicense with resolved policy", async () => {
+      // Set up env var so getPolicyId succeeds
+      const savedIm = process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY;
+      process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY = "pol_test_im";
+
+      keygenMock.whenCreateLicense().resolves({
+        data: {
+          id: "lic_new",
+          attributes: {
+            key: "key/NEW",
+            status: "ACTIVE",
+            expiry: null,
+            maxMachines: 3,
+            metadata: {},
+          },
+        },
+      });
+
+      try {
+        const result = await createLicenseForPlan("individualMonthly", {
+          name: "Test User",
+          email: "test@example.com",
+        });
+
+        expect(result.id).toBe("lic_new");
+        expect(result.key).toBe("key/NEW");
+
+        // Verify createLicense was called with the resolved policy ID
+        const body = JSON.parse(keygenMock.request.calls[0][1].body);
+        expect(body.data.attributes.metadata.email).toBe("test@example.com");
+      } finally {
+        if (savedIm !== undefined) process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY = savedIm;
+        else delete process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY;
       }
+    });
+
+    it("should propagate metadata through to createLicense", async () => {
+      const savedBa = process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL;
+      process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL = "pol_test_ba";
+
+      keygenMock.whenCreateLicense().resolves({
+        data: {
+          id: "lic_ba",
+          attributes: {
+            key: "key/BA",
+            status: "ACTIVE",
+            expiry: null,
+            maxMachines: 5,
+            metadata: { custom: "value" },
+          },
+        },
+      });
+
+      try {
+        await createLicenseForPlan("businessAnnual", {
+          name: "Biz User",
+          email: "biz@example.com",
+          metadata: { custom: "value" },
+        });
+
+        const body = JSON.parse(keygenMock.request.calls[0][1].body);
+        expect(body.data.attributes.metadata.custom).toBe("value");
+      } finally {
+        if (savedBa !== undefined) process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL = savedBa;
+        else delete process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL;
+      }
+    });
+
+    it("should throw for unknown plan type", async () => {
+      let error;
+      try {
+        await createLicenseForPlan("enterprise", {
+          name: "Test User",
+          email: "test@example.com",
+        });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeDefined();
+      expect(error.message).toContain("Unknown plan type");
+    });
+  });
+
+  describe("resolvePlanType", () => {
+    it("should resolve individual + monthly to individualMonthly", () => {
+      expect(resolvePlanType("individual", "monthly")).toBe("individualMonthly");
+    });
+
+    it("should resolve individual + annual to individualAnnual", () => {
+      expect(resolvePlanType("individual", "annual")).toBe("individualAnnual");
+    });
+
+    it("should resolve business + monthly to businessMonthly", () => {
+      expect(resolvePlanType("business", "monthly")).toBe("businessMonthly");
+    });
+
+    it("should resolve business + annual to businessAnnual", () => {
+      expect(resolvePlanType("business", "annual")).toBe("businessAnnual");
+    });
+
+    it("should default billingCycle to Monthly when undefined", () => {
+      expect(resolvePlanType("individual", undefined)).toBe("individualMonthly");
+    });
+
+    it("should default billingCycle to Monthly when null", () => {
+      expect(resolvePlanType("individual", null)).toBe("individualMonthly");
+    });
+
+    it("should default plan to individual tier when not business", () => {
+      expect(resolvePlanType("unknown", "monthly")).toBe("individualMonthly");
+    });
+
+    it("should default plan to individual when undefined", () => {
+      expect(resolvePlanType(undefined, "annual")).toBe("individualAnnual");
+    });
+  });
+
+  describe("changeLicensePolicy", () => {
+    it("should send PUT to /licenses/{id}/policy with policy relationship", async () => {
+      keygenMock.request.mockResolvedValue({ data: { id: "lic_123" } });
+
+      await changeLicensePolicy("lic_123", "pol_new_456");
+
+      expect(keygenMock.request.calls.length).toBe(1);
+      expect(keygenMock.request.calls[0][0]).toBe("/licenses/lic_123/policy");
+      expect(keygenMock.request.calls[0][1].method).toBe("PUT");
+
+      const body = JSON.parse(keygenMock.request.calls[0][1].body);
+      expect(body.data.type).toBe("policies");
+      expect(body.data.id).toBe("pol_new_456");
+    });
+
+    it("should return the Keygen API response", async () => {
+      const mockResponse = { data: { id: "lic_123", attributes: { status: "ACTIVE" } } };
+      keygenMock.request.mockResolvedValue(mockResponse);
+
+      const result = await changeLicensePolicy("lic_123", "pol_789");
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it("should propagate errors from Keygen API", async () => {
+      keygenMock.request.mockRejectedValue(new Error("License not found"));
+
+      let error;
+      try {
+        await changeLicensePolicy("lic_nonexistent", "pol_789");
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeDefined();
+      expect(error.message).toBe("License not found");
+    });
+  });
+
+  describe("KEYGEN_POLICIES getter values", () => {
+    it("should return correct string for each getter", () => {
+      expect(KEYGEN_POLICIES.individualMonthly).toBe("individualMonthly");
+      expect(KEYGEN_POLICIES.individualAnnual).toBe("individualAnnual");
+      expect(KEYGEN_POLICIES.businessMonthly).toBe("businessMonthly");
+      expect(KEYGEN_POLICIES.businessAnnual).toBe("businessAnnual");
+    });
+
+    it("should not have legacy individual or business keys", () => {
+      expect(KEYGEN_POLICIES.individual).toBe(undefined);
+      expect(KEYGEN_POLICIES.business).toBe(undefined);
+    });
+
+    it("should have exactly 4 enumerable policy keys", () => {
+      // Getters on plain objects are enumerable by default
+      const keys = Object.keys(KEYGEN_POLICIES);
+      expect(keys.length).toBe(4);
+      expect(keys).toContain("individualMonthly");
+      expect(keys).toContain("individualAnnual");
+      expect(keys).toContain("businessMonthly");
+      expect(keys).toContain("businessAnnual");
+    });
+  });
+
+  describe("getPolicyId with 4-key policy types", () => {
+    it("should resolve individualMonthly from env", async () => {
+      const saved = process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY;
+      process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY = "test-pol-im";
+      try {
+        const id = await getPolicyId("individualMonthly");
+        expect(id).toBe("test-pol-im");
+      } finally {
+        if (saved !== undefined) process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY = saved;
+        else delete process.env.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY;
+      }
+    });
+
+    it("should resolve individualAnnual from env", async () => {
+      const saved = process.env.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL;
+      process.env.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL = "test-pol-ia";
+      try {
+        const id = await getPolicyId("individualAnnual");
+        expect(id).toBe("test-pol-ia");
+      } finally {
+        if (saved !== undefined) process.env.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL = saved;
+        else delete process.env.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL;
+      }
+    });
+
+    it("should resolve businessMonthly from env", async () => {
+      const saved = process.env.KEYGEN_POLICY_ID_BUSINESS_MONTHLY;
+      process.env.KEYGEN_POLICY_ID_BUSINESS_MONTHLY = "test-pol-bm";
+      try {
+        const id = await getPolicyId("businessMonthly");
+        expect(id).toBe("test-pol-bm");
+      } finally {
+        if (saved !== undefined) process.env.KEYGEN_POLICY_ID_BUSINESS_MONTHLY = saved;
+        else delete process.env.KEYGEN_POLICY_ID_BUSINESS_MONTHLY;
+      }
+    });
+
+    it("should resolve businessAnnual from env", async () => {
+      const saved = process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL;
+      process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL = "test-pol-ba";
+      try {
+        const id = await getPolicyId("businessAnnual");
+        expect(id).toBe("test-pol-ba");
+      } finally {
+        if (saved !== undefined) process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL = saved;
+        else delete process.env.KEYGEN_POLICY_ID_BUSINESS_ANNUAL;
+      }
+    });
+
+    it("should list available policies in error message for unknown type", async () => {
+      let error;
+      try {
+        await getPolicyId("enterprise");
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeDefined();
+      expect(error.message).toContain("enterprise");
+      expect(error.message).toContain("Available:");
     });
   });
 

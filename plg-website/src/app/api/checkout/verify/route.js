@@ -56,12 +56,10 @@ export async function GET(request) {
     }
 
     const planType = session.metadata?.planType || "individual";
-    const planName =
-      planType === "individual"
-        ? "Individual"
-        : planType === "enterprise"
-          ? "Enterprise"
-          : "Open Source";
+    const billingCycle = session.metadata?.billingCycle || "monthly";
+    const tierName = planType === "business" ? "Business" : "Individual";
+    const cycleName = billingCycle === "annual" ? "Annual" : "Monthly";
+    const planName = `${tierName} ${cycleName}`;
 
     log.response(200, "Checkout verify succeeded", {
       planType,

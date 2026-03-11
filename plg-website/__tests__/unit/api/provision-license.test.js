@@ -901,3 +901,151 @@ describe("provision-license API logic", () => {
     });
   });
 });
+
+
+// ============================================================================
+// Task 15A — 4-Policy plan type resolution in provisioning
+// Tests the resolvePlanType integration for license provisioning.
+// Uses extracted logic (same pattern as existing tests in this file).
+// ============================================================================
+
+describe("Task 15A — provision-license: 4-policy plan resolution", () => {
+  /**
+   * Simulates the plan type resolution logic from provision-license/route.js.
+   * Mirrors the resolvePlanType usage at lines 126-131.
+   */
+  function resolveProvisioningPlanType(plan, billingCycle) {
+    const cycle = billingCycle === "annual" ? "Annual" : "Monthly";
+    const tier = plan === "business" ? "business" : "individual";
+    return `${tier}${cycle}`;
+  }
+
+  describe("resolveProvisioningPlanType — all 4 combinations", () => {
+    it("should resolve new individual monthly subscriber", () => {
+      const planType = resolveProvisioningPlanType("individual", "monthly");
+      assert.strictEqual(planType, "individualMonthly");
+    });
+
+    it("should resolve new individual annual subscriber", () => {
+      const planType = resolveProvisioningPlanType("individual", "annual");
+      assert.strictEqual(planType, "individualAnnual");
+    });
+
+    it("should resolve new business monthly subscriber", () => {
+      const planType = resolveProvisioningPlanType("business", "monthly");
+      assert.strictEqual(planType, "businessMonthly");
+    });
+
+    it("should resolve new business annual subscriber", () => {
+      const planType = resolveProvisioningPlanType("business", "annual");
+      assert.strictEqual(planType, "businessAnnual");
+    });
+  });
+
+  describe("metadata extraction defaults", () => {
+    /**
+     * Simulates metadata extraction from checkout session,
+     * matching the pattern in provision-license/route.js
+     */
+    function extractPlanFromMetadata(metadata) {
+      const plan = metadata?.plan || "individual";
+      const billingCycle = metadata?.billingCycle || "monthly";
+      return resolveProvisioningPlanType(plan, billingCycle);
+    }
+
+    it("should default to individualMonthly when metadata is empty", () => {
+      assert.strictEqual(extractPlanFromMetadata({}), "individualMonthly");
+    });
+
+    it("should default to individualMonthly when metadata is null", () => {
+      assert.strictEqual(extractPlanFromMetadata(null), "individualMonthly");
+    });
+
+    it("should default to individualMonthly when metadata is undefined", () => {
+      assert.strictEqual(extractPlanFromMetadata(undefined), "individualMonthly");
+    });
+
+    it("should default billingCycle to monthly when only plan set", () => {
+      assert.strictEqual(
+        extractPlanFromMetadata({ plan: "business" }),
+        "businessMonthly",
+      );
+    });
+
+    it("should default plan to individual when only billingCycle set", () => {
+      assert.strictEqual(
+        extractPlanFromMetadata({ billingCycle: "annual" }),
+        "individualAnnual",
+      );
+    });
+
+    it("should use both when both present", () => {
+      assert.strictEqual(
+        extractPlanFromMetadata({ plan: "business", billingCycle: "annual" }),
+        "businessAnnual",
+      );
+    });
+  });
+
+  describe("response planName with 4-policy types", () => {
+    /**
+     * Builds the success response for a newly provisioned license.
+     * planName now includes the resolved plan type (e.g., "individualMonthly")
+     */
+    function buildNewProvisionResponse(licenseKey, planType, userName) {
+      return {
+        success: true,
+        licenseKey,
+        planName: planType,
+        userName,
+      };
+    }
+
+    it("should include individualMonthly as planName", () => {
+      const response = buildNewProvisionResponse("key/TEST", "individualMonthly", "Simon");
+      assert.strictEqual(response.planName, "individualMonthly");
+    });
+
+    it("should include businessAnnual as planName", () => {
+      const response = buildNewProvisionResponse("key/TEST", "businessAnnual", "Simon");
+      assert.strictEqual(response.planName, "businessAnnual");
+    });
+
+    it("should include individualAnnual as planName", () => {
+      const response = buildNewProvisionResponse("key/TEST", "individualAnnual", "User");
+      assert.strictEqual(response.planName, "individualAnnual");
+    });
+
+    it("should include businessMonthly as planName", () => {
+      const response = buildNewProvisionResponse("key/TEST", "businessMonthly", "User");
+      assert.strictEqual(response.planName, "businessMonthly");
+    });
+  });
+
+  describe("owner role decision with 4-policy types", () => {
+    /**
+     * Determines if owner role should be assigned.
+     * Business plans (monthly or annual) get owner role.
+     */
+    function shouldAssignOwnerRole4Policy(planType) {
+      return planType.startsWith("business");
+    }
+
+    it("should assign owner role for businessMonthly", () => {
+      assert.strictEqual(shouldAssignOwnerRole4Policy("businessMonthly"), true);
+    });
+
+    it("should assign owner role for businessAnnual", () => {
+      assert.strictEqual(shouldAssignOwnerRole4Policy("businessAnnual"), true);
+    });
+
+    it("should not assign owner role for individualMonthly", () => {
+      assert.strictEqual(shouldAssignOwnerRole4Policy("individualMonthly"), false);
+    });
+
+    it("should not assign owner role for individualAnnual", () => {
+      assert.strictEqual(shouldAssignOwnerRole4Policy("individualAnnual"), false);
+    });
+  });
+});
+

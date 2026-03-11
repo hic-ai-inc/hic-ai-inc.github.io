@@ -15,7 +15,7 @@
 import { NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth-verify";
 import { getStripeClient } from "@/lib/stripe";
-import { createLicenseForPlan } from "@/lib/keygen";
+import { createLicenseForPlan, resolvePlanType } from "@/lib/keygen";
 import {
   upsertCustomer,
   createLicense,
@@ -232,9 +232,11 @@ export async function POST(request) {
       });
     }
 
-    // Determine plan type from metadata (only individual and business exist)
-    const planType = checkoutSession.metadata?.planType || "individual";
-    const planName = planType === "business" ? "Business" : "Individual";
+    // Determine plan type from metadata, resolving billing cycle to 4-policy plan type
+    const plan = checkoutSession.metadata?.planType || "individual";
+    const billingCycle = checkoutSession.metadata?.billingCycle || "monthly";
+    const planType = resolvePlanType(plan, billingCycle);
+    const planName = `${plan === "business" ? "Business" : "Individual"} ${billingCycle === "annual" ? "Annual" : "Monthly"}`;
 
     // Create Keygen license
     const license = await createLicenseForPlan(planType, {

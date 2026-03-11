@@ -33,11 +33,12 @@ let cachedProductToken = null;
 // v4.2: Individual + Business tiers only
 // NOTE: Policy IDs are fetched from SSM at runtime via getKeygenPolicyIds()
 
-// Legacy export for backwards compatibility with tests
-// Uses getters to defer SSM lookup until access time
+// Policy plan type constants — used by callers to reference the 4 policy tiers
 export const KEYGEN_POLICIES = {
-  get individual() { return "individual"; },
-  get business() { return "business"; },
+  get individualMonthly() { return "individualMonthly"; },
+  get individualAnnual() { return "individualAnnual"; },
+  get businessMonthly() { return "businessMonthly"; },
+  get businessAnnual() { return "businessAnnual"; },
 };
 
 /**
@@ -299,6 +300,39 @@ export async function updateLicenseMetadata(licenseId, metadata) {
       },
     }),
   });
+}
+
+/**
+ * Change a license's policy (e.g., monthly → annual)
+ * Preserves the license key and machine activations.
+ * Expiry behavior is controlled by the target policy's transferStrategy.
+ *
+ * @param {string} licenseId - The Keygen license UUID
+ * @param {string} newPolicyId - The target policy UUID
+ * @returns {Promise<object>} The updated license object
+ */
+export async function changeLicensePolicy(licenseId, newPolicyId) {
+  return keygenRequest(`/licenses/${licenseId}/policy`, {
+    method: "PUT",
+    body: JSON.stringify({
+      data: {
+        type: "policies",
+        id: newPolicyId,
+      },
+    }),
+  });
+}
+
+/**
+ * Resolve a plan + billing cycle to a 4-policy plan type
+ * @param {string} plan - "individual" or "business"
+ * @param {string} [billingCycle="monthly"] - "monthly" or "annual"
+ * @returns {string} e.g., "individualMonthly", "businessAnnual"
+ */
+export function resolvePlanType(plan, billingCycle) {
+  const cycle = billingCycle === "annual" ? "Annual" : "Monthly";
+  const tier = plan === "business" ? "business" : "individual";
+  return `${tier}${cycle}`;
 }
 
 // ===========================================

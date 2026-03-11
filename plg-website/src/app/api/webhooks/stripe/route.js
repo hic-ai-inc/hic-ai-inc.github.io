@@ -33,6 +33,9 @@ import {
   renewLicense,
   createLicense,
   getPolicyId,
+  changeLicensePolicy,
+  resolvePlanType,
+  getLicense as getKeygenLicense,
 } from "@/lib/keygen";
 // NOTE: Most emails are now sent via event-driven architecture:
 // DynamoDB write (with eventType) → DynamoDB Streams → StreamProcessor → SNS → EmailSender → SES
@@ -206,9 +209,10 @@ async function handleCheckoutCompleted(session, log) {
   const { customer, customer_email, metadata, subscription } = session;
 
   const plan = metadata?.plan || metadata?.planType || "individual";
+  const billingCycle = metadata?.billingCycle || "monthly";
   const seats = parseInt(metadata?.seats || "1", 10);
 
-  const planType = plan === "business" ? "business" : "individual";
+  const planType = resolvePlanType(plan, billingCycle);
   const policyId = await getPolicyId(planType);
 
   const existingByStripeId = await getCustomerByStripeId(customer);
@@ -236,6 +240,7 @@ async function handleCheckoutCompleted(session, log) {
           stripeCustomerId: customer,
           stripeSubscriptionId: subscription,
           plan,
+          billingCycle,
           seats: String(seats),
         },
       });
@@ -278,7 +283,7 @@ async function handleCheckoutCompleted(session, log) {
 
     if (licenseId && licenseKey) {
       try {
-        const planName = plan === "business" ? "Business" : "Individual";
+        const planName = `${plan === "business" ? "Business" : "Individual"} ${billingCycle === "annual" ? "Annual" : "Monthly"}`;
         await createDynamoDBLicense({
           keygenLicenseId: licenseId,
           userId: tempUserId,
@@ -325,7 +330,7 @@ async function handleCheckoutCompleted(session, log) {
 
     if (licenseId && licenseKey && !existingCustomer.keygenLicenseId) {
       try {
-        const planName = plan === "business" ? "Business" : "Individual";
+        const planName = `${plan === "business" ? "Business" : "Individual"} ${billingCycle === "annual" ? "Annual" : "Monthly"}`;
         await createDynamoDBLicense({
           keygenLicenseId: licenseId,
           userId: existingCustomer.userId,
@@ -546,6 +551,36 @@ async function handleSubscriptionUpdated(subscription, log) {
         errorMessage: error?.message,
       });
     }
+  }
+
+  // Detect billing interval change (monthly ↔ annual) and update Keygen policy
+  try {
+    const currentItem = items?.data?.[0];
+    const currentInterval = currentItem?.plan?.interval; // "month" or "year"
+
+    if (currentInterval && dbCustomer.keygenLicenseId) {
+      const newBillingCycle = currentInterval === "year" ? "annual" : "monthly";
+      const currentPlan = dbCustomer.accountType || "individual";
+      const newPlanType = resolvePlanType(currentPlan, newBillingCycle);
+      const newPolicyId = await getPolicyId(newPlanType);
+
+      const currentLicense = await getKeygenLicense(dbCustomer.keygenLicenseId);
+      const currentPolicyId = currentLicense?.policyId;
+
+      if (currentPolicyId && currentPolicyId !== newPolicyId) {
+        await changeLicensePolicy(dbCustomer.keygenLicenseId, newPolicyId);
+        log.info("license_policy_changed", "License policy updated for billing interval change", {
+          previousPolicyId: currentPolicyId,
+          newPolicyId,
+          newBillingCycle,
+          plan: currentPlan,
+        });
+      }
+    }
+  } catch (error) {
+    log.warn("billing_interval_change_failed", "Failed to update license policy for interval change", {
+      errorMessage: error?.message,
+    });
   }
 }
 
