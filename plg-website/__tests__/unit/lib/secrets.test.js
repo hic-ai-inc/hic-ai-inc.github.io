@@ -1,9 +1,9 @@
 /**
  * Secrets Manager Integration Tests
  *
- * Tests for src/lib/secrets.js - the AWS Secrets Manager and SSM integration.
+ * Tests for src/lib/secrets.js - the AWS Secrets Manager integration.
  * Tests validate caching behavior, secret retrieval, error handling,
- * and the fallback chain (Secrets Manager → SSM → throw on failure).
+ * and the fail-loudly pattern (Secrets Manager → throw on failure).
  *
  * Note: These tests mock AWS SDK clients to test business logic without
  * requiring actual AWS infrastructure.
@@ -128,14 +128,6 @@ describe("secrets.js", () => {
       expect(cache.get("secret1")).toBe(null);
       expect(cache.get("secret2")).toBe(null);
     });
-
-    it("should handle SSM parameter cache keys", () => {
-      const ssmValue = "ssm-parameter-value";
-      cache.set("ssm:/plg/secrets/app-id/STRIPE_SECRET_KEY", ssmValue);
-
-      const result = cache.get("ssm:/plg/secrets/app-id/STRIPE_SECRET_KEY");
-      expect(result).toBe(ssmValue);
-    });
   });
 
   describe("Secret path configuration", () => {
@@ -162,39 +154,17 @@ describe("secrets.js", () => {
       const path = `plg/${environment}/app`;
       expect(path).toBe("plg/staging/app");
     });
-
-    it("should construct SSM parameter paths correctly", () => {
-      const appId = "d2yhz9h4xdd5rb";
-      const ssmPaths = {
-        STRIPE_SECRET_KEY: `/plg/secrets/${appId}/STRIPE_SECRET_KEY`,
-        STRIPE_WEBHOOK_SECRET: `/plg/secrets/${appId}/STRIPE_WEBHOOK_SECRET`,
-        KEYGEN_PRODUCT_TOKEN: `/plg/secrets/${appId}/KEYGEN_PRODUCT_TOKEN`,
-      };
-
-      expect(ssmPaths.STRIPE_SECRET_KEY).toBe(
-        "/plg/secrets/d2yhz9h4xdd5rb/STRIPE_SECRET_KEY",
-      );
-      expect(ssmPaths.STRIPE_WEBHOOK_SECRET).toBe(
-        "/plg/secrets/d2yhz9h4xdd5rb/STRIPE_WEBHOOK_SECRET",
-      );
-      expect(ssmPaths.KEYGEN_PRODUCT_TOKEN).toBe(
-        "/plg/secrets/d2yhz9h4xdd5rb/KEYGEN_PRODUCT_TOKEN",
-      );
-    });
   });
 
   describe("getStripeSecrets behavior", () => {
     // Mock implementation of getStripeSecrets logic
-    // Priority: Secrets Manager (canonical) → SSM (legacy fallback) → throw
+    // Priority: process.env (non-prod) → Secrets Manager (production) → throw
     async function mockGetStripeSecrets(options = {}) {
       const {
         nodeEnv = "production",
         envSecretKey = null,
         envWebhookSecret = null,
-        ssmSecretKey = null,
-        ssmWebhookSecret = null,
         secretsManagerData = null,
-        secretsManagerError = null,
       } = options;
 
       // Non-production (dev, test, CI): use env vars
@@ -213,15 +183,7 @@ describe("secrets.js", () => {
         };
       }
 
-      // Fallback to SSM Parameter Store (legacy)
-      if (ssmSecretKey && ssmWebhookSecret) {
-        return {
-          STRIPE_SECRET_KEY: ssmSecretKey,
-          STRIPE_WEBHOOK_SECRET: ssmWebhookSecret,
-        };
-      }
-
-      // No silent fallback — fail loudly (FINDING-4)
+      // No fallback — fail loudly (FINDING-4)
       throw new Error("Stripe secrets unavailable");
     }
 
@@ -249,28 +211,12 @@ describe("secrets.js", () => {
       expect(result.STRIPE_WEBHOOK_SECRET).toBe("whsec_sm_secret");
     });
 
-    it("should fallback to SSM when Secrets Manager fails", async () => {
-      const result = await mockGetStripeSecrets({
-        nodeEnv: "production",
-        ssmSecretKey: "sk_live_ssm_key",
-        ssmWebhookSecret: "whsec_ssm_secret",
-        secretsManagerData: null,
-        secretsManagerError: true,
-      });
-
-      expect(result.STRIPE_SECRET_KEY).toBe("sk_live_ssm_key");
-      expect(result.STRIPE_WEBHOOK_SECRET).toBe("whsec_ssm_secret");
-    });
-
-    it("should throw when all secret sources fail (FINDING-4)", async () => {
+    it("should throw when Secrets Manager fails in production (FINDING-4)", async () => {
       let error;
       try {
         await mockGetStripeSecrets({
           nodeEnv: "production",
-          ssmSecretKey: null,
-          ssmWebhookSecret: null,
           secretsManagerData: null,
-          secretsManagerError: true,
         });
       } catch (e) {
         error = e;
@@ -279,32 +225,15 @@ describe("secrets.js", () => {
       expect(error).toBeDefined();
       expect(error.message).toBe("Stripe secrets unavailable");
     });
-
-    it("should prefer Secrets Manager over SSM when both available", async () => {
-      const result = await mockGetStripeSecrets({
-        nodeEnv: "production",
-        ssmSecretKey: "sk_ssm_key",
-        ssmWebhookSecret: "whsec_ssm_secret",
-        secretsManagerData: {
-          STRIPE_SECRET_KEY: "sk_sm_key",
-          STRIPE_WEBHOOK_SECRET: "whsec_sm_secret",
-        },
-      });
-
-      expect(result.STRIPE_SECRET_KEY).toBe("sk_sm_key");
-      expect(result.STRIPE_WEBHOOK_SECRET).toBe("whsec_sm_secret");
-    });
   });
 
   describe("getKeygenSecrets behavior", () => {
-    // Priority: Secrets Manager (canonical) → SSM (legacy fallback) → throw
+    // Priority: process.env (non-prod) → Secrets Manager (production) → throw
     async function mockGetKeygenSecrets(options = {}) {
       const {
         nodeEnv = "production",
         envToken = null,
-        ssmToken = null,
         secretsManagerData = null,
-        secretsManagerError = null,
       } = options;
 
       // Non-production (dev, test, CI)
@@ -319,12 +248,7 @@ describe("secrets.js", () => {
         };
       }
 
-      // Fallback to SSM (legacy)
-      if (ssmToken) {
-        return { KEYGEN_PRODUCT_TOKEN: ssmToken };
-      }
-
-      // No silent fallback — fail loudly (FINDING-4)
+      // No fallback — fail loudly (FINDING-4)
       throw new Error("Keygen secrets unavailable");
     }
 
@@ -348,25 +272,12 @@ describe("secrets.js", () => {
       expect(result.KEYGEN_PRODUCT_TOKEN).toBe("sm_keygen_token");
     });
 
-    it("should fallback to SSM when Secrets Manager fails", async () => {
-      const result = await mockGetKeygenSecrets({
-        nodeEnv: "production",
-        ssmToken: "ssm_keygen_token",
-        secretsManagerData: null,
-        secretsManagerError: true,
-      });
-
-      expect(result.KEYGEN_PRODUCT_TOKEN).toBe("ssm_keygen_token");
-    });
-
-    it("should throw when all Keygen secret sources fail (FINDING-4)", async () => {
+    it("should throw when Secrets Manager fails for Keygen (FINDING-4)", async () => {
       let error;
       try {
         await mockGetKeygenSecrets({
           nodeEnv: "production",
-          ssmToken: null,
           secretsManagerData: null,
-          secretsManagerError: true,
         });
       } catch (e) {
         error = e;
@@ -453,65 +364,6 @@ describe("secrets.js", () => {
     });
   });
 
-  describe("getSSMParameter behavior", () => {
-    async function mockGetSSMParameter(parameterName, options = {}) {
-      const { parameterValue = null, errorType = null } = options;
-
-      // Check cache first (simulated)
-      const cacheKey = `ssm:${parameterName}`;
-
-      if (errorType === "ParameterNotFound") {
-        return null;
-      }
-
-      if (errorType === "AccessDenied") {
-        return null;
-      }
-
-      if (parameterValue) {
-        return parameterValue;
-      }
-
-      return null;
-    }
-
-    it("should return parameter value when found", async () => {
-      const result = await mockGetSSMParameter(
-        "/plg/secrets/app-id/STRIPE_SECRET_KEY",
-        { parameterValue: "sk_test_value" },
-      );
-
-      expect(result).toBe("sk_test_value");
-    });
-
-    it("should return null when parameter not found", async () => {
-      const result = await mockGetSSMParameter(
-        "/plg/secrets/app-id/NONEXISTENT",
-        { errorType: "ParameterNotFound" },
-      );
-
-      expect(result).toBe(null);
-    });
-
-    it("should return null on access denied", async () => {
-      const result = await mockGetSSMParameter(
-        "/plg/secrets/app-id/PROTECTED",
-        { errorType: "AccessDenied" },
-      );
-
-      expect(result).toBe(null);
-    });
-
-    it("should handle empty parameter value", async () => {
-      // Empty string is falsy, so mock returns null (consistent with SSM behavior)
-      const result = await mockGetSSMParameter("/plg/secrets/app-id/EMPTY", {
-        parameterValue: "",
-      });
-
-      // SSM treats empty string as no value, returning null
-      expect(result).toBe(null);
-    });
-  });
 
   describe("getSecret (Secrets Manager) behavior", () => {
     async function mockGetSecret(secretName, options = {}) {
@@ -714,19 +566,17 @@ describe("secrets.js", () => {
   });
 
   // ============================================
-  // FINDING-3/4 Edge Cases: Priority, Partial Failures, No process.env Fallback
+  // FINDING-4 Edge Cases: No process.env Fallback in Production
   // ============================================
 
-  describe("getStripeSecrets — FINDING-3/4 edge cases", () => {
+  describe("getStripeSecrets — FINDING-4 edge cases", () => {
     // Faithful mock of the production code's resolution chain:
-    // SM (canonical) → SSM (legacy fallback) → throw
+    // SM (canonical) → throw
     async function mockGetStripeSecrets(options = {}) {
       const {
         nodeEnv = "production",
         envSecretKey = undefined,
         envWebhookSecret = undefined,
-        ssmSecretKey = null,
-        ssmWebhookSecret = null,
         secretsManagerData = null,
       } = options;
 
@@ -745,44 +595,8 @@ describe("secrets.js", () => {
         };
       }
 
-      // SSM fallback — both params required
-      if (ssmSecretKey && ssmWebhookSecret) {
-        return {
-          STRIPE_SECRET_KEY: ssmSecretKey,
-          STRIPE_WEBHOOK_SECRET: ssmWebhookSecret,
-        };
-      }
-
       throw new Error("Stripe secrets unavailable");
     }
-
-    it("should throw when SSM returns only STRIPE_SECRET_KEY (partial)", async () => {
-      let error;
-      try {
-        await mockGetStripeSecrets({
-          ssmSecretKey: "sk_test_partial",
-          ssmWebhookSecret: null,
-        });
-      } catch (e) {
-        error = e;
-      }
-      expect(error).toBeDefined();
-      expect(error.message).toBe("Stripe secrets unavailable");
-    });
-
-    it("should throw when SSM returns only STRIPE_WEBHOOK_SECRET (partial)", async () => {
-      let error;
-      try {
-        await mockGetStripeSecrets({
-          ssmSecretKey: null,
-          ssmWebhookSecret: "whsec_partial",
-        });
-      } catch (e) {
-        error = e;
-      }
-      expect(error).toBeDefined();
-      expect(error.message).toBe("Stripe secrets unavailable");
-    });
 
     it("should return SM data even if SM has undefined fields", async () => {
       // SM succeeds but the JSON doesn't contain the expected keys
@@ -797,7 +611,7 @@ describe("secrets.js", () => {
       expect(result.STRIPE_WEBHOOK_SECRET).toBe(undefined);
     });
 
-    it("should never use process.env in production even if SM and SSM both fail", async () => {
+    it("should never use process.env in production when SM fails", async () => {
       // Simulates the scenario FINDING-4 protects against:
       // Before the fix, this would silently fall back to process.env.
       // After the fix, this throws.
@@ -807,8 +621,6 @@ describe("secrets.js", () => {
           nodeEnv: "production",
           envSecretKey: "sk_test_from_env",
           envWebhookSecret: "whsec_from_env",
-          ssmSecretKey: null,
-          ssmWebhookSecret: null,
           secretsManagerData: null,
         });
       } catch (e) {
@@ -827,28 +639,13 @@ describe("secrets.js", () => {
       expect(result.STRIPE_SECRET_KEY).toBe(undefined);
       expect(result.STRIPE_WEBHOOK_SECRET).toBe(undefined);
     });
-
-    it("should ignore SSM values when SM succeeds (FINDING-3 priority)", async () => {
-      const result = await mockGetStripeSecrets({
-        nodeEnv: "production",
-        ssmSecretKey: "sk_ssm_STALE",
-        ssmWebhookSecret: "whsec_ssm_STALE",
-        secretsManagerData: {
-          STRIPE_SECRET_KEY: "sk_sm_CURRENT",
-          STRIPE_WEBHOOK_SECRET: "whsec_sm_CURRENT",
-        },
-      });
-      expect(result.STRIPE_SECRET_KEY).toBe("sk_sm_CURRENT");
-      expect(result.STRIPE_WEBHOOK_SECRET).toBe("whsec_sm_CURRENT");
-    });
   });
 
-  describe("getKeygenSecrets — FINDING-3/4 edge cases", () => {
+  describe("getKeygenSecrets — FINDING-4 edge cases", () => {
     async function mockGetKeygenSecrets(options = {}) {
       const {
         nodeEnv = "production",
         envToken = undefined,
-        ssmToken = null,
         secretsManagerData = null,
       } = options;
 
@@ -860,30 +657,14 @@ describe("secrets.js", () => {
         return { KEYGEN_PRODUCT_TOKEN: secretsManagerData.KEYGEN_PRODUCT_TOKEN };
       }
 
-      if (ssmToken) {
-        return { KEYGEN_PRODUCT_TOKEN: ssmToken };
-      }
-
       throw new Error("Keygen secrets unavailable");
     }
 
-    it("should prefer SM over SSM for Keygen (FINDING-3 priority)", async () => {
-      const result = await mockGetKeygenSecrets({
-        nodeEnv: "production",
-        ssmToken: "ssm_STALE_token",
-        secretsManagerData: {
-          KEYGEN_PRODUCT_TOKEN: "sm_CURRENT_token",
-        },
-      });
-      expect(result.KEYGEN_PRODUCT_TOKEN).toBe("sm_CURRENT_token");
-    });
-
-    it("should throw when both SM and SSM fail for Keygen", async () => {
+    it("should throw when SM fails for Keygen", async () => {
       let error;
       try {
         await mockGetKeygenSecrets({
           nodeEnv: "production",
-          ssmToken: null,
           secretsManagerData: null,
         });
       } catch (e) {
@@ -899,7 +680,6 @@ describe("secrets.js", () => {
         await mockGetKeygenSecrets({
           nodeEnv: "production",
           envToken: "env_token_should_not_be_used",
-          ssmToken: null,
           secretsManagerData: null,
         });
       } catch (e) {
@@ -925,76 +705,89 @@ describe("secrets.js", () => {
     });
   });
 
-  describe("getKeygenPolicyIds — FINDING-4 edge cases", () => {
+  describe("getKeygenPolicyIds — Secrets Manager with 4-policy model", () => {
     async function mockGetKeygenPolicyIds(options = {}) {
       const {
         nodeEnv = "production",
-        envIndividual = undefined,
-        envBusiness = undefined,
-        ssmIndividual = null,
-        ssmBusiness = null,
+        envIndividualMonthly = undefined,
+        envIndividualAnnual = undefined,
+        envBusinessMonthly = undefined,
+        envBusinessAnnual = undefined,
+        secretsManagerData = null,
       } = options;
 
       if (nodeEnv !== "production") {
         return {
-          individual: envIndividual,
-          business: envBusiness,
+          individualMonthly: envIndividualMonthly,
+          individualAnnual: envIndividualAnnual,
+          businessMonthly: envBusinessMonthly,
+          businessAnnual: envBusinessAnnual,
         };
       }
 
-      if (ssmIndividual && ssmBusiness) {
-        return {
-          individual: ssmIndividual,
-          business: ssmBusiness,
-        };
+      if (!secretsManagerData) {
+        throw new Error("Keygen policy IDs unavailable");
       }
 
-      throw new Error("Keygen policy IDs unavailable");
+      const result = {
+        individualMonthly: secretsManagerData.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY,
+        individualAnnual: secretsManagerData.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL,
+        businessMonthly: secretsManagerData.KEYGEN_POLICY_ID_BUSINESS_MONTHLY,
+        businessAnnual: secretsManagerData.KEYGEN_POLICY_ID_BUSINESS_ANNUAL,
+      };
+
+      // Validate all 4 policy IDs are present
+      const missing = Object.entries(result)
+        .filter(([, v]) => !v)
+        .map(([k]) => k);
+
+      if (missing.length > 0) {
+        throw new Error(`Keygen policy IDs missing: ${missing.join(", ")}`);
+      }
+
+      return result;
     }
 
-    it("should return both policy IDs when SSM has both", async () => {
+    it("should return all 4 policy IDs from Secrets Manager", async () => {
       const result = await mockGetKeygenPolicyIds({
-        ssmIndividual: "policy-uuid-individual",
-        ssmBusiness: "policy-uuid-business",
+        secretsManagerData: {
+          KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY: "policy-im-uuid",
+          KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL: "policy-ia-uuid",
+          KEYGEN_POLICY_ID_BUSINESS_MONTHLY: "policy-bm-uuid",
+          KEYGEN_POLICY_ID_BUSINESS_ANNUAL: "policy-ba-uuid",
+        },
       });
-      expect(result.individual).toBe("policy-uuid-individual");
-      expect(result.business).toBe("policy-uuid-business");
+      expect(result.individualMonthly).toBe("policy-im-uuid");
+      expect(result.individualAnnual).toBe("policy-ia-uuid");
+      expect(result.businessMonthly).toBe("policy-bm-uuid");
+      expect(result.businessAnnual).toBe("policy-ba-uuid");
     });
 
-    it("should throw when only individual policy ID found in SSM", async () => {
+    it("should throw when any policy ID is missing from SM", async () => {
       let error;
       try {
         await mockGetKeygenPolicyIds({
-          ssmIndividual: "policy-uuid-individual",
-          ssmBusiness: null,
+          secretsManagerData: {
+            KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY: "policy-im-uuid",
+            KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL: "policy-ia-uuid",
+            // Missing business policies
+          },
         });
       } catch (e) {
         error = e;
       }
       expect(error).toBeDefined();
-      expect(error.message).toBe("Keygen policy IDs unavailable");
+      expect(error.message).toContain("Keygen policy IDs missing");
+      expect(error.message).toContain("businessMonthly");
+      expect(error.message).toContain("businessAnnual");
     });
 
-    it("should throw when only business policy ID found in SSM", async () => {
+    it("should throw when SM is unavailable", async () => {
       let error;
       try {
         await mockGetKeygenPolicyIds({
-          ssmIndividual: null,
-          ssmBusiness: "policy-uuid-business",
-        });
-      } catch (e) {
-        error = e;
-      }
-      expect(error).toBeDefined();
-      expect(error.message).toBe("Keygen policy IDs unavailable");
-    });
-
-    it("should throw when neither policy ID found in SSM", async () => {
-      let error;
-      try {
-        await mockGetKeygenPolicyIds({
-          ssmIndividual: null,
-          ssmBusiness: null,
+          nodeEnv: "production",
+          secretsManagerData: null,
         });
       } catch (e) {
         error = e;
@@ -1008,10 +801,11 @@ describe("secrets.js", () => {
       try {
         await mockGetKeygenPolicyIds({
           nodeEnv: "production",
-          envIndividual: "env-individual-should-not-be-used",
-          envBusiness: "env-business-should-not-be-used",
-          ssmIndividual: null,
-          ssmBusiness: null,
+          envIndividualMonthly: "env-im-should-not-be-used",
+          envIndividualAnnual: "env-ia-should-not-be-used",
+          envBusinessMonthly: "env-bm-should-not-be-used",
+          envBusinessAnnual: "env-ba-should-not-be-used",
+          secretsManagerData: null,
         });
       } catch (e) {
         error = e;
@@ -1023,21 +817,45 @@ describe("secrets.js", () => {
     it("should return development env vars even when undefined", async () => {
       const result = await mockGetKeygenPolicyIds({
         nodeEnv: "development",
-        envIndividual: undefined,
-        envBusiness: undefined,
       });
-      expect(result.individual).toBe(undefined);
-      expect(result.business).toBe(undefined);
+      expect(result.individualMonthly).toBe(undefined);
+      expect(result.individualAnnual).toBe(undefined);
+      expect(result.businessMonthly).toBe(undefined);
+      expect(result.businessAnnual).toBe(undefined);
     });
 
     it("should return development env vars when set", async () => {
       const result = await mockGetKeygenPolicyIds({
         nodeEnv: "development",
-        envIndividual: "dev-individual-id",
-        envBusiness: "dev-business-id",
+        envIndividualMonthly: "dev-im-id",
+        envIndividualAnnual: "dev-ia-id",
+        envBusinessMonthly: "dev-bm-id",
+        envBusinessAnnual: "dev-ba-id",
       });
-      expect(result.individual).toBe("dev-individual-id");
-      expect(result.business).toBe("dev-business-id");
+      expect(result.individualMonthly).toBe("dev-im-id");
+      expect(result.individualAnnual).toBe("dev-ia-id");
+      expect(result.businessMonthly).toBe("dev-bm-id");
+      expect(result.businessAnnual).toBe("dev-ba-id");
+    });
+
+    it("should throw with specific missing keys when only some are present", async () => {
+      let error;
+      try {
+        await mockGetKeygenPolicyIds({
+          secretsManagerData: {
+            KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY: "policy-im-uuid",
+            // The other 3 are missing
+          },
+        });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeDefined();
+      expect(error.message).toContain("individualAnnual");
+      expect(error.message).toContain("businessMonthly");
+      expect(error.message).toContain("businessAnnual");
+      // The present one should NOT be in the error message
+      expect(error.message).not.toContain("individualMonthly");
     });
   });
 
@@ -1088,30 +906,30 @@ describe("secrets.js", () => {
 
   describe("Resolution chain symmetry", () => {
     // Verify all secret accessors follow the same pattern:
-    // non-production → canonical source → fallback → throw
+    // non-production → Secrets Manager → throw
 
-    it("getStripeSecrets: non-prod → SM → SSM → throw", () => {
-      const chain = ["non-production:process.env", "SM:plg/{env}/stripe", "SSM:/plg/secrets/{appId}/*", "throw"];
-      expect(chain.length).toBe(4);
+    it("getStripeSecrets: non-prod → SM → throw", () => {
+      const chain = ["non-production:process.env", "SM:plg/{env}/stripe", "throw"];
+      expect(chain.length).toBe(3);
       expect(chain[0]).toContain("non-production");
       expect(chain[1]).toContain("SM");
-      expect(chain[2]).toContain("SSM");
-      expect(chain[3]).toBe("throw");
+      expect(chain[2]).toBe("throw");
     });
 
-    it("getKeygenSecrets: non-prod → SM → SSM → throw", () => {
-      const chain = ["non-production:process.env", "SM:plg/{env}/keygen", "SSM:/plg/secrets/{appId}/*", "throw"];
-      expect(chain.length).toBe(4);
-      expect(chain[3]).toBe("throw");
-    });
-
-    it("getKeygenPolicyIds: non-prod → SSM → throw (no SM)", () => {
-      const chain = ["non-production:process.env", "SSM:/plg/secrets/{appId}/*", "throw"];
+    it("getKeygenSecrets: non-prod → SM → throw", () => {
+      const chain = ["non-production:process.env", "SM:plg/{env}/keygen", "throw"];
       expect(chain.length).toBe(3);
       expect(chain[2]).toBe("throw");
     });
 
-    it("getAppSecrets: non-prod → SM → throw (no SSM)", () => {
+    it("getKeygenPolicyIds: non-prod → SM → validate → throw", () => {
+      const chain = ["non-production:process.env", "SM:plg/{env}/keygen", "validate-all-4-present", "throw"];
+      expect(chain.length).toBe(4);
+      expect(chain[2]).toContain("validate");
+      expect(chain[3]).toBe("throw");
+    });
+
+    it("getAppSecrets: non-prod → SM → throw", () => {
       const chain = ["non-production:process.env", "SM:plg/{env}/app", "throw"];
       expect(chain.length).toBe(3);
       expect(chain[2]).toBe("throw");
@@ -1176,4 +994,3 @@ describe("secrets.js", () => {
       expect(errorMsg).toContain("secrets-manager-stripe");
     });
   });
-

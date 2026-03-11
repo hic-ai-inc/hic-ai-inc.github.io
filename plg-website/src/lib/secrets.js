@@ -17,10 +17,6 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
-import {
-  SSMClient,
-  GetParameterCommand,
-} from "@aws-sdk/client-ssm";
 
 import { safeJsonParse } from "../../../dm/layers/base/src/index.js";
 // ═══════════════════════════════════════════════════════════════════
@@ -43,19 +39,6 @@ const SECRET_PATHS = {
   app: `plg/${ENVIRONMENT}/app`,
 };
 
-// SSM Parameter Store paths for runtime secrets
-// Uses /plg/secrets/<app-id>/<secret-key> format (managed by manage-ssm-secrets.sh)
-const AMPLIFY_APP_ID = process.env.AWS_APP_ID || "d2yhz9h4xdd5rb";
-const SSM_SECRET_PATHS = {
-  STRIPE_SECRET_KEY: `/plg/secrets/${AMPLIFY_APP_ID}/STRIPE_SECRET_KEY`,
-  STRIPE_WEBHOOK_SECRET: `/plg/secrets/${AMPLIFY_APP_ID}/STRIPE_WEBHOOK_SECRET`,
-  KEYGEN_PRODUCT_TOKEN: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_PRODUCT_TOKEN`,
-  KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY`,
-  KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL`,
-  KEYGEN_POLICY_ID_BUSINESS_MONTHLY: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_BUSINESS_MONTHLY`,
-  KEYGEN_POLICY_ID_BUSINESS_ANNUAL: `/plg/secrets/${AMPLIFY_APP_ID}/KEYGEN_POLICY_ID_BUSINESS_ANNUAL`,
-};
-
 // Cache TTL: 5 minutes (secrets rarely change, but we want eventual consistency)
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -64,20 +47,12 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 // ═══════════════════════════════════════════════════════════════════
 
 let secretsClient = null;
-let ssmClient = null;
 
 function getSecretsClient() {
   if (!secretsClient) {
     secretsClient = new SecretsManagerClient({ region: REGION });
   }
   return secretsClient;
-}
-
-function getSSMClient() {
-  if (!ssmClient) {
-    ssmClient = new SSMClient({ region: REGION });
-  }
-  return ssmClient;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -117,50 +92,6 @@ function setCachedSecret(secretName, value) {
 // ═══════════════════════════════════════════════════════════════════
 // Core Secret Fetching
 // ═══════════════════════════════════════════════════════════════════
-
-/**
- * Fetch a single secret from SSM Parameter Store (Amplify Gen 2 format)
- *
- * @param {string} parameterName - The full SSM parameter path (e.g., '/amplify/shared/app-id/SECRET_KEY')
- * @returns {Promise<string|null>} The secret value, or null if not found
- */
-async function getSSMParameter(parameterName) {
-  // Check cache first (using same cache as Secrets Manager)
-  const cacheKey = `ssm:${parameterName}`;
-  const cached = getCachedSecret(cacheKey);
-  if (cached) {
-    return cached;  // getCachedSecret already returns the value, not {value: ...}
-  }
-
-  const client = getSSMClient();
-  const command = new GetParameterCommand({
-    Name: parameterName,
-    WithDecryption: true, // Gen 2 secrets are encrypted
-  });
-
-  try {
-    const response = await client.send(command);
-    const value = response.Parameter?.Value;
-
-    if (value) {
-      // Cache the result (store string directly, not wrapped in object)
-      setCachedSecret(cacheKey, value);
-      console.log(`[Secrets] SSM parameter ${parameterName}: found`);
-      return value;
-    }
-
-    console.log(`[Secrets] SSM parameter ${parameterName}: empty`);
-    return null;
-  } catch (error) {
-    // ParameterNotFound is expected if secret hasn't been set
-    if (error.name === "ParameterNotFound") {
-      console.log(`[Secrets] SSM parameter ${parameterName}: not found`);
-      return null;
-    }
-    console.error(`[Secrets] SSM error for ${parameterName}:`, error.name, error.message);
-    return null;
-  }
-}
 
 /**
  * Fetch a secret from AWS Secrets Manager
@@ -210,10 +141,9 @@ export async function getSecret(secretName) {
  * Priority order:
  * 1. Non-production (dev/test/CI): process.env (from .env.local)
  * 2. AWS Secrets Manager (plg/{env}/stripe) — canonical source
- * 3. SSM Parameter Store (legacy fallback, pending removal)
  *
  * Only NODE_ENV=production hits AWS. All other environments use process.env.
- * Throws if all production sources fail.
+ * Throws if Secrets Manager is unavailable in production.
  * See: FINDING-3, FINDING-4 in 20260215_AUDIT_REPORT_ON_SECRETS_HYGIENE.md
  *
  * @returns {Promise<{STRIPE_SECRET_KEY: string, STRIPE_WEBHOOK_SECRET: string}>}
@@ -246,27 +176,9 @@ export async function getStripeSecrets() {
       STRIPE_PORTAL_CONFIG_BUSINESS: secrets.STRIPE_PORTAL_CONFIG_BUSINESS,
     };
   } catch (error) {
-    console.warn("[Secrets] Secrets Manager unavailable:", error.message);
+    console.error("CRITICAL: Secrets Manager failed for Stripe:", error.message);
+    throw new Error("Stripe secrets unavailable");
   }
-
-  // Fallback to SSM Parameter Store (legacy, pending removal)
-  console.log("[Secrets] Trying SSM Parameter Store fallback...");
-  const ssmSecretKey = await getSSMParameter(SSM_SECRET_PATHS.STRIPE_SECRET_KEY);
-  const ssmWebhookSecret = await getSSMParameter(SSM_SECRET_PATHS.STRIPE_WEBHOOK_SECRET);
-
-  if (ssmSecretKey && ssmWebhookSecret) {
-    console.log("[Secrets] SSM secrets found - using SSM fallback");
-    return {
-      STRIPE_SECRET_KEY: ssmSecretKey,
-      STRIPE_WEBHOOK_SECRET: ssmWebhookSecret,
-      STRIPE_PORTAL_CONFIG_INDIVIDUAL: process.env.STRIPE_PORTAL_CONFIG_INDIVIDUAL,
-      STRIPE_PORTAL_CONFIG_BUSINESS: process.env.STRIPE_PORTAL_CONFIG_BUSINESS,
-    };
-  }
-
-  // No silent fallback — fail loudly (FINDING-4)
-  console.error("CRITICAL: All secret sources failed for Stripe");
-  throw new Error("Stripe secrets unavailable");
 }
 
 /**
@@ -275,10 +187,9 @@ export async function getStripeSecrets() {
  * Priority order:
  * 1. Non-production (dev/test/CI): process.env (from .env.local)
  * 2. AWS Secrets Manager (plg/{env}/keygen) — canonical source
- * 3. SSM Parameter Store (legacy fallback, pending removal)
  *
  * Only NODE_ENV=production hits AWS. All other environments use process.env.
- * Throws if all production sources fail.
+ * Throws if Secrets Manager is unavailable in production.
  * See: FINDING-3, FINDING-4 in 20260215_AUDIT_REPORT_ON_SECRETS_HYGIENE.md
  *
  * @returns {Promise<{KEYGEN_PRODUCT_TOKEN: string, KEYGEN_WEBHOOK_PUBLIC_KEY: string}>}
@@ -305,24 +216,9 @@ export async function getKeygenSecrets() {
       KEYGEN_WEBHOOK_PUBLIC_KEY: secrets.KEYGEN_WEBHOOK_PUBLIC_KEY,
     };
   } catch (error) {
-    console.warn("[Secrets] Secrets Manager unavailable for Keygen:", error.message);
+    console.error("CRITICAL: Secrets Manager failed for Keygen:", error.message);
+    throw new Error("Keygen secrets unavailable");
   }
-
-  // Fallback to SSM Parameter Store (legacy, pending removal)
-  console.log("[Secrets] Trying SSM Parameter Store fallback for Keygen...");
-  const ssmToken = await getSSMParameter(SSM_SECRET_PATHS.KEYGEN_PRODUCT_TOKEN);
-
-  if (ssmToken) {
-    console.log("[Secrets] SSM Keygen token found via fallback");
-    return {
-      KEYGEN_PRODUCT_TOKEN: ssmToken,
-      KEYGEN_WEBHOOK_PUBLIC_KEY: process.env.KEYGEN_WEBHOOK_PUBLIC_KEY || null,
-    };
-  }
-
-  // No silent fallback — fail loudly (FINDING-4)
-  console.error("CRITICAL: All secret sources failed for Keygen");
-  throw new Error("Keygen secrets unavailable");
 }
 
 /**
@@ -330,7 +226,14 @@ export async function getKeygenSecrets() {
  *
  * Priority order:
  * 1. Non-production (dev/test/CI): process.env (from .env.local)
- * 2. SSM Parameter Store: /plg/secrets/<app-id>/KEYGEN_POLICY_ID_*
+ * 2. AWS Secrets Manager (plg/{env}/keygen) — canonical source
+ *
+ * Only NODE_ENV=production hits AWS. All other environments use process.env.
+ * Throws if Secrets Manager is unavailable or any policy ID is missing.
+ *
+ * CRITICAL: These IDs are required to provision licenses after successful
+ * payment. If this function throws, the checkout flow will fail to issue
+ * a license key. This is the worst-case failure mode.
  *
  * @returns {Promise<{individualMonthly: string, individualAnnual: string, businessMonthly: string, businessAnnual: string}>}
  */
@@ -348,34 +251,35 @@ export async function getKeygenPolicyIds() {
     };
   }
 
-  // Production/staging: Fetch from SSM Parameter Store
-  console.log("[Secrets] Production mode - fetching Keygen policy IDs from SSM...");
-  console.log("[Secrets] SSM paths:", JSON.stringify(SSM_SECRET_PATHS));
-  
-  const [individualMonthlyId, individualAnnualId, businessMonthlyId, businessAnnualId] = await Promise.all([
-    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY),
-    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL),
-    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_BUSINESS_MONTHLY),
-    getSSMParameter(SSM_SECRET_PATHS.KEYGEN_POLICY_ID_BUSINESS_ANNUAL),
-  ]);
+  // Production/staging: Secrets Manager is the canonical source
+  console.log("[Secrets] Production mode - fetching Keygen policy IDs from Secrets Manager...");
+  try {
+    const secrets = await getSecret(SECRET_PATHS.keygen);
 
-  console.log("[Secrets] SSM results - individualMonthly:", individualMonthlyId ? "found" : "NULL", "individualAnnual:", individualAnnualId ? "found" : "NULL", "businessMonthly:", businessMonthlyId ? "found" : "NULL", "businessAnnual:", businessAnnualId ? "found" : "NULL");
-
-  if (individualMonthlyId && individualAnnualId && businessMonthlyId && businessAnnualId) {
-    console.log("[Secrets] SSM Keygen policy IDs found");
-    return {
-      individualMonthly: individualMonthlyId,
-      individualAnnual: individualAnnualId,
-      businessMonthly: businessMonthlyId,
-      businessAnnual: businessAnnualId,
+    const result = {
+      individualMonthly: secrets.KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY,
+      individualAnnual: secrets.KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL,
+      businessMonthly: secrets.KEYGEN_POLICY_ID_BUSINESS_MONTHLY,
+      businessAnnual: secrets.KEYGEN_POLICY_ID_BUSINESS_ANNUAL,
     };
+
+    // Validate all 4 policy IDs are present — missing any is a fatal config error
+    const missing = Object.entries(result)
+      .filter(([, v]) => !v)
+      .map(([k]) => k);
+
+    if (missing.length > 0) {
+      console.error("CRITICAL: Keygen policy IDs missing from Secrets Manager:", missing);
+      throw new Error(`Keygen policy IDs missing: ${missing.join(", ")}`);
+    }
+
+    console.log("[Secrets] Secrets Manager Keygen policy IDs found (all 4 present)");
+    return result;
+  } catch (error) {
+    console.error("CRITICAL: Secrets Manager failed for Keygen policy IDs:", error.message);
+    throw new Error("Keygen policy IDs unavailable");
   }
-
-  // No silent fallback — fail loudly (FINDING-4)
-  console.error("CRITICAL: SSM policy IDs not found for Keygen");
-  throw new Error("Keygen policy IDs unavailable");
 }
-
 
 /**
  * Get application secrets (trial token signing, admin keys, etc.)
