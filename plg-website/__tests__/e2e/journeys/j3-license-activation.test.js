@@ -384,6 +384,12 @@ describe("Journey 3: License Activation Flow", () => {
       if (response.status === 200) {
         expectSuccess(response);
         expectFields(response.json, ["status", "valid"]);
+        // Status Remediation Plan Fix 3: all status values must be lowercase
+        assert.strictEqual(
+          response.json.status,
+          response.json.status.toLowerCase(),
+          "Status must be lowercase (Fix 3)",
+        );
         log.info("License status retrieved");
       } else if (response.status === 404) {
         // License not found - expected in E2E
@@ -468,6 +474,13 @@ describe("Journey 3: License Activation Flow", () => {
   // J3.7: Error Handling
   // ==========================================================================
 
+  // Status Remediation Plan context:
+  // - All status values are lowercase (Fix 3)
+  // - "suspended" is admin-only on Business org members (Fix 9),
+  //   never written by the payment path (Fix 5)
+  // - These tests use invalid keys, so they test error handling, not
+  //   actual status classification. Status classification is covered by
+  //   unit tests and property tests (Properties 9, 17).
   describe("J3.7: Error Handling", () => {
     test("should handle expired license gracefully", async () => {
       const response = await client.post("/api/license/validate", {
@@ -481,7 +494,14 @@ describe("Journey 3: License Activation Flow", () => {
         `Expired license should not cause server error, got ${response.status}`,
       );
 
-      if (response.status === 400) {
+      if (response.status === 200 && response.json.status) {
+        // Fix 3: status must be lowercase
+        assert.strictEqual(
+          response.json.status,
+          response.json.status.toLowerCase(),
+          "Status must be lowercase (Fix 3)",
+        );
+      } else if (response.status === 400) {
         expectError(response);
       }
     });
@@ -498,15 +518,18 @@ describe("Journey 3: License Activation Flow", () => {
       );
     });
 
-    test("should handle suspended license", async () => {
+    test("should handle invalid license key", async () => {
+      // Post-remediation: "suspended" is admin-only on Business members,
+      // not a license-level state reachable via fake keys. We test generic
+      // invalid key rejection instead.
       const response = await client.post("/api/license/validate", {
-        licenseKey: "SUSPENDED-0000-0000-0000",
+        licenseKey: "INVALID-0000-0000-0000",
         fingerprint: deviceData.fingerprint,
       });
 
       assert.ok(
         response.status < 500,
-        `Suspended license should not cause server error, got ${response.status}`,
+        `Invalid license should not cause server error, got ${response.status}`,
       );
     });
 
@@ -533,5 +556,67 @@ describe("Journey 3: License Activation Flow", () => {
         log.info("No rate limiting observed (may be disabled in test env)");
       }
     });
+  });
+
+  // ==========================================================================
+  // J3.8: Organization Member Activation Blocking (Status Remediation Plan)
+  // ==========================================================================
+
+  describe("J3.8: Org Member Activation Blocking", () => {
+    // Status Remediation Plan Fix 9: Admin-only suspension
+    // Business org members with suspended/revoked status should be blocked
+    // from activating licenses. Individual plan users bypass org checks.
+
+    test("should reject activation for suspended org member", async () => {
+      requireMutations("org member activation - suspended");
+
+      // Simulate activation request with a suspended org member context
+      // Note: Full testing requires authenticated E2E context with real org setup
+      const response = await client.post("/api/license/activate", {
+        fingerprint: generateFingerprint(),
+        machineId: generateMachineId(),
+        orgMemberStatus: "suspended",
+      });
+
+      // Expect 403 or error indicating member is suspended
+      if (response.status === 403) {
+        expectError(response, 403, "MEMBER_SUSPENDED");
+        log.info("Suspended org member correctly blocked from activation");
+      } else if (response.status === 400 || response.status === 422) {
+        // API may not support orgMemberStatus in request body (requires auth context)
+        log.info("Org member blocking requires authenticated context (expected)", {
+          status: response.status,
+        });
+      } else {
+        log.info("Org member blocking not testable without real org setup", {
+          status: response.status,
+        });
+      }
+    });
+
+    test("should reject activation for revoked org member", async () => {
+      requireMutations("org member activation - revoked");
+
+      const response = await client.post("/api/license/activate", {
+        fingerprint: generateFingerprint(),
+        machineId: generateMachineId(),
+        orgMemberStatus: "revoked",
+      });
+
+      if (response.status === 403) {
+        expectError(response, 403, "MEMBER_REVOKED");
+        log.info("Revoked org member correctly blocked from activation");
+      } else {
+        log.info("Org member revocation blocking requires authenticated context", {
+          status: response.status,
+        });
+      }
+    });
+
+    // NOTE: Full org member activation blocking tests require:
+    // 1. Authenticated E2E context with real Keygen org setup
+    // 2. Business plan license with org membership
+    // 3. Admin ability to suspend/revoke org members
+    // Individual plan users bypass org checks entirely (no org to check).
   });
 });

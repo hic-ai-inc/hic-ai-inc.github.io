@@ -283,6 +283,40 @@ export function expectDaysRemaining(daysRemaining, options = {}) {
 // Timing Assertions
 // ============================================================================
 
+// ============================================================================
+// Status Remediation Plan Assertions
+// ============================================================================
+
+/**
+ * Assert that any status field in the response is lowercase.
+ * Validates Fix 3 (casing normalization) — all status values returned by
+ * the API must be strictly lowercase strings.
+ * @param {Object} response - E2EResponse object
+ */
+export function expectLowercaseStatus(response) {
+  const json = response.json || response.data || response;
+  const status = json.status;
+  if (status && typeof status === "string") {
+    expect(status).toBe(status.toLowerCase());
+  }
+  // Also check nested license.status if present
+  if (json.license?.status && typeof json.license.status === "string") {
+    expect(json.license.status).toBe(json.license.status.toLowerCase());
+  }
+}
+
+/**
+ * Assert heartbeat valid/invalid classification matches expected value.
+ * Validates Fix 2 (heartbeat status classification).
+ * @param {Object} response - E2EResponse object
+ * @param {boolean} expectedValid - Expected value of the valid field
+ */
+export function expectHeartbeatClassification(response, expectedValid) {
+  const json = response.json || response.data || response;
+  expect(json.valid).toBe(expectedValid);
+}
+
+
 /**
  * Assert operation completed within time limit
  * @param {number} durationMs - Actual duration
@@ -400,5 +434,7 @@ export default {
   expectLength,
   expectNonEmpty,
   expectContains,
+  expectLowercaseStatus,
+  expectHeartbeatClassification,
   expect,
 };

@@ -17,10 +17,15 @@ import { generateEmail } from "./test-data.js";
 const KEYGEN_ACCOUNT_ID = "868fccd3-676d-4b9d-90ab-c86ae54419f6";
 const KEYGEN_BASE_URL = `https://api.keygen.sh/v1/accounts/${KEYGEN_ACCOUNT_ID}`;
 
-// Policy IDs for different license types
+// Policy IDs for different license types (4-policy model)
 const POLICIES = {
-  individual: "91f1947e-0730-48f9-b19a-eb8016ae2f84", // maxMachines=2
-  business: "b0bcab98-6693-4c44-ad0d-ee3dbb069aea", // maxMachines=5
+  individualMonthly: "91f1947e-0730-48f9-b19a-eb8016ae2f84", // 44d, maxMachines=3
+  individualAnnual: "b693ada7-d484-44a6-b2f2-cbef727ed4e8", // 379d, maxMachines=3
+  businessMonthly: "b0bcab98-6693-4c44-ad0d-ee3dbb069aea", // 44d, maxMachines=5
+  businessAnnual: "12eea5ff-4efc-4a90-a1d0-e54d64e463c2", // 379d, maxMachines=5
+  // Convenience aliases (default to Monthly for backward compatibility)
+  individual: "91f1947e-0730-48f9-b19a-eb8016ae2f84",
+  business: "b0bcab98-6693-4c44-ad0d-ee3dbb069aea",
 };
 
 // ============================================================================

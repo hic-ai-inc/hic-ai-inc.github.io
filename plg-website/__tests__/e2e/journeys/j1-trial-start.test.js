@@ -193,6 +193,12 @@ describe("Journey 1: Trial Start Flow", () => {
 
       assert.equal(response.json.valid, true, "Should be valid during trial");
       assert.equal(response.json.status, "trial", "Status should be trial");
+      // Status Remediation Plan Fix 3: all status values must be lowercase
+      assert.strictEqual(
+        response.json.status,
+        response.json.status.toLowerCase(),
+        "Status must be lowercase (Fix 3)",
+      );
 
       scope.trackTrial(response.json.trial.id || deviceData.fingerprint);
     });
@@ -385,9 +391,11 @@ describe("Journey 1: Trial Start Flow", () => {
       expectStatus(response2, 200);
       scope.trackTrial(response2.json.trial?.id || device2.fingerprint);
 
-      // Both should have valid trials
+      // Both should have valid trials with lowercase status (Fix 3)
       assert.equal(response1.json.status, "trial");
       assert.equal(response2.json.status, "trial");
+      assert.strictEqual(response1.json.status, response1.json.status.toLowerCase());
+      assert.strictEqual(response2.json.status, response2.json.status.toLowerCase());
 
       // Fingerprints should differ
       assert.notEqual(

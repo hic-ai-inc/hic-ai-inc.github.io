@@ -245,7 +245,7 @@ async function createTestLicense(options = {}) {
   const timestamp = Date.now();
   const testEmail = `e2e-test-${timestamp}@hic-ai-test.invalid`;
 
-  // Use Individual policy by default
+  // Use Individual Monthly policy by default
   const policyId = options.policyId || "91f1947e-0730-48f9-b19a-eb8016ae2f84";
 
   const response = await keygenRequest("/licenses", {

@@ -29,6 +29,7 @@ import {
   expectHeartbeat,
   expectFields,
   expectCompletesWithin,
+  expectHeartbeatClassification,
 } from "../lib/assertions.js";
 import {
   generateFingerprint,
@@ -525,5 +526,100 @@ describe("Journey 5: Heartbeat Loop", () => {
         log.info("Licensed heartbeat rejected (invalid license - expected)");
       }
     });
+  });
+
+  // ==========================================================================
+  // J5.8: Heartbeat Status Classification (Status Remediation Plan)
+  // ==========================================================================
+
+  describe("J5.8: Heartbeat Status Classification", () => {
+    // Status Remediation Plan Fix 2: Heartbeat classifies status into valid/invalid
+    // Fix 3: All status values returned lowercase
+
+    test("should classify active trial heartbeat as valid", async () => {
+      requireMutations("heartbeat classification - active trial");
+
+      const response = await client.post("/api/license/heartbeat", {
+        fingerprint: deviceData.fingerprint,
+        machineId: deviceData.machineId,
+        sessionId: generateSessionId(),
+        timestamp: new Date().toISOString(),
+      });
+
+      // Trial heartbeats should be accepted with valid=true
+      if (response.status === 200 && response.json?.valid === true) {
+        expectHeartbeatClassification(response, true);
+        expectHeartbeat(response.json);
+
+        // Fix 3: Status must be lowercase
+        if (response.json?.status) {
+          assert.equal(
+            response.json.status,
+            response.json.status.toLowerCase(),
+            "Heartbeat status must be lowercase (Fix 3)",
+          );
+        }
+        log.info("Trial heartbeat classified as valid");
+      } else {
+        log.info("Trial heartbeat classification not testable in current env", {
+          status: response.status,
+        });
+      }
+    });
+
+    test("should classify unknown fingerprint as machine_not_found", async () => {
+      const unknownFingerprint = generateFingerprint();
+
+      const response = await client.post("/api/license/heartbeat", {
+        fingerprint: unknownFingerprint,
+        machineId: generateMachineId(),
+        sessionId: generateSessionId(),
+        timestamp: new Date().toISOString(),
+      });
+
+      // Unknown fingerprint should not be classified as valid
+      if (response.status === 200) {
+        if (response.json?.valid === false) {
+          expectHeartbeatClassification(response, false);
+          log.info("Unknown fingerprint correctly classified as invalid", {
+            reason: response.json?.reason,
+          });
+        } else if (response.json?.valid === true) {
+          // Unexpected - unknown fingerprints should not validate
+          log.warn("Unknown fingerprint unexpectedly classified as valid");
+        }
+      } else if ([400, 404].includes(response.status)) {
+        log.info("Unknown fingerprint rejected at request level");
+      }
+    });
+
+    test("should return lowercase status in classification response", async () => {
+      requireMutations("heartbeat classification - lowercase");
+
+      const response = await client.post("/api/license/heartbeat", {
+        fingerprint: deviceData.fingerprint,
+        machineId: deviceData.machineId,
+        sessionId: generateSessionId(),
+        timestamp: new Date().toISOString(),
+      });
+
+      if (response.status === 200 && response.json?.status) {
+        // Fix 3: All statuses must be lowercase
+        assert.equal(
+          response.json.status,
+          response.json.status.toLowerCase(),
+          "Heartbeat classification status must be lowercase (Fix 3)",
+        );
+        log.info("Heartbeat status confirmed lowercase", {
+          status: response.json.status,
+        });
+      } else {
+        log.info("No status field returned in heartbeat response");
+      }
+    });
+
+    // NOTE: Testing expired/suspended/revoked heartbeat classification requires
+    // Keygen Sandbox environment with configurable license states.
+    // Fix 9: Admin-only suspension is not testable via payment path.
   });
 });

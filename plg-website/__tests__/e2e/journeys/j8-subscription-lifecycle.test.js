@@ -215,60 +215,75 @@ describe("Journey 8: Subscription Lifecycle", () => {
   });
 
   // ==========================================================================
-  // J8.4: Suspension
+  // J8.4: Invalid License Rejection
+  // Status Remediation Plan context: "suspended" is now admin-only (Fix 9),
+  // never written by the payment path (Fix 5). Full suspended-status testing
+  // requires a Keygen Sandbox Environment with real license records. These
+  // tests validate that invalid/unknown license keys are rejected gracefully
+  // (no 500 errors). Actual status classification is covered by unit tests
+  // and property tests (Properties 9, 17).
   // ==========================================================================
 
-  describe("J8.4: Suspension", () => {
-    test("should reject validation for suspended license", async () => {
-      // A suspended license should not validate
+  describe("J8.4: Invalid License Rejection", () => {
+    test("should reject validation for invalid license key gracefully", async () => {
       const response = await client.post("/api/license/validate", {
-        licenseKey: "SUSPENDED-0000-0000-0000",
+        licenseKey: "INVALID-0000-0000-0000",
         fingerprint: generateFingerprint(),
       });
 
+      // Should return structured error or valid:false, never 500
+      assert.ok(
+        response.status < 500,
+        `Invalid license check should not error, got ${response.status}`,
+      );
+
       if (response.status === 200) {
-        // If it returns 200, valid should be false
-        if (response.json.status === "suspended") {
-          assert.equal(
-            response.json.valid,
-            false,
-            "Suspended license should not be valid",
-          );
-          log.info("Suspension validation verified");
-        }
-      } else {
-        // 400/404 is also acceptable
-        assert.ok(
-          response.status < 500,
-          `Suspended license check should not error, got ${response.status}`,
+        assert.equal(
+          response.json.valid,
+          false,
+          "Invalid license should not be valid",
         );
+        // Status Remediation Plan Fix 3: all status values must be lowercase
+        if (response.json.status) {
+          assert.strictEqual(
+            response.json.status,
+            response.json.status.toLowerCase(),
+            "Status must be lowercase (Fix 3)",
+          );
+        }
+        log.info("Invalid license validation rejected correctly");
+      } else {
+        log.info("Invalid license returned error status (expected)", {
+          status: response.status,
+        });
       }
     });
 
-    test("should reject activation for suspended license", async () => {
+    test("should reject activation for invalid license key", async () => {
       const response = await client.post("/api/license/activate", {
-        licenseKey: "SUSPENDED-0000-0000-0000",
+        licenseKey: "INVALID-0000-0000-0000",
         fingerprint: generateFingerprint(),
         machineId: generateFingerprint(),
       });
 
-      // Should not allow activation
+      // Should not allow activation — 400 (bad key), 401 (auth required),
+      // 403 (blocked), or 404 (not found) are all acceptable rejections
       assert.ok(
         [400, 401, 403, 404].includes(response.status),
-        `Suspended license activation should be rejected, got ${response.status}`,
+        `Invalid license activation should be rejected, got ${response.status}`,
       );
     });
 
-    test("should reject heartbeat for suspended license", async () => {
+    test("should reject heartbeat for invalid license key", async () => {
       const response = await client.post("/api/license/heartbeat", {
-        licenseKey: "SUSPENDED-0000-0000-0000",
+        licenseKey: "INVALID-0000-0000-0000",
         fingerprint: generateFingerprint(),
       });
 
-      // Heartbeat should fail
+      // Heartbeat should fail for unknown license
       assert.ok(
         response.status !== 200 || response.json.valid === false,
-        "Heartbeat should fail for suspended license",
+        "Heartbeat should fail for invalid license",
       );
     });
   });
@@ -301,15 +316,22 @@ describe("Journey 8: Subscription Lifecycle", () => {
       );
     });
 
-    test("should reactivate suspended license after payment", async () => {
+    test("should reactivate past_due license after payment", async () => {
       requireMutations("license reactivation");
 
-      // This would require:
-      // 1. A suspended license
-      // 2. Process invoice.paid webhook
-      // 3. Verify license is now active
+      // Status Remediation Plan Fix 5: reinstatement only happens from
+      // "past_due", never from "suspended". The payment path writes
+      // "past_due" on failure and "active" on success. "suspended" is
+      // reserved for admin actions on Business org members (Fix 9).
+      //
+      // Full reactivation flow requires:
+      // 1. A past_due license (payment failed during dunning window)
+      // 2. Process invoice.paid webhook → writes "active" + calls renewLicense
+      // 3. Verify license returns to active
+      //
+      // Without Keygen Sandbox, we verify endpoint behavior only.
+      // Property tests 7, 8, 22 cover the reactivation logic deterministically.
 
-      // We test the endpoint behavior
       const response = await client.post("/api/license/validate", {
         licenseKey: generateLicenseKeyFormat(),
         fingerprint: generateFingerprint(),
@@ -324,12 +346,18 @@ describe("Journey 8: Subscription Lifecycle", () => {
 
   // ==========================================================================
   // J8.6: Payment Failure Handling
+  // Status Remediation Plan Fix 5: payment failure ALWAYS writes "past_due",
+  // regardless of attempt_count. The old MAX_PAYMENT_FAILURES threshold that
+  // transitioned to "suspended" has been removed. Property 5 validates this
+  // deterministically. Lost disputes write "expired" (Property 6).
   // ==========================================================================
 
   describe("J8.6: Payment Failures", () => {
     test("should handle invoice.payment_failed webhook", async () => {
       requireMutations("payment failure handling");
 
+      // Fix 5: regardless of attempt_count, this always results in "past_due"
+      // (never "suspended"). Verified by Property 5.
       const webhookEvent = generateStripeWebhookEvent(
         "invoice.payment_failed",
         {
@@ -489,4 +517,105 @@ describe("Journey 8: Subscription Lifecycle", () => {
       );
     });
   });
+
+  // ==========================================================================
+  // J8.9: Payment Path Status Guarantees (Status Remediation Plan)
+  // These tests document the post-remediation payment status invariants.
+  // Without valid Stripe webhook signatures, we validate endpoint behavior
+  // and rejection. The invariants themselves are proven by property tests:
+  //   Property 5:  payment_failed → always "past_due" (never "suspended")
+  //   Property 6:  lost dispute → always "expired" with fraudulent flag
+  //   Property 7:  payment success → calls renewLicense
+  //   Property 8:  renewLicense failure → non-blocking (DDB still writes "active")
+  //   Property 22: reinstatement only from "past_due" (never "suspended")
+  // ==========================================================================
+
+  describe("J8.9: Payment Path Status Guarantees", () => {
+    test("should handle high attempt_count payment failure without suspension", async () => {
+      requireMutations("payment failure high attempt count");
+
+      // Pre-remediation: attempt_count >= MAX_PAYMENT_FAILURES wrote "suspended".
+      // Post-remediation (Fix 5): always writes "past_due" regardless of count.
+      // MAX_PAYMENT_FAILURES constant has been removed.
+      const webhookEvent = generateStripeWebhookEvent(
+        "invoice.payment_failed",
+        {
+          id: "in_test_high_attempt_123",
+          customer: "cus_test_123",
+          subscription: "sub_test_123",
+          attempt_count: 8, // Previously would trigger "suspended"
+          next_payment_attempt: null, // No more retries
+        },
+      );
+
+      const response = await client.post("/api/webhooks/stripe", webhookEvent, {
+        headers: {
+          "Stripe-Signature": "test-signature-for-e2e",
+        },
+      });
+
+      // Without valid signature, 400 is expected. With valid signature,
+      // the handler would write "past_due" (never "suspended") — verified
+      // by Property 5 in property tests.
+      assert.ok(
+        [200, 400].includes(response.status),
+        `High attempt_count payment failure should return 200 or 400, got ${response.status}`,
+      );
+    });
+
+    test("should handle dispute lost webhook", async () => {
+      requireMutations("dispute lost handling");
+
+      // Fix 5: lost dispute writes "expired" with fraudulent: true,
+      // never "suspended". Verified by Property 6.
+      const webhookEvent = generateStripeWebhookEvent(
+        "charge.dispute.closed",
+        {
+          id: "dp_test_lost_123",
+          charge: "ch_test_123",
+          status: "lost",
+          reason: "fraudulent",
+        },
+      );
+
+      const response = await client.post("/api/webhooks/stripe", webhookEvent, {
+        headers: {
+          "Stripe-Signature": "test-signature-for-e2e",
+        },
+      });
+
+      assert.ok(
+        [200, 400].includes(response.status),
+        `Dispute closed webhook should return 200 or 400, got ${response.status}`,
+      );
+    });
+
+    test("should handle payment success with renewLicense", async () => {
+      requireMutations("payment success renewal");
+
+      // Fix 1: every successful payment calls renewLicense(keygenLicenseId)
+      // to extend the Keygen license expiry. If renewLicense fails, the
+      // handler still writes "active" to DDB (non-blocking).
+      // Verified by Properties 7 and 8.
+      const webhookEvent = generateStripeWebhookEvent("invoice.paid", {
+        id: "in_test_renew_123",
+        customer: "cus_test_123",
+        subscription: "sub_test_123",
+        status: "paid",
+        amount_paid: 1500,
+      });
+
+      const response = await client.post("/api/webhooks/stripe", webhookEvent, {
+        headers: {
+          "Stripe-Signature": "test-signature-for-e2e",
+        },
+      });
+
+      assert.ok(
+        [200, 400].includes(response.status),
+        `Payment success webhook should return 200 or 400, got ${response.status}`,
+      );
+    });
+  });
+
 });
