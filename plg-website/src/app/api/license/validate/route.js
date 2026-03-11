@@ -221,6 +221,9 @@ export async function POST(request) {
     const license = await getLicenseByKey(licenseKey);
 
     if (!license) {
+      log.warn("license_not_found_gsi2", "License key not found via GSI2 lookup — verify GSI2PK exists on license record", {
+        licenseKeyPrefix: licenseKey?.substring(0, 10) + "...",
+      });
       log.response(200, "License validation completed", {
         valid: false,
         code: "NOT_FOUND",

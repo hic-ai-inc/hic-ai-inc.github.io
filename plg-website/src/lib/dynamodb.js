@@ -528,6 +528,8 @@ export async function createLicense({
     SK: "DETAILS",
     GSI1PK: `USER#${userId}`,
     GSI1SK: `LICENSE#${keygenLicenseId}`,
+    GSI2PK: `LICENSE_KEY#${licenseKey}`,
+    GSI2SK: `LICENSE#DETAILS`,
     keygenLicenseId,
     userId,
     licenseKey,

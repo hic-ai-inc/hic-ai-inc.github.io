@@ -278,6 +278,9 @@ export async function POST(request) {
       // Fix 2 / Task 9.1: Null license must return 404, not "active".
       // If the license key is not in DynamoDB the extension should not
       // continue operating as though the user has a valid license.
+      log.warn("license_not_found_gsi2", "License key not found via GSI2 lookup — verify GSI2PK exists on license record", {
+        licenseKeyPrefix: licenseKey?.substring(0, 10) + "...",
+      });
       log.decision("license_not_found", "Heartbeat rejected", {
         reason: "license_not_found",
       });

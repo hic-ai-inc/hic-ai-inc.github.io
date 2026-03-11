@@ -552,6 +552,50 @@ describe("dynamodb.js", () => {
       expect(result.userId).toBe("auth0|123");
       expect(result.GSI1SK).toBe("LICENSE#lic_new");
     });
+
+    it("should set GSI2 for license key lookup", async () => {
+      mockSend.mockResolvedValue({});
+
+      const result = await createLicense({
+        keygenLicenseId: "lic_gsi2",
+        userId: "auth0|456",
+        licenseKey: "MOUSE-GSI2-KEY",
+        policyId: "pol_individual",
+        status: "active",
+        maxDevices: 3,
+      });
+
+      expect(result.GSI2PK).toBe("LICENSE_KEY#MOUSE-GSI2-KEY");
+      expect(result.GSI2SK).toBe("LICENSE#DETAILS");
+    });
+
+    it("should write GSI2PK that matches getLicenseByKey query pattern", async () => {
+      // Cross-function contract: createLicense writes GSI2PK in the same
+      // format that getLicenseByKey queries. This test prevents the write
+      // and read paths from diverging again.
+      mockSend.mockResolvedValue({});
+
+      const licenseKey = "key/eyJhY2NvdW50test==.signature==";
+
+      const created = await createLicense({
+        keygenLicenseId: "lic_contract",
+        userId: "auth0|789",
+        licenseKey,
+        policyId: "pol_individual",
+        status: "active",
+        maxDevices: 3,
+      });
+
+      // Now simulate getLicenseByKey and verify the query uses the same key format
+      mockSend.mockResolvedValue({ Items: [created] });
+      await getLicenseByKey(licenseKey);
+
+      // The GSI2 query should use the exact same key format as the write
+      const queryCommand = mockSend.calls[mockSend.callCount - 1][0];
+      expect(queryCommand.input.ExpressionAttributeValues[":pk"]).toBe(
+        created.GSI2PK,
+      );
+    });
   });
 
   describe("updateLicenseStatus", () => {
