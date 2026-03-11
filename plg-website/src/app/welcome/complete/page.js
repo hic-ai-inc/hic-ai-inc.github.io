@@ -64,39 +64,65 @@ function WelcomeCompleteContent() {
 
       setState((prev) => ({ ...prev, status: "provisioning" }));
 
-      try {
-        const response = await fetch("/api/provision-license", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.idToken}`,
-          },
-          body: JSON.stringify({ sessionId }),
-        });
+      // Retry with backoff — landing page is Stripe's secondary fulfillment path
+      const MAX_ATTEMPTS = 3;
+      const BASE_DELAY_MS = 2000;
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          setState({
-            status: "error",
-            error: data.error || "Failed to provision license",
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          const response = await fetch("/api/provision-license", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.idToken}`,
+            },
+            body: JSON.stringify({ sessionId }),
           });
-          return;
+
+          const data = await response.json();
+
+          if (response.ok) {
+            setState({
+              status: "success",
+              licenseKey: data.licenseKey,
+              planName: data.planName,
+              userName: data.userName,
+              error: null,
+            });
+            return;
+          }
+
+          // 4xx errors are not retryable (bad request, auth failure, etc.)
+          if (response.status < 500) {
+            setState({
+              status: "error",
+              error: data.error || "Failed to provision license",
+            });
+            return;
+          }
+
+          // 5xx: retryable — fall through to retry logic below
+          if (attempt === MAX_ATTEMPTS) {
+            setState({
+              status: "error",
+              error: data.error || "Failed to provision license after multiple attempts",
+            });
+            return;
+          }
+        } catch (error) {
+          // Network error: retryable
+          if (attempt === MAX_ATTEMPTS) {
+            console.error("[WelcomeComplete] Provisioning error:", error);
+            setState({
+              status: "error",
+              error: `Network error: ${error.message}`,
+            });
+            return;
+          }
         }
 
-        setState({
-          status: "success",
-          licenseKey: data.licenseKey,
-          planName: data.planName,
-          userName: data.userName,
-          error: null,
-        });
-      } catch (error) {
-        console.error("[WelcomeComplete] Provisioning error:", error);
-        setState({
-          status: "error",
-          error: `Network error: ${error.message}`,
-        });
+        // Wait before retrying (exponential backoff)
+        await new Promise((resolve) => setTimeout(resolve, BASE_DELAY_MS * attempt));
       }
     }
 

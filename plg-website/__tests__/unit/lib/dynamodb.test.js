@@ -47,6 +47,7 @@ import {
   getOrgLicenseUsage,
   getVersionConfig,
   claimWebhookIdempotencyKey,
+  releaseWebhookIdempotencyKey,
   putDevicePointer,
   getDevicePointer,
   dynamodb,
@@ -2561,6 +2562,79 @@ describe("getDevicePointer", () => {
     }
     expect(thrown).not.toBe(null);
     expect(thrown.name).toBe("ServiceUnavailableException");
+  });
+});
+
+// ============================================================================
+// releaseWebhookIdempotencyKey — Assertions 20-22
+// @see 20260311_LICENSE_PROVISIONING_RELIABILITY_FIX.md
+// ============================================================================
+
+describe("releaseWebhookIdempotencyKey", () => {
+  let originalSend;
+  let mockSend;
+
+  beforeEach(() => {
+    originalSend = dynamodb.send;
+    mockSend = createSpy("dynamodb.send");
+    dynamodb.send = mockSend;
+  });
+
+  afterEach(() => {
+    dynamodb.send = originalSend;
+  });
+
+  // Assertion 20: sends DeleteCommand with correct PK and SK
+  it("should send DeleteCommand with WEBHOOK_IDEMPOTENCY# PK and EVENT SK", async () => {
+    mockSend.mockResolvedValue({});
+
+    await releaseWebhookIdempotencyKey("evt_test_123");
+
+    expect(mockSend.callCount).toBe(1);
+    const command = mockSend.calls[0][0];
+    expect(command.input.Key.PK).toBe("WEBHOOK_IDEMPOTENCY#evt_test_123");
+    expect(command.input.Key.SK).toBe("EVENT");
+  });
+
+  // Assertion 21: does not throw when DynamoDB delete fails
+  it("should not throw when DynamoDB delete fails", async () => {
+    mockSend.mockRejectedValue(new Error("ConditionalCheckFailedException"));
+
+    let thrown = null;
+    try {
+      await releaseWebhookIdempotencyKey("evt_fail_456");
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBe(null);
+  });
+
+  // Assertion 22: does not throw when eventId is null/undefined (defensive)
+  it("should not throw when eventId is null", async () => {
+    mockSend.mockResolvedValue({});
+
+    let thrown = null;
+    try {
+      await releaseWebhookIdempotencyKey(null);
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBe(null);
+  });
+
+  it("should not throw when eventId is undefined", async () => {
+    mockSend.mockResolvedValue({});
+
+    let thrown = null;
+    try {
+      await releaseWebhookIdempotencyKey(undefined);
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBe(null);
   });
 });
 

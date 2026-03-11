@@ -26,6 +26,7 @@ import {
   getOrganizationByStripeCustomer,
   addOrgMember,
   claimWebhookIdempotencyKey,
+  releaseWebhookIdempotencyKey,
 } from "@/lib/dynamodb";
 import {
   suspendLicense,
@@ -186,6 +187,14 @@ export async function POST(request) {
       "Stripe webhook handler failed",
       { eventType: event?.type || null },
     );
+
+    // Release idempotency key so Stripe's retry of the same event is not blocked
+    try {
+      await releaseWebhookIdempotencyKey(event.id);
+    } catch {
+      // Best-effort: TTL (5 min) will expire the key anyway
+    }
+
     log.response(500, "Stripe webhook handler failed", {
       reason: "handler_error",
       eventType: event?.type || null,
@@ -254,6 +263,7 @@ async function handleCheckoutCompleted(session, log) {
       log.warn("keygen_license_create_failed", "Failed to create Keygen license", {
         errorMessage: error?.message,
       });
+      throw error;
     }
   }
 

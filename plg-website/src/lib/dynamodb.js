@@ -2330,6 +2330,28 @@ export async function claimWebhookIdempotencyKey(eventId) {
   }
 }
 
+/**
+ * Release a webhook idempotency key so Stripe retries are not blocked.
+ * Called when the webhook handler returns 500 (e.g. fulfillment failed).
+ *
+ * @param {string} eventId - Stripe event ID (e.g. "evt_1ABC...")
+ */
+export async function releaseWebhookIdempotencyKey(eventId) {
+  try {
+    await dynamodb.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `WEBHOOK_IDEMPOTENCY#${eventId}`,
+          SK: "EVENT",
+        },
+      }),
+    );
+  } catch {
+    // Best-effort: if release fails, TTL (5 min) will expire the key anyway
+  }
+}
+
 export async function updateVersionConfig(productId = "mouse", versionInfo) {
   const now = new Date().toISOString();
 
