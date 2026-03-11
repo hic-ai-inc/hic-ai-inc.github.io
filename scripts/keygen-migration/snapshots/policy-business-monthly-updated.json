@@ -1,0 +1,98 @@
+{
+  "data": {
+    "id": "b0bcab98-6693-4c44-ad0d-ee3dbb069aea",
+    "type": "policies",
+    "attributes": {
+      "name": "Business Monthly",
+      "duration": 3801600,
+      "strict": false,
+      "floating": true,
+      "usePool": false,
+      "maxMachines": 5,
+      "maxProcesses": null,
+      "maxUsers": null,
+      "maxCores": null,
+      "maxMemory": null,
+      "maxDisk": null,
+      "maxUses": null,
+      "machineUniquenessStrategy": "UNIQUE_PER_LICENSE",
+      "machineMatchingStrategy": "MATCH_TWO",
+      "componentUniquenessStrategy": "UNIQUE_PER_MACHINE",
+      "componentMatchingStrategy": "MATCH_ANY",
+      "expirationStrategy": "RESTRICT_ACCESS",
+      "expirationBasis": "FROM_CREATION",
+      "renewalBasis": "FROM_EXPIRY",
+      "transferStrategy": "RESET_EXPIRY",
+      "authenticationStrategy": "TOKEN",
+      "machineLeasingStrategy": "PER_LICENSE",
+      "processLeasingStrategy": "PER_MACHINE",
+      "overageStrategy": "ALWAYS_ALLOW_OVERAGE",
+      "scheme": "ED25519_SIGN",
+      "encrypted": false,
+      "protected": true,
+      "requireProductScope": false,
+      "requirePolicyScope": false,
+      "requireMachineScope": false,
+      "requireFingerprintScope": false,
+      "requireComponentsScope": false,
+      "requireUserScope": false,
+      "requireChecksumScope": false,
+      "requireVersionScope": false,
+      "requireCheckIn": false,
+      "checkInInterval": null,
+      "checkInIntervalCount": null,
+      "heartbeatDuration": 3600,
+      "heartbeatCullStrategy": "DEACTIVATE_DEAD",
+      "heartbeatResurrectionStrategy": "NO_REVIVE",
+      "heartbeatBasis": "FROM_FIRST_PING",
+      "requireHeartbeat": true,
+      "metadata": {},
+      "created": "2026-01-26T19:38:09.037Z",
+      "updated": "2026-03-11T12:27:03.560Z"
+    },
+    "relationships": {
+      "account": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+        },
+        "data": {
+          "type": "accounts",
+          "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+        }
+      },
+      "environment": {
+        "links": {
+          "related": null
+        },
+        "data": null
+      },
+      "product": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/policies/b0bcab98-6693-4c44-ad0d-ee3dbb069aea/product"
+        },
+        "data": {
+          "type": "products",
+          "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+        }
+      },
+      "pool": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/policies/b0bcab98-6693-4c44-ad0d-ee3dbb069aea/pool"
+        }
+      },
+      "licenses": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/policies/b0bcab98-6693-4c44-ad0d-ee3dbb069aea/licenses"
+        }
+      },
+      "entitlements": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/policies/b0bcab98-6693-4c44-ad0d-ee3dbb069aea/entitlements"
+        }
+      }
+    },
+    "links": {
+      "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/policies/b0bcab98-6693-4c44-ad0d-ee3dbb069aea"
+    }
+  }
+}

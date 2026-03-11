@@ -490,30 +490,30 @@ All extension tasks batched together:
   **Phase 1: Keygen Dashboard + SSM (Manual — SWR)**
   > Atomic cutover. All Phase 1 steps happen together before the code deploy.
 
-  - [ ] 15A.1 Rename existing policies in Keygen dashboard
+  - [x] 15A.1 Rename existing policies in Keygen dashboard
     - "Individual" → "Individual Monthly"
     - "Business" → "Business Monthly"
     - _Reference: Memo §2.1_
-  - [ ] 15A.2 Update existing policy durations to 44 days (3,801,600 seconds)
+  - [x] 15A.2 Update existing policy durations to 44 days (3,801,600 seconds)
     - Individual Monthly: `duration` = `3801600`
     - Business Monthly: `duration` = `3801600`
     - _Reference: Memo §2.1_
-  - [ ] 15A.3 Set `transferStrategy` = `RESET_EXPIRY` on both existing (renamed) policies
+  - [x] 15A.3 Set `transferStrategy` = `RESET_EXPIRY` on both existing (renamed) policies
     - Also set `renewalBasis` = `FROM_EXPIRY` (should already be default)
     - _Reference: Memo §2.1_
-  - [ ] 15A.4 Create 2 new annual policies in Keygen dashboard
+  - [x] 15A.4 Create 2 new annual policies in Keygen dashboard
     - **Individual Annual:** `duration` = `32745600` (379 days), `transferStrategy` = `RESET_EXPIRY`, `renewalBasis` = `FROM_EXPIRY`, clone other settings from Individual Monthly
     - **Business Annual:** `duration` = `32745600` (379 days), `transferStrategy` = `RESET_EXPIRY`, `renewalBasis` = `FROM_EXPIRY`, clone other settings from Business Monthly
     - _Reference: Memo §2.2_
-  - [ ] 15A.5 Record all 4 policy UUIDs
+  - [x] 15A.5 Record all 4 policy UUIDs
     - Individual Monthly UUID, Individual Annual UUID, Business Monthly UUID, Business Annual UUID
     - _Reference: Memo §2.3_
-  - [ ] 15A.6 Transfer SWR's Business Annual license to new "Business Annual" policy
+  - [x] 15A.6 Transfer SWR's Business Annual license to new "Business Annual" policy
     - In Keygen dashboard: Licenses → select SWR's license → Change Policy → "Business Annual"
     - Verify license key is unchanged after transfer
     - Verify machine activations are preserved
     - _Reference: Memo §5 Phase 1 Step 6_
-  - [ ] 15A.7 Update SSM Parameter Store — add 4 new params, delete 2 old
+  - [x] 15A.7 Update SSM Parameter Store — add 4 new params, delete 2 old
     - Use `./scripts/update-amplify-env.sh` to add:
       - `KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY=<uuid>`
       - `KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL=<uuid>`
@@ -522,7 +522,7 @@ All extension tasks batched together:
     - Delete old: `KEYGEN_POLICY_ID_INDIVIDUAL`, `KEYGEN_POLICY_ID_BUSINESS`
     - ⚠️ NEVER use raw AWS CLI — always use existing scripts (see copilot-instructions.md)
     - _Reference: Memo §2.4_
-  - [ ] 15A.8 Update `.env.local` with 4 new env vars; remove 2 old ones
+  - [x] 15A.8 Update `.env.local` with 4 new env vars; remove 2 old ones
     - Add `KEYGEN_POLICY_ID_INDIVIDUAL_MONTHLY`, `KEYGEN_POLICY_ID_INDIVIDUAL_ANNUAL`, `KEYGEN_POLICY_ID_BUSINESS_MONTHLY`, `KEYGEN_POLICY_ID_BUSINESS_ANNUAL`
     - Remove `KEYGEN_POLICY_ID_INDIVIDUAL`, `KEYGEN_POLICY_ID_BUSINESS`
     - _Reference: Memo §2.5_

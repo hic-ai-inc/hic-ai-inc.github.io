@@ -1,0 +1,1584 @@
+{
+  "data": [
+    {
+      "id": "69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for proizoipalluja-7807@yopmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiNjliY2QzODQtZjBmMy00NGZiLWI1ZjAtNDQ4NWRjNGU2ZDZiIiwiY3JlYXRlZCI6IjIwMjYtMDMtMDFUMTc6NTg6NTguMTI4WiIsImV4cGlyeSI6IjIwMjYtMDMtMzFUMTc6NTg6NTguMTMzWiJ9fQ==.QHcbl8y31jR4XnGzuUw0KoYrYU8e9Yor4rendvX4jBgZ6ymlHlUkjHdOp1fr3vasvVTCGp01S0k29RyAkyekAA==",
+        "expiry": "2026-03-31T17:58:58.133Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "proizoipalluja-7807@yopmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U4N0QTp6YBgZ3s",
+          "stripeSubscriptionId": "sub_1T6EGXA4W8nJ0u4TwU9s8b9H"
+        },
+        "created": "2026-03-01T17:58:58.128Z",
+        "updated": "2026-03-01T17:58:58.128Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/69bcd384-f0f3-44fb-b5f0-4485dc4e6d6b"
+      }
+    },
+    {
+      "id": "44225b86-911d-4203-a49f-36a94bf345d7",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for moheuffanijau-9728@yopmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiNDQyMjViODYtOTExZC00MjAzLWE0OWYtMzZhOTRiZjM0NWQ3IiwiY3JlYXRlZCI6IjIwMjYtMDMtMDFUMTU6MzM6MjkuMjAwWiIsImV4cGlyeSI6IjIwMjYtMDMtMzFUMTU6MzM6MjkuMjA2WiJ9fQ==.xJbggABFM-RH2-_afLsBdOJ_nTS571fVeEhhmz2fPtKsy3izYL_KGYoWF_YMebmWzzdgMYdr42qHD9oSpIf7DA==",
+        "expiry": "2026-03-31T15:33:29.206Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "moheuffanijau-9728@yopmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U4Kf8e0hYbBeaQ",
+          "stripeSubscriptionId": "sub_1T6BzkA4W8nJ0u4TDOi3K9PJ"
+        },
+        "created": "2026-03-01T15:33:29.200Z",
+        "updated": "2026-03-01T15:33:29.200Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/44225b86-911d-4203-a49f-36a94bf345d7"
+      }
+    },
+    {
+      "id": "7b0b91bc-270f-4b3d-b26a-8123efc604af",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for patautrequouzei-4594@yopmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiN2IwYjkxYmMtMjcwZi00YjNkLWIyNmEtODEyM2VmYzYwNGFmIiwiY3JlYXRlZCI6IjIwMjYtMDMtMDFUMTQ6Mjg6MjkuMTQxWiIsImV4cGlyeSI6IjIwMjYtMDMtMzFUMTQ6Mjg6MjkuMTQ0WiJ9fQ==.Sf-exJK_BzXEymsxWvS1nqAz0ZGDLp23yVbGlIe4IweTLRp0_esSJFOK8dacX4tcBOyfMUXWQd1fxknhO_xrCg==",
+        "expiry": "2026-03-31T14:28:29.144Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "patautrequouzei-4594@yopmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U4JcygcYkJGV6G",
+          "stripeSubscriptionId": "sub_1T6AypA4W8nJ0u4TbaEZ0jDg"
+        },
+        "created": "2026-03-01T14:28:29.141Z",
+        "updated": "2026-03-01T14:28:29.141Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/7b0b91bc-270f-4b3d-b26a-8123efc604af"
+      }
+    },
+    {
+      "id": "39648d9a-9ba2-446f-9812-52af3dbf9b74",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for heiloifrakeiju-2650@yopmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiMzk2NDhkOWEtOWJhMi00NDZmLTk4MTItNTJhZjNkYmY5Yjc0IiwiY3JlYXRlZCI6IjIwMjYtMDMtMDFUMTI6NDY6NDguNjk2WiIsImV4cGlyeSI6IjIwMjYtMDMtMzFUMTI6NDY6NDguNjk5WiJ9fQ==.M7YqwObdfXCukZCHOo2aToF72pgABiqUK7RuFB2d_8aWppvTQWzTgh3Y9zm_ugg_n1DGl9H0xvW50IUGsJFYCQ==",
+        "expiry": "2026-03-31T12:46:48.699Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "heiloifrakeiju-2650@yopmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U4HyHu33Khn8jI",
+          "stripeSubscriptionId": "sub_1T69ORA4W8nJ0u4TyKXoplbx"
+        },
+        "created": "2026-03-01T12:46:48.696Z",
+        "updated": "2026-03-01T12:46:48.696Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/39648d9a-9ba2-446f-9812-52af3dbf9b74"
+      }
+    },
+    {
+      "id": "e63d8e6a-cea9-48ca-932f-f417f5c6d31b",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for piddessejeizou-2641@yopmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiZTYzZDhlNmEtY2VhOS00OGNhLTkzMmYtZjQxN2Y1YzZkMzFiIiwiY3JlYXRlZCI6IjIwMjYtMDItMjdUMTk6Mzk6NTEuOTAzWiIsImV4cGlyeSI6IjIwMjYtMDMtMjlUMTk6Mzk6NTEuOTA3WiJ9fQ==.19wbWVdh6N6D3Zor6rAlr9B0c7Z1V5AvYfu9uzNQtIbTZvqxTTYJTovqrVt-1h95Q4vEY5xitJM88EB0XVTtBg==",
+        "expiry": "2026-03-29T19:39:51.907Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "piddessejeizou-2641@yopmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U3eBfsMwk1qoEs",
+          "stripeSubscriptionId": "sub_1T5Wt4A4W8nJ0u4TF4CPUtPf"
+        },
+        "created": "2026-02-27T19:39:51.903Z",
+        "updated": "2026-02-27T19:39:51.903Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/e63d8e6a-cea9-48ca-932f-f417f5c6d31b"
+      }
+    },
+    {
+      "id": "4d2087af-ae08-439e-bef4-c6010ba7ab77",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for beuzifriffeuto-8666@yopmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiNGQyMDg3YWYtYWUwOC00MzllLWJlZjQtYzYwMTBiYTdhYjc3IiwiY3JlYXRlZCI6IjIwMjYtMDItMjdUMTk6MDk6MDguMzE0WiIsImV4cGlyeSI6IjIwMjYtMDMtMjlUMTk6MDk6MDguMzE4WiJ9fQ==.RZ0eDwBYsRIovYsQJl0ratLy_GXv0PpoWr6cJ6OhwD8QDqAakjWAd7bq_Dvp6vq_fzPJfzWpgLon-PDTH2ReCw==",
+        "expiry": "2026-03-29T19:09:08.318Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "beuzifriffeuto-8666@yopmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U3dgWXcTPvhDSP",
+          "stripeSubscriptionId": "sub_1T5WPKA4W8nJ0u4Tk3KSo3IH"
+        },
+        "created": "2026-02-27T19:09:08.314Z",
+        "updated": "2026-02-27T19:09:08.314Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/4d2087af-ae08-439e-bef4-c6010ba7ab77"
+      }
+    },
+    {
+      "id": "68f18f12-719d-40fb-969e-b88be6547d78",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for priyutritanou-8532@yopmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiNjhmMThmMTItNzE5ZC00MGZiLTk2OWUtYjg4YmU2NTQ3ZDc4IiwiY3JlYXRlZCI6IjIwMjYtMDItMjdUMTc6NTE6NTYuMTgwWiIsImV4cGlyeSI6IjIwMjYtMDMtMjlUMTc6NTE6NTYuMTg0WiJ9fQ==.6HVPeezY5kBMDrWXWZM1y6Txu0eNYvpJ7MGmyeP9Y--x3NBcXaOnvil7_RsBgko8WSwgJr7M4dJutwVKiAv0CA==",
+        "expiry": "2026-03-29T17:51:56.184Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "priyutritanou-8532@yopmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U3cRkWDxYA2VM7",
+          "stripeSubscriptionId": "sub_1T5VCXA4W8nJ0u4TClT8rHzZ"
+        },
+        "created": "2026-02-27T17:51:56.180Z",
+        "updated": "2026-02-27T17:51:56.180Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/68f18f12-719d-40fb-969e-b88be6547d78"
+      }
+    },
+    {
+      "id": "b7e4c40b-64cb-4225-be56-a0fd0fdfa362",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for hicaiinc29@gmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiYjdlNGM0MGItNjRjYi00MjI1LWJlNTYtYTBmZDBmZGZhMzYyIiwiY3JlYXRlZCI6IjIwMjYtMDItMjdUMTc6NDc6MTAuMDY2WiIsImV4cGlyeSI6IjIwMjYtMDMtMjlUMTc6NDc6MTAuMDY5WiJ9fQ==.khWt8-Fupbf2u5FNv7SH2-mfoJUpYLq5Y7ekqe4vgjPOmWVf5gh3MqhGoatoacdo1Rorz-lyArvifJJfq4vKDw==",
+        "expiry": "2026-03-29T17:47:10.069Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "hicaiinc29@gmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U3cMG5Wua96Fb0",
+          "stripeSubscriptionId": "sub_1T5V80A4W8nJ0u4Tt8KdCBSL"
+        },
+        "created": "2026-02-27T17:47:10.066Z",
+        "updated": "2026-02-27T17:47:10.066Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/b7e4c40b-64cb-4225-be56-a0fd0fdfa362"
+      }
+    },
+    {
+      "id": "9f2f9ac8-f090-466e-9224-a4e4709b4fb5",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for simon.reiff@gmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiOWYyZjlhYzgtZjA5MC00NjZlLTkyMjQtYTRlNDcwOWI0ZmI1IiwiY3JlYXRlZCI6IjIwMjYtMDItMjdUMTY6NTc6MjQuNjczWiIsImV4cGlyeSI6IjIwMjYtMDMtMjlUMTY6NTc6MjQuNjc2WiJ9fQ==.-4r-lJRhsAqOtjutkKm49oon8-O3j--5LV6Dj6t7cCY6U0yVNa-pT6fERecwuG5C2ONS_npaIsKvjPz0NTyyAw==",
+        "expiry": "2026-03-29T16:57:24.676Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "simon.reiff@gmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U3bYY5Iv5tbAIP",
+          "stripeSubscriptionId": "sub_1T5ULrA4W8nJ0u4TTMRsghV9"
+        },
+        "created": "2026-02-27T16:57:24.673Z",
+        "updated": "2026-02-27T16:57:24.673Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/9f2f9ac8-f090-466e-9224-a4e4709b4fb5"
+      }
+    },
+    {
+      "id": "5814aaf6-3146-47b6-a827-8fa438640585",
+      "type": "licenses",
+      "attributes": {
+        "name": "License for treugraxippetrou-4614@yopmail.com",
+        "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiOTFmMTk0N2UtMDczMC00OGY5LWIxOWEtZWI4MDE2YWUyZjg0IiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiNTgxNGFhZjYtMzE0Ni00N2I2LWE4MjctOGZhNDM4NjQwNTg1IiwiY3JlYXRlZCI6IjIwMjYtMDItMjdUMTU6MjQ6MDguODU1WiIsImV4cGlyeSI6IjIwMjYtMDMtMjlUMTU6MjQ6MDguODU5WiJ9fQ==.abkrOj-hry4wSbUaSq7PScw5lqM3PMZvJPxZz73tUlqxn4X-DZj2pnUDrb_aRK-OsAwF6HJ4sAhOtHx4pxV9Dg==",
+        "expiry": "2026-03-29T15:24:08.859Z",
+        "status": "ACTIVE",
+        "uses": 0,
+        "suspended": false,
+        "scheme": "ED25519_SIGN",
+        "encrypted": false,
+        "strict": false,
+        "floating": true,
+        "protected": true,
+        "version": null,
+        "maxMachines": 3,
+        "maxProcesses": null,
+        "maxUsers": null,
+        "maxCores": null,
+        "maxMemory": null,
+        "maxDisk": null,
+        "maxUses": null,
+        "requireHeartbeat": true,
+        "requireCheckIn": false,
+        "lastValidated": null,
+        "lastCheckIn": null,
+        "nextCheckIn": null,
+        "lastCheckOut": null,
+        "permissions": [
+          "component.create",
+          "component.delete",
+          "component.read",
+          "component.update",
+          "engine.read",
+          "package.read",
+          "group.read",
+          "license.check-in",
+          "license.check-out",
+          "license.read",
+          "license.usage.increment",
+          "license.validate",
+          "machine.check-out",
+          "machine.create",
+          "machine.delete",
+          "machine.heartbeat.ping",
+          "machine.proofs.generate",
+          "machine.read",
+          "arch.read",
+          "platform.read",
+          "process.create",
+          "process.delete",
+          "process.heartbeat.ping",
+          "process.read",
+          "process.update",
+          "release.download",
+          "release.read",
+          "release.upgrade",
+          "token.read",
+          "token.regenerate",
+          "token.revoke",
+          "machine.update",
+          "artifact.read",
+          "channel.read",
+          "constraint.read",
+          "entitlement.read",
+          "group.owners.read"
+        ],
+        "metadata": {
+          "plan": "individual",
+          "email": "treugraxippetrou-4614@yopmail.com",
+          "seats": "1",
+          "stripeCustomerId": "cus_U3a3RnucdB0Edy",
+          "stripeSubscriptionId": "sub_1T5StbA4W8nJ0u4TYQ6Zv80q"
+        },
+        "created": "2026-02-27T15:24:08.855Z",
+        "updated": "2026-02-27T15:24:08.855Z"
+      },
+      "relationships": {
+        "account": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          },
+          "data": {
+            "type": "accounts",
+            "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+          }
+        },
+        "environment": {
+          "links": {
+            "related": null
+          },
+          "data": null
+        },
+        "product": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585/product"
+          },
+          "data": {
+            "type": "products",
+            "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+          }
+        },
+        "policy": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585/policy"
+          },
+          "data": {
+            "type": "policies",
+            "id": "91f1947e-0730-48f9-b19a-eb8016ae2f84"
+          }
+        },
+        "group": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585/group"
+          },
+          "data": null
+        },
+        "owner": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585/owner"
+          },
+          "data": null
+        },
+        "users": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585/users"
+          },
+          "meta": {
+            "count": 0
+          }
+        },
+        "machines": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585/machines"
+          },
+          "meta": {
+            "cores": 0,
+            "memory": 0,
+            "disk": 0,
+            "count": 0
+          }
+        },
+        "tokens": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585/tokens"
+          }
+        },
+        "entitlements": {
+          "links": {
+            "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585/entitlements"
+          }
+        }
+      },
+      "links": {
+        "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/5814aaf6-3146-47b6-a827-8fa438640585"
+      }
+    }
+  ]
+}

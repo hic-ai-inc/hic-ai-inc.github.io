@@ -1,0 +1,160 @@
+{
+  "data": {
+    "id": "fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd",
+    "type": "licenses",
+    "attributes": {
+      "name": "License for sreiff@hic-ai.com",
+      "key": "key/eyJhY2NvdW50Ijp7ImlkIjoiODY4ZmNjZDMtNjc2ZC00YjlkLTkwYWItYzg2YWU1NDQxOWY2In0sInByb2R1Y3QiOnsiaWQiOiI0YWJmMWYzNS1mYzU0LTQ1YWItODQ5OS0xMDAxMjA3M2FjMmQifSwicG9saWN5Ijp7ImlkIjoiYjBiY2FiOTgtNjY5My00YzQ0LWFkMGQtZWUzZGJiMDY5YWVhIiwiZHVyYXRpb24iOjI1OTIwMDB9LCJ1c2VyIjpudWxsLCJsaWNlbnNlIjp7ImlkIjoiZmFiNTRhYWMtZWE5NC00ZDU1LWEyYmUtM2U3YzFmZmUyY2JkIiwiY3JlYXRlZCI6IjIwMjYtMDItMDJUMjM6MzQ6NTUuNDI1WiIsImV4cGlyeSI6IjIwMjYtMDMtMDRUMjM6MzQ6NTUuNDM1WiJ9fQ==.wFBik1KWungLHR--npv4b5GalvwAsF1ZlTe8LGQeZqfNwjKJSbCuxyBFTvZsS4a_Ys_tU6ah2JVNMdAIskWpDw==",
+      "expiry": "2026-05-03T23:34:55.435Z",
+      "status": "ACTIVE",
+      "uses": 0,
+      "suspended": false,
+      "scheme": "ED25519_SIGN",
+      "encrypted": false,
+      "strict": false,
+      "floating": true,
+      "protected": true,
+      "version": null,
+      "maxMachines": 5,
+      "maxProcesses": null,
+      "maxUsers": null,
+      "maxCores": null,
+      "maxMemory": null,
+      "maxDisk": null,
+      "maxUses": null,
+      "requireHeartbeat": true,
+      "requireCheckIn": false,
+      "lastValidated": "2026-03-06T23:39:20.672Z",
+      "lastCheckIn": null,
+      "nextCheckIn": null,
+      "lastCheckOut": null,
+      "permissions": [
+        "arch.read",
+        "artifact.read",
+        "channel.read",
+        "component.create",
+        "component.delete",
+        "component.read",
+        "component.update",
+        "constraint.read",
+        "engine.read",
+        "entitlement.read",
+        "group.owners.read",
+        "group.read",
+        "license.check-in",
+        "license.check-out",
+        "license.read",
+        "license.usage.increment",
+        "license.validate",
+        "machine.check-out",
+        "machine.create",
+        "machine.delete",
+        "machine.heartbeat.ping",
+        "machine.proofs.generate",
+        "machine.read",
+        "machine.update",
+        "package.read",
+        "platform.read",
+        "process.create",
+        "process.delete",
+        "process.heartbeat.ping",
+        "process.read",
+        "process.update",
+        "release.download",
+        "release.read",
+        "release.upgrade",
+        "token.read",
+        "token.regenerate",
+        "token.revoke"
+      ],
+      "metadata": {
+        "plan": "business",
+        "email": "sreiff@hic-ai.com",
+        "seats": "3",
+        "stripeCustomerId": "cus_TuLKmYGoqenkv9",
+        "stripeSubscriptionId": "sub_1SwWdkA4W8nJ0u4ToVfu2nAa"
+      },
+      "created": "2026-02-02T23:34:55.425Z",
+      "updated": "2026-03-06T23:39:20.708Z"
+    },
+    "relationships": {
+      "account": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6"
+        },
+        "data": {
+          "type": "accounts",
+          "id": "868fccd3-676d-4b9d-90ab-c86ae54419f6"
+        }
+      },
+      "environment": {
+        "links": {
+          "related": null
+        },
+        "data": null
+      },
+      "product": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd/product"
+        },
+        "data": {
+          "type": "products",
+          "id": "4abf1f35-fc54-45ab-8499-10012073ac2d"
+        }
+      },
+      "policy": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd/policy"
+        },
+        "data": {
+          "type": "policies",
+          "id": "b0bcab98-6693-4c44-ad0d-ee3dbb069aea"
+        }
+      },
+      "group": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd/group"
+        },
+        "data": null
+      },
+      "owner": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd/owner"
+        },
+        "data": null
+      },
+      "users": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd/users"
+        },
+        "meta": {
+          "count": 0
+        }
+      },
+      "machines": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd/machines"
+        },
+        "meta": {
+          "cores": 0,
+          "memory": 0,
+          "disk": 0,
+          "count": 0
+        }
+      },
+      "tokens": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd/tokens"
+        }
+      },
+      "entitlements": {
+        "links": {
+          "related": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd/entitlements"
+        }
+      }
+    },
+    "links": {
+      "self": "/v1/accounts/868fccd3-676d-4b9d-90ab-c86ae54419f6/licenses/fab54aac-ea94-4d55-a2be-3e7c1ffe2cbd"
+    }
+  }
+}

@@ -4,6 +4,7 @@ node_modules/
 # Environment variables (never commit secrets)
 .env*
 !.env.example
+scripts/keygen-migration/snapshots/env-local-backup-*
 
 # Build output (for local dev - dist is tracked for GitHub Pages)
 # dist/
