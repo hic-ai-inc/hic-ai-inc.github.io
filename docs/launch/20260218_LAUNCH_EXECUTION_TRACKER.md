@@ -191,16 +191,25 @@ _Depends on 2B (legal pages finalized — don't proofread what will change)._
 - [x] **2.2** OG image — create and wire up Open Graph image ✅ (Mar 5) — Created `src/app/opengraph-image.js` (edge runtime, ImageResponse); 1200×630, branded dark theme with MOUSE wordmark, tagline, and stats (56%/58%/3.6×).
 - [x] **2.3** 404 page — implement branded not-found page ✅ (Mar 5) — Created `src/app/not-found.js` (Next.js App Router convention); dark theme, 404 display, links to Home / Docs / Contact Support.
 
-**Group BN: Business Name Implementation** _(inserted Mar 11 — structural UX changes before cosmetic polish; spec: `docs/plg/20260307_BUSINESS_NAME_IMPLEMENTATION_RECOMMENDATIONS.md`)_
+**Group BN: Business Name Implementation** _(inserted Mar 11, revised Mar 12; spec: `docs/plg/20260312_BUSINESS_NAME_IMPLEMENTATION_PLAN.md`)_
 
-- [ ] **BN-1** Add `organizationName` input to Business checkout page — required field, labeled "Business Name", submitted as `organizationName` in POST body. File: `src/app/checkout/business/page.js`
-- [ ] **BN-2** Accept and validate `organizationName` in checkout API — required for Business, trimmed, max 100–120 chars, written into Stripe Checkout metadata. Also fix adjacent `plan` vs `planType` metadata mismatch. File: `src/app/api/checkout/route.js`
-- [ ] **BN-3** Use Stripe metadata to persist real business name — read `organizationName` from Stripe event metadata; pass to `upsertOrganization({ name: organizationName })`; if null/empty, default to owner's name (e.g., `"Simon's Organization"` from Stripe customer name); remove `email.split("@")[0]` pattern entirely. **No email-derived fallback.** File: `src/app/api/webhooks/stripe/route.js`
-- [ ] **BN-4** Extend `/api/portal/settings` — GET returns organization context for Business users; PATCH allows owner-only `organizationName` updates via `updateOrganization()`. File: `src/app/api/portal/settings/route.js`
-- [ ] **BN-5** Add owner-only Organization section to `/portal/settings` page — display current Business Name, allow editing. File: `src/app/portal/settings/page.js`
-- [ ] **BN-6** Return organization name from `/api/portal/status` — add `name` to `orgMembership` or sibling `organization` object. File: `src/app/api/portal/status/route.js`
-- [ ] **BN-7** Echo Business Name in portal UX surfaces — sidebar (`PortalSidebar.js`), team page heading, billing page plan card. Lower priority: dashboard welcome copy, license page.
-- [ ] **BN-8** Write tests for Business Name end-to-end flow — checkout validation, webhook org creation, settings GET/PATCH, status response, portal rendering.
+_Business Name is a post-purchase identity assertion managed entirely in the Admin Portal. No Stripe integration. Two phases: backend (BN-1 through BN-4) then frontend (BN-5 through BN-8), each with a test gate._
+
+**Phase 1 — Backend:**
+
+- [ ] **BN-1** DynamoDB: add `getOrganizationByName()` for uniqueness enforcement; update `upsertOrganization()` and `updateOrganization()` to support chosen uniqueness mechanism. File: `src/lib/dynamodb.js`
+- [ ] **BN-2** Extend `/api/portal/settings` — GET returns organization context (name, role, `canEdit`) for all Business users (Owner, Admin, Member); PATCH allows owner-only `organizationName` updates with validation (≤120 chars, trimmed, non-empty), uniqueness enforcement (409), and owner authorization (403). File: `src/app/api/portal/settings/route.js`
+- [ ] **BN-3** Return organization name from `/api/portal/status` — add `name` to `orgMembership` block. File: `src/app/api/portal/status/route.js`
+- [ ] **BN-4** Webhook placeholder cleanup — replace `email.split("@")[0]` org name derivation with Stripe customer's full name (e.g., `"Simon Reiff's Organization"`). File: `src/app/api/webhooks/stripe/route.js`
+- [ ] **BN-P1-TEST** Run all existing tests; fix regressions; expand coverage for settings GET/PATCH (all roles), status API org name, DynamoDB uniqueness check. All tests 100% passing before proceeding.
+
+**Phase 2 — Frontend:**
+
+- [ ] **BN-5** Add Organization card to `/portal/settings` — visible to all Business users; editable by Owner only (with legal certification dialog on name change); read-only display for Admins/Members. File: `src/app/portal/settings/page.js`
+- [ ] **BN-6** Display org name in portal sidebar for all Business users. File: `src/components/layout/PortalSidebar.js`
+- [ ] **BN-7** Echo org name in team page heading, billing page plan card, and dashboard subtitle for all Business users. Files: `src/app/portal/team/page.js`, `src/app/portal/billing/page.js`, `src/app/portal/page.js`
+- [ ] **BN-8** Run all existing tests; fix regressions; expand coverage for Organization card (all roles, edit controls owner-only, certification dialog, 409 handling), sidebar/team/billing/dashboard org name display. All tests 100% passing before proceeding.
+- [ ] **BN-ToS** _(SWR attorney item)_ Update Terms of Service: Business customers represent authorization to act on behalf of and bind the named entity; HIC AI, INC. reserves the right to request additional proof.
 
 - [ ] **2.4** Footer links — audit and fix all footer links
 - [ ] **2.5** Accessibility basics — audit and address critical a11y issues
