@@ -262,7 +262,8 @@ Recommended change:
 
 - Read `organizationName` from the Stripe event metadata.
 - Pass it to `upsertOrganization({ name: organizationName, ... })`.
-- Keep the current email-derived name only as a fallback if metadata is missing.
+- If `organizationName` is null, undefined, or an empty string after trimming, default to the owner's name (e.g., `"Simon's Organization"` derived from Stripe customer name or Cognito given name) — do NOT fall back to the email-local-part convention.
+- Remove the current `${customer_email.split("@")[0]}'s Organization` pattern entirely.
 
 This is the single most important persistence fix.
 
@@ -671,3 +672,10 @@ The following files would be affected by the recommended minimal implementation.
 
 No new files are strictly required for the minimal implementation described in this memo.
 
+
+## Changelog
+
+| Date       | Author | Changes                                                                                                                          |
+| ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-03-07 | GC     | Initial creation — comprehensive analysis of Business Name gap, 8-step minimal implementation, affected files inventory.         |
+| 2026-03-11 | GC     | **Step 3 revised per SWR direction:** Removed email-derived fallback (`email.split("@")[0]`). When `organizationName` is null or empty, default to owner's name instead. No fallback to email convention — eliminate that pattern entirely. |
