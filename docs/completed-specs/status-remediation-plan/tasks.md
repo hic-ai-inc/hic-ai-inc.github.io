@@ -482,7 +482,7 @@ All extension tasks batched together:
   - [x] P3.5.2 Run update-lambdas.sh staging
   - [x] P3.5.3 Push to development (triggers Amplify staging deploy)
 
-- [ ] 15A. Implement 4-Policy Keygen Approach
+- [x] 15A. Implement 4-Policy Keygen Approach
   > **Reference:** `docs/plg/20260310_PROPOSED_IMPLEMENTATION_OF_4_POLICY_KEYGEN_APPROACH.md`
   > Splits 2 Keygen policies (Individual, Business) into 4 (Individual Monthly, Individual Annual, Business Monthly, Business Annual) with billing-cycle-aware durations and grace periods. Clean cutover — no fallback, no legacy aliases.
   > _Requirements: 12.3, 12.4_
@@ -529,97 +529,97 @@ All extension tasks batched together:
 
   **Phase 2: Code Changes (Agent)**
 
-  - [ ] 15A.9 Update `plg-website/src/lib/secrets.js` — SSM paths and `getKeygenPolicyIds()`
+  - [x] 15A.9 Update `plg-website/src/lib/secrets.js` — SSM paths and `getKeygenPolicyIds()`
     - Replace 2 SSM paths in `SSM_SECRET_PATHS` with 4 new-name paths (line ~54)
     - Update `getKeygenPolicyIds()` (line ~338) to return `{ individualMonthly, individualAnnual, businessMonthly, businessAnnual }`
     - No fallback — fail loudly if any of the 4 policy IDs are missing
     - _Reference: Memo §3.1_
-  - [ ] 15A.10 Update `plg-website/src/lib/keygen.js` — `KEYGEN_POLICIES` constant
+  - [x] 15A.10 Update `plg-website/src/lib/keygen.js` — `KEYGEN_POLICIES` constant
     - Replace 2-key getter object with 4 getters: `individualMonthly`, `individualAnnual`, `businessMonthly`, `businessAnnual`
     - No legacy aliases (`individual`, `business`)
     - _Reference: Memo §3.2.1_
-  - [ ] 15A.11 Update `plg-website/src/lib/keygen.js` — `getPolicyId(planType)`
+  - [x] 15A.11 Update `plg-website/src/lib/keygen.js` — `getPolicyId(planType)`
     - Accept 4-key names only: `"individualMonthly"` | `"individualAnnual"` | `"businessMonthly"` | `"businessAnnual"`
     - No legacy mapping — `"individual"` and `"business"` should throw
     - _Reference: Memo §3.2.2_
-  - [ ] 15A.12 Add `changeLicensePolicy(licenseId, newPolicyId)` to `keygen.js`
+  - [x] 15A.12 Add `changeLicensePolicy(licenseId, newPolicyId)` to `keygen.js`
     - `PUT /licenses/{id}/policy` with JSON:API body `{ data: { type: "policies", id: newPolicyId } }`
     - Preserves license key and machine activations
     - _Reference: Memo §3.2.3_
-  - [ ] 15A.13 Add `resolvePlanType(plan, billingCycle)` helper to `keygen.js`
+  - [x] 15A.13 Add `resolvePlanType(plan, billingCycle)` helper to `keygen.js`
     - `("individual", "monthly")` → `"individualMonthly"`, etc.
     - Default billingCycle to `"monthly"` if undefined
     - _Reference: Memo §3.2.4_
-  - [ ] 15A.14 Update `plg-website/src/app/api/webhooks/stripe/route.js` — `handleCheckoutCompleted()`
+  - [x] 15A.14 Update `plg-website/src/app/api/webhooks/stripe/route.js` — `handleCheckoutCompleted()`
     - Extract `billingCycle` from checkout metadata (already present, currently ignored)
     - Use `resolvePlanType(plan, billingCycle)` instead of raw `"individual"` / `"business"`
     - Update `planName` to include billing cycle (e.g., "Individual Monthly")
     - Store `billingCycle` in Keygen license metadata
     - _Reference: Memo §3.3.1_
-  - [ ] 15A.15 Update `plg-website/src/app/api/webhooks/stripe/route.js` — `handleSubscriptionUpdated()`
+  - [x] 15A.15 Update `plg-website/src/app/api/webhooks/stripe/route.js` — `handleSubscriptionUpdated()`
     - Add billing interval change detection after the seat sync block
     - Detect `plan.interval` change ("month" ↔ "year") and call `changeLicensePolicy()` with resolved policy
     - Compare `currentPolicyId !== newPolicyId` before calling (skip if same)
     - Wrap in try/catch — log warning on failure, non-fatal
     - Add `changeLicensePolicy`, `resolvePlanType`, `getLicense` to imports
     - _Reference: Memo §3.3.2_
-  - [ ] 15A.16 Update `plg-website/src/app/api/provision-license/route.js` — planType resolution
+  - [x] 15A.16 Update `plg-website/src/app/api/provision-license/route.js` — planType resolution
     - Extract `billingCycle` from checkout metadata alongside `planType`
     - Use `resolvePlanType(plan, billingCycle)` for license creation
     - Add `resolvePlanType` to keygen.js import
     - _Reference: Memo §3.5_
-  - [ ] 15A.17 Update `plg-website/src/app/api/checkout/verify/route.js` — planName display
+  - [x] 15A.17 Update `plg-website/src/app/api/checkout/verify/route.js` — planName display
     - Show "Individual Monthly" / "Business Annual" etc. instead of just "Individual" / "Business"
     - Extract `billingCycle` from session metadata for display
     - _Reference: Memo §3.6_
 
   **Phase 3: Tests (Agent)**
 
-  - [ ] 15A.18 Update `keygen.test.js` — `KEYGEN_POLICIES` tests
+  - [x] 15A.18 Update `keygen.test.js` — `KEYGEN_POLICIES` tests
     - Assert 4 properties: `individualMonthly`, `individualAnnual`, `businessMonthly`, `businessAnnual`
     - Assert old keys `individual` and `business` are undefined
     - _Reference: Memo §4.1 item 1_
-  - [ ] 15A.19 Update `keygen.test.js` — `getPolicyId()` tests
+  - [x] 15A.19 Update `keygen.test.js` — `getPolicyId()` tests
     - Test all 4 valid plan types return correct UUIDs
     - Test `"individual"` throws (no legacy mapping)
     - Test `"business"` throws (no legacy mapping)
     - Test `"unknown"` throws
     - _Reference: Memo §4.1 item 2_
-  - [ ] 15A.20 Add `keygen.test.js` — `changeLicensePolicy()` tests
+  - [x] 15A.20 Add `keygen.test.js` — `changeLicensePolicy()` tests
     - Sends `PUT /licenses/{id}/policy` with correct JSON:API body
     - Returns updated license object
     - Handles API errors gracefully
     - _Reference: Memo §4.1 item 4_
-  - [ ] 15A.21 Add `keygen.test.js` — `resolvePlanType()` tests
+  - [x] 15A.21 Add `keygen.test.js` — `resolvePlanType()` tests
     - 6 test cases: all 4 valid combos, undefined billingCycle defaults to Monthly, unknown plan passthrough
     - _Reference: Memo §4.1 item 5_
-  - [ ] 15A.22 Add `stripe.test.js` — `handleCheckoutCompleted()` billing cycle tests
+  - [x] 15A.22 Add `stripe.test.js` — `handleCheckoutCompleted()` billing cycle tests
     - Individual/Business × Monthly/Annual → correct policy used (4 tests)
     - Missing `billingCycle` metadata → defaults to monthly
     - `billingCycle` stored in Keygen license metadata
     - _Reference: Memo §4.2 items 1-2_
-  - [ ] 15A.23 Add `stripe.test.js` — `handleSubscriptionUpdated()` interval change tests
+  - [x] 15A.23 Add `stripe.test.js` — `handleSubscriptionUpdated()` interval change tests
     - Monthly → annual: calls `changeLicensePolicy()` with annual policy
     - Annual → monthly: calls `changeLicensePolicy()` with monthly policy
     - Same interval: does NOT call `changeLicensePolicy()`
     - No `keygenLicenseId`: skips policy change
     - `changeLicensePolicy()` fails: logs warning, doesn't throw
     - _Reference: Memo §4.2 item 3_
-  - [ ] 15A.24 Add/update `secrets.test.js` — `getKeygenPolicyIds()` tests
+  - [x] 15A.24 Add/update `secrets.test.js` — `getKeygenPolicyIds()` tests
     - All 4 env vars set → returns 4-key object
     - Any of the 4 missing → throws (fail loudly, no fallback)
     - _Reference: Memo §4.3_
-  - [ ] 15A.25 Add property tests — plan type resolution determinism
+  - [x] 15A.25 Add property tests — plan type resolution determinism
     - For any `(plan, billingCycle)`, `resolvePlanType()` always returns the same value
     - Every valid `(plan, billingCycle)` pair maps to a non-null policy ID
     - _Reference: Memo §4.4_
-  - [ ] 15A.26 Add e2e tests — billing interval change scenarios
+  - [x] 15A.26 Add e2e tests — billing interval change scenarios
     - Monthly checkout → annual upgrade → verify policy change, key unchanged
     - Annual checkout → monthly downgrade → verify policy change
     - Policy change failure → handler completes, warning logged
     - File: `__tests__/e2e/journeys/j8-subscription-lifecycle.test.js`
     - _Reference: Memo §4.5_
-  - [ ] 15A.27 Regression — verify no old 2-key policy references remain
+  - [x] 15A.27 Regression — verify no old 2-key policy references remain
     - Grep production code for `individual`/`business` as bare policy names
     - `getPolicyId("individual")` correctly throws
     - Run full test suite — verify 100% pass rate
@@ -627,24 +627,24 @@ All extension tasks batched together:
 
   **Phase 4: Deploy to Staging**
 
-  - [ ] 15A.28 Push to `development`, verify CI passes
-  - [ ] 15A.29 Deploy to staging via `update-lambdas.sh staging`
-  - [ ] 15A.30 Manual test: create Individual Monthly subscription, verify 44-day license duration
-  - [ ] 15A.31 Manual test: create Individual Annual subscription, verify 379-day license duration
-  - [ ] 15A.32 Verify SWR's existing Business Annual license validates correctly
+  - [x] 15A.28 Push to `development`, verify CI passes
+  - [x] 15A.29 Deploy to staging via `update-lambdas.sh staging`
+  - [x] 15A.30 Manual test: create Individual Monthly subscription, verify 44-day license duration
+  - [x] 15A.31 Manual test: create Individual Annual subscription, verify 379-day license duration
+  - [x] 15A.32 Verify SWR's existing Business Annual license validates correctly
 
-- [ ] 16. Production configuration (manual)
-  - [ ] 16.1 Configure Stripe dashboard
+- [x] 16. Production configuration (manual)
+  - [x] 16.1 Configure Stripe dashboard
     - Enable Smart Retries with maximum 8 retries over 2-week maximum duration
     - Set subscription cancellation after all retries fail
     - _Requirements: 12.1, 12.2_
-  - [ ] 16.2 Configure Keygen dashboard → **Subsumed by Task 15A (Phases 1 + 4)**
+  - [x] 16.2 Configure Keygen dashboard → **Subsumed by Task 15A (Phases 1 + 4)**
     - ~~Set Monthly policy duration to 44 days (3,801,600 seconds)~~
     - ~~Set Annual policy duration to 379 days (32,745,600 seconds)~~
     - All Keygen dashboard + SSM + code + deploy steps are now in Task 15A
     - _Requirements: 12.3, 12.4_
 
-- [ ] 17. Final checkpoint — Full remediation complete
+- [x] 17. Final checkpoint — Full remediation complete
   - Ensure all tests pass, ask the user if questions arise.
   - Run the full test suite one final time to verify all 9 fixes are integrated and no regressions exist
   - Verify test coverage meets >80% threshold
