@@ -158,7 +158,11 @@ function randomPick(arr) {
 
 function randomOrgName() {
   const coreLen = randomInt(1, 100);
-  return randomString(coreLen);
+  let name;
+  do {
+    name = randomString(coreLen).trim();
+  } while (!name);
+  return name;
 }
 
 function randomOrgId() {
@@ -182,7 +186,13 @@ function randomInvalidOrgName() {
   switch (type) {
     case "empty": return "";
     case "whitespace": return " ".repeat(randomInt(1, 10));
-    case "too_long": return randomString(121 + randomInt(0, 50));
+    case "too_long": {
+      const nonSpaceChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.&";
+      const len = 121 + randomInt(0, 50);
+      let s = "";
+      for (let i = 0; i < len; i++) s += nonSpaceChars[Math.floor(Math.random() * nonSpaceChars.length)];
+      return s;
+    }
     case "non_string": return randomPick([123, null, undefined, true, {}, []]);
   }
 }
