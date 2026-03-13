@@ -181,13 +181,28 @@ export async function GET(request) {
 
     // Add org context for Business tier members
     if (orgMembership) {
+      const org = await getOrganization(orgMembership.orgId);
       response.orgMembership = {
         orgId: orgMembership.orgId,
         role: orgMembership.role,
         joinedAt: orgMembership.joinedAt,
+        name: org?.name || null,
       };
       // Members don't control billing - they share the org's subscription
       response.isOrgMember = true;
+    } else if (accountType === "business") {
+      // Owner path: owner has their own subscription so orgMembership was not loaded above.
+      // Look up membership and org to include name in response.
+      const ownerMembership = await getUserOrgMembership(user.userId);
+      if (ownerMembership) {
+        const org = await getOrganization(ownerMembership.orgId);
+        response.orgMembership = {
+          orgId: ownerMembership.orgId,
+          role: ownerMembership.role,
+          joinedAt: ownerMembership.joinedAt,
+          name: org?.name || null,
+        };
+      }
     }
 
     log.response(200, "Portal status fetched", {

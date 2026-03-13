@@ -126,6 +126,9 @@ export default function PortalSidebar() {
               {user?.name || "User"}
             </p>
             <p className="text-xs text-slate-grey truncate">{user?.email}</p>
+            {accountData?.orgMembership?.name && (
+              <p className="text-xs text-slate-grey truncate">{accountData.orgMembership.name}</p>
+            )}
           </div>
         </div>
         <button

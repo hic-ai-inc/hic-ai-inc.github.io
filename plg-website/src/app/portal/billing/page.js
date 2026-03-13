@@ -209,6 +209,9 @@ export default function BillingPage() {
             <div>
               <h3 className="text-2xl font-bold text-frost-white capitalize">
                 {planName}
+                {billing?.organizationName && (
+                  <span className="text-lg font-normal text-slate-grey ml-2">— {billing.organizationName}</span>
+                )}
               </h3>
               <p className="text-slate-grey">
                 {subscription ? (

@@ -83,6 +83,9 @@ export default function TeamPage() {
 
   return (
     <div className="max-w-5xl">
+      {accountData?.orgMembership?.name && (
+        <h1 className="text-3xl font-bold text-frost-white mb-6">{accountData.orgMembership.name}</h1>
+      )}
       <TeamManagement initialUserId={user.sub} />
     </div>
   );

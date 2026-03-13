@@ -404,7 +404,7 @@ export default function TermsPage() {
               </p>
               <p className="text-silver leading-relaxed mb-4">
                 Upon termination, your license to use the Software ceases
-                immediately. Sections 6, 9, 10, 11, and 14 shall survive
+                immediately. Sections 6, 9, 10, 11, 14, and 15 shall survive
                 termination.
               </p>
               <p className="text-silver leading-relaxed">
@@ -468,6 +468,39 @@ export default function TermsPage() {
               </p>
             </section>
 
+
+            {/* Section 15 */}
+            <section>
+              <h2 className="text-2xl font-semibold text-frost-white mb-4">
+                15. Business Customer Authorization
+              </h2>
+              <p className="text-silver leading-relaxed mb-4">
+                If you purchase or use the Software under a Business license on
+                behalf of a company, organization, or other legal entity:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-silver">
+                <li>
+                  You represent and warrant that you are authorized to act on
+                  behalf of the named entity and to make decisions regarding
+                  the use of the Software on its behalf.
+                </li>
+                <li>
+                  You represent and warrant that you have the authority to bind
+                  the named entity to these Terms of Service and any
+                  obligations arising hereunder.
+                </li>
+                <li>
+                  HIC AI Inc. reserves the right to request additional proof of
+                  entity existence or authorization at any time, and you agree
+                  to provide such documentation promptly upon request.
+                </li>
+                <li>
+                  Providing false or misleading business name information may
+                  result in immediate suspension or termination of your account
+                  and all associated licenses, without refund.
+                </li>
+              </ul>
+            </section>
             {/* Contact */}
             <section>
               <h2 className="text-2xl font-semibold text-frost-white mb-4">

@@ -10,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth-verify";
-import { getCustomerByUserId, upsertCustomer, updateCustomerProfile } from "@/lib/dynamodb";
+import { getCustomerByUserId, upsertCustomer, updateCustomerProfile, getUserOrgMembership, getOrganization, getOrgNameReservation, createOrgNameReservation, deleteOrgNameReservation, updateOrganization } from "@/lib/dynamodb";
 import { createApiLogger } from "@/lib/api-log";
 
 /**
@@ -59,11 +59,26 @@ export async function GET(request) {
       marketingEmails: false,
     };
 
+    // Load organization context for Business users
+    let organization = null;
+    const orgMembership = await getUserOrgMembership(user.sub);
+    if (orgMembership) {
+      const org = await getOrganization(orgMembership.orgId);
+      organization = {
+        id: orgMembership.orgId,
+        name: org?.name || null,
+        role: orgMembership.role,
+        canEdit: orgMembership.role === "owner",
+      };
+    }
+
     log.response(200, "Settings returned", {
       hasCustomer: Boolean(customer),
       accountType: customer?.accountType || "individual",
+      hasOrganization: Boolean(organization),
     });
-    return NextResponse.json({
+
+    const response = {
       profile: {
         // Return individual name fields from DynamoDB (for email signups)
         givenName: customer?.givenName || "",
@@ -76,7 +91,13 @@ export async function GET(request) {
         createdAt: customer?.createdAt || null,
       },
       notifications: customer?.notificationPreferences || defaultNotifications,
-    });
+    };
+
+    if (organization) {
+      response.organization = organization;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     log.exception(error, "portal_settings_get_failed", "Settings GET failed");
     log.response(500, "Settings GET failed", { reason: "unhandled_error" });
@@ -110,7 +131,84 @@ export async function PATCH(request) {
     }
 
     const body = await request.json();
-    const { givenName, middleName, familyName, notifications } = body;
+    const { givenName, middleName, familyName, notifications, organizationName } = body;
+
+    // Handle organization name update if requested
+    if (organizationName !== undefined) {
+      // Validate type
+      if (typeof organizationName !== "string") {
+        log.response(400, "Settings PATCH rejected", { reason: "org_name_not_string" });
+        return NextResponse.json({ error: "Organization name must be a string" }, { status: 400 });
+      }
+
+      const trimmedName = organizationName.trim();
+
+      // Validate non-empty
+      if (!trimmedName) {
+        log.response(400, "Settings PATCH rejected", { reason: "org_name_empty" });
+        return NextResponse.json({ error: "Organization name cannot be empty" }, { status: 400 });
+      }
+
+      // Validate length
+      if (trimmedName.length > 120) {
+        log.response(400, "Settings PATCH rejected", { reason: "org_name_too_long" });
+        return NextResponse.json({ error: "Organization name must be 120 characters or fewer" }, { status: 400 });
+      }
+
+      // Enforce role: must be Business Owner
+      const orgMembership = await getUserOrgMembership(user.sub);
+      if (!orgMembership || orgMembership.role !== "owner") {
+        log.response(403, "Settings PATCH rejected", { reason: "not_org_owner" });
+        return NextResponse.json({ error: "Only the organization owner can update the business name" }, { status: 403 });
+      }
+
+      const org = await getOrganization(orgMembership.orgId);
+      const currentName = org?.name || "";
+      const nameChanged = currentName.trim().toUpperCase() !== trimmedName.toUpperCase();
+
+      if (nameChanged) {
+        // Check uniqueness via reservation record
+        const reservation = await getOrgNameReservation(trimmedName);
+        if (reservation.exists && reservation.orgId !== orgMembership.orgId) {
+          log.response(409, "Settings PATCH rejected", { reason: "org_name_taken" });
+          return NextResponse.json({ error: "This business name is already registered." }, { status: 409 });
+        }
+
+        // Delete old reservation if org had one
+        if (currentName.trim()) {
+          try {
+            await deleteOrgNameReservation(currentName);
+          } catch (deleteErr) {
+            log.warn("old_reservation_delete_failed", "Failed to delete old org name reservation", {
+              errorMessage: deleteErr?.message,
+            });
+          }
+        }
+
+        // Create new reservation
+        await createOrgNameReservation(trimmedName, orgMembership.orgId);
+      }
+
+      // Update org record with the trimmed name (preserves user's casing)
+      await updateOrganization({ orgId: orgMembership.orgId, name: trimmedName });
+
+      log.info("org_name_updated", "Organization name updated", {
+        orgId: orgMembership.orgId,
+        nameChanged,
+      });
+
+      // Return updated organization block
+      return NextResponse.json({
+        success: true,
+        updated: ["organizationName"],
+        organization: {
+          id: orgMembership.orgId,
+          name: trimmedName,
+          role: orgMembership.role,
+          canEdit: true,
+        },
+      });
+    }
 
     // Get existing customer or create one if doesn't exist
     let customer = await getCustomerByUserId(user.sub);

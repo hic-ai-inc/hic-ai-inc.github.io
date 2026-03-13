@@ -281,7 +281,9 @@ function ActiveUserDashboard({
           Welcome back{displayName ? `, ${displayName}` : ""}!
         </h1>
         <p className="text-slate-grey mt-1">
-          Manage your Mouse license and account settings
+          {portalStatus?.orgMembership?.name
+            ? `Managing ${portalStatus.orgMembership.name}`
+            : "Manage your Mouse license and account settings"}
         </p>
       </div>
 

@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/auth-verify";
 import { getStripeClient } from "@/lib/stripe";
-import { getCustomerByEmail, getCustomerByUserId, getUserOrgMembership } from "@/lib/dynamodb";
+import { getCustomerByEmail, getCustomerByUserId, getUserOrgMembership, getOrganization } from "@/lib/dynamodb";
 import { PRICING } from "@/lib/constants";
 import { createApiLogger } from "@/lib/api-log";
 
@@ -133,6 +133,17 @@ export async function GET(request) {
 
     const planConfig = PRICING[customer.accountType];
 
+    // Look up org name for Business accounts
+    let organizationName = null;
+    if (customer.accountType === "business") {
+      try {
+        const org = await getOrganization(customer.stripeCustomerId);
+        organizationName = org?.name || null;
+      } catch (err) {
+        log.info("org_name_lookup_failed", "Failed to fetch org name for billing", { error: err.message });
+      }
+    }
+
     log.response(200, "Portal billing fetched", {
       hasSubscription: Boolean(subscriptionInfo),
       hasPaymentMethod: Boolean(paymentMethod),
@@ -145,6 +156,7 @@ export async function GET(request) {
       subscription: subscriptionInfo,
       paymentMethod,
       stripeCustomerId: customer.stripeCustomerId,
+      organizationName,
     });
   } catch (error) {
     log.exception(error, "portal_billing_failed", "Portal billing failed");

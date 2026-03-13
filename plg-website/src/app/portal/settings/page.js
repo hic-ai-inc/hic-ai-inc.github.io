@@ -58,6 +58,14 @@ export default function SettingsPage() {
   const [leaveConfirmation, setLeaveConfirmation] = useState("");
   const [leaving, setLeaving] = useState(false);
 
+  // Organization state
+  const [organization, setOrganization] = useState(null);
+  const [editingOrgName, setEditingOrgName] = useState(false);
+  const [orgNameInput, setOrgNameInput] = useState("");
+  const [orgNameError, setOrgNameError] = useState(null);
+  const [showCertModal, setShowCertModal] = useState(false);
+  const [savingOrgName, setSavingOrgName] = useState(false);
+
   // Get user role info for conditional rendering
   const accountType = cognitoUser?.[`${AUTH_NAMESPACE}/account_type`] || "individual";
   const orgRole = cognitoUser?.[`${AUTH_NAMESPACE}/org_role`] || "member";
@@ -93,6 +101,11 @@ export default function SettingsPage() {
               accountType: data.profile?.accountType || cognitoUser?.["https://hic-ai.com/account_type"] || "individual",
             });
             
+            // Load organization context for Business users
+            if (data.organization) {
+              setOrganization(data.organization);
+            }
+
             if (data.notifications) {
               setNotifications({
                 productUpdates: data.notifications.productUpdates ?? true,
@@ -322,6 +335,74 @@ export default function SettingsPage() {
     }
   };
 
+  // Save organization name — shows certification modal if name changed
+  const handleOrgNameSave = () => {
+    const trimmed = orgNameInput.trim();
+    if (!trimmed) {
+      setOrgNameError("Organization name cannot be empty");
+      return;
+    }
+    if (trimmed.length > 120) {
+      setOrgNameError("Organization name must be 120 characters or fewer");
+      return;
+    }
+
+    // If name hasn't changed (case-insensitive), save directly without certification
+    const currentName = (organization?.name || "").trim();
+    if (currentName.toUpperCase() === trimmed.toUpperCase() && currentName === trimmed) {
+      // No change at all — just close edit mode
+      setEditingOrgName(false);
+      return;
+    }
+
+    // Name changed — show certification modal
+    setShowCertModal(true);
+  };
+
+  // Handle certification modal confirm — submit the org name PATCH
+  const handleCertConfirm = async () => {
+    setShowCertModal(false);
+    setSavingOrgName(true);
+    setOrgNameError(null);
+
+    try {
+      const session = await getSession();
+      const response = await fetch("/api/portal/settings", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.idToken && { Authorization: `Bearer ${session.idToken}` }),
+        },
+        body: JSON.stringify({ organizationName: orgNameInput.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          setOrgNameError("This business name is already registered.");
+        } else if (response.status === 403) {
+          setOrgNameError("You don't have permission to edit the organization name.");
+        } else {
+          setOrgNameError(data.error || "Failed to update organization name");
+        }
+        return;
+      }
+
+      // Update local state with the new name
+      if (data.organization) {
+        setOrganization(data.organization);
+      }
+      setEditingOrgName(false);
+      setSuccess("Business name updated successfully");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setOrgNameError(err.message || "Failed to update organization name");
+    } finally {
+      setSavingOrgName(false);
+    }
+  };
+
   // Toggle notification
   const toggleNotification = (key) => {
     setNotifications((prev) => ({
@@ -427,6 +508,114 @@ export default function SettingsPage() {
           </CardFooter>
         </form>
       </Card>
+
+      {/* Organization Section - Business users only */}
+      {organization && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Organization</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-grey mb-1">
+                  Business Name
+                </label>
+                {organization.canEdit && editingOrgName ? (
+                  <div className="flex gap-3">
+                    <Input
+                      value={orgNameInput}
+                      onChange={(e) => {
+                        setOrgNameInput(e.target.value);
+                        setOrgNameError(null);
+                      }}
+                      placeholder="Enter your business name"
+                      maxLength={120}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleOrgNameSave}
+                      disabled={savingOrgName || !orgNameInput.trim()}
+                    >
+                      {savingOrgName ? "Saving..." : "Save"}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setEditingOrgName(false);
+                        setOrgNameInput(organization.name || "");
+                        setOrgNameError(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <p className="text-frost-white">
+                      {organization.name || (
+                        <span className="text-slate-grey italic">Not set — add your business name</span>
+                      )}
+                    </p>
+                    {organization.canEdit && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setOrgNameInput(organization.name || "");
+                          setEditingOrgName(true);
+                          setOrgNameError(null);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {orgNameError && (
+                  <p className="text-sm text-error mt-2">{orgNameError}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-grey mb-1">
+                  Your Role
+                </label>
+                <p className="text-frost-white capitalize">{organization.role}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Certification Modal */}
+      {showCertModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-card-bg border border-card-border rounded-lg p-6 max-w-lg mx-4">
+            <h3 className="text-lg font-semibold text-frost-white mb-4">
+              Business Name Certification
+            </h3>
+            <p className="text-silver leading-relaxed mb-6">
+              By providing this business name, you certify that you are legally
+              authorized to act on behalf of{" "}
+              <strong className="text-frost-white">{orgNameInput.trim()}</strong>{" "}
+              and to bind it to the HIC AI, INC. Terms of Service. You understand
+              that HIC AI, INC. may request additional proof of entity existence
+              or authorization.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowCertModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleCertConfirm}>
+                I Certify
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Preferences */}
       <Card className="mb-6">

@@ -404,7 +404,7 @@ async function handleCheckoutCompleted(session, log) {
 
       await upsertOrganization({
         orgId: customer,
-        name: `${customer_email.split("@")[0]}'s Organization`,
+        name: `${session.customer_details?.name || customer_email.split("@")[0]}'s Organization`,
         seatLimit: seats,
         ownerId,
         ownerEmail: customer_email,

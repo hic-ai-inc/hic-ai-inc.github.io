@@ -447,7 +447,11 @@ This feature requires both unit tests and property-based tests for comprehensive
 
 | Test File | Covers |
 |-----------|--------|
-| `plg-website/src/lib/__tests__/dynamodb-org-name.test.js` | DynamoDB reservation functions (P1, P2) |
-| `plg-website/src/app/api/portal/settings/__tests__/org-name.test.js` | Settings API org name logic (P3, P4, P5, P6, P7, P9) |
-| `plg-website/src/app/api/portal/status/__tests__/org-name.test.js` | Status API org name inclusion (P8) |
-| `plg-website/src/app/portal/settings/__tests__/org-card.test.js` | Organization card + certification modal (P10, UI examples) |
+| `plg-website/__tests__/property/lib/dynamodb-org-name.property.test.js` | DynamoDB reservation functions — property tests (P1, P2) |
+| `plg-website/__tests__/unit/lib/dynamodb-org-name.test.js` | DynamoDB reservation functions — unit tests |
+| `plg-website/__tests__/property/api/settings-org-name.property.test.js` | Settings API org name logic — property tests (P3, P4, P5, P6, P7, P9) |
+| `plg-website/__tests__/unit/api/settings-org-name.test.js` | Settings API org name logic — unit tests |
+| `plg-website/__tests__/property/api/status-org-name.property.test.js` | Status API org name inclusion — property test (P8) |
+| `plg-website/__tests__/unit/api/status-org-name.test.js` | Status API org name inclusion — unit tests |
+| `plg-website/__tests__/property/app/portal/org-card.property.test.js` | Organization card + certification modal — property test (P10) |
+| `plg-website/__tests__/unit/app/portal/org-card.test.js` | Organization card + certification modal — unit tests |

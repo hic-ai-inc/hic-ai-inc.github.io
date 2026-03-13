@@ -1570,6 +1570,115 @@ export async function getOrganizationByStripeCustomer(stripeCustomerId) {
   }
 }
 
+
+/**
+ * Check if an organization name reservation exists.
+ * Uses reservation record pattern: PK = ORGNAME#{UPPERCASE_TRIMMED_NAME}, SK = RESERVATION.
+ * @param {string} name - Organization name to check
+ * @returns {Promise<{exists: boolean, orgId: string|null}>} Whether the name is reserved and by which org
+ */
+export async function getOrgNameReservation(name) {
+  const logger = createLogger("getOrgNameReservation");
+  const normalizedName = name.trim().toUpperCase();
+
+  try {
+    const result = await dynamodb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORGNAME#${normalizedName}`,
+          SK: "RESERVATION",
+        },
+      }),
+    );
+
+    if (result.Item) {
+      return { exists: true, orgId: result.Item.orgId };
+    }
+    return { exists: false, orgId: null };
+  } catch (error) {
+    logger.error("Failed to check org name reservation", {
+      normalizedName,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Create a reservation record for an organization name.
+ * Uses ConditionExpression to prevent overwriting an existing reservation.
+ * @param {string} name - Organization name (original casing preserved in record)
+ * @param {string} orgId - Organization ID claiming this name
+ * @returns {Promise<void>}
+ * @throws {ConditionalCheckFailedException} if name is already reserved
+ */
+export async function createOrgNameReservation(name, orgId) {
+  const logger = createLogger("createOrgNameReservation");
+  const normalizedName = name.trim().toUpperCase();
+
+  try {
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          PK: `ORGNAME#${normalizedName}`,
+          SK: "RESERVATION",
+          orgId,
+          name: name.trim(),
+          createdAt: new Date().toISOString(),
+        },
+        // Prevent overwriting — ensures uniqueness
+        ConditionExpression: "attribute_not_exists(PK)",
+      }),
+    );
+
+    logger.info("Org name reservation created", { normalizedName, orgId });
+  } catch (error) {
+    if (error.name === "ConditionalCheckFailedException") {
+      logger.info("Org name reservation already exists", { normalizedName });
+    } else {
+      logger.error("Failed to create org name reservation", {
+        normalizedName,
+        orgId,
+        error: error.message,
+      });
+    }
+    throw error;
+  }
+}
+
+/**
+ * Delete a reservation record for an organization name.
+ * Called when an org changes its name (old reservation must be released).
+ * @param {string} name - Organization name to release
+ * @returns {Promise<void>}
+ */
+export async function deleteOrgNameReservation(name) {
+  const logger = createLogger("deleteOrgNameReservation");
+  const normalizedName = name.trim().toUpperCase();
+
+  try {
+    await dynamodb.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `ORGNAME#${normalizedName}`,
+          SK: "RESERVATION",
+        },
+      }),
+    );
+
+    logger.info("Org name reservation deleted", { normalizedName });
+  } catch (error) {
+    logger.error("Failed to delete org name reservation", {
+      normalizedName,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
 /**
  * Get a user's organization membership by userId
  * Queries GSI1 to find what org a user belongs to
