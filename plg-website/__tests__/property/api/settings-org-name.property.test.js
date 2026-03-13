@@ -36,9 +36,15 @@ async function processOrgNameUpdate(organizationName, deps) {
           createOrgNameReservation, deleteOrgNameReservation, updateOrganization,
           userId } = deps;
 
-  // Validate type
+  // Validate type (parse guard — must be string before any processing)
   if (typeof organizationName !== "string") {
     return { status: 400, body: { error: "Organization name must be a string" } };
+  }
+
+  // Enforce role: must be Business Owner (authorize before validating input)
+  const orgMembership = await getUserOrgMembership(userId);
+  if (!orgMembership || orgMembership.role !== "owner") {
+    return { status: 403, body: { error: "Only the organization owner can update the business name" } };
   }
 
   const trimmedName = organizationName.trim();
@@ -51,12 +57,6 @@ async function processOrgNameUpdate(organizationName, deps) {
   // Validate length
   if (trimmedName.length > 120) {
     return { status: 400, body: { error: "Organization name must be 120 characters or fewer" } };
-  }
-
-  // Enforce role: must be Business Owner
-  const orgMembership = await getUserOrgMembership(userId);
-  if (!orgMembership || orgMembership.role !== "owner") {
-    return { status: 403, body: { error: "Only the organization owner can update the business name" } };
   }
 
   const org = await getOrganization(orgMembership.orgId);

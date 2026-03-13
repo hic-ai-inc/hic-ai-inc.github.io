@@ -135,10 +135,17 @@ export async function PATCH(request) {
 
     // Handle organization name update if requested
     if (organizationName !== undefined) {
-      // Validate type
+      // Validate type (parse guard — must be string before any processing)
       if (typeof organizationName !== "string") {
         log.response(400, "Settings PATCH rejected", { reason: "org_name_not_string" });
         return NextResponse.json({ error: "Organization name must be a string" }, { status: 400 });
+      }
+
+      // Enforce role: must be Business Owner (authorize before validating input)
+      const orgMembership = await getUserOrgMembership(user.sub);
+      if (!orgMembership || orgMembership.role !== "owner") {
+        log.response(403, "Settings PATCH rejected", { reason: "not_org_owner" });
+        return NextResponse.json({ error: "Only the organization owner can update the business name" }, { status: 403 });
       }
 
       const trimmedName = organizationName.trim();
@@ -153,13 +160,6 @@ export async function PATCH(request) {
       if (trimmedName.length > 120) {
         log.response(400, "Settings PATCH rejected", { reason: "org_name_too_long" });
         return NextResponse.json({ error: "Organization name must be 120 characters or fewer" }, { status: 400 });
-      }
-
-      // Enforce role: must be Business Owner
-      const orgMembership = await getUserOrgMembership(user.sub);
-      if (!orgMembership || orgMembership.role !== "owner") {
-        log.response(403, "Settings PATCH rejected", { reason: "not_org_owner" });
-        return NextResponse.json({ error: "Only the organization owner can update the business name" }, { status: 403 });
       }
 
       const org = await getOrganization(orgMembership.orgId);
