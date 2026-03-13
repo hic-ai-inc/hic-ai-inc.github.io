@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-13
 **Author:** GitHub Copilot (Claude Opus 4.6), with SWR
-**Status:** Proposed — awaiting SWR approval
+**Status:** Implementation complete — pending E2E verification + deploy
 **Branch:** `development` (commit `c986623`)
 
 ---
@@ -94,7 +94,7 @@ Kiro investigated and concluded that "some agent must have deleted the member re
 
 | ID       | Description                                                                             | Location                                                                                  |
 | -------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **UX-1** | Certification modal background too transparent — content behind clashes with modal text | `plg-website/src/app/portal/settings/page.js` line 592 (`bg-black/60` → increase opacity) |
+| **UX-1** | Certification modal background too transparent — content behind clashes with modal text | `plg-website/src/app/portal/settings/page.js` line 592 (`bg-black/60` → `bg-black/90`) |
 | **UX-2** | Dashboard subtitle says "Managing [OrgName]" — remove "Managing" prefix                 | `plg-website/src/app/portal/page.js` lines 285-287                                        |
 
 ### 1.6 Note: Stripe Seat Proration Timing
@@ -209,15 +209,15 @@ The comment and logic at `dynamodb.js` line 1884 (`// Owner may or may not have 
 
 > **Prerequisite:** None. Independent of data fix.
 
-- [ ] **B.1** Increase certification modal background opacity
+- [x] **B.1** Increase certification modal background opacity
   - File: `plg-website/src/app/portal/settings/page.js`
   - Change: `bg-black/60` → `bg-black/80` (line 592)
 
-- [ ] **B.2** Remove "Managing" prefix from dashboard org name subtitle
+- [x] **B.2** Remove "Managing" prefix from dashboard org name subtitle
   - File: `plg-website/src/app/portal/page.js`
   - Change: `` `Managing ${portalStatus.orgMembership.name}` `` → `portalStatus.orgMembership.name` (lines 285-287)
 
-- [ ] **B.3** Hide "Invite Member" button for Member role
+- [x] **B.3** Hide "Invite Member" button for Member role
   - File: `plg-website/src/app/portal/team/page.js` — pass `orgRole={accountData?.orgMembership?.role}` to `TeamManagement`
   - File: `plg-website/src/app/portal/team/TeamManagement.js` — accept `orgRole` prop; conditionally render invite button only when `orgRole === "owner" || orgRole === "admin"`
 
@@ -225,21 +225,21 @@ The comment and logic at `dynamodb.js` line 1884 (`// Owner may or may not have 
 
 > **Prerequisite:** Phase A complete (SWR account unblocked so we can validate changes).
 
-- [ ] **C.1** Webhook individual error handling + verification (Layer 1)
+- [x] **C.1** Webhook individual error handling + verification (Layer 1)
   - File: `plg-website/src/app/api/webhooks/stripe/route.js`
   - Restructure lines 402-435:
     - Individual try/catch for `upsertOrganization`, `addOrgMember`, and `updateCustomerSubscription`
     - Add verification after all three: query for the MEMBER record; if missing, retry `addOrgMember`
     - Log each operation's success/failure individually
 
-- [ ] **C.2** Expand `migrateCustomerUserId` (Layer 2 — migration)
+- [x] **C.2** Expand `migrateCustomerUserId` (Layer 2 — migration)
   - File: `plg-website/src/lib/dynamodb.js`
   - After migrating PROFILE record:
     1. Query GSI1 for MEMBER records under old userId
     2. For each MEMBER found: create new record with new userId, delete old record
     3. Query for ORG DETAILS where `ownerId === oldUserId`, update to new userId
 
-- [ ] **C.3** Clean up tolerant seat counting
+- [x] **C.3** Clean up tolerant seat counting
   - File: `plg-website/src/lib/dynamodb.js`
   - Replace `getOrgLicenseUsage` seat counting logic (lines 1883-1888):
     - Remove `// (Owner may or may not have a MEMBER# record)` comment
@@ -250,11 +250,11 @@ The comment and logic at `dynamodb.js` line 1884 (`// Owner may or may not have 
 
 > **Prerequisite:** Phase C complete (functions exist to test).
 
-- [ ] **D.1** Add unit test for expanded `migrateCustomerUserId`
+- [x] **D.1** Add unit test for expanded `migrateCustomerUserId`
   - Test: MEMBER record migrated from old userId to new
   - Test: ORG `ownerId` updated from old to new
 
-- [ ] **D.2** Add unit test for team page invite button visibility
+- [x] **D.2** Add unit test for team page invite button visibility
   - Test: owner sees "Invite Member" button
   - Test: admin sees "Invite Member" button
   - Test: member does not see "Invite Member" button
@@ -263,7 +263,7 @@ The comment and logic at `dynamodb.js` line 1884 (`// Owner may or may not have 
 
 > **Prerequisite:** All phases complete.
 
-- [ ] **E.1** Run all existing tests — confirm no regressions
+- [x] **E.1** Run all existing tests — confirm no regressions
 - [ ] **E.2** Manual E2E verification as `sreiff@hic-ai.com`:
   - Sidebar shows org name
   - Dashboard shows org name (without "Managing" prefix)

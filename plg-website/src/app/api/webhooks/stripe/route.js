@@ -25,6 +25,7 @@ import {
   updateOrgSeatLimit,
   getOrganizationByStripeCustomer,
   addOrgMember,
+  getUserOrgMembership,
   claimWebhookIdempotencyKey,
   releaseWebhookIdempotencyKey,
 } from "@/lib/dynamodb";
@@ -399,9 +400,9 @@ async function handleCheckoutCompleted(session, log) {
       });
     }
 
-    try {
-      const ownerId = existingCustomer?.userId || `email:${customer_email.toLowerCase()}`;
+    const ownerId = existingCustomer?.userId || `email:${customer_email.toLowerCase()}`;
 
+    try {
       await upsertOrganization({
         orgId: customer,
         name: `${session.customer_details?.name || customer_email.split("@")[0]}'s Organization`,
@@ -414,7 +415,13 @@ async function handleCheckoutCompleted(session, log) {
       log.info("organization_created", "Organization created for business subscription", {
         seatLimit: seats,
       });
+    } catch (error) {
+      log.error("organization_create_failed", "Failed to create organization", {
+        errorMessage: error?.message,
+      });
+    }
 
+    try {
       await addOrgMember({
         orgId: customer,
         userId: ownerId,
@@ -423,14 +430,43 @@ async function handleCheckoutCompleted(session, log) {
         role: "owner",
       });
       log.info("organization_owner_added", "Owner added as organization member");
+    } catch (error) {
+      log.error("organization_owner_member_failed", "Failed to add owner as org member", {
+        errorMessage: error?.message,
+      });
+    }
 
+    try {
       await updateCustomerSubscription(ownerId, {
         orgId: customer,
         orgRole: "owner",
       });
       log.info("organization_owner_linked", "Owner linked to organization in customer record");
     } catch (error) {
-      log.warn("organization_create_failed", "Failed to create or link organization", {
+      log.error("organization_owner_link_failed", "Failed to link owner to organization", {
+        errorMessage: error?.message,
+      });
+    }
+
+    // Verify owner MEMBER record exists; create if missing (Layer 1 safety net)
+    try {
+      const membership = await getUserOrgMembership(ownerId);
+      if (!membership) {
+        log.warn("organization_owner_member_missing", "Owner MEMBER record not found after setup — creating", {
+          ownerId,
+          orgId: customer,
+        });
+        await addOrgMember({
+          orgId: customer,
+          userId: ownerId,
+          email: customer_email,
+          name: customer_email.split("@")[0],
+          role: "owner",
+        });
+        log.info("organization_owner_member_recovered", "Owner MEMBER record created via verification");
+      }
+    } catch (error) {
+      log.error("organization_owner_verify_failed", "Failed to verify owner MEMBER record", {
         errorMessage: error?.message,
       });
     }

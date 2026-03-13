@@ -359,6 +359,102 @@ export async function migrateCustomerUserId(oldUserId, newUserId) {
     }),
   );
 
+  // Layer 2: Migrate MEMBER records from old userId to new userId
+  if (existing.orgId) {
+    try {
+      // Query GSI1 for MEMBER records under old userId
+      const memberResult = await dynamodb.send(
+        new QueryCommand({
+          TableName: TABLE_NAME,
+          IndexName: "GSI1",
+          KeyConditionExpression: "GSI1PK = :pk AND begins_with(GSI1SK, :sk)",
+          ExpressionAttributeValues: {
+            ":pk": `USER#${oldUserId}`,
+            ":sk": "ORG#",
+          },
+        }),
+      );
+
+      const oldMembers = memberResult.Items || [];
+      for (const oldMember of oldMembers) {
+        const memberOrgId = oldMember.orgId;
+
+        // Create new MEMBER record with new userId
+        await dynamodb.send(
+          new PutCommand({
+            TableName: TABLE_NAME,
+            Item: {
+              ...oldMember,
+              SK: `MEMBER#${newUserId}`,
+              GSI1PK: `USER#${newUserId}`,
+              memberId: newUserId,
+            },
+          }),
+        );
+
+        // Delete old MEMBER record
+        await dynamodb.send(
+          new DeleteCommand({
+            TableName: TABLE_NAME,
+            Key: {
+              PK: oldMember.PK,
+              SK: oldMember.SK,
+            },
+          }),
+        );
+
+        logger.info("MEMBER record migrated", {
+          orgId: memberOrgId,
+          oldUserId,
+          newUserId,
+        });
+      }
+
+      // Update ORG DETAILS ownerId from old to new userId
+      const orgResult = await dynamodb.send(
+        new GetCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            PK: `ORG#${existing.orgId}`,
+            SK: "DETAILS",
+          },
+        }),
+      );
+
+      if (orgResult.Item && orgResult.Item.ownerId === oldUserId) {
+        await dynamodb.send(
+          new UpdateCommand({
+            TableName: TABLE_NAME,
+            Key: {
+              PK: `ORG#${existing.orgId}`,
+              SK: "DETAILS",
+            },
+            UpdateExpression: "SET ownerId = :newId, updatedAt = :now",
+            ExpressionAttributeValues: {
+              ":newId": newUserId,
+              ":now": new Date().toISOString(),
+            },
+          }),
+        );
+        logger.info("ORG DETAILS ownerId migrated", {
+          orgId: existing.orgId,
+          oldOwnerId: oldUserId,
+          newOwnerId: newUserId,
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to migrate MEMBER records or ORG ownerId", {
+        orgId: existing.orgId,
+        oldUserId,
+        newUserId,
+        error: error.message,
+      });
+      // Do not throw — PROFILE migration succeeded; MEMBER migration is best-effort
+      // The webhook verification (Layer 1) will catch missing MEMBER records
+    }
+  }
+
+
   logger.info("Customer userId migrated successfully", {
     oldUserId,
     newUserId,
@@ -1880,10 +1976,14 @@ export async function getOrgLicenseUsage(orgId) {
     const memberCount = membersResult.Items?.length || 0;
     const seatLimit = org.seatLimit || 0;
 
-    // Owner always counts as 1 seat, plus any additional members
-    // (Owner may or may not have a MEMBER# record)
-    const hasOwner = !!org.ownerId;
-    const seatsUsed = hasOwner ? Math.max(1, memberCount) : memberCount;
+    // Seat count = active MEMBER records (owner included as a MEMBER record)
+    if (memberCount === 0 && org.ownerId) {
+      logger.warn("Org has ownerId but zero MEMBER records — owner MEMBER record may be missing", {
+        orgId,
+        ownerId: org.ownerId,
+      });
+    }
+    const seatsUsed = memberCount;
 
     return {
       orgId,

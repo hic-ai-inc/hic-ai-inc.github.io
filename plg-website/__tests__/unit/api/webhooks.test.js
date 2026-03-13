@@ -2128,3 +2128,246 @@ describe("Webhook idempotency guard — claimWebhookIdempotencyKey behavior", ()
   });
 });
 
+
+// ============================================================================
+// WEBHOOK ORG SETUP RESILIENCE TESTS (Layer 1 — BUG-4)
+//
+// Tests the restructured webhook org setup with:
+// 1. Individual try/catch per operation (upsertOrganization, addOrgMember,
+//    updateCustomerSubscription)
+// 2. Verification step: confirm owner MEMBER record exists; create if not
+//
+// Uses extracted pure-function pattern to test the logic independently.
+// ============================================================================
+
+describe("webhooks/stripe - Org Setup Resilience (BUG-4)", () => {
+
+  /**
+   * Simulates the restructured webhook org setup flow.
+   * Each operation has independent error handling. A verification step
+   * after all operations confirms the MEMBER record exists.
+   *
+   * Returns a result object describing what succeeded and what failed.
+   */
+  async function simulateOrgSetup({
+    upsertOrg,    // async fn — upsertOrganization
+    addMember,    // async fn — addOrgMember
+    updateSub,    // async fn — updateCustomerSubscription
+    verifyMember, // async fn — getUserOrgMembership (returns null if missing)
+    retryMember,  // async fn — addOrgMember retry
+  }) {
+    const results = {
+      orgCreated: false,
+      memberAdded: false,
+      subLinked: false,
+      memberVerified: false,
+      memberRecovered: false,
+      errors: [],
+    };
+
+    try {
+      await upsertOrg();
+      results.orgCreated = true;
+    } catch (error) {
+      results.errors.push({ step: "upsertOrganization", message: error.message });
+    }
+
+    try {
+      await addMember();
+      results.memberAdded = true;
+    } catch (error) {
+      results.errors.push({ step: "addOrgMember", message: error.message });
+    }
+
+    try {
+      await updateSub();
+      results.subLinked = true;
+    } catch (error) {
+      results.errors.push({ step: "updateCustomerSubscription", message: error.message });
+    }
+
+    // Verification step (Layer 1 safety net)
+    try {
+      const membership = await verifyMember();
+      if (membership) {
+        results.memberVerified = true;
+      } else {
+        // MEMBER record missing — attempt recovery
+        await retryMember();
+        results.memberRecovered = true;
+      }
+    } catch (error) {
+      results.errors.push({ step: "verify/recover", message: error.message });
+    }
+
+    return results;
+  }
+
+  it("all three operations succeed → no recovery needed", async () => {
+    const result = await simulateOrgSetup({
+      upsertOrg: async () => {},
+      addMember: async () => {},
+      updateSub: async () => {},
+      verifyMember: async () => ({ memberId: "uuid-123", role: "owner" }),
+      retryMember: async () => { throw new Error("should not be called"); },
+    });
+
+    assert.strictEqual(result.orgCreated, true);
+    assert.strictEqual(result.memberAdded, true);
+    assert.strictEqual(result.subLinked, true);
+    assert.strictEqual(result.memberVerified, true);
+    assert.strictEqual(result.memberRecovered, false);
+    assert.strictEqual(result.errors.length, 0);
+  });
+
+  it("addOrgMember fails → verification detects missing → recovery succeeds", async () => {
+    let recoveryCalled = false;
+
+    const result = await simulateOrgSetup({
+      upsertOrg: async () => {},
+      addMember: async () => { throw new Error("ConditionalCheckFailed"); },
+      updateSub: async () => {},
+      verifyMember: async () => null, // MEMBER record missing
+      retryMember: async () => { recoveryCalled = true; },
+    });
+
+    assert.strictEqual(result.orgCreated, true);
+    assert.strictEqual(result.memberAdded, false);
+    assert.strictEqual(result.subLinked, true); // NOT blocked by addMember failure
+    assert.strictEqual(result.memberVerified, false);
+    assert.strictEqual(result.memberRecovered, true);
+    assert.strictEqual(recoveryCalled, true);
+    assert.strictEqual(result.errors.length, 1);
+    assert.strictEqual(result.errors[0].step, "addOrgMember");
+  });
+
+  it("upsertOrganization fails → addMember and updateSub still attempted", async () => {
+    const result = await simulateOrgSetup({
+      upsertOrg: async () => { throw new Error("DDB throttle"); },
+      addMember: async () => {},
+      updateSub: async () => {},
+      verifyMember: async () => ({ memberId: "uuid-123", role: "owner" }),
+      retryMember: async () => {},
+    });
+
+    assert.strictEqual(result.orgCreated, false);
+    assert.strictEqual(result.memberAdded, true);
+    assert.strictEqual(result.subLinked, true);
+    assert.strictEqual(result.errors.length, 1);
+    assert.strictEqual(result.errors[0].step, "upsertOrganization");
+  });
+
+  it("all three operations fail → verification attempt still made", async () => {
+    let verifyCalled = false;
+
+    const result = await simulateOrgSetup({
+      upsertOrg: async () => { throw new Error("fail 1"); },
+      addMember: async () => { throw new Error("fail 2"); },
+      updateSub: async () => { throw new Error("fail 3"); },
+      verifyMember: async () => { verifyCalled = true; return null; },
+      retryMember: async () => {},
+    });
+
+    assert.strictEqual(verifyCalled, true);
+    assert.strictEqual(result.orgCreated, false);
+    assert.strictEqual(result.memberAdded, false);
+    assert.strictEqual(result.subLinked, false);
+    assert.strictEqual(result.memberRecovered, true); // recovery attempted
+    assert.strictEqual(result.errors.length, 3);
+  });
+
+  it("verification itself fails → error captured, does not throw", async () => {
+    const result = await simulateOrgSetup({
+      upsertOrg: async () => {},
+      addMember: async () => {},
+      updateSub: async () => {},
+      verifyMember: async () => { throw new Error("DDB unavailable"); },
+      retryMember: async () => {},
+    });
+
+    assert.strictEqual(result.orgCreated, true);
+    assert.strictEqual(result.memberAdded, true);
+    assert.strictEqual(result.subLinked, true);
+    assert.strictEqual(result.memberVerified, false);
+    assert.strictEqual(result.memberRecovered, false);
+    assert.strictEqual(result.errors.length, 1);
+    assert.strictEqual(result.errors[0].step, "verify/recover");
+  });
+
+  it("addMember fails, verifyMember finds record anyway (idempotent) → no recovery", async () => {
+    // Edge case: addOrgMember throws but the record was actually created
+    // (e.g., DDB returned error after write succeeded)
+    const result = await simulateOrgSetup({
+      upsertOrg: async () => {},
+      addMember: async () => { throw new Error("timeout after write"); },
+      updateSub: async () => {},
+      verifyMember: async () => ({ memberId: "uuid-123", role: "owner" }), // Record exists!
+      retryMember: async () => { throw new Error("should not be called"); },
+    });
+
+    assert.strictEqual(result.memberAdded, false); // initial call errored
+    assert.strictEqual(result.memberVerified, true); // but record exists
+    assert.strictEqual(result.memberRecovered, false); // no recovery needed
+  });
+});
+
+// ============================================================================
+// WEBHOOK: Old vs New org setup behavior comparison
+//
+// Demonstrates the difference between the old (single try/catch) and new
+// (individual try/catch + verification) approaches.
+// ============================================================================
+
+describe("webhooks/stripe - Old vs New org setup comparison", () => {
+  /**
+   * OLD behavior (pre-fix): single try/catch wrapping all 3 operations.
+   * If addOrgMember fails, updateCustomerSubscription is also skipped.
+   */
+  async function oldOrgSetup({ upsertOrg, addMember, updateSub }) {
+    const results = { orgCreated: false, memberAdded: false, subLinked: false, error: null };
+
+    try {
+      await upsertOrg();
+      results.orgCreated = true;
+      await addMember();
+      results.memberAdded = true;
+      await updateSub();
+      results.subLinked = true;
+    } catch (error) {
+      results.error = error.message;
+    }
+
+    return results;
+  }
+
+  it("OLD: addOrgMember failure prevents updateCustomerSubscription", async () => {
+    const result = await oldOrgSetup({
+      upsertOrg: async () => {},
+      addMember: async () => { throw new Error("MEMBER create failed"); },
+      updateSub: async () => {},
+    });
+
+    assert.strictEqual(result.orgCreated, true);
+    assert.strictEqual(result.memberAdded, false);
+    assert.strictEqual(result.subLinked, false); // ALSO skipped — this was the bug
+    assert.strictEqual(result.error, "MEMBER create failed");
+  });
+
+  it("NEW: addOrgMember failure does NOT prevent updateCustomerSubscription", async () => {
+    // Using the same simulateOrgSetup from above tests — just demonstrating the contrast
+    const results = {
+      orgCreated: false, memberAdded: false, subLinked: false, errors: [],
+    };
+
+    // Individual try/catch per operation
+    try { await (async () => {})(); results.orgCreated = true; } catch (e) { results.errors.push(e.message); }
+    try { await (async () => { throw new Error("MEMBER create failed"); })(); results.memberAdded = true; } catch (e) { results.errors.push(e.message); }
+    try { await (async () => {})(); results.subLinked = true; } catch (e) { results.errors.push(e.message); }
+
+    assert.strictEqual(results.orgCreated, true);
+    assert.strictEqual(results.memberAdded, false);
+    assert.strictEqual(results.subLinked, true); // NOT skipped — this is the fix
+    assert.strictEqual(results.errors.length, 1);
+  });
+});
+

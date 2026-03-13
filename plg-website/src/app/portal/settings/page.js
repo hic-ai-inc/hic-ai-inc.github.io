@@ -589,7 +589,7 @@ export default function SettingsPage() {
 
       {/* Certification Modal */}
       {showCertModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
           <div className="bg-card-bg border border-card-border rounded-lg p-6 max-w-lg mx-4">
             <h3 className="text-lg font-semibold text-frost-white mb-4">
               Business Name Certification

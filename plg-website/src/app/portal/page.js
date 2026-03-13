@@ -282,7 +282,7 @@ function ActiveUserDashboard({
         </h1>
         <p className="text-slate-grey mt-1">
           {portalStatus?.orgMembership?.name
-            ? `Managing ${portalStatus.orgMembership.name}`
+            ? portalStatus.orgMembership.name
             : "Manage your Mouse license and account settings"}
         </p>
       </div>

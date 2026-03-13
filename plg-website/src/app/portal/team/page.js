@@ -86,7 +86,7 @@ export default function TeamPage() {
       {accountData?.orgMembership?.name && (
         <h1 className="text-3xl font-bold text-frost-white mb-6">{accountData.orgMembership.name}</h1>
       )}
-      <TeamManagement initialUserId={user.sub} />
+      <TeamManagement initialUserId={user.sub} orgRole={accountData?.orgMembership?.role} />
     </div>
   );
 }

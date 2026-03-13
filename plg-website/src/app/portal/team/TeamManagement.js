@@ -20,7 +20,7 @@ import {
 } from "@/components/ui";
 import { getSession } from "@/lib/cognito";
 
-export default function TeamManagement({ initialUserId }) {
+export default function TeamManagement({ initialUserId, orgRole }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [members, setMembers] = useState([]);
@@ -318,7 +318,9 @@ export default function TeamManagement({ initialUserId }) {
             Manage team members and seat allocation
           </p>
         </div>
-        <Button onClick={() => setShowInviteForm(true)}>Invite Member</Button>
+        {(orgRole === "owner" || orgRole === "admin") && (
+          <Button onClick={() => setShowInviteForm(true)}>Invite Member</Button>
+        )}
       </div>
 
       {/* Invite Form Modal */}
@@ -399,10 +401,14 @@ export default function TeamManagement({ initialUserId }) {
           </div>
           <p className="mt-2 text-sm text-slate-grey">
             {usage.availableSeats} seats available.{" "}
-            {invites.filter(i => i.status === "pending").length > 0 && (
+            {invites.filter((i) => i.status === "pending").length > 0 && (
               <span className="text-slate-grey">
-                ({invites.filter(i => i.status === "pending").length} pending invite
-                {invites.filter(i => i.status === "pending").length !== 1 ? "s" : ""}){" "}
+                ({invites.filter((i) => i.status === "pending").length} pending
+                invite
+                {invites.filter((i) => i.status === "pending").length !== 1
+                  ? "s"
+                  : ""}
+                ){" "}
               </span>
             )}
             <a
@@ -461,7 +467,7 @@ export default function TeamManagement({ initialUserId }) {
                     >
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-cerulean-mist/20 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-cerulean-mist/20 flex items-center justify-center shrink-0">
                             <span className="text-sm font-medium text-cerulean-mist">
                               {member.name?.[0]?.toUpperCase() || "?"}
                             </span>
@@ -565,7 +571,7 @@ export default function TeamManagement({ initialUserId }) {
                   className="p-4 bg-card-bg rounded-lg border border-card-border"
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-cerulean-mist/20 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-cerulean-mist/20 flex items-center justify-center shrink-0">
                       <span className="text-sm font-medium text-cerulean-mist">
                         {member.name?.[0]?.toUpperCase() || "?"}
                       </span>
@@ -672,7 +678,10 @@ export default function TeamManagement({ initialUserId }) {
                         Invited as {invite.role} •{" "}
                         {invite.status === "accepted" ? (
                           <span className="text-success">
-                            Accepted{invite.acceptedAt ? ` ${new Date(invite.acceptedAt).toLocaleDateString()}` : ""}
+                            Accepted
+                            {invite.acceptedAt
+                              ? ` ${new Date(invite.acceptedAt).toLocaleDateString()}`
+                              : ""}
                           </span>
                         ) : expired ? (
                           <span className="text-error">Expired</span>
@@ -696,7 +705,9 @@ export default function TeamManagement({ initialUserId }) {
                             }
                             disabled={resendLoading === invite.id}
                           >
-                            {resendLoading === invite.id ? "Sending..." : "Resend"}
+                            {resendLoading === invite.id
+                              ? "Sending..."
+                              : "Resend"}
                           </Button>
                           <Button
                             variant="ghost"
@@ -713,9 +724,7 @@ export default function TeamManagement({ initialUserId }) {
               })}
             </div>
           ) : (
-            <p className="text-slate-grey text-center py-4">
-              No invitations
-            </p>
+            <p className="text-slate-grey text-center py-4">No invitations</p>
           )}
         </CardContent>
       </Card>
