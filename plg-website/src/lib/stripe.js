@@ -203,7 +203,7 @@ export async function createCheckoutSession({
 
 /**
  * Update subscription seat quantity (for Enterprise seat changes per Addendum A.5.4)
- * Prorates charges automatically
+ * Prorates charges and invoices immediately (always_invoice)
  * @param {string} subscriptionId - Stripe subscription ID
  * @param {number} quantity - New seat quantity
  * @returns {Promise<Stripe.Subscription>} Updated subscription
@@ -225,7 +225,7 @@ export async function updateSubscriptionQuantity(subscriptionId, quantity) {
             quantity,
           },
         ],
-        proration_behavior: "create_prorations",
+        proration_behavior: "always_invoice",
       },
     );
     logger.info("Subscription quantity updated", {

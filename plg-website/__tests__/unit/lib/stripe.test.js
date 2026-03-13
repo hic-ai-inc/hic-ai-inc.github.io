@@ -256,7 +256,7 @@ describe("stripe.js", () => {
       expect(updateArgs[1].items[0].quantity).toBe(100);
     });
 
-    it("should set proration_behavior to create_prorations", async () => {
+    it("should set proration_behavior to always_invoice", async () => {
       stripeMock.subscriptions.retrieve.mockResolvedValue({
         id: "sub_123",
         items: { data: [{ id: "si_456", quantity: 10 }] },
@@ -266,7 +266,7 @@ describe("stripe.js", () => {
       await updateSubscriptionQuantity("sub_123", 50);
 
       const updateArgs = stripeMock.subscriptions.update.calls[0][1];
-      expect(updateArgs.proration_behavior).toBe("create_prorations");
+      expect(updateArgs.proration_behavior).toBe("always_invoice");
     });
 
     it("should throw error when subscription not found", async () => {
@@ -283,6 +283,95 @@ describe("stripe.js", () => {
 
       expect(error).toBeDefined();
       expect(error.message).toContain("No such subscription");
+    });
+  });
+
+
+  /**
+   * Immediate Proration Invoicing — Business Requirement
+   *
+   * When a Business user adds seats (e.g., 1→2 at $35/seat/mo), Stripe must:
+   *   1. Calculate the prorated charge for the remainder of the current period
+   *   2. Generate and pay an invoice IMMEDIATELY (not defer to next cycle)
+   *   3. Bill the full new amount ($70) at the next renewal
+   *
+   * "create_prorations" (Stripe default) only creates line items — payment is
+   * deferred to the next invoice. "always_invoice" forces immediate collection.
+   *
+   * See: docs/plg/20260313_OWNER_MEMBER_RECORD_REMEDIATION_PLAN.md §1.6
+   */
+  describe("updateSubscriptionQuantity — immediate proration invoicing", () => {
+    function setupMock(subId, itemId, currentQty) {
+      stripeMock.subscriptions.retrieve.mockResolvedValue({
+        id: subId,
+        items: { data: [{ id: itemId, quantity: currentQty }] },
+      });
+      stripeMock.subscriptions.update.mockResolvedValue({
+        id: subId,
+        items: { data: [{ id: itemId, quantity: currentQty }] },
+      });
+    }
+
+    it("should use always_invoice, NOT create_prorations, when adding a seat (1→2)", async () => {
+      setupMock("sub_biz_monthly", "si_seat_item", 1);
+
+      await updateSubscriptionQuantity("sub_biz_monthly", 2);
+
+      const params = stripeMock.subscriptions.update.calls[0][1];
+      expect(params.proration_behavior).toBe("always_invoice");
+      // Explicitly verify the old default is NOT used
+      expect(params.proration_behavior !== "create_prorations").toBe(true);
+    });
+
+    it("should use always_invoice when adding multiple seats (3→10)", async () => {
+      setupMock("sub_biz_annual", "si_seat_item", 3);
+
+      await updateSubscriptionQuantity("sub_biz_annual", 10);
+
+      const params = stripeMock.subscriptions.update.calls[0][1];
+      expect(params.proration_behavior).toBe("always_invoice");
+    });
+
+    it("should use always_invoice when reducing seats (5→2)", async () => {
+      setupMock("sub_biz_monthly", "si_seat_item", 5);
+
+      await updateSubscriptionQuantity("sub_biz_monthly", 2);
+
+      const params = stripeMock.subscriptions.update.calls[0][1];
+      expect(params.proration_behavior).toBe("always_invoice");
+    });
+
+    it("should never set proration_behavior to none", async () => {
+      setupMock("sub_biz_monthly", "si_seat_item", 1);
+
+      await updateSubscriptionQuantity("sub_biz_monthly", 3);
+
+      const params = stripeMock.subscriptions.update.calls[0][1];
+      expect(params.proration_behavior !== "none").toBe(true);
+    });
+
+    it("should pass the correct subscription item ID and new quantity", async () => {
+      setupMock("sub_biz_monthly", "si_exact_item_789", 1);
+
+      await updateSubscriptionQuantity("sub_biz_monthly", 2);
+
+      const params = stripeMock.subscriptions.update.calls[0][1];
+      expect(params.items.length).toBe(1);
+      expect(params.items[0].id).toBe("si_exact_item_789");
+      expect(params.items[0].quantity).toBe(2);
+    });
+
+    it("should not include any extra parameters that could alter billing behavior", async () => {
+      setupMock("sub_biz_monthly", "si_seat_item", 1);
+
+      await updateSubscriptionQuantity("sub_biz_monthly", 2);
+
+      const params = stripeMock.subscriptions.update.calls[0][1];
+      const keys = Object.keys(params).sort();
+      // Only items and proration_behavior — nothing else
+      expect(keys.length).toBe(2);
+      expect(keys[0]).toBe("items");
+      expect(keys[1]).toBe("proration_behavior");
     });
   });
 

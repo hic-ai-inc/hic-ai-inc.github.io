@@ -133,7 +133,7 @@ function buildPortalConfig(tierProduct, tierName, allowQuantity) {
         // "quantity" is intentionally excluded for Individual; for Business,
         // quantity is controlled per-product via adjustable_quantity above.
         default_allowed_updates: ["price", "promotion_code"],
-        proration_behavior: "create_prorations",
+        proration_behavior: "always_invoice",
         products: [productEntry],
       },
       subscription_cancel: {
