@@ -325,3 +325,36 @@ Developers buy from people who teach them something useful. The AP 1 work remove
 | ---------- | ------ | ------------------------------------------------------- |
 | 2026-02-16 | GC     | Initial document based on comprehensive front-end audit |
 | 2026-02-18 | GC     | v2: Updated canonical pricing references ($35/seat/mo Business, $150/yr Individual Annual, $350/seat/yr Business Annual). Replaced LS application cross-reference with AP 8 (AR) — SMP is now the primary payment path; no third-party MoR application gate. |
+
+---
+
+## Addendum: Link Fixes (March 14, 2026)
+
+**Author:** SWR (items identified) | GC (documentation)
+**Context:** During Phase 2C review, 8 specific link/button issues were identified requiring surgical fixes. Items grouped by location.
+
+### Portal Pages
+
+| ID | Location | Issue | Fix |
+|----|----------|-------|-----|
+| ADD-4 | `/portal/license` | "Regenerate Key" button non-functional | Remove button entirely |
+| ADD-5 | `/portal` (dashboard) | "Read the Full Guide" links to Quick Start | Flag for review after Getting Started doc update; may need redirect change |
+| ADD-6 | `/portal/devices` | "Learn how to activate" link 404s | Redirect to `/docs/license-activation` |
+| ADD-8 | Portal header (all pages) | MOUSE logo redirects to `/` (public homepage) | Redirect to `/portal` (Admin Portal dashboard) |
+
+### Public Website
+
+| ID | Location | Issue | Fix |
+|----|----------|-------|-----|
+| ADD-1 | `/docs/edit-operations` | Batch Editing link at end of text 404s | Remove link (docs overhaul forthcoming) |
+| ADD-2 | `/contact` | GitHub Issues "Open Issue" link 404s (repo doesn't exist yet) | Disable link (grayed out, tooltip "Coming soon"); re-enable post-`hic-ai-inc/mouse` creation |
+| ADD-3 | `/contact` | "Read the Docs" button links to `/docs/quick-start` | Change to `/docs` (main docs index) |
+| ADD-7 | `/docs` | "Report an Issue" button 404s (repo doesn't exist yet) | Same as ADD-2: disable pending public repo |
+
+### Execution Notes
+
+- ADD-2 and ADD-7 share the same root cause (missing `hic-ai-inc/mouse` public repo). Both should use a consistent "disabled link" pattern.
+- ADD-5 is flagged for review, not immediate fix — depends on Getting Started doc content.
+- ADD-8 requires updating the Header component's logo link logic to detect portal routes.
+
+**Estimated effort:** ~1–1.5 hours for all 8 items (ADD-5 is flag-only).

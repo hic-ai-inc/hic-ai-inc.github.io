@@ -199,26 +199,37 @@ _Business Name is a post-purchase identity assertion managed entirely in the Adm
 
 **Phase 1 — Backend:**
 
-- [ ] **BN-1** DynamoDB: add `getOrganizationByName()` for uniqueness enforcement; update `upsertOrganization()` and `updateOrganization()` to support chosen uniqueness mechanism. File: `src/lib/dynamodb.js`
-- [ ] **BN-2** Extend `/api/portal/settings` — GET returns organization context (name, role, `canEdit`) for all Business users (Owner, Admin, Member); PATCH allows owner-only `organizationName` updates with validation (≤120 chars, trimmed, non-empty), uniqueness enforcement (409), and owner authorization (403). File: `src/app/api/portal/settings/route.js`
-- [ ] **BN-3** Return organization name from `/api/portal/status` — add `name` to `orgMembership` block. File: `src/app/api/portal/status/route.js`
-- [ ] **BN-4** Webhook placeholder cleanup — replace `email.split("@")[0]` org name derivation with Stripe customer's full name (e.g., `"Simon Reiff's Organization"`). File: `src/app/api/webhooks/stripe/route.js`
-- [ ] **BN-P1-TEST** Run all existing tests; fix regressions; expand coverage for settings GET/PATCH (all roles), status API org name, DynamoDB uniqueness check. All tests 100% passing before proceeding.
+- [x] **BN-1** DynamoDB: add `getOrganizationByName()` for uniqueness enforcement; update `upsertOrganization()` and `updateOrganization()` to support chosen uniqueness mechanism. File: `src/lib/dynamodb.js`
+- [x] **BN-2** Extend `/api/portal/settings` — GET returns organization context (name, role, `canEdit`) for all Business users (Owner, Admin, Member); PATCH allows owner-only `organizationName` updates with validation (≤120 chars, trimmed, non-empty), uniqueness enforcement (409), and owner authorization (403). File: `src/app/api/portal/settings/route.js`
+- [x] **BN-3** Return organization name from `/api/portal/status` — add `name` to `orgMembership` block. File: `src/app/api/portal/status/route.js`
+- [x] **BN-4** Webhook placeholder cleanup — replace `email.split("@")[0]` org name derivation with Stripe customer's full name (e.g., `"Simon Reiff's Organization"`). File: `src/app/api/webhooks/stripe/route.js`
+- [x] **BN-P1-TEST** Run all existing tests; fix regressions; expand coverage for settings GET/PATCH (all roles), status API org name, DynamoDB uniqueness check. All tests 100% passing before proceeding.
 
 **Phase 2 — Frontend:**
 
-- [ ] **BN-5** Add Organization card to `/portal/settings` — visible to all Business users; editable by Owner only (with legal certification dialog on name change); read-only display for Admins/Members. File: `src/app/portal/settings/page.js`
-- [ ] **BN-6** Display org name in portal sidebar for all Business users. File: `src/components/layout/PortalSidebar.js`
-- [ ] **BN-7** Echo org name in team page heading, billing page plan card, and dashboard subtitle for all Business users. Files: `src/app/portal/team/page.js`, `src/app/portal/billing/page.js`, `src/app/portal/page.js`
-- [ ] **BN-8** Run all existing tests; fix regressions; expand coverage for Organization card (all roles, edit controls owner-only, certification dialog, 409 handling), sidebar/team/billing/dashboard org name display. All tests 100% passing before proceeding.
-- [ ] **BN-ToS** _(SWR attorney item)_ Update Terms of Service: Business customers represent authorization to act on behalf of and bind the named entity; HIC AI, INC. reserves the right to request additional proof.
+- [x] **BN-5** Add Organization card to `/portal/settings` — visible to all Business users; editable by Owner only (with legal certification dialog on name change); read-only display for Admins/Members. File: `src/app/portal/settings/page.js`
+- [x] **BN-6** Display org name in portal sidebar for all Business users. File: `src/components/layout/PortalSidebar.js`
+- [x] **BN-7** Echo org name in team page heading, billing page plan card, and dashboard subtitle for all Business users. Files: `src/app/portal/team/page.js`, `src/app/portal/billing/page.js`, `src/app/portal/page.js`
+- [x] **BN-8** Run all existing tests; fix regressions; expand coverage for Organization card (all roles, edit controls owner-only, certification dialog, 409 handling), sidebar/team/billing/dashboard org name display. All tests 100% passing before proceeding.
+- [x] **BN-ToS** _(SWR attorney item)_ Update Terms of Service: Business customers represent authorization to act on behalf of and bind the named entity; HIC AI, INC. reserves the right to request additional proof.
 
-- [ ] **2.4** Footer links — audit and fix all footer links
+- [x] **2.4** Footer links — audit and fix all footer links
 - [ ] **2.5** Accessibility basics — audit and address critical a11y issues
 - [ ] **3.1** Animation polish
 - [ ] **3.2** Dark mode refinements
 - [ ] **3.3** Micro-interactions
 - [ ] Final responsive check across breakpoints
+
+**AP1 Addendum (Mar 14):** 8 link fixes identified — see `20260218_AP1_FRONT_END_UX_PRIORITIZATION_PLAN_V2.md` Addendum dated March 14, 2026.
+
+- [ ] **ADD-1** Remove broken Batch Editing link from `/docs/edit-operations`
+- [ ] **ADD-2** Disable (but retain) GitHub Issues link on `/contact` page pending `hic-ai-inc/mouse` public repo creation
+- [ ] **ADD-3** Fix "Read the Docs" button on `/contact` page: `/docs/quick-start` → `/docs`
+- [ ] **ADD-4** Remove non-functional "Regenerate Key" button from `/portal/license`
+- [ ] **ADD-5** Flag "Read the Full Guide" link on `/portal` for review post-Getting Started update
+- [ ] **ADD-6** Fix "Learn how to activate" link on `/portal/devices`: 404 → `/docs/license-activation`
+- [ ] **ADD-7** Disable (but retain) "Report an Issue" button on `/docs` page pending `hic-ai-inc/mouse` public repo creation
+- [ ] **ADD-8** Fix MOUSE header logo on portal pages to redirect to `/portal` instead of `/`
 
 **Step 2C Checkpoint (CP-4):** All pages proofread, no 404s, sitemap live, responsive check passed, OG image verified. → Unlocks 2E, AP 12 Phase 2.
 
@@ -349,6 +360,7 @@ _**Gate:** SMP-GO decision (#28) — ✅ **GO issued Feb 23.** All 7 provisions 
 - [ ] **3.4** Configure notification settings — 48-hour dispute SLA compliance (5m)
 - [x] **3.5** Customer Portal — per-tier interval-only switching ✅ (Mar 2) — Fixed via single default portal configuration (`bpc_1SvKCPA4W8nJ0u4To8mdYBxu`) using product-scoped `subscription_update` instead of two separate configurations. Root cause: Stripe Dashboard silently added `"quantity"` to `default_allowed_updates` and dropped the `products` array, allowing cross-tier switching and quantity changes. Fix applied via Stripe CLI: removed `"quantity"`, re-applied product scoping (Individual prices → Individual product only, Business prices → Business product only). `setup-stripe-portal.js` updated with Dashboard drift warning and post-save `verifyConfiguration()` guard. No code changes needed to portal session creation — single default config is used automatically. Two-config approach (original plan) unnecessary. _See Addendum A.8 in `docs/plg/20260228_STREAM_1D_COMPLETION_PLAN.md` for background. Live-mode replication: Phase 4B step AP8 4.7._
 
+- [ ] **3.6** Set refund policy URL in Stripe Dashboard (Settings → Customer emails → Refund notifications) and enable refund notification toggle — requires `/refunds` page to be live on production (5m)
 **Stream 3C Checkpoint (CP-SMP-3):** SMP parameters added, forbidden params removed, all 4 checkout paths verified E2E in test mode, webhooks confirmed, all tests pass, 2FA on Stripe, SMP setup complete, tax categories confirmed, notifications configured, per-tier portal configurations deployed. → Unlocks Phase 4.
 
 #### Stream 3D: Support Infrastructure (AP 6)
