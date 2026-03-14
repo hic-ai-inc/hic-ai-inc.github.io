@@ -213,10 +213,19 @@ _Business Name is a post-purchase identity assertion managed entirely in the Adm
 - [x] **BN-8** Run all existing tests; fix regressions; expand coverage for Organization card (all roles, edit controls owner-only, certification dialog, 409 handling), sidebar/team/billing/dashboard org name display. All tests 100% passing before proceeding.
 - [x] **BN-ToS** _(SWR attorney item)_ Update Terms of Service: Business customers represent authorization to act on behalf of and bind the named entity; HIC AI, INC. reserves the right to request additional proof.
 
+**Group NAV: Navigation & Layout UX** _(inserted Mar 14; adapts `~/source/repos/foretime` patterns)_
+
+_Sidebar, mobile navigation, and light/dark/system theme toggle. Reference: `foretime/src/components/{Sidebar.tsx, DarkModeToggle.tsx}`._
+
+- [ ] **NAV-1** Sidebar implementation — collapsible sidebar triggered by Mouse icon; adapts foretime Sidebar.tsx pattern to PLG brand (2h)
+- [ ] **NAV-2** Mobile navigation — drawer/overlay menu for nav links + auth buttons; fixes Sign In/Portal accessibility on mobile (1.5h)
+- [ ] **NAV-3** Light/Dark/System toggle — adapts foretime DarkModeToggle.tsx; integrate into header; update globals.css with light-mode tokens (2h)
+- [ ] **NAV-4** Header UX unification — standardize Mouse logo sizing/spacing across public header and portal sidebar; ensure portal logo links to /portal per ADD-8 (30m)
+
 - [x] **2.4** Footer links — audit and fix all footer links
 - [ ] **2.5** Accessibility basics — audit and address critical a11y issues
 - [ ] **3.1** Animation polish
-- [ ] **3.2** Dark mode refinements
+- ~~**3.2** Dark mode refinements~~ — subsumed by NAV-3
 - [ ] **3.3** Micro-interactions
 - [ ] Final responsive check across breakpoints
 

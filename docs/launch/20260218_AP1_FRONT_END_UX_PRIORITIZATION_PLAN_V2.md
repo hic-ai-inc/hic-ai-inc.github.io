@@ -224,6 +224,8 @@ CTA buttons on About and Contact pages use raw `<Link>` with manually composed T
 
 ## Tier 3: Worth Doing But Not Urgent
 
+**Aesthetic Intent (Mar 14 update):** The production homepage at `https://hic-ai.com` establishes the visual benchmark—stark, confident, and beautifully proportioned. Animation polish (Step 3.1 in the tracker) should capture that page's essence: deliberate spacing, graceful timing, and a sense of responsive dynamism. Micro-interactions (Step 3.3) should prioritize consistency in spacing, hover states, and button behavior across common elements (header, sidebar, footer, Mouse icon, theme toggle) before addressing individual pages. The goal is professional restraint, not visual flourish.
+
 ### 3.1 Logo Image Optimization
 
 **Severity:** P3 — Performance hygiene
