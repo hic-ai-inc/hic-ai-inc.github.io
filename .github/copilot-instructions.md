@@ -2,7 +2,7 @@
 
 ## Tool Preference: Mouse over Built-ins
 
-For file editing, prefer Mouse MCP tools (`quick_edit`, `batch_quick_edit`) over built-in tools (`replace_string_in_file`, `multi_replace_string_in_file`). Mouse tools have better accuracy and are purpose-built for this workspace.
+For file editing, use Mouse MCP tools (`quick_edit`, `batch_quick_edit`). Mouse tools have better accuracy and are purpose-built for this workspace.
 
 | Task           | Tool               |
 | -------------- | ------------------ |
@@ -221,4 +221,4 @@ All via `/dm` layer system. Document security review findings with CVE reference
 
 ## Reminder
 
-Please remember **Only** use `quick_edit` or `batch_quick_edit` for all file edits; do not use `replace_string_in_file` or `multi_replace_string_in_file`.
+Please remember to use `quick_edit` or `batch_quick_edit` for all file edits.
