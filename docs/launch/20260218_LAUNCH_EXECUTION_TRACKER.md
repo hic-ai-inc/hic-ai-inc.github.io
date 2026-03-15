@@ -282,6 +282,14 @@ _Depends on CP-E2E (clients verified) and 2C (site polished)._
 - [ ] **DOC-15** NEW: Best Practices for Coding with AI Agents Using Mouse — initial guide (will expand significantly post-launch); covers YOLO mode safety, agent supervision, effective prompting, recommended configurations (1h)
 - [ ] Verify every docs slug loads, no nav 404s
 
+**Docs Navigation Enhancement (to implement with DOC-1 through DOC-15):**
+When expanding documentation pages, add dedicated sidebar navigation components:
+- `DocsLayout.js` — Layout wrapper for `/docs/*` routes with persistent sidebar + content area
+- `DocsSidebar.js` — Hierarchical nav with expand/collapse sections (Getting Started, Features, Billing, Best Practices)
+- `docs-nav-config.js` — Data file defining doc hierarchy for easy maintenance
+- Persistent sidebar on desktop (≥1024px), collapsible on tablet/mobile
+- Separate from `NavigationDrawer` (marketing pages) — docs need hierarchical structure for learning flow
+
 **Step 2E Checkpoint (CP-5):** Every docs slug visited, content verified, no 404s from navigation. → Unlocks Phase 3 AP 2b, AP 6.
 
 #### Step 2F: Website Surface Security Review (AP 2a)

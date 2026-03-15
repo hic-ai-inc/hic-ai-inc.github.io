@@ -6,26 +6,28 @@
 
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/cognito-provider";
 import { NAV_LINKS, EXTERNAL_URLS } from "@/lib/constants";
 import Button from "@/components/ui/Button";
+import NavigationDrawer from "@/components/layout/NavigationDrawer";
 
 export default function Header() {
   const { user, isLoading, logout } = useAuth();
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-midnight-navy/80 backdrop-blur-md border-b border-card-border">
+    <>
+      <header className="fixed top-0 left-0 right-0 z-50 bg-midnight-navy/80 backdrop-blur-md border-b border-card-border">
       <div className="flex items-center h-16">
-        {/* Logo Icon - Left corner, fills header height, will toggle sidebar */}
+        {/* Logo Icon - Left corner, fills header height, toggles mobile nav on mobile / sidebar on desktop */}
         <button
           className="ml-3 flex items-center justify-center flex-shrink-0 hover:bg-white/5 transition-colors rounded p-1"
-          aria-label="Toggle sidebar"
-          onClick={() => {
-            // TODO: Implement sidebar toggle
-            console.log("Sidebar toggle clicked");
-          }}
+          aria-label="Toggle navigation menu"
+          aria-expanded={isMobileNavOpen}
+          onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
         >
           <Image
             src="/images/mouse-logo.png"
@@ -89,6 +91,15 @@ export default function Header() {
           </div>
         </nav>
       </div>
-    </header>
+      </header>
+
+      {/* Mobile Navigation Drawer */}
+      <NavigationDrawer
+        isOpen={isMobileNavOpen}
+        onClose={() => setIsMobileNavOpen(false)}
+        user={user}
+        logout={logout}
+      />
+    </>
   );
 }

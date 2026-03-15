@@ -227,32 +227,28 @@ Front-end UX work is fundamentally different from backend — **visual correctne
 
 ### 4.2 Detailed Checkpoint Criteria
 
-#### Checkpoint 1A: NAV-2 Mobile Drawer
+#### Checkpoint 1A: NAV-2 Navigation Drawer ✅
 
-**GC delivers:** `MobileNav.js`, modified `Header.js`
-
-**SWR validates on localhost:3000:**
-- [ ] Hamburger icon appears at mobile widths (<768px)
-- [ ] Click hamburger → drawer opens with all nav links
-- [ ] Auth buttons (Sign In / Portal) accessible in drawer
-- [ ] Click outside or X button closes drawer
-- [ ] Test at 320px, 375px, 412px viewports
-
-*Automated tests: Minimal — component renders test. Mobile behavior is visual.*
-
-#### Checkpoint 1B: NAV-1 Sidebar
-
-**GC delivers:** `Sidebar.js` (persistent, no collapse yet)
+**GC delivers:** `NavigationDrawer.js`, modified `Header.js`, animation utilities in `globals.css`
 
 **SWR validates on localhost:3000:**
-- [ ] Sidebar visible on desktop
-- [ ] Mouse icon triggers sidebar visibility (if applicable)
-- [ ] All navigation links work correctly
-- [ ] Doesn't interfere with existing page layouts
+- [x] Mouse logo in upper-left toggles drawer (all viewports)
+- [x] Click Mouse logo → drawer slides in from left with all nav links (Home, Features, Research, Pricing, Docs) + Company section (About, FAQ, Contact)
+- [x] Auth buttons (Sign In / Portal / Sign Out) accessible in drawer
+- [x] Click outside or X button closes drawer with smooth animation
+- [x] Tested at 320px, 375px, 412px, 768px, 1024px+ viewports
 
-*Automated tests: Component renders, links point to correct routes.*
+*Automated tests: Minimal — component renders test. Drawer behavior is visual.*
 
-**🚀 Staging Deploy #1:** After Block 1 complete → SWR validates on real phone/tablet if available.
+#### Checkpoint 1B: NAV-1 Documentation Sidebar — DEFERRED to Phase 2E
+
+**Status:** Deferred to Step 2E (Documentation Tier 1) per SWR decision.
+
+Rationale: The `NavigationDrawer` now serves marketing pages at all viewport sizes. A dedicated hierarchical `DocsSidebar` will be implemented alongside documentation content creation (DOC-1 through DOC-15), where persistent navigation with expand/collapse sections is essential for the learning experience.
+
+See: Launch Day Tracker Step 2E "Docs Navigation Enhancement" note for implementation details.
+
+**🚀 Staging Deploy #1:** After Checkpoint 1A complete → SWR validates on real phone/tablet if available.
 
 ---
 
