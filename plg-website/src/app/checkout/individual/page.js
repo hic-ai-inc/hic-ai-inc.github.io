@@ -24,7 +24,7 @@ import {
   Input,
   Badge,
 } from "@/components/ui";
-import { PRICING, EXTERNAL_URLS } from "@/lib/constants";
+import { PRICING, EXTERNAL_URLS, MARKETPLACE_ENABLED } from "@/lib/constants";
 
 // Loading fallback for Suspense
 function CheckoutLoading() {
@@ -262,20 +262,21 @@ function IndividualCheckoutContent() {
                     Not ready to purchase?
                   </p>
                   <div className="flex flex-col gap-2 text-center">
-                    <a
-                      href={EXTERNAL_URLS.marketplace}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-cerulean-mist hover:underline text-sm"
-                    >
-                      Try free from VS Code Marketplace →
-                    </a>
-                    <Link
-                      href="/docs/installation"
-                      className="text-cerulean-mist hover:underline text-sm"
-                    >
-                      Or install with npx in any editor →
-                    </Link>
+                    {MARKETPLACE_ENABLED ? (
+                      <a
+                        href={EXTERNAL_URLS.marketplace}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cerulean-mist hover:underline text-sm"
+                      >
+                        Try free from VS Code Marketplace →
+                      </a>
+                    ) : (
+                      <span className="text-slate-grey text-sm">
+                        VS Code Marketplace — Coming Soon
+                      </span>
+                    )}
+
                   </div>
                 </div>
               </div>
@@ -399,14 +400,20 @@ function IndividualCheckoutContent() {
                   <p className="text-sm text-slate-grey mb-2">
                     Want to try before you buy?
                   </p>
-                  <a
-                    href={EXTERNAL_URLS.marketplace}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-cerulean-mist hover:underline text-sm"
-                  >
-                    Get a free 14-day trial from the Marketplace →
-                  </a>
+                  {MARKETPLACE_ENABLED ? (
+                    <a
+                      href={EXTERNAL_URLS.marketplace}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cerulean-mist hover:underline text-sm"
+                    >
+                      Get a free 14-day trial from the Marketplace →
+                    </a>
+                  ) : (
+                    <span className="text-slate-grey text-sm">
+                      VS Code Marketplace — Coming Soon
+                    </span>
+                  )}
                 </div>
               </form>
             )}

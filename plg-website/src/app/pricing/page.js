@@ -56,7 +56,6 @@ const tiers = [
       "Team management portal",
       "Invite & manage team members",
       "Role-based access control (RBAC)",
-      "Full audit logging & exports",
       "License reassignment",
       "Email support (24h response)",
       "Volume discounts (50+ seats; contact sales)",
@@ -112,11 +111,6 @@ const faqs = [
     question: "Do you offer Enterprise SSO (SAML)?",
     answer:
       "Yes, Enterprise SSO with SAML, Okta, and Azure AD is available for Business customers. Contact Sales to set up SSO for your organization.",
-  },
-  {
-    question: "How do volume discounts work?",
-    answer:
-      "Volume discounts apply automatically for Business plans: 10% off for 50-99 seats, 15% off for 100-499 seats, and 20% off for 500+ seats. Discounts apply to all seats in your subscription.",
   },
 ];
 
@@ -209,24 +203,9 @@ export default function PricingPage() {
                     ))}
                   </ul>
 
-                  {tier.volumeDiscounts && (
-                    <div className="mt-6 pt-6 border-t border-card-border">
-                      <p className="text-sm font-medium text-frost-white mb-2">
-                        Volume Discounts:
-                      </p>
-                      <ul className="text-sm text-slate-grey space-y-1">
-                        {tier.volumeDiscounts.map((vd) => (
-                          <li key={vd.seats}>
-                            {vd.seats} seats: {vd.discount}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
-
 
             {/* Off-ramp for users not ready to purchase */}
             <div className="text-center mt-12 p-6 rounded-lg border border-card-border bg-card-bg/50">
