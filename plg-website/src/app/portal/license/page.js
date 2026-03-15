@@ -87,7 +87,7 @@ export default function LicensePage() {
     return (
       <div className="max-w-4xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-frost-white">License</h1>
+          <h2 className="text-3xl font-bold text-frost-white">License</h2>
           <p className="text-slate-grey mt-1">
             Your Mouse license key and activation status
           </p>

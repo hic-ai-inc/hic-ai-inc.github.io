@@ -263,7 +263,7 @@ See: Launch Day Tracker Step 2E "Docs Navigation Enhancement" note for implement
 
 *Automated tests: Can add axe-core snapshot or Lighthouse CI check.*
 
-#### Checkpoint 2B: h1 Hierarchy Fixes
+#### Checkpoint 2B: h1 Hierarchy Fixes ✅
 
 **GC delivers:** 9 pages with duplicate h1s fixed
 
@@ -380,7 +380,7 @@ See: Launch Day Tracker Step 2E "Docs Navigation Enhancement" note for implement
 | 1B | Persistent sidebar | localhost — desktop ✅ |
 | **Staging #1** | Block 1 deployed | Real device testing ✅ |
 | 2A | Skip link + landmarks | localhost — Tab test ✅ |
-| 2B | h1 hierarchy fixes | localhost — visual check |
+| 2B | h1 hierarchy fixes | localhost — visual check ✅ |
 | 3A | Focus rings | localhost — Tab test |
 | 3B | ARIA + hover/focus | localhost — keyboard navigation |
 | **Staging #2** | Blocks 2–3 deployed | Keyboard-only on staging |

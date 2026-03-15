@@ -147,11 +147,11 @@ function WelcomeCompleteContent() {
             <div className="max-w-lg mx-auto py-20">
               <Card className="text-center p-8">
                 <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cerulean-mist mx-auto mb-6"></div>
-                <h1 className="text-2xl font-bold mb-2">
+                <h2 className="text-2xl font-bold mb-2">
                   {state.status === "loading"
                     ? "Loading..."
                     : "Provisioning Your License"}
-                </h1>
+                </h2>
                 <p className="text-frost-white/70">
                   {state.status === "provisioning" &&
                     "Creating your license key and setting up your account..."}
@@ -189,9 +189,9 @@ function WelcomeCompleteContent() {
                     />
                   </svg>
                 </div>
-                <h1 className="text-2xl font-bold mb-2">
+                <h2 className="text-2xl font-bold mb-2">
                   Something went wrong
-                </h1>
+                </h2>
                 <p className="text-frost-white/70 mb-6">{state.error}</p>
                 <div className="flex justify-center gap-4">
                   <Button

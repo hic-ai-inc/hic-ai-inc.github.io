@@ -92,9 +92,9 @@ function LoginPageContent() {
         <div className="bg-midnight-navy/90 border border-silver/20 p-8 rounded-lg shadow-md max-w-md w-full">
           <div className="text-center">
             <div className="text-red-500 text-5xl mb-4">⚠️</div>
-            <h1 className="text-2xl font-bold text-frost-white mb-2">
+            <h2 className="text-2xl font-bold text-frost-white mb-2">
               Authentication Error
-            </h1>
+            </h2>
             <p className="text-silver">{error}</p>
           </div>
         </div>

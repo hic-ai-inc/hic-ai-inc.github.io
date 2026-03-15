@@ -97,9 +97,9 @@ export default function CallbackPage() {
         <div className="bg-midnight-navy/90 border border-silver/20 p-8 rounded-lg shadow-md max-w-md w-full">
           <div className="text-center">
             <div className="text-error text-5xl mb-4">❌</div>
-            <h1 className="text-2xl font-bold text-frost-white mb-2">
+            <h2 className="text-2xl font-bold text-frost-white mb-2">
               Authentication Failed
-            </h1>
+            </h2>
             <p className="text-silver mb-6">{error}</p>
             <a
               href="/auth/login"

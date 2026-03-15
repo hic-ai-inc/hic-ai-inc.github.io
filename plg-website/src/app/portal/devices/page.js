@@ -93,7 +93,7 @@ export default function DevicesPage() {
     return (
       <div className="max-w-4xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-frost-white">Devices</h1>
+          <h2 className="text-3xl font-bold text-frost-white">Devices</h2>
           <p className="text-slate-grey mt-1">Loading your devices...</p>
         </div>
         <Card>
@@ -112,7 +112,7 @@ export default function DevicesPage() {
     return (
       <div className="max-w-4xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-frost-white">Devices</h1>
+          <h2 className="text-3xl font-bold text-frost-white">Devices</h2>
           <p className="text-slate-grey mt-1">View your activated devices</p>
         </div>
         <Card>

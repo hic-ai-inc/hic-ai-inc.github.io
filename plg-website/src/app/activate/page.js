@@ -217,9 +217,9 @@ function ActivateContent() {
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-frost-white mb-2">
+        <h2 className="text-2xl font-bold text-frost-white mb-2">
           Activation Failed
-        </h1>
+        </h2>
         <p className="text-frost-white/70 mb-6">
           {errorMessage || "An unexpected error occurred."}
         </p>

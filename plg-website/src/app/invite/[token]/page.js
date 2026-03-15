@@ -157,9 +157,9 @@ export default function AcceptInvitePage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-frost-white mb-2">
+          <h2 className="text-xl font-semibold text-frost-white mb-2">
             Invalid Invite
-          </h1>
+          </h2>
           <p className="text-silver mb-6">{error}</p>
           <Link
             href="/"
@@ -192,9 +192,9 @@ export default function AcceptInvitePage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-frost-white mb-2">
+          <h2 className="text-xl font-semibold text-frost-white mb-2">
             Welcome to the Team!
-          </h1>
+          </h2>
           <p className="text-silver mb-4">
             You have successfully joined the organization.
           </p>
@@ -229,9 +229,9 @@ export default function AcceptInvitePage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-frost-white mb-2">
+          <h2 className="text-xl font-semibold text-frost-white mb-2">
             Something went wrong
-          </h1>
+          </h2>
           <p className="text-silver mb-6">{error}</p>
           <button
             onClick={handleRetryAccept}
