@@ -126,10 +126,10 @@ export default function AcceptInvitePage() {
   // Loading auth or invite data, or actively accepting — show spinner
   if (loading || authLoading || accepting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">
+          <p className="mt-4 text-silver">
             {accepting ? "Joining the team..." : "Loading invite details..."}
           </p>
         </div>
@@ -140,8 +140,8 @@ export default function AcceptInvitePage() {
   // Error with no invite data — fatal
   if (error && !invite) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+        <div className="max-w-md w-full bg-midnight-navy/90 border border-silver/20 shadow-lg rounded-lg p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
               className="w-8 h-8 text-red-600"
@@ -157,13 +157,13 @@ export default function AcceptInvitePage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
+          <h1 className="text-xl font-semibold text-frost-white mb-2">
             Invalid Invite
           </h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-silver mb-6">{error}</p>
           <Link
             href="/"
-            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            className="inline-block bg-cerulean-mist text-midnight-navy font-medium px-6 py-2 rounded-md hover:bg-cerulean-mist/80 transition-colors"
           >
             Go to Homepage
           </Link>
@@ -175,8 +175,8 @@ export default function AcceptInvitePage() {
   // Success — brief confirmation before redirect
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+        <div className="max-w-md w-full bg-midnight-navy/90 border border-silver/20 shadow-lg rounded-lg p-8 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
               className="w-8 h-8 text-green-600"
@@ -192,13 +192,13 @@ export default function AcceptInvitePage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
+          <h1 className="text-xl font-semibold text-frost-white mb-2">
             Welcome to the Team!
           </h1>
-          <p className="text-gray-600 mb-4">
+          <p className="text-silver mb-4">
             You have successfully joined the organization.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-silver/80">
             Redirecting to your team dashboard...
           </p>
         </div>
@@ -212,8 +212,8 @@ export default function AcceptInvitePage() {
   // ————————————————————————————————————————————————————————————————
   if (isAuthenticated && error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+        <div className="max-w-md w-full bg-midnight-navy/90 border border-silver/20 shadow-lg rounded-lg p-8 text-center">
           <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
               className="w-8 h-8 text-yellow-600"
@@ -229,13 +229,13 @@ export default function AcceptInvitePage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
+          <h1 className="text-xl font-semibold text-frost-white mb-2">
             Something went wrong
           </h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-silver mb-6">{error}</p>
           <button
             onClick={handleRetryAccept}
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors"
+            className="inline-block bg-cerulean-mist text-midnight-navy font-medium px-6 py-3 rounded-md font-medium hover:bg-cerulean-mist/80 transition-colors"
           >
             Try Again
           </button>
@@ -249,12 +249,12 @@ export default function AcceptInvitePage() {
   // Authenticated users never reach here (auto-accept fires above)
   // ————————————————————————————————————————————————————————————————
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+    <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <div className="max-w-md w-full bg-midnight-navy/90 border border-silver/20 shadow-lg rounded-lg p-8">
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-8 h-8 text-blue-600"
+              className="w-8 h-8 text-cerulean-mist"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -267,29 +267,29 @@ export default function AcceptInvitePage() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-frost-white">
             You&apos;re Invited!
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-silver mt-2">
             You&apos;ve been invited to join an organization on Mouse.
           </p>
         </div>
 
-        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+        <div className="bg-midnight-navy/50 border border-silver/10 rounded-lg p-4 mb-6">
           <dl className="space-y-3">
             <div className="flex justify-between">
-              <dt className="text-gray-500">Invited email:</dt>
-              <dd className="font-medium text-gray-900">{invite?.email}</dd>
+              <dt className="text-silver/80">Invited email:</dt>
+              <dd className="font-medium text-frost-white">{invite?.email}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Your role:</dt>
-              <dd className="font-medium text-gray-900 capitalize">
+              <dt className="text-silver/80">Your role:</dt>
+              <dd className="font-medium text-frost-white capitalize">
                 {invite?.role}
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Expires:</dt>
-              <dd className="font-medium text-gray-900">
+              <dt className="text-silver/80">Expires:</dt>
+              <dd className="font-medium text-frost-white">
                 {invite?.expiresAt
                   ? new Date(invite.expiresAt).toLocaleDateString()
                   : "N/A"}
@@ -301,16 +301,16 @@ export default function AcceptInvitePage() {
         <div className="space-y-3">
           <button
             onClick={handleSignIn}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors"
+            className="w-full bg-cerulean-mist text-midnight-navy font-medium py-3 px-4 rounded-md font-medium hover:bg-cerulean-mist/80 transition-colors"
           >
             Sign in to Accept
           </button>
 
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-sm text-silver/80 text-center">
             Don&apos;t have an account?{" "}
             <button
               onClick={handleSignIn}
-              className="text-blue-600 hover:underline"
+              className="text-cerulean-mist hover:underline"
             >
               Sign up here
             </button>
@@ -318,19 +318,19 @@ export default function AcceptInvitePage() {
 
           <Link
             href="/"
-            className="block w-full text-center text-gray-600 py-2 hover:text-gray-800 transition-colors"
+            className="block w-full text-center text-silver py-2 hover:text-gray-800 transition-colors"
           >
             Decline and go back
           </Link>
         </div>
 
-        <p className="text-xs text-gray-500 text-center mt-6">
+        <p className="text-xs text-silver/80 text-center mt-6">
           By accepting this invite, you agree to our{" "}
-          <Link href="/terms" className="text-blue-600 hover:underline">
+          <Link href="/terms" className="text-cerulean-mist hover:underline">
             Terms of Service
           </Link>{" "}
           and{" "}
-          <Link href="/privacy" className="text-blue-600 hover:underline">
+          <Link href="/privacy" className="text-cerulean-mist hover:underline">
             Privacy Policy
           </Link>
           .

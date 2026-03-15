@@ -93,17 +93,17 @@ export default function CallbackPage() {
 
   if (status === "error") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+        <div className="bg-midnight-navy/90 border border-silver/20 p-8 rounded-lg shadow-md max-w-md w-full">
           <div className="text-center">
             <div className="text-error text-5xl mb-4">❌</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-frost-white mb-2">
               Authentication Failed
             </h1>
-            <p className="text-gray-600 mb-6">{error}</p>
+            <p className="text-silver mb-6">{error}</p>
             <a
               href="/auth/login"
-              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-block px-6 py-3 bg-cerulean-mist text-white rounded-lg hover:bg-cerulean-mist/80 text-midnight-navy transition-colors"
             >
               Try Again
             </a>
@@ -115,13 +115,13 @@ export default function CallbackPage() {
 
   if (status === "success") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="text-center">
-          <div className="text-green-500 text-5xl mb-4">✓</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <div className="text-success text-5xl mb-4">✓</div>
+          <h1 className="text-2xl font-bold text-frost-white mb-2">
             Welcome back!
           </h1>
-          <p className="text-gray-600">Redirecting you now...</p>
+          <p className="text-silver">Redirecting you now...</p>
         </div>
       </div>
     );
@@ -129,10 +129,10 @@ export default function CallbackPage() {
 
   // Processing state
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Completing sign in...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cerulean-mist mx-auto"></div>
+        <p className="mt-4 text-silver">Completing sign in...</p>
       </div>
     </div>
   );

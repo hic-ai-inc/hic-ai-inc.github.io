@@ -27,10 +27,10 @@ import {
 // Loading fallback for Suspense
 function LoginLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cerulean-mist mx-auto"></div>
+        <p className="mt-4 text-silver">Loading...</p>
       </div>
     </div>
   );
@@ -77,10 +77,10 @@ function LoginPageContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cerulean-mist mx-auto"></div>
+          <p className="mt-4 text-silver">Loading...</p>
         </div>
       </div>
     );
@@ -88,14 +88,14 @@ function LoginPageContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+        <div className="bg-midnight-navy/90 border border-silver/20 p-8 rounded-lg shadow-md max-w-md w-full">
           <div className="text-center">
             <div className="text-red-500 text-5xl mb-4">⚠️</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-frost-white mb-2">
               Authentication Error
             </h1>
-            <p className="text-gray-600">{error}</p>
+            <p className="text-silver">{error}</p>
           </div>
         </div>
       </div>
@@ -103,13 +103,13 @@ function LoginPageContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <div className="bg-midnight-navy/90 border border-silver/20 p-8 rounded-lg shadow-md max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-frost-white">
             Sign in to Mouse
           </h1>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-silver">
             Choose your preferred sign-in method
           </p>
         </div>
@@ -118,7 +118,7 @@ function LoginPageContent() {
           {/* Google Sign In */}
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-silver/40 rounded-lg hover:bg-midnight-navy transition-colors"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -138,24 +138,24 @@ function LoginPageContent() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span className="text-gray-700 font-medium">
+            <span className="text-frost-white font-medium">
               Continue with Google
             </span>
           </button>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
+              <div className="w-full border-t border-silver/20"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">or</span>
+              <span className="px-2 bg-midnight-navy/90 border border-silver/20 text-silver/80">or</span>
             </div>
           </div>
 
           {/* Email/Password Sign In (Cognito Hosted UI) */}
           <button
             onClick={handleCognitoLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-cerulean-mist text-midnight-navy font-medium rounded-lg hover:bg-cerulean-mist/80 transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -174,7 +174,7 @@ function LoginPageContent() {
           </button>
         </div>
 
-        <p className="mt-8 text-center text-sm text-gray-500">
+        <p className="mt-8 text-center text-sm text-silver/80">
           By signing in, you agree to our{" "}
           <a href="/terms" className="text-blue-600 hover:underline">
             Terms of Service
