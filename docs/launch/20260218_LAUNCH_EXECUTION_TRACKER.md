@@ -186,7 +186,7 @@ _Depends on 2B (legal pages finalized — don't proofread what will change)._
 - [x] **1.1** Fix conflicting pricing on FAQ vs. pricing page (15m) ✅ (Mar 5) — FAQ and pricing page aligned to Individual $15/mo/$150/yr, Business $35/seat/mo/$350/seat/yr. FAQ copy pass also completed: header logo fixed, accordion animation added, 14 Q&A updates (question renames, answer rewrites, Enterprise→Business, air-gapped Q&A removed, trial/data/switch-plans copy corrected). Additional AP1 fixes completed same session: color token standardization across 11 pages (text-green-* → text-success, text-red-* → text-error, text-amber-* → text-warning, bg-deep-space → bg-midnight-navy, text-silver-mist → text-silver); raw Link CTAs → Button on about/contact (§2.5); stray `3;` removed from features page (§2.3); variant="outline" remains paused (§2.2).
 - [ ] **1.2** Login page — apply brand styling (1–2h)
 - [ ] **1.3** Invite page — apply brand styling (1h)
-- [ ] **1.4** Mobile navigation — implement responsive nav (1h)
+- ~~**1.4** Mobile navigation~~ — subsumed by NAV-2
 - [x] **1.5** Fix dead documentation links (30m) ✅ (Mar 5) — Removed dead doc links (Tool Reference, Advanced Features, Integration, Troubleshooting categories + dialog-box slug) from docs page; only Getting Started and Core Concepts remain.
 - [x] **1.6** Remove non-functional search bar (5m) ✅ (Mar 5) — Removed non-functional search bar and Input import from docs page.
 - [x] **2.1** Sitemap — generate and submit sitemap.xml ✅ (Mar 5) — Created `src/app/sitemap.js` (Next.js App Router convention); covers 16 public routes with priorities and change frequencies. Excludes auth, portal, checkout, invite, activate.
@@ -219,7 +219,7 @@ _Sidebar, mobile navigation, and light/dark/system theme toggle. Reference: `for
 
 - [ ] **NAV-1** Sidebar implementation — collapsible sidebar triggered by Mouse icon; adapts foretime Sidebar.tsx pattern to PLG brand (2h)
 - [ ] **NAV-2** Mobile navigation — drawer/overlay menu for nav links + auth buttons; fixes Sign In/Portal accessibility on mobile (1.5h)
-- [ ] **NAV-3** Light/Dark/System toggle — adapts foretime DarkModeToggle.tsx; integrate into header; update globals.css with light-mode tokens (2h)
+- ~~**NAV-3** Light/Dark/System toggle~~ — **DEFERRED (Mar 14, DEFER-DM-1).** Website is already dark-mode by default. Light-mode integration deferred to post-launch to avoid scope creep verifying appearance across both modes. See `TECHNICAL_DEBT_LOG.md` TD-DM1.
 - [ ] **NAV-4** Header UX unification — standardize Mouse logo sizing/spacing across public header and portal sidebar; ensure portal logo links to /portal per ADD-8 (30m)
 
 - [x] **2.4** Footer links — audit and fix all footer links
@@ -231,14 +231,14 @@ _Sidebar, mobile navigation, and light/dark/system theme toggle. Reference: `for
 
 **AP1 Addendum (Mar 14):** 8 link fixes identified — see `20260218_AP1_FRONT_END_UX_PRIORITIZATION_PLAN_V2.md` Addendum dated March 14, 2026.
 
-- [ ] **ADD-1** Remove broken Batch Editing link from `/docs/edit-operations`
-- [ ] **ADD-2** Disable (but retain) GitHub Issues link on `/contact` page pending `hic-ai-inc/mouse` public repo creation
-- [ ] **ADD-3** Fix "Read the Docs" button on `/contact` page: `/docs/quick-start` → `/docs`
-- [ ] **ADD-4** Remove non-functional "Regenerate Key" button from `/portal/license`
-- [ ] **ADD-5** Flag "Read the Full Guide" link on `/portal` for review post-Getting Started update
-- [ ] **ADD-6** Fix "Learn how to activate" link on `/portal/devices`: 404 → `/docs/license-activation`
-- [ ] **ADD-7** Disable (but retain) "Report an Issue" button on `/docs` page pending `hic-ai-inc/mouse` public repo creation
-- [ ] **ADD-8** Fix MOUSE header logo on portal pages to redirect to `/portal` instead of `/`
+- [x] **ADD-1** Remove broken Batch Editing link from `/docs/edit-operations`
+- [x] **ADD-2** Disable (but retain) GitHub Issues link on `/contact` page pending `hic-ai-inc/mouse` public repo creation
+- [x] **ADD-3** Fix "Read the Docs" button on `/contact` page: `/docs/quick-start` → `/docs`
+- [x] **ADD-4** Remove non-functional "Regenerate Key" button from `/portal/license`
+- [x] **ADD-5** Flag "Read the Full Guide" link on `/portal` for review post-Getting Started update
+- [x] **ADD-6** Fix "Learn how to activate" link on `/portal/devices`: 404 → `/docs/license-activation`
+- [x] **ADD-7** Disable (but retain) "Report an Issue" button on `/docs` page pending `hic-ai-inc/mouse` public repo creation
+- [x] **ADD-8** Fix MOUSE header logo on portal pages to redirect to `/portal` instead of `/`
 
 **Step 2C Checkpoint (CP-4):** All pages proofread, no 404s, sitemap live, responsive check passed, OG image verified. → Unlocks 2E, AP 12 Phase 2.
 
@@ -553,6 +553,7 @@ Decisions resolved during the execution sprint. Complements the Open Decisions R
 | Mar 11 | BN-FALLBACK-1 | **SWR directive:** Business Name org creation must NOT fall back to email-local-part convention. When `organizationName` is null/empty, default to owner's name (e.g., `"Simon's Organization"` from Stripe customer name). Remove `email.split("@")[0]` pattern entirely. | Step 3 of Business Name memo revised. BN-3 in tracker reflects this directive. | SWR |
 | Mar 13 | PRORATION-FIX-1 | Stripe seat proration changed from `create_prorations` to `always_invoice` in `src/lib/stripe.js` and `scripts/setup-stripe-portal.js`. Live Stripe portal configs updated for both Individual (`bpc_...AM8m`) and Business (`bpc_...OZOg`) tiers via CLI. 6 new unit tests added. Confirmed by SWR: portal now shows immediate prorated charge on seat increase. Spec: §1.6 of Owner MEMBER Record Remediation Plan (`docs/plg/20260313_OWNER_MEMBER_RECORD_REMEDIATION_PLAN.md`). | No timeline impact — bugfix. Stripe billing now correctly invoices prorated charges immediately on seat quantity changes rather than deferring to next billing cycle. | GC + SWR |
 | Mar 13 | AUTH-ORDER-1 | Authorization check (403) moved before input validation (400) in `/api/portal/settings` PATCH handler. Type check (non-string → 400) retained as first parse guard. Same reorder applied to extracted `processOrgNameUpdate()` in property and unit test files. | Resolves flaky property test "PATCH succeeds iff user is Business Owner (100 iterations)" where all-whitespace `randomOrgName()` hit empty-name validation (400) before role check (403). Security improvement: unauthorized users no longer receive input validation error details. | GC + SWR |
+| Mar 14 | DEFER-DM-1 | Light/Dark/System toggle (NAV-3) deferred to post-launch. Website is already dark-mode by default; light-mode integration would require verifying appearance of all components and pages in both modes — scope creep risk. | NAV-3 removed from Phase 2C scope. TD-DM1 added to Technical Debt Log. Remaining NAV items (NAV-1, NAV-2, NAV-4) unaffected. | SWR |
 _Add rows as decisions are made during execution._
 
 

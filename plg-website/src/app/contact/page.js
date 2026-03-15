@@ -132,7 +132,7 @@ const COMMUNITY_CHANNELS = [
       "Found a bug? Have a feature request? Open an issue on our GitHub repository.",
     url: `${EXTERNAL_URLS.github}/issues`,
     cta: "Open Issue",
-    status: "Active",
+    status: "Coming Soon", // Pending hic-ai-inc/mouse public repo creation
   },
 ];
 
@@ -452,7 +452,7 @@ export default function ContactPage() {
               <Button href="/pricing" variant="primary" size="lg">
                 View Pricing
               </Button>
-              <Button href="/docs/quickstart" variant="secondary" size="lg">
+              <Button href="/docs" variant="secondary" size="lg">
                 Read the Docs
               </Button>
             </div>

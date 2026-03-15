@@ -71,7 +71,7 @@ export default function PortalSidebar() {
     <aside className="w-64 min-h-screen bg-midnight-navy border-r border-card-border">
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-card-border">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/portal" className="flex items-center gap-3">
           <div className="h-10 w-10 flex items-center justify-center overflow-hidden rounded">
             <Image
               src="/images/mouse-logo.png"

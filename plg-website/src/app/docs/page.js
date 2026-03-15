@@ -138,14 +138,13 @@ export default function DocsPage() {
                 to help.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
-                <a
-                  href="https://github.com/hic-ai/mouse/issues"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-secondary"
+                {/* Disabled pending hic-ai-inc/mouse public repo creation */}
+                <span
+                  className="btn btn-secondary opacity-50 cursor-not-allowed"
+                  title="Coming soon - pending public repo creation"
                 >
                   Report an Issue
-                </a>
+                </span>
                 <a href="mailto:support@hic-ai.com" className="btn btn-ghost">
                   Contact Support
                 </a>

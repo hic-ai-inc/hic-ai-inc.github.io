@@ -239,8 +239,9 @@ function NewUserDashboard({ displayName, user }) {
           <li>Copy your license key and activate in VS Code settings</li>
           <li>Start editing with precision!</li>
         </ol>
+{/* TODO: Update href after DOC-1 Getting Started guide revision */}
         <Link
-          href="/docs/quickstart"
+          href="/docs"
           className="inline-block mt-4 text-cerulean-mist hover:text-frost-white transition-colors"
         >
           Read the full guide →
@@ -407,8 +408,9 @@ function ActiveUserDashboard({
           <li>Open VS Code Settings and paste your key</li>
           <li>Restart VS Code to activate</li>
         </ol>
+{/* TODO: Update href after DOC-1 Getting Started guide revision */}
         <Link
-          href="/docs/quickstart"
+          href="/docs"
           className="inline-block mt-4 text-cerulean-mist hover:text-frost-white transition-colors"
         >
           Read the full guide →

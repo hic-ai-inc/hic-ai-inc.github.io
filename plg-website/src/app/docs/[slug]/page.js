@@ -96,8 +96,6 @@ For multiple changes:
 ## Next Steps
 
 - Learn about [Edit Operations](/docs/edit-operations)
-- Explore [Batch Editing](/docs/batch-editing)
-- Configure [Agent Prompting](/docs/agent-prompting)
     `,
     nextPage: { slug: "license-activation", title: "License Activation" },
     prevPage: { slug: "installation", title: "Installation" },
@@ -287,7 +285,7 @@ Move content without modification:
 }
 \`\`\`
     `,
-    nextPage: { slug: "batch-editing", title: "Batch Editing" },
+    nextPage: null,
     prevPage: { slug: "how-it-works", title: "How Mouse Works" },
   },
 };

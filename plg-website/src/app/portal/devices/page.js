@@ -235,7 +235,7 @@ export default function DevicesPage() {
                 Install Mouse in VS Code and sign in to activate this device.
               </p>
               <Link
-                href="/docs/getting-started"
+                href="/docs/license-activation"
                 className="text-cerulean-mist hover:text-frost-white transition-colors text-sm"
               >
                 Learn how to activate →
@@ -260,7 +260,7 @@ export default function DevicesPage() {
             automatically update this list.
           </p>
           <Link
-            href="/docs/getting-started"
+            href="/docs/license-activation"
             className="inline-flex items-center gap-2 text-cerulean-mist hover:text-frost-white transition-colors text-sm font-medium"
           >
             Learn how to activate

@@ -135,12 +135,7 @@ export default function LicensePage() {
           <div className="bg-midnight-navy rounded-lg p-4 mb-4 font-mono text-lg text-cerulean-mist border border-card-border">
             {licenseKey}
           </div>
-          <div className="flex items-center gap-4">
-            <CopyLicenseButton licenseKey={fullLicenseKey} />
-            <Button variant="ghost" size="sm">
-              Regenerate Key
-            </Button>
-          </div>
+          <CopyLicenseButton licenseKey={fullLicenseKey} />
         </CardContent>
       </Card>
 

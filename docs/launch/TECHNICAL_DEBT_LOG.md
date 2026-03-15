@@ -56,6 +56,22 @@
 - Candidate files:
   - `plg-website/src/app/api/webhooks/stripe/route.js`
 
+### TD-DM1 — Light/Dark/System theme toggle deferred
+
+- Source: `docs/launch/20260218_LAUNCH_EXECUTION_TRACKER.md` (NAV-3, DEFER-DM-1)
+- Problem: Website is dark-mode only. Light/Dark/System toggle (NAV-3) would require verifying appearance of all components and pages in both modes.
+- Why deferred: Scope creep risk. Dark mode is already the default and looks good. Light mode integration adds verification burden without immediate user value.
+- Impact: Users cannot toggle to light mode or system preference.
+- Launch impact: **Not launch-blocking.** Dark mode is a reasonable default for a developer tool.
+- Target timing: Post-launch UX polish batch (low priority).
+- Candidate files:
+  - `plg-website/src/components/DarkModeToggle.js` (new component)
+  - `plg-website/src/app/globals.css` (light-mode tokens)
+  - `plg-website/src/components/layout/Header.js` (toggle integration)
+- Reference: `~/source/repos/foretime/src/components/DarkModeToggle.tsx` (pattern to adapt)
+
+---
+
 ## Notes
 
 - A.7 and A.8 are resolved and intentionally excluded from deferred debt.
