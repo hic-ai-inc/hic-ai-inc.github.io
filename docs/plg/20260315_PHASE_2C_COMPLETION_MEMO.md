@@ -209,7 +209,195 @@ Complete 2.5 (accessibility basics) from the tracker.
 
 ---
 
-## 4. Deferred Items (Post-Launch)
+## 4. Validation Workflow & Checkpoints
+
+### 4.1 Workflow Philosophy: Visual-First, Tests Lock It In
+
+Front-end UX work is fundamentally different from backend — **visual correctness trumps unit test coverage**. The recommended workflow:
+
+| Stage | Activity | Value |
+|-------|----------|-------|
+| 1. Implement | GC codes the component/fix | — |
+| 2. Existing tests | `npm run test` — does the site still build? | Sanity check |
+| 3. localhost validation | **SWR** checks localhost:3000 | **Critical** — only human eyes can say "this looks right" |
+| 4. Iterate if needed | GC adjusts based on feedback | — |
+| 5. Write tests | Lock in correct behavior | Prevent regressions |
+| 6. Staging deploy | Push to staging.hic-ai.com | — |
+| 7. Staging validation | **SWR** checks on real devices/browsers | **Critical** — catches device-specific issues |
+
+### 4.2 Detailed Checkpoint Criteria
+
+#### Checkpoint 1A: NAV-2 Mobile Drawer
+
+**GC delivers:** `MobileNav.js`, modified `Header.js`
+
+**SWR validates on localhost:3000:**
+- [ ] Hamburger icon appears at mobile widths (<768px)
+- [ ] Click hamburger → drawer opens with all nav links
+- [ ] Auth buttons (Sign In / Portal) accessible in drawer
+- [ ] Click outside or X button closes drawer
+- [ ] Test at 320px, 375px, 412px viewports
+
+*Automated tests: Minimal — component renders test. Mobile behavior is visual.*
+
+#### Checkpoint 1B: NAV-1 Sidebar
+
+**GC delivers:** `Sidebar.js` (persistent, no collapse yet)
+
+**SWR validates on localhost:3000:**
+- [ ] Sidebar visible on desktop
+- [ ] Mouse icon triggers sidebar visibility (if applicable)
+- [ ] All navigation links work correctly
+- [ ] Doesn't interfere with existing page layouts
+
+*Automated tests: Component renders, links point to correct routes.*
+
+**🚀 Staging Deploy #1:** After Block 1 complete → SWR validates on real phone/tablet if available.
+
+---
+
+#### Checkpoint 2A: Skip Link + Main Landmarks
+
+**GC delivers:** `SkipLink.js`, `<main>` added to 13 pages
+
+**SWR validates on localhost:3000:**
+- [ ] Press Tab on page load → "Skip to main content" link appears
+- [ ] Click skip link → focus moves to main content area
+- [ ] (Optional) Run Lighthouse accessibility audit → landmark warnings resolved
+
+*Automated tests: Can add axe-core snapshot or Lighthouse CI check.*
+
+#### Checkpoint 2B: h1 Hierarchy Fixes
+
+**GC delivers:** 9 pages with duplicate h1s fixed
+
+**SWR validates on localhost:3000:**
+- [ ] Visual hierarchy still looks correct (h2s don't look awkward)
+- [ ] Spot-check 2–3 affected pages for design consistency
+
+*Automated tests: Low value — structural HTML, not behavior.*
+
+---
+
+#### Checkpoint 3A: Focus Indicators
+
+**GC delivers:** Modified `Button.js`, `Header.js`, `Footer.js`
+
+**SWR validates on localhost:3000:**
+- [ ] Tab through page — can you see where focus is?
+- [ ] Focus rings visible on buttons and links
+- [ ] Rings match brand color (cerulean-mist)
+
+#### Checkpoint 3B: ARIA + Hover/Focus Parity
+
+**GC delivers:** aria-expanded on toggles, aria-live on notifications, focus states on 50+ elements
+
+**SWR validates on localhost:3000:**
+- [ ] Tab to FAQ accordion → toggle state announced (expanded/collapsed)
+- [ ] Tab to any link with `hover:underline` → focus also shows underline
+- [ ] Mobile nav toggle has proper aria-expanded state
+
+*Automated tests: axe-core to verify ARIA correctness. Hover/focus parity is visual.*
+
+**🚀 Staging Deploy #2:** After Blocks 2–3 complete → SWR validates with keyboard-only navigation.
+
+---
+
+#### Checkpoint 4A: Invite Page Brand Styling
+
+**GC delivers:** Modified `invite/[token]/page.js`
+
+**SWR validates on localhost:3000:**
+- [ ] Navigate to `/invite/test-token` (or use test flow)
+- [ ] Dark theme applied (bg-midnight-navy, frost-white text)
+- [ ] No light-mode colors visible anywhere
+- [ ] Card styling matches portal pages
+
+#### Checkpoint 4B: Header UX Unification
+
+**GC delivers:** Modified `Header.js`, `PortalSidebar.js`
+
+**SWR validates on localhost:3000:**
+- [ ] Logo sizing consistent across public header and portal sidebar
+- [ ] Portal logo links to `/portal` (not `/`)
+
+*Automated tests: Navigation tests — verify logo href.*
+
+**🚀 Staging Deploy #3:** After Block 4 complete → SWR validates invite flow + header on staging.
+
+---
+
+#### Checkpoint 5A: Animation Polish + prefers-reduced-motion
+
+**GC delivers:** Modified `globals.css`, various pages
+
+**SWR validates on localhost:3000:**
+- [ ] Animations still feel smooth and intentional
+- [ ] Enable "Reduce motion" in OS settings → animations minimal/instant
+- [ ] fadeInUp, staggered delays still look good
+
+#### Checkpoint 5B: Micro-interactions + text-xs Audit
+
+**GC delivers:** Modified `Button.js`, various pages
+
+**SWR validates on localhost:3000:**
+- [ ] Button press feels responsive (active state visible)
+- [ ] Link hovers feel smooth
+- [ ] Spot-check small text (`text-xs`) at 320px — readable?
+
+*Automated tests: prefers-reduced-motion can be tested with media query mock. Visual polish is human judgment.*
+
+---
+
+#### Checkpoint 6: Final Verification (No new implementation)
+
+**GC runs:** Full test suite + Lighthouse accessibility audit
+
+**SWR validates on localhost:3000:**
+- [ ] 320px (iPhone SE)
+- [ ] 375px (iPhone 12/13/14)
+- [ ] 412px (Pixel/Galaxy)
+- [ ] 768px (iPad portrait)
+- [ ] 1024px (iPad landscape)
+- [ ] 1440px+ (Desktop)
+- [ ] Keyboard-only navigation (no mouse, Tab through entire site)
+
+**🚀 Staging Deploy #4:** Final staging validation → **CP-4 signoff.**
+
+### 4.3 When to Write Automated Tests
+
+| Test Type | When | Why |
+|-----------|------|-----|
+| **Component renders** | After visual validation | Lock in that it doesn't crash |
+| **Navigation links** | After visual validation | Prevent href regressions |
+| **Accessibility (axe-core)** | End of Blocks 2 & 3 | Automated WCAG checks |
+| **Focus/keyboard behavior** | End of Block 3 | Prevent focus trap regressions |
+| **Snapshot tests** | Sparingly | Can become maintenance burden |
+
+**Not recommended for automated testing:** Exact pixel values, animation timing, visual appearance. Humans do this better.
+
+### 4.4 Checkpoint Summary
+
+| Checkpoint | Deliverable | SWR Validation |
+|------------|-------------|----------------|
+| 1A | Mobile drawer | localhost — mobile viewports |
+| 1B | Persistent sidebar | localhost — desktop |
+| **Staging #1** | Block 1 deployed | Real device testing |
+| 2A | Skip link + landmarks | localhost — Tab test |
+| 2B | h1 hierarchy fixes | localhost — visual check |
+| 3A | Focus rings | localhost — Tab test |
+| 3B | ARIA + hover/focus | localhost — keyboard navigation |
+| **Staging #2** | Blocks 2–3 deployed | Keyboard-only on staging |
+| 4A | Invite page styling | localhost — visual check |
+| 4B | Header unification | localhost — visual check |
+| **Staging #3** | Block 4 deployed | Invite flow on staging |
+| 5A | Animation + reduced-motion | localhost — feel check |
+| 5B | Micro-interactions + text-xs | localhost — feel check |
+| 6 | Final responsive check | localhost → staging → **CP-4** |
+
+---
+
+## 5. Deferred Items (Post-Launch)
 
 Per tracker decisions:
 
@@ -220,7 +408,7 @@ Per tracker decisions:
 
 ---
 
-## 5. Proposed Work Sessions
+## 6. Proposed Work Sessions
 
 | Session       | Blocks            | Total Time | Outcome                                  |
 | ------------- | ----------------- | ---------- | ---------------------------------------- |
@@ -230,7 +418,7 @@ Per tracker decisions:
 
 ---
 
-## 6. Step 2C Checkpoint (CP-4) Definition
+## 7. Step 2C Checkpoint (CP-4) Definition
 
 Per tracker, CP-4 requires:
 
@@ -249,7 +437,7 @@ Per tracker, CP-4 requires:
 
 ---
 
-## 7. Files Changed Per Block
+## 8. Files Changed Per Block
 
 | Block   | Files Modified                                      | Files Created |
 | ------- | --------------------------------------------------- | ------------- |
@@ -264,7 +452,7 @@ Per tracker, CP-4 requires:
 
 ---
 
-## 8. Risk Mitigation
+## 9. Risk Mitigation
 
 | Risk                                         | Mitigation                                                     |
 | -------------------------------------------- | -------------------------------------------------------------- |
@@ -280,3 +468,4 @@ Per tracker, CP-4 requires:
 | Date       | Author | Changes                                                      |
 | ---------- | ------ | ------------------------------------------------------------ |
 | 2026-03-15 | GC     | Initial creation based on mobile/accessibility audit results |
+| 2026-03-15 | GC     | Added §4 (Validation Workflow & Checkpoints) with detailed checkpoint criteria, testing strategy, and staging deploy gates |
