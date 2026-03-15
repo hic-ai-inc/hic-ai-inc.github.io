@@ -14,7 +14,7 @@ export default function HomePage() {
   return (
     <>
       <Header />
-      <main className="pt-16">
+      <main id="main-content" className="pt-16">
         {/* Hero Section */}
         <section className="min-h-[90vh] flex items-center justify-center relative overflow-hidden">
           {/* Background gradient */}

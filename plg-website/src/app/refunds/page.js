@@ -17,7 +17,7 @@ export default function RefundPolicyPage() {
   return (
     <>
       <Header />
-      <main className="pt-16 min-h-screen bg-midnight-navy">
+      <main id="main-content" className="pt-16 min-h-screen bg-midnight-navy">
         <article className="max-w-4xl mx-auto px-6 py-16">
           <h1 className="text-4xl font-bold text-frost-white mb-2">
             Refund &amp; Cancellation Policy

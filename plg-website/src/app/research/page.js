@@ -18,7 +18,7 @@ export default function ResearchPage() {
   return (
     <>
       <Header />
-      <main className="pt-16 min-h-screen bg-midnight-navy">
+      <main id="main-content" className="pt-16 min-h-screen bg-midnight-navy">
         {/* Hero */}
         <section className="py-24 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-midnight-navy via-midnight-navy to-midnight-navy/95" />

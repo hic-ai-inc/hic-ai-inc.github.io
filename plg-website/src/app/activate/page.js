@@ -119,43 +119,43 @@ function ActivateContent() {
   // Loading state (checking auth)
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-midnight-navy flex items-center justify-center">
+      <main id="main-content" className="min-h-screen bg-midnight-navy flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cerulean-mist mx-auto mb-4" />
           <p className="text-frost-white/70">Checking authentication...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Not authenticated — redirecting (login() was called in useEffect)
   if (!user) {
     return (
-      <div className="min-h-screen bg-midnight-navy flex items-center justify-center">
+      <main id="main-content" className="min-h-screen bg-midnight-navy flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cerulean-mist mx-auto mb-4" />
           <p className="text-frost-white/70">Redirecting to sign in...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Activating — calling API
   if (status === "activating") {
     return (
-      <div className="min-h-screen bg-midnight-navy flex items-center justify-center">
+      <main id="main-content" className="min-h-screen bg-midnight-navy flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cerulean-mist mx-auto mb-4" />
           <p className="text-frost-white/70">Activating your device...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Success — activation confirmed (DynamoDB write completed)
   if (status === "success") {
     return (
-      <div className="min-h-screen bg-midnight-navy flex items-center justify-center px-4">
+      <main id="main-content" className="min-h-screen bg-midnight-navy flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center">
           <div className="w-16 h-16 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg
@@ -194,13 +194,13 @@ function ActivateContent() {
             </p>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Error state
   return (
-    <div className="min-h-screen bg-midnight-navy flex items-center justify-center px-4">
+    <main id="main-content" className="min-h-screen bg-midnight-navy flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <div className="w-16 h-16 bg-error/20 rounded-full flex items-center justify-center mx-auto mb-6">
           <svg
@@ -233,7 +233,7 @@ function ActivateContent() {
           Try Again
         </button>
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -244,9 +244,9 @@ export default function ActivatePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-midnight-navy flex items-center justify-center">
+        <main id="main-content" className="min-h-screen bg-midnight-navy flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cerulean-mist mx-auto" />
-        </div>
+        </main>
       }
     >
       <ActivateContent />

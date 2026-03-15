@@ -1,6 +1,7 @@
 import { Inter, Manrope } from "next/font/google";
 import Script from "next/script";
 import { CognitoProvider } from "@/lib/cognito-provider";
+import SkipLink from "@/components/layout/SkipLink";
 import "./globals.css";
 
 const inter = Inter({
@@ -59,6 +60,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${manrope.variable}`}>
       <body className="antialiased">
+        <SkipLink />
         <Script
           src="https://plausible.io/js/pa-oATZnItA7afIgWa2fSRsq.js"
           strategy="beforeInteractive"

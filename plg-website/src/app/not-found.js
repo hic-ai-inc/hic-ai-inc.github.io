@@ -30,7 +30,7 @@ export default function NotFound() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 flex items-center justify-center px-6">
+      <main id="main-content" className="flex-1 flex items-center justify-center px-6">
         <div className="max-w-2xl w-full text-center">
           <div className="text-8xl font-bold text-cerulean-mist/20 mb-4 select-none">
             404

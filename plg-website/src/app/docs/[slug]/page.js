@@ -321,7 +321,7 @@ export default async function DocPage({ params }) {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-midnight-navy pt-20">
+      <main id="main-content" className="min-h-screen bg-midnight-navy pt-20">
         <Container>
           <div className="py-16 max-w-4xl mx-auto">
             {/* Breadcrumb */}

@@ -142,7 +142,7 @@ function WelcomeCompleteContent() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-midnight-navy pt-20">
+        <main id="main-content" className="min-h-screen bg-midnight-navy pt-20">
           <Container>
             <div className="max-w-lg mx-auto py-20">
               <Card className="text-center p-8">
@@ -170,7 +170,7 @@ function WelcomeCompleteContent() {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-midnight-navy pt-20">
+        <main id="main-content" className="min-h-screen bg-midnight-navy pt-20">
           <Container>
             <div className="max-w-lg mx-auto py-20">
               <Card className="text-center p-8">
@@ -217,7 +217,7 @@ function WelcomeCompleteContent() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-midnight-navy pt-20">
+      <main id="main-content" className="min-h-screen bg-midnight-navy pt-20">
         <Container>
           <div className="max-w-2xl mx-auto py-16">
             <Card className="p-8 text-center">

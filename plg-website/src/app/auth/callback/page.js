@@ -93,7 +93,7 @@ export default function CallbackPage() {
 
   if (status === "error") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="bg-midnight-navy/90 border border-silver/20 p-8 rounded-lg shadow-md max-w-md w-full">
           <div className="text-center">
             <div className="text-error text-5xl mb-4">❌</div>
@@ -109,13 +109,13 @@ export default function CallbackPage() {
             </a>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (status === "success") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="text-center">
           <div className="text-success text-5xl mb-4">✓</div>
           <h1 className="text-2xl font-bold text-frost-white mb-2">
@@ -123,17 +123,17 @@ export default function CallbackPage() {
           </h1>
           <p className="text-silver">Redirecting you now...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Processing state
   return (
-    <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cerulean-mist mx-auto"></div>
         <p className="mt-4 text-silver">Completing sign in...</p>
       </div>
-    </div>
+    </main>
   );
 }

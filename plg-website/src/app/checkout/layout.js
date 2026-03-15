@@ -14,7 +14,7 @@ export default function CheckoutLayout({ children }) {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-24 pb-16">{children}</main>
+      <main id="main-content" className="min-h-screen pt-24 pb-16">{children}</main>
       <Footer />
     </>
   );

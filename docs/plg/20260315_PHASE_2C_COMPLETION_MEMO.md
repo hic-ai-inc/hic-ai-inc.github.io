@@ -252,7 +252,7 @@ See: Launch Day Tracker Step 2E "Docs Navigation Enhancement" note for implement
 
 ---
 
-#### Checkpoint 2A: Skip Link + Main Landmarks
+#### Checkpoint 2A: Skip Link + Main Landmarks ✅
 
 **GC delivers:** `SkipLink.js`, `<main>` added to 13 pages
 
@@ -376,10 +376,10 @@ See: Launch Day Tracker Step 2E "Docs Navigation Enhancement" note for implement
 
 | Checkpoint | Deliverable | SWR Validation |
 |------------|-------------|----------------|
-| 1A | Mobile drawer | localhost — mobile viewports |
-| 1B | Persistent sidebar | localhost — desktop |
-| **Staging #1** | Block 1 deployed | Real device testing |
-| 2A | Skip link + landmarks | localhost — Tab test |
+| 1A | Mobile drawer | localhost — mobile viewports ✅ |
+| 1B | Persistent sidebar | localhost — desktop ✅ |
+| **Staging #1** | Block 1 deployed | Real device testing ✅ |
+| 2A | Skip link + landmarks | localhost — Tab test ✅ |
 | 2B | h1 hierarchy fixes | localhost — visual check |
 | 3A | Focus rings | localhost — Tab test |
 | 3B | ARIA + hover/focus | localhost — keyboard navigation |

@@ -27,12 +27,12 @@ import {
 // Loading fallback for Suspense
 function LoginLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cerulean-mist mx-auto"></div>
         <p className="mt-4 text-silver">Loading...</p>
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -77,18 +77,18 @@ function LoginPageContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cerulean-mist mx-auto"></div>
           <p className="mt-4 text-silver">Loading...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="bg-midnight-navy/90 border border-silver/20 p-8 rounded-lg shadow-md max-w-md w-full">
           <div className="text-center">
             <div className="text-red-500 text-5xl mb-4">⚠️</div>
@@ -98,12 +98,12 @@ function LoginPageContent() {
             <p className="text-silver">{error}</p>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
       <div className="bg-midnight-navy/90 border border-silver/20 p-8 rounded-lg shadow-md max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-frost-white">
@@ -185,7 +185,7 @@ function LoginPageContent() {
           </a>
         </p>
       </div>
-    </div>
+    </main>
   );
 }
 

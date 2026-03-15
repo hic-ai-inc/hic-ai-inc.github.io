@@ -62,7 +62,7 @@ export default function DocsPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-midnight-navy pt-20">
+      <main id="main-content" className="min-h-screen bg-midnight-navy pt-20">
         {/* Hero Section */}
         <section className="py-16 border-b border-frost-white/10">
           <Container>

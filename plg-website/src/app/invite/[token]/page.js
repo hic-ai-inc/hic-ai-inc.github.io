@@ -126,21 +126,21 @@ export default function AcceptInvitePage() {
   // Loading auth or invite data, or actively accepting — show spinner
   if (loading || authLoading || accepting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-silver">
             {accepting ? "Joining the team..." : "Loading invite details..."}
           </p>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Error with no invite data — fatal
   if (error && !invite) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="max-w-md w-full bg-midnight-navy/90 border border-silver/20 shadow-lg rounded-lg p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -168,14 +168,14 @@ export default function AcceptInvitePage() {
             Go to Homepage
           </Link>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Success — brief confirmation before redirect
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="max-w-md w-full bg-midnight-navy/90 border border-silver/20 shadow-lg rounded-lg p-8 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -202,7 +202,7 @@ export default function AcceptInvitePage() {
             Redirecting to your team dashboard...
           </p>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -212,7 +212,7 @@ export default function AcceptInvitePage() {
   // ————————————————————————————————————————————————————————————————
   if (isAuthenticated && error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
         <div className="max-w-md w-full bg-midnight-navy/90 border border-silver/20 shadow-lg rounded-lg p-8 text-center">
           <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -240,7 +240,7 @@ export default function AcceptInvitePage() {
             Try Again
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -249,7 +249,7 @@ export default function AcceptInvitePage() {
   // Authenticated users never reach here (auto-accept fires above)
   // ————————————————————————————————————————————————————————————————
   return (
-    <div className="min-h-screen flex items-center justify-center bg-midnight-navy">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-midnight-navy">
       <div className="max-w-md w-full bg-midnight-navy/90 border border-silver/20 shadow-lg rounded-lg p-8">
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -336,6 +336,6 @@ export default function AcceptInvitePage() {
           .
         </p>
       </div>
-    </div>
+    </main>
   );
 }

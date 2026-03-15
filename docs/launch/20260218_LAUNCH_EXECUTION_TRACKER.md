@@ -217,13 +217,13 @@ _Business Name is a post-purchase identity assertion managed entirely in the Adm
 
 _Sidebar, mobile navigation, and light/dark/system theme toggle. Reference: `foretime/src/components/{Sidebar.tsx, DarkModeToggle.tsx}`._
 
-- [ ] **NAV-1** Sidebar implementation — collapsible sidebar triggered by Mouse icon; adapts foretime Sidebar.tsx pattern to PLG brand (2h)
-- [ ] **NAV-2** Mobile navigation — drawer/overlay menu for nav links + auth buttons; fixes Sign In/Portal accessibility on mobile (1.5h)
+- [x] **NAV-1** Sidebar implementation — collapsible sidebar triggered by Mouse icon; adapts foretime Sidebar.tsx pattern to PLG brand (2h)
+- [x] **NAV-2** Mobile navigation — drawer/overlay menu for nav links + auth buttons; fixes Sign In/Portal accessibility on mobile (1.5h)
 - ~~**NAV-3** Light/Dark/System toggle~~ — **DEFERRED (Mar 14, DEFER-DM-1).** Website is already dark-mode by default. Light-mode integration deferred to post-launch to avoid scope creep verifying appearance across both modes. See `TECHNICAL_DEBT_LOG.md` TD-DM1.
 - [ ] **NAV-4** Header UX unification — standardize Mouse logo sizing/spacing across public header and portal sidebar; ensure portal logo links to /portal per ADD-8 (30m)
 
 - [x] **2.4** Footer links — audit and fix all footer links
-- [ ] **2.5** Accessibility basics — audit and address critical a11y issues
+- [x] **2.5** Accessibility basics — audit and address critical a11y issues
 - [ ] **3.1** Animation polish
 - ~~**3.2** Dark mode refinements~~ — subsumed by NAV-3
 - [ ] **3.3** Micro-interactions
